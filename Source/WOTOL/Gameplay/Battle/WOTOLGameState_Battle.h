@@ -29,4 +29,16 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Battle")
 	EBattleResult BattleResult = EBattleResult::None;
+
+	// Compte à rebours (secondes restantes, affiché 56:37 en haut au centre)
+	UPROPERTY(BlueprintReadOnly, Category = "Battle")
+	float BattleTimeRemaining = 3600.f;
+
+	// Vrai pendant la phase Deployment (placement hex avant le Tactical)
+	UPROPERTY(BlueprintReadOnly, Category = "Battle")
+	bool bIsDeploymentPhase = false;
+
+	// Ressources actuelles par faction (snapshot pour l'UI)
+	UPROPERTY(BlueprintReadOnly, Category = "Battle")
+	TMap<EFactionID, int32> PlayerResourceSnapshot;
 };

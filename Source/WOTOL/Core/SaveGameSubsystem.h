@@ -24,6 +24,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Save")
 	UWOTOLSaveGame* GetSaveGame() const { return CurrentSave; }
 
+	UFUNCTION(BlueprintPure, Category = "Save")
+	bool HasSaveGame() const { return CurrentSave != nullptr && CurrentSave->BattlesPlayed > 0; }
+
 	UPROPERTY(BlueprintAssignable, Category = "Save")
 	FOnSaveGameLoaded OnSaveGameLoaded;
 
