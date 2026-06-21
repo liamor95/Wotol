@@ -1,8 +1,7 @@
 #include "AIAdaptiveController.h"
+#include "Gameplay/Units/UnitBase.h"
+#include "Gameplay/Units/UnitAIStateComponent.h"
 #include "Gameplay/Battle/TacticalPhaseManager.h"
-#include "Core/FactionRegistrySubsystem.h"
-#include "BehaviorTree/BehaviorTreeComponent.h"
-#include "BehaviorTree/BlackboardComponent.h"
 
 UAIAdaptiveController::UAIAdaptiveController()
 {
@@ -14,6 +13,16 @@ void UAIAdaptiveController::BeginPlay()
 	Super::BeginPlay();
 }
 
+void UAIAdaptiveController::OnPossess(APawn* InPawn)
+{
+	Super::OnPossess(InPawn);
+
+	if (AUnitBase* Unit = Cast<AUnitBase>(InPawn))
+	{
+		ControlledFaction = Unit->GetFaction();
+	}
+}
+
 void UAIAdaptiveController::EndPlay(const EEndPlayReason::Type Reason)
 {
 	Super::EndPlay(Reason);
@@ -22,10 +31,6 @@ void UAIAdaptiveController::EndPlay(const EEndPlayReason::Type Reason)
 void UAIAdaptiveController::SetControlledFaction(EFactionID InFaction)
 {
 	ControlledFaction = InFaction;
-
-	// S'abonner au TacticalPhaseManager via le GameMode
-	// Le GameMode expose son PhaseManager en BlueprintReadOnly ; ici on accède via GameState
-	// Le branchement concret est fait dans le Blueprint héritant de cette classe
 }
 
 void UAIAdaptiveController::UpdatePlayerProfile(const FPlayerBehaviorProfile& Profile)
@@ -33,47 +38,62 @@ void UAIAdaptiveController::UpdatePlayerProfile(const FPlayerBehaviorProfile& Pr
 	AdaptToPlayerProfile(Profile);
 }
 
+void UAIAdaptiveController::IssueMoveCommand(FVector TargetLocation)
+{
+	// Interrompt l'IA autonome momentanément — l'unité obéit au joueur
+	MoveToLocation(TargetLocation, 50.f);
+
+	if (UUnitAIStateComponent* State = GetStateComponent())
+	{
+		// Remettre en Idle après déplacement ; l'IA reprend dès l'arrivée
+		// (évaluation automatique au prochain AITick)
+	}
+}
+
+void UAIAdaptiveController::IssueAttackCommand(AUnitBase* TargetUnit)
+{
+	if (!TargetUnit || !TargetUnit->IsAlive()) return;
+	MoveToActor(TargetUnit, 50.f);
+}
+
 void UAIAdaptiveController::AdaptToPlayerProfile(const FPlayerBehaviorProfile& Profile)
 {
-	// Si le joueur est agressif → l'IA devient plus défensive pour compenser
-	// Si le joueur est prudent → l'IA attaque davantage pour le forcer à bouger
 	ComputedAggressionLevel = FMath::Clamp(1.f - Profile.AggressionScore * 0.6f, 0.2f, 1.f);
 	ComputedCautionLevel    = FMath::Clamp(Profile.AggressionScore * 0.7f, 0.2f, 1.f);
 
-	// Exposer au Blackboard pour que les Behavior Trees le lisent
-	if (UBlackboardComponent* BB = GetBlackboardComponent())
+	// Propager au composant d'état pour ajuster les seuils de retraite / agressivité
+	if (UUnitAIStateComponent* State = GetStateComponent())
 	{
-		BB->SetValueAsFloat(TEXT("AggressionLevel"), ComputedAggressionLevel);
-		BB->SetValueAsFloat(TEXT("CautionLevel"),    ComputedCautionLevel);
-		BB->SetValueAsFloat(TEXT("PlayerVerticalUsage"), Profile.VerticalUsageRatio);
+		// Plus le joueur est agressif, plus l'IA recule tard (seuil de retraite plus bas)
+		State->RetreatHealthRatio =
+			FMath::Lerp(0.35f, 0.15f, ComputedCautionLevel);
 	}
 }
 
 void UAIAdaptiveController::OnTacticalWindowOpened(EFactionID Faction)
 {
-	if (Faction == ControlledFaction)
-	{
-		ActivateAI();
-	}
+	if (Faction == ControlledFaction) SetAIStateActive(true);
 }
 
 void UAIAdaptiveController::OnTacticalWindowClosed(EFactionID Faction)
 {
-	if (Faction == ControlledFaction)
+	if (Faction == ControlledFaction) SetAIStateActive(false);
+}
+
+void UAIAdaptiveController::SetAIStateActive(bool bActive)
+{
+	bIsActive = bActive;
+	if (UUnitAIStateComponent* State = GetStateComponent())
 	{
-		DeactivateAI();
+		State->SetAIActive(bActive);
 	}
 }
 
-void UAIAdaptiveController::ActivateAI()
+UUnitAIStateComponent* UAIAdaptiveController::GetStateComponent() const
 {
-	bIsActive = true;
-	// Le Behavior Tree reprend son exécution
-	// Le Blueprint peut override BrainComponent->RestartLogic() ici
-}
-
-void UAIAdaptiveController::DeactivateAI()
-{
-	bIsActive = false;
-	// On stoppe le Behavior Tree jusqu'à la prochaine fenêtre
+	if (APawn* P = GetPawn())
+	{
+		return P->FindComponentByClass<UUnitAIStateComponent>();
+	}
+	return nullptr;
 }

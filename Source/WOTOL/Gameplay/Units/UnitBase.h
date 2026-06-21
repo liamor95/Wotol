@@ -6,10 +6,12 @@
 #include "UnitBase.generated.h"
 
 class UVerticalLayerComponent;
+class UAbilityComponent;
 class UUnitDataAsset;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnitDied, AUnitBase*, Unit);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnitDied,      AUnitBase*, Unit);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHealthChanged, float, NewHealth, float, MaxHealth);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnitSelected,  bool, bSelected);
 
 UCLASS(Abstract)
 class WOTOL_API AUnitBase : public ACharacter
@@ -19,26 +21,44 @@ class WOTOL_API AUnitBase : public ACharacter
 public:
 	AUnitBase();
 
-	// ---- Données ----
+	// ---- Data ----
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Unit")
 	TObjectPtr<UUnitDataAsset> UnitData;
 
+	UFUNCTION(BlueprintPure, Category = "Unit")
+	UUnitDataAsset* GetUnitData() const { return UnitData; }
+
+	// ---- Composants ----
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Vertical")
 	TObjectPtr<UVerticalLayerComponent> VerticalLayer;
 
-	// ---- État ----
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Abilities")
+	TObjectPtr<UAbilityComponent> AbilityComp;
+
+	// ---- État combat ----
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	float GetHealthPercent() const;
 
-	UFUNCTION(BlueprintCallable, Category = "Combat")
+	UFUNCTION(BlueprintPure, Category = "Combat")
 	bool IsAlive() const { return CurrentHealth > 0.f; }
 
-	UFUNCTION(BlueprintCallable, Category = "Combat")
+	UFUNCTION(BlueprintPure, Category = "Combat")
 	EFactionID GetFaction() const { return Faction; }
 
-	// Inflige des dégâts, retourne les dégâts réels appliqués
+	// Inflige des dégâts ; valeur négative = soin
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	float TakeDamageFromUnit(float Damage, AUnitBase* Instigator);
+
+	// Déclenche une attaque vers la cible (appelé par l'IA ou le joueur)
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void PerformAttack(AUnitBase* Target);
+
+	// ---- Sélection (joueur) ----
+	UFUNCTION(BlueprintCallable, Category = "Selection")
+	void SetSelected(bool bNewSelected);
+
+	UFUNCTION(BlueprintPure, Category = "Selection")
+	bool IsSelected() const { return bSelected; }
 
 	// ---- Délégués ----
 	UPROPERTY(BlueprintAssignable, Category = "Combat")
@@ -46,6 +66,17 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Combat")
 	FOnHealthChanged OnHealthChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "Selection")
+	FOnUnitSelected OnUnitSelected;
+
+	// Événement Blueprint pour l'animation d'attaque / FX
+	UFUNCTION(BlueprintImplementableEvent, Category = "Combat")
+	void OnAttackPerformed(AUnitBase* Target);
+
+	// Événement Blueprint pour l'indicateur de sélection (décal, cercle, etc.)
+	UFUNCTION(BlueprintImplementableEvent, Category = "Selection")
+	void OnSelectionChanged(bool bNewSelected);
 
 protected:
 	virtual void BeginPlay() override;
@@ -60,4 +91,8 @@ protected:
 private:
 	void InitFromDataAsset();
 	void Die();
+	void SpawnProjectileToward(AUnitBase* Target);
+
+	float LastAttackTime  = -9999.f;
+	bool  bSelected       = false;
 };

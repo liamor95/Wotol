@@ -3,33 +3,50 @@
 #include "BattleStateObserver.h"
 #include "TacticalPhaseManager.h"
 #include "TerritoryStateManager.h"
+#include "WOTOLBattleCamera.h"
+#include "WOTOLUnitSpawner.h"
+#include "WOTOLPlayerController_Battle.h"
 #include "Core/WOTOLGameInstance.h"
 #include "Core/SaveGameSubsystem.h"
+#include "Core/PlayerProfileSubsystem.h"
+#include "Core/FactionRegistrySubsystem.h"
+#include "Data/BattleConfigDataAsset.h"
+#include "Gameplay/AI/AIAdaptiveController.h"
+#include "Gameplay/Units/UnitBase.h"
 #include "Kismet/GameplayStatics.h"
 
 AWOTOLGameMode_Battle::AWOTOLGameMode_Battle()
 {
-	GameStateClass = AWOTOLGameState_Battle::StaticClass();
+	GameStateClass      = AWOTOLGameState_Battle::StaticClass();
+	PlayerControllerClass = AWOTOLPlayerController_Battle::StaticClass();
 }
 
 void AWOTOLGameMode_Battle::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Instancier les managers (UObject, pas des Actors)
+	// Managers
 	PhaseManager     = NewObject<UTacticalPhaseManager>(this);
 	TerritoryManager = NewObject<UTerritoryStateManager>(this);
-
 	PhaseManager->Initialize(GetWorld());
 	TerritoryManager->Initialize(GetWorld());
 
-	// Spawner l'observer dans le monde
+	// Appliquer la config si disponible
+	if (BattleConfig)
+	{
+		TerritoryManager->CaptureRatePerSecond = BattleConfig->CaptureRatePerSecond;
+		TerritoryManager->TargetGrade.Grade    = BattleConfig->TargetTerritoryGrade;
+		TerritoryManager->TargetGrade.CaptureProgressRequired =
+			BattleConfig->CaptureProgressRequired;
+	}
+
+	// BattleStateObserver
 	FActorSpawnParameters Params;
-	Params.Owner = this;
+	Params.Owner  = this;
 	StateObserver = GetWorld()->SpawnActor<ABattleStateObserver>(
 		ABattleStateObserver::StaticClass(), FTransform::Identity, Params);
 
-	// Brancher les délégués
+	// Brancher délégués
 	if (StateObserver)
 	{
 		StateObserver->OnBattleStateChanged.AddDynamic(
@@ -45,7 +62,10 @@ void AWOTOLGameMode_Battle::BeginPlay()
 
 	TerritoryManager->OnTerritoryCaptured.AddDynamic(
 		this, &AWOTOLGameMode_Battle::OnTerritoryCaptured);
+	TerritoryManager->OnCaptureProgressChanged.AddDynamic(
+		this, &AWOTOLGameMode_Battle::OnCaptureProgress);
 
+	SpawnBattleCamera();
 	SetupBattleFromGameInstance();
 }
 
@@ -53,6 +73,15 @@ void AWOTOLGameMode_Battle::EndPlay(const EEndPlayReason::Type Reason)
 {
 	if (PhaseManager) PhaseManager->Shutdown();
 	Super::EndPlay(Reason);
+}
+
+void AWOTOLGameMode_Battle::SpawnBattleCamera()
+{
+	FActorSpawnParameters Params;
+	Params.Owner = this;
+	BattleCamera = GetWorld()->SpawnActor<AWOTOLBattleCamera>(
+		AWOTOLBattleCamera::StaticClass(),
+		FVector(0.f, 0.f, 100.f), FRotator::ZeroRotator, Params);
 }
 
 void AWOTOLGameMode_Battle::SetupBattleFromGameInstance()
@@ -64,8 +93,7 @@ void AWOTOLGameMode_Battle::SetupBattleFromGameInstance()
 	if (!GS) return;
 
 	GS->PlayerFaction = GI->SelectedFaction;
-	// En démo : l'ennemi est toujours Noxéens si le joueur joue Aquiloris, et vice versa
-	GS->EnemyFaction = (GI->SelectedFaction == EFactionID::Aquiloris)
+	GS->EnemyFaction  = (GI->SelectedFaction == EFactionID::Aquiloris)
 		? EFactionID::Noxeens : EFactionID::Aquiloris;
 
 	if (StateObserver)
@@ -74,7 +102,57 @@ void AWOTOLGameMode_Battle::SetupBattleFromGameInstance()
 		StateObserver->BeginObserving();
 	}
 
+	// Configurer le PlayerController avec la faction du joueur
+	if (AWOTOLPlayerController_Battle* PC =
+			Cast<AWOTOLPlayerController_Battle>(GetWorld()->GetFirstPlayerController()))
+	{
+		PC->SetPlayerFaction(GS->PlayerFaction);
+	}
+
+	TriggerUnitSpawners();
+	BroadcastPlayerProfileToAI();
 	StartBattle();
+}
+
+void AWOTOLGameMode_Battle::TriggerUnitSpawners()
+{
+	TArray<AActor*> Spawners;
+	UGameplayStatics::GetAllActorsOfClass(
+		GetWorld(), AWOTOLUnitSpawner::StaticClass(), Spawners);
+
+	for (AActor* Actor : Spawners)
+	{
+		if (AWOTOLUnitSpawner* Spawner = Cast<AWOTOLUnitSpawner>(Actor))
+		{
+			Spawner->SpawnUnits();
+		}
+	}
+}
+
+void AWOTOLGameMode_Battle::BroadcastPlayerProfileToAI()
+{
+	UPlayerProfileSubsystem* ProfileSys =
+		GetGameInstance()->GetSubsystem<UPlayerProfileSubsystem>();
+	if (!ProfileSys) return;
+
+	const FPlayerBehaviorProfile& Profile = ProfileSys->GetProfile();
+
+	AWOTOLGameState_Battle* GS = GetGameState<AWOTOLGameState_Battle>();
+	if (!GS) return;
+
+	UFactionRegistrySubsystem* Registry =
+		GetWorld()->GetSubsystem<UFactionRegistrySubsystem>();
+	if (!Registry) return;
+
+	for (AUnitBase* Unit : Registry->GetUnitsForFaction(GS->EnemyFaction))
+	{
+		if (!Unit) continue;
+		if (UAIAdaptiveController* AIC =
+				Cast<UAIAdaptiveController>(Unit->GetController()))
+		{
+			AIC->UpdatePlayerProfile(Profile);
+		}
+	}
 }
 
 void AWOTOLGameMode_Battle::StartBattle()
@@ -84,8 +162,11 @@ void AWOTOLGameMode_Battle::StartBattle()
 
 	StateObserver->SetBattlePhase(EBattlePhase::Tactical);
 
-	const TArray<EFactionID> TurnOrder = { GS->PlayerFaction, GS->EnemyFaction };
-	PhaseManager->StartPhase(TurnOrder, TacticalWindowDuration);
+	const float Duration = BattleConfig
+		? BattleConfig->TacticalWindowDuration : 30.f;
+
+	PhaseManager->StartPhase(
+		{ GS->PlayerFaction, GS->EnemyFaction }, Duration);
 }
 
 void AWOTOLGameMode_Battle::OnBattlePhaseChanged(EBattlePhase NewPhase)
@@ -101,12 +182,16 @@ void AWOTOLGameMode_Battle::OnVictoryConditionMet(EFactionID Winner, EBattleResu
 	PhaseManager->StopPhase();
 
 	AWOTOLGameState_Battle* GS = GetGameState<AWOTOLGameState_Battle>();
-	if (GS)
+	if (GS) GS->BattleResult = Result;
+
+	// Mettre à jour le profil joueur
+	if (UPlayerProfileSubsystem* ProfileSys =
+			GetGameInstance()->GetSubsystem<UPlayerProfileSubsystem>())
 	{
-		GS->BattleResult = Result;
+		ProfileSys->RecordBattleEnd(Result);
 	}
 
-	// Sauvegarde automatique en fin de bataille
+	// Sauvegarde automatique
 	if (USaveGameSubsystem* SaveSys =
 			GetGameInstance()->GetSubsystem<USaveGameSubsystem>())
 	{
@@ -121,16 +206,32 @@ void AWOTOLGameMode_Battle::OnVictoryConditionMet(EFactionID Winner, EBattleResu
 
 void AWOTOLGameMode_Battle::OnTacticalWindowOpened(EFactionID Faction)
 {
-	if (AWOTOLGameState_Battle* GS = GetGameState<AWOTOLGameState_Battle>())
+	AWOTOLGameState_Battle* GS = GetGameState<AWOTOLGameState_Battle>();
+	if (GS) GS->ActiveTurnFaction = Faction;
+
+	// Activer les AI controllers ennemis pendant leur fenêtre
+	UFactionRegistrySubsystem* Registry =
+		GetWorld()->GetSubsystem<UFactionRegistrySubsystem>();
+	AWOTOLGameState_Battle* State = GetGameState<AWOTOLGameState_Battle>();
+
+	if (Registry && State && Faction == State->EnemyFaction)
 	{
-		GS->ActiveTurnFaction = Faction;
+		for (AUnitBase* Unit : Registry->GetUnitsForFaction(Faction))
+		{
+			if (Unit)
+			{
+				if (UAIAdaptiveController* AIC =
+						Cast<UAIAdaptiveController>(Unit->GetController()))
+				{
+					// Le controller active la state machine via OnTacticalWindowOpened
+					// (branché dans l'AIController lui-même après avoir souscrit au PhaseManager)
+				}
+			}
+		}
 	}
 }
 
-void AWOTOLGameMode_Battle::OnTacticalWindowClosed(EFactionID /*Faction*/)
-{
-	// Le HUD Blueprint peut s'abonner directement à PhaseManager
-}
+void AWOTOLGameMode_Battle::OnTacticalWindowClosed(EFactionID /*Faction*/) {}
 
 void AWOTOLGameMode_Battle::OnTerritoryCaptured(EFactionID Faction, FTerritoryGrade Grade)
 {
@@ -139,7 +240,6 @@ void AWOTOLGameMode_Battle::OnTerritoryCaptured(EFactionID Faction, FTerritoryGr
 		StateObserver->SetBattlePhase(EBattlePhase::Resolution);
 	}
 
-	// Sauvegarde du grade capturé
 	if (USaveGameSubsystem* SaveSys =
 			GetGameInstance()->GetSubsystem<USaveGameSubsystem>())
 	{
@@ -148,5 +248,13 @@ void AWOTOLGameMode_Battle::OnTerritoryCaptured(EFactionID Faction, FTerritoryGr
 			Save->TerritoryGradeCaptured = Grade.Grade;
 		}
 		SaveSys->SaveGame();
+	}
+}
+
+void AWOTOLGameMode_Battle::OnCaptureProgress(EFactionID Faction, float Progress)
+{
+	if (AWOTOLGameState_Battle* GS = GetGameState<AWOTOLGameState_Battle>())
+	{
+		GS->CaptureProgress = Progress;
 	}
 }

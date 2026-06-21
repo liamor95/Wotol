@@ -8,6 +8,9 @@
 class ABattleStateObserver;
 class UTacticalPhaseManager;
 class UTerritoryStateManager;
+class AWOTOLBattleCamera;
+class AWOTOLUnitSpawner;
+class UBattleConfigDataAsset;
 
 UCLASS()
 class WOTOL_API AWOTOLGameMode_Battle : public AGameModeBase
@@ -20,9 +23,17 @@ public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 
-	// Durée d'une fenêtre tactique par faction (secondes)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Battle|Config")
-	float TacticalWindowDuration = 30.f;
+	// Config statique de la bataille — assignée dans le WorldSettings du niveau
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Battle|Config")
+	TObjectPtr<UBattleConfigDataAsset> BattleConfig;
+
+	// Distribue le profil joueur à tous les AIControllers ennemis
+	UFUNCTION(BlueprintCallable, Category = "Battle")
+	void BroadcastPlayerProfileToAI();
+
+	// Exposé pour que les spawners puissent se référencer
+	UFUNCTION(BlueprintPure, Category = "Battle")
+	UTacticalPhaseManager* GetPhaseManager() const { return PhaseManager; }
 
 protected:
 	UPROPERTY()
@@ -34,8 +45,13 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UTerritoryStateManager> TerritoryManager;
 
+	UPROPERTY()
+	TObjectPtr<AWOTOLBattleCamera> BattleCamera;
+
 private:
 	void SetupBattleFromGameInstance();
+	void SpawnBattleCamera();
+	void TriggerUnitSpawners();
 	void StartBattle();
 
 	UFUNCTION()
@@ -52,4 +68,7 @@ private:
 
 	UFUNCTION()
 	void OnTerritoryCaptured(EFactionID Faction, FTerritoryGrade Grade);
+
+	UFUNCTION()
+	void OnCaptureProgress(EFactionID Faction, float Progress);
 };

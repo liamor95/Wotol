@@ -5,12 +5,11 @@
 #include "Data/WOTOLTypes.h"
 #include "AIAdaptiveController.generated.h"
 
-class UFactionRegistrySubsystem;
+class UUnitAIStateComponent;
 
 // IA adaptative par faction
-// S'abonne au TacticalPhaseManager pour agir uniquement pendant sa fenêtre
-// Interroge le FactionRegistry — pas de GetAllActorsOfClass
-// Exécution individuelle des unités = Behavior Tree/EQS standard
+// Active/désactive la machine d'états UnitAIStateComponent selon la fenêtre tactique
+// Reçoit les ordres joueur (move/attack) et les transmet à la state machine
 UCLASS()
 class WOTOL_API UAIAdaptiveController : public AAIController
 {
@@ -20,16 +19,23 @@ public:
 	UAIAdaptiveController();
 
 	virtual void BeginPlay() override;
+	virtual void OnPossess(APawn* InPawn) override;
 	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 
 	UFUNCTION(BlueprintCallable, Category = "AI")
 	void SetControlledFaction(EFactionID InFaction);
 
-	// Injecte le profil joueur reçu du PlayerProfileSubsystem
 	UFUNCTION(BlueprintCallable, Category = "AI")
 	void UpdatePlayerProfile(const FPlayerBehaviorProfile& Profile);
 
-	// Paramètres d'agressivité ajustés dynamiquement
+	// Ordres reçus du PlayerController_Battle
+	UFUNCTION(BlueprintCallable, Category = "AI")
+	void IssueMoveCommand(FVector TargetLocation);
+
+	UFUNCTION(BlueprintCallable, Category = "AI")
+	void IssueAttackCommand(class AUnitBase* TargetUnit);
+
+	// Paramètres d'agressivité calculés dynamiquement
 	UPROPERTY(BlueprintReadOnly, Category = "AI")
 	float ComputedAggressionLevel = 0.5f;
 
@@ -48,8 +54,9 @@ private:
 	void OnTacticalWindowClosed(EFactionID Faction);
 
 	void AdaptToPlayerProfile(const FPlayerBehaviorProfile& Profile);
-	void ActivateAI();
-	void DeactivateAI();
+	void SetAIStateActive(bool bActive);
+
+	UUnitAIStateComponent* GetStateComponent() const;
 
 	bool bIsActive = false;
 };
