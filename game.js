@@ -505,7 +505,7 @@ function endGame(victory) {
   title.style.color = victory ? '#55ff88' : '#ff4422';
   sub.textContent = victory
     ? 'Aquiloris écrase les Thalassidras !'
-    : 'Les forces d'Aquiloris sont vaincues...';
+    : "Les forces d'Aquiloris sont vaincues...";
   sc.textContent = `Score final : ${score}`;
 
   el.style.display = 'flex';
