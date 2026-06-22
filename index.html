@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WOTOL – War of the Ocean's Legacy | Démo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #020810;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Courier New', monospace;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    #wrapper {
+      position: relative;
+      width: 900px;
+      height: 620px;
+    }
+
+    canvas {
+      display: block;
+      width: 900px;
+      height: 620px;
+      cursor: default;
+      border: 1px solid #0a1530;
+      box-shadow: 0 0 60px #1122aa33, 0 0 120px #001144;
+    }
+
+    /* ── Menu overlay ── */
+    #menu {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 40%, #0a1a40 0%, #02060e 70%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      gap: 0;
+    }
+
+    #menu .subtitle {
+      font-size: 13px;
+      letter-spacing: 6px;
+      color: #3a5090;
+      margin-bottom: 10px;
+    }
+
+    #menu h1 {
+      font-size: 72px;
+      font-weight: 900;
+      letter-spacing: 8px;
+      color: #4488ff;
+      text-shadow: 0 0 30px #2255cc, 0 0 60px #1133aa, 0 0 100px #0022aa44;
+      margin-bottom: 4px;
+    }
+
+    #menu .tagline {
+      font-size: 13px;
+      letter-spacing: 3px;
+      color: #2244aa;
+      margin-bottom: 40px;
+    }
+
+    .faction-preview {
+      display: flex;
+      gap: 60px;
+      margin-bottom: 40px;
+    }
+
+    .faction-card {
+      text-align: center;
+      border: 1px solid;
+      padding: 16px 24px;
+      min-width: 160px;
+    }
+
+    .faction-card.aquiloris {
+      border-color: #2255aa;
+      box-shadow: 0 0 16px #2255aa44;
+    }
+
+    .faction-card.thalassidras {
+      border-color: #115533;
+      box-shadow: 0 0 16px #22aa5544;
+    }
+
+    .faction-card .faction-name {
+      font-size: 13px;
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+
+    .aquiloris .faction-name { color: #4488ff; }
+    .thalassidras .faction-name { color: #44cc88; }
+
+    .faction-card .faction-desc {
+      font-size: 10px;
+      color: #446;
+      line-height: 1.6;
+    }
+
+    .vs-text {
+      font-size: 22px;
+      color: #334;
+      align-self: center;
+      letter-spacing: 2px;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 30px;
+      margin-bottom: 36px;
+      font-size: 11px;
+      color: #334;
+    }
+
+    .controls-grid .key { color: #446688; }
+
+    #playBtn {
+      padding: 14px 56px;
+      font-size: 16px;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 4px;
+      background: transparent;
+      color: #4488ff;
+      border: 1px solid #2255aa;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all .15s;
+      box-shadow: 0 0 20px #1133aa44;
+    }
+
+    #playBtn:hover {
+      background: #1133aa44;
+      color: #88aaff;
+      border-color: #4488ff;
+      box-shadow: 0 0 40px #2244cc;
+    }
+
+    /* ── End overlay ── */
+    #endScreen {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 3, 12, 0.88);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      gap: 14px;
+    }
+
+    #endScreen h2 {
+      font-size: 52px;
+      letter-spacing: 6px;
+      text-shadow: 0 0 30px currentColor;
+    }
+
+    #endScreen .end-sub { font-size: 16px; color: #778; }
+    #endScreen .end-score { font-size: 20px; color: #aac; }
+
+    #replayBtn {
+      margin-top: 10px;
+      padding: 12px 44px;
+      font-size: 14px;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 3px;
+      background: transparent;
+      color: #aac;
+      border: 1px solid #446;
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    #replayBtn:hover { background: #22244488; border-color: #88aaff; color: #88aaff; }
+  </style>
+</head>
+<body>
+<div id="wrapper">
+  <canvas id="c" width="900" height="620"></canvas>
+
+  <!-- MENU -->
+  <div id="menu">
+    <div class="subtitle">WAR OF THE OCEAN'S LEGACY</div>
+    <h1>WOTOL</h1>
+    <div class="tagline">DÉMO TACTIQUE • ALPHA</div>
+
+    <div class="faction-preview">
+      <div class="faction-card aquiloris">
+        <div class="faction-name">AQUILORIS</div>
+        <div class="faction-desc">
+          Cristaux énergétiques<br>
+          Technologie avancée<br>
+          Discipline militaire<br>
+          <br>
+          ▸ VOTRE FACTION
+        </div>
+      </div>
+      <div class="vs-text">VS</div>
+      <div class="faction-card thalassidras">
+        <div class="faction-name">THALASSIDRAS</div>
+        <div class="faction-desc">
+          Magie du corail<br>
+          Nature marine<br>
+          Biodiversité<br>
+          <br>
+          ▸ ENNEMI
+        </div>
+      </div>
+    </div>
+
+    <div class="controls-grid">
+      <span><span class="key">CLIC GAUCHE</span> — Sélectionner une unité</span>
+      <span><span class="key">CLIC DROIT</span> — Déplacer / Attaquer</span>
+      <span><span class="key">DRAG</span> — Sélection de groupe</span>
+      <span><span class="key">NIVEAUX</span> — 3 zones verticales</span>
+    </div>
+
+    <button id="playBtn">COMMENCER LA BATAILLE</button>
+  </div>
+
+  <!-- END SCREEN -->
+  <div id="endScreen">
+    <h2 id="endTitle"></h2>
+    <div class="end-sub" id="endSub"></div>
+    <div class="end-score" id="endScore"></div>
+    <button id="replayBtn">REJOUER</button>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
