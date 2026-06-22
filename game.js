@@ -1,6 +1,6 @@
 // ============================================================
 // WOTOL – War of the Ocean's Legacy | Isometric Tactical Demo
-// States: MENU → FACTION → PLACEMENT → BATTLE → END
+// States: MENU → FACTION → LOADING → PLACEMENT → BATTLE → END
 // ============================================================
 
 const C = document.getElementById('c');
@@ -20,63 +20,64 @@ function iso(gx, gy, gz = 0) {
 }
 
 function zoneOf(gy) {
-  if (gy <= 2) return 2; // EAU OUVERTE
-  if (gy <= 5) return 1; // EAU PROFONDE
-  return 0;              // FOND MARIN
+  if (gy <= 2) return 2; // SURFACE
+  if (gy <= 5) return 1; // MID
+  return 0;              // SOL
 }
 
-// ── Factions ──────────────────────────────────────────────────
+// ── All 5 factions (for selection screen) ────────────────────
+const ALL_FACS = [
+  { id: 'aquiloris',     name: 'Aquiloris',   color: '#3399ff', glow: '#1155cc', accent: '#99ccff', locked: false },
+  { id: 'noxeens',      name: 'Noxeens',     color: '#00ee44', glow: '#005522', accent: '#88ffaa', locked: false, isEnemy: true },
+  { id: 'thalassidras', name: 'Thalassidras', color: '#22ccbb', glow: '#0a5550', accent: '#88ffee', locked: true },
+  { id: 'mureens',      name: 'Muréniens',   color: '#cc7722', glow: '#663311', accent: '#ffcc88', locked: true },
+  { id: 'pirates',      name: 'Pirates',     color: '#cc2244', glow: '#661122', accent: '#ff8899', locked: true },
+];
+
+// ── Active factions ───────────────────────────────────────────
 const FAC = {
   aquiloris: {
-    name: 'Aquiloris',
-    color: '#3399ff',
-    glow: '#1155cc',
-    accent: '#99ccff',
-    darkBg: '#040c22',
-    desc1: 'Technologie cristalline',
-    desc2: 'Discipline militaire',
-    res: 'Cristaux',
+    name: 'Aquiloris', color: '#3399ff', glow: '#1155cc', accent: '#99ccff', darkBg: '#040c22',
+    desc1: 'Technologie cristalline', desc2: 'Discipline militaire', res: 'Cristaux',
+    lore: "Maitres des cristaux des profondeurs, les Aquiloris ont bati un empire de lumiere et d'ordre.",
   },
   noxeens: {
-    name: 'Noxéens',
-    color: '#00ee44',
-    glow: '#005522',
-    accent: '#88ffaa',
-    darkBg: '#020d04',
-    desc1: 'Créatures abyssales',
-    desc2: 'Bioluminescence mortelle',
-    res: 'Biolumens',
+    name: 'Noxeens', color: '#00ee44', glow: '#005522', accent: '#88ffaa', darkBg: '#020d04',
+    desc1: 'Creatures abyssales', desc2: 'Bioluminescence mortelle', res: 'Biolumens',
+    lore: "Surgis des abysses, les Noxeens envahissent en vagues de tenebres bioluminescentes.",
   },
 };
 
 // ── Unit definitions ──────────────────────────────────────────
 const UDEFS = {
-  hero:     { hp: 280, dmg: 38, range: 2.2, spd: 0.032, sz: 20, lbl: 'Léviaphénix', sublbl: 'Unité mythique'   },
+  hero:     { hp: 280, dmg: 38, range: 2.2, spd: 0.032, sz: 20, lbl: 'Leviaphenix', sublbl: 'Unite mythique'    },
   infantry: { hp: 140, dmg: 20, range: 1.4, spd: 0.024, sz: 15, lbl: 'Aquiloryon',  sublbl: 'Infanterie lourde' },
-  ranged:   { hp:  75, dmg: 30, range: 5.5, spd: 0.018, sz: 13, lbl: 'Aquistance',  sublbl: 'Tireur à distance' },
+  ranged:   { hp:  75, dmg: 30, range: 5.5, spd: 0.018, sz: 13, lbl: 'Aquistance',  sublbl: 'Tireur a distance' },
   mounted:  { hp: 115, dmg: 24, range: 1.7, spd: 0.044, sz: 17, lbl: 'Aquilance',   sublbl: 'Cavalier des mers' },
 };
 
-const ROSTER_TYPES = ['hero', 'infantry', 'infantry', 'ranged', 'ranged', 'mounted'];
-
 // ── State ─────────────────────────────────────────────────────
-let state       = 'MENU';
-let playerFac   = 'aquiloris';
-let enemyFac    = 'noxeens';
-let units       = [];
-let particles   = [];
-let projs       = [];
-let selected    = null;
-let hovCell     = null;
-let placed      = [];     // [{type, gx, gy}]
-let placingType = null;
-let score       = 0;
-let victory     = false;
-let frame       = 0;
-let bgDots      = [];
-let aiTick      = 0;
+let state        = 'MENU';
+let playerFac    = 'aquiloris';
+let enemyFac     = 'noxeens';
+let units        = [];
+let particles    = [];
+let projs        = [];
+let selected     = null;
+let hovCell      = null;
+let placed       = [];
+let placingType  = null;
+let score        = 0;
+let victory      = false;
+let frame        = 0;
+let bgDots       = [];
+let aiTick       = 0;
+let loadTimer    = 0;
+let battleKills  = 0;
+let playerLosses = 0;
 
-// ── Buttons (computed each frame) ────────────────────────────
+const LOAD_DURATION = 180;
+
 let BTN = {};
 
 // ── Unit ─────────────────────────────────────────────────────
@@ -95,10 +96,9 @@ class Unit {
 
   get f()  { return FAC[this.fac]; }
   get sp() {
-    const gz = this.gz;
     return {
       x: OX + (this.gx - this.gy) * TW / 2,
-      y: OY + (this.gx + this.gy) * TH / 2 - (gz + 0.55) * ZS,
+      y: OY + (this.gx + this.gy) * TH / 2 - (this.gz + 0.55) * ZS,
     };
   }
 
@@ -157,7 +157,8 @@ class Unit {
     if (this.hp <= 0) {
       this.dead = true;
       burst(this.sp.x, this.sp.y, this.f.color, 22);
-      if (this.fac === enemyFac) score += this.type === 'hero' ? 300 : 100;
+      if (this.fac === enemyFac) { score += this.type === 'hero' ? 300 : 100; battleKills++; }
+      if (this.fac === playerFac) playerLosses++;
     }
   }
 
@@ -174,13 +175,11 @@ class Unit {
     ctx.strokeStyle = f.accent;
     ctx.lineWidth = sel ? 2.5 : 1.5;
 
-    // Shadow
     ctx.globalAlpha = 0.25;
     ctx.fillStyle = '#000020';
     ctx.beginPath(); ctx.ellipse(x, y + s * 0.7, s * 0.8, s * 0.28, 0, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
 
-    // Shape
     if      (this.type === 'hero')     drawStar(x, y, 5, s, s * 0.38, f.color);
     else if (this.type === 'infantry') drawPoly(x, y, 6, s, f.color);
     else if (this.type === 'ranged')   drawDiamond(x, y, s, f.color);
@@ -188,14 +187,12 @@ class Unit {
 
     ctx.restore();
 
-    // HP bar
     const bw = s * 3, bh = 4, bx = x - bw / 2, by = y - s - 14;
     ctx.fillStyle = '#08081a'; ctx.fillRect(bx, by, bw, bh);
     const pct = Math.max(0, this.hp / this.maxHp);
     ctx.fillStyle = pct > 0.5 ? '#22ee55' : pct > 0.25 ? '#ffcc00' : '#ff3300';
     ctx.fillRect(bx, by, bw * pct, bh);
 
-    // Selection ring
     if (sel) {
       ctx.save();
       ctx.strokeStyle = 'rgba(255,255,255,0.9)';
@@ -206,8 +203,6 @@ class Unit {
       ctx.restore();
     }
 
-    // Zone badge
-    const zoneName = ['FOND', 'MARIN', 'OUVERT'][this.gz];
     ctx.fillStyle = '#778899';
     ctx.font = '8px Courier New';
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
@@ -270,13 +265,12 @@ function initDots() {
   }
 }
 
-function drawBg(dark) {
+function drawBg(topCol) {
   const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, dark || '#06101e');
+  g.addColorStop(0, topCol || '#06101e');
   g.addColorStop(1, '#020810');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 
-  // Rays
   ctx.save();
   for (let i = 0; i < 5; i++) {
     const cx = W / 5 * i + W / 10;
@@ -292,7 +286,6 @@ function drawBg(dark) {
   }
   ctx.restore();
 
-  // Bubbles
   ctx.save();
   for (const d of bgDots) {
     d.x += d.vx; d.y += d.vy;
@@ -316,9 +309,9 @@ function drawMap(highlightLeft) {
 }
 
 const TILE_COLORS = [
-  { top: '#050c1a', sL: '#030710', sR: '#040912' },  // z=0 fond
-  { top: '#08162e', sL: '#04090e', sR: '#060e1e' },  // z=1 profonde
-  { top: '#0d2244', sL: '#071228', sR: '#0a1a38' },  // z=2 ouverte
+  { top: '#050c1a', sL: '#030710', sR: '#040912' },
+  { top: '#08162e', sL: '#04090e', sR: '#060e1e' },
+  { top: '#0d2244', sL: '#071228', sR: '#0a1a38' },
 ];
 
 function drawTile(gx, gy, gz, highlightLeft) {
@@ -328,7 +321,6 @@ function drawTile(gx, gy, gz, highlightLeft) {
   const hov = hovCell && hovCell.gx === gx && hovCell.gy === gy;
   const isLeft = gx < 6;
 
-  // Side faces (only for elevated tiles)
   if (gz > 0) {
     ctx.fillStyle = tc.sL;
     ctx.beginPath();
@@ -343,7 +335,6 @@ function drawTile(gx, gy, gz, highlightLeft) {
     ctx.closePath(); ctx.fill();
   }
 
-  // Top face
   let topCol = tc.top;
   if (hov) topCol = '#1a3c70';
   else if (highlightLeft && isLeft) topCol = gz === 2 ? '#0e2a55' : gz === 1 ? '#0a1e42' : '#080e28';
@@ -354,7 +345,6 @@ function drawTile(gx, gy, gz, highlightLeft) {
   ctx.lineTo(x, y + TH); ctx.lineTo(x - hw, y + hh);
   ctx.closePath(); ctx.fill();
 
-  // Subtle grid
   ctx.strokeStyle = 'rgba(20,50,110,0.25)';
   ctx.lineWidth = 0.5;
   ctx.beginPath();
@@ -362,7 +352,6 @@ function drawTile(gx, gy, gz, highlightLeft) {
   ctx.lineTo(x, y + TH); ctx.lineTo(x - hw, y + hh);
   ctx.closePath(); ctx.stroke();
 
-  // Blue placement indicator
   if (highlightLeft && isLeft) {
     ctx.strokeStyle = 'rgba(60,120,255,0.35)';
     ctx.lineWidth = 1;
@@ -372,13 +361,11 @@ function drawTile(gx, gy, gz, highlightLeft) {
     ctx.closePath(); ctx.stroke();
   }
 
-  // Bioluminescent dots (z=0, Noxéens flavor)
   if (gz === 0 && Math.sin(gx * 1.9 + gy * 2.7 + frame * 0.018) > 0.82) {
-    ctx.fillStyle = `rgba(150,60,255,${0.28 + 0.18 * Math.sin(frame * 0.04)})`;
+    ctx.fillStyle = `rgba(0,180,60,${0.22 + 0.12 * Math.sin(frame * 0.04)})`;
     ctx.beginPath(); ctx.arc(x + (gx % 3 - 1) * 7, y + hh, 1.8, 0, Math.PI * 2); ctx.fill();
   }
 
-  // Crystal sparkles (z=2, Aquiloris flavor)
   if (gz === 2 && Math.sin(gx * 2.3 + gy * 1.6 + frame * 0.013) > 0.88) {
     ctx.fillStyle = `rgba(80,160,255,${0.38 + 0.22 * Math.sin(frame * 0.035)})`;
     ctx.beginPath(); ctx.arc(x - 4 + (gy % 3) * 4, y + 6, 1.5, 0, Math.PI * 2); ctx.fill();
@@ -387,9 +374,9 @@ function drawTile(gx, gy, gz, highlightLeft) {
 
 function drawZoneLabels() {
   const zones = [
-    { gz: 2, label: 'EAU OUVERTE  •  15m', gy: 1 },
-    { gz: 1, label: 'EAU PROFONDE  •  5m',  gy: 4 },
-    { gz: 0, label: 'FOND MARIN  •  0m',    gy: 6.5 },
+    { gz: 2, label: 'EAU OUVERTE  -  15m', gy: 1 },
+    { gz: 1, label: 'EAU PROFONDE  -  5m', gy: 4 },
+    { gz: 0, label: 'FOND MARIN  -  0m',   gy: 6.5 },
   ];
   ctx.font = '9px Courier New'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
   for (const z of zones) {
@@ -399,7 +386,7 @@ function drawZoneLabels() {
   }
 }
 
-// ── Enemy unit draw in placement phase ────────────────────────
+// ── Enemy preview during placement ───────────────────────────
 function drawEnemyPreview() {
   const types = ['hero', 'infantry', 'infantry', 'ranged', 'mounted', 'infantry'];
   const positions = [[10,1],[11,2],[10,4],[11,5],[9,3],[10,6]];
@@ -437,10 +424,11 @@ function runAI() {
   }
 }
 
-// ── Game start ─────────────────────────────────────────────────
+// ── Game start ────────────────────────────────────────────────
 function startBattle() {
   units = []; particles = []; projs = [];
   selected = null; score = 0; frame = 0; aiTick = 0;
+  battleKills = 0; playerLosses = 0;
 
   for (const p of placed) units.push(new Unit(playerFac, p.type, p.gx, p.gy));
 
@@ -461,7 +449,7 @@ function checkEnd() {
   if (eA === 0) { victory = true;  state = 'END'; }
 }
 
-// ── HUD ──────────────────────────────────────────────────────
+// ── Battle HUD ────────────────────────────────────────────────
 function drawBattleHUD() {
   const pf = FAC[playerFac], ef = FAC[enemyFac];
   const pA = units.filter(u => !u.dead && u.fac === playerFac).length;
@@ -470,18 +458,18 @@ function drawBattleHUD() {
   ctx.fillStyle = 'rgba(2,4,14,0.88)'; ctx.fillRect(0, 0, W, 32);
   ctx.font = 'bold 12px Courier New'; ctx.textBaseline = 'middle';
   ctx.fillStyle = pf.color; ctx.textAlign = 'left';
-  ctx.fillText(`♛ ${pf.name}  ${pA} unités`, 12, 16);
+  ctx.fillText(`> ${pf.name}  ${pA} unites`, 12, 16);
   ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
   ctx.fillText(`SCORE  ${score}`, W / 2, 16);
   ctx.fillStyle = ef.color; ctx.textAlign = 'right';
-  ctx.fillText(`${ef.name}  ${eA} unités ♛`, W - 12, 16);
+  ctx.fillText(`${ef.name}  ${eA} unites <`, W - 12, 16);
 
   ctx.fillStyle = 'rgba(2,4,14,0.75)'; ctx.fillRect(0, H - 22, W, 22);
   ctx.fillStyle = '#2a3550'; ctx.font = '10px Courier New';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('CLIC G. : Sélectionner    |    CLIC D. : Déplacer / Attaquer', W / 2, H - 11);
+  ctx.fillText('CLIC G. : Selectionner    |    CLIC D. : Deplacer / Attaquer', W / 2, H - 11);
 
-  // SURFACE / MID / SOL vertical indicator (left side, like the UE5 UI)
+  // SURFACE / MID / SOL vertical indicator
   const selZ = selected ? selected.gz : -1;
   const levelPanel = [
     { gz: 2, lbl: 'SURFACE', y: 90  },
@@ -505,7 +493,6 @@ function drawBattleHUD() {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(lv.lbl, 38, lv.y);
     ctx.shadowBlur = 0;
-    // Connector line
     if (lv.gz > 0) {
       ctx.strokeStyle = '#1a2840'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(38, lv.y + 14); ctx.lineTo(38, lv.y + 28); ctx.stroke();
@@ -518,10 +505,10 @@ function drawBattleHUD() {
     ctx.strokeStyle = pf.color + '44'; ctx.lineWidth = 1; ctx.strokeRect(px, py, pw, ph);
     ctx.fillStyle = pf.color; ctx.font = 'bold 11px Courier New';
     ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    ctx.fillText(`${UDEFS[selected.type].lbl.toUpperCase()}  —  ZONE ${selected.gz}`, px + 8, py + 8);
+    ctx.fillText(`${UDEFS[selected.type].lbl.toUpperCase()}  -  Z${selected.gz}`, px + 8, py + 8);
     ctx.fillStyle = '#5a6880'; ctx.font = '10px Courier New';
     ctx.fillText(`PV: ${Math.max(0, Math.ceil(selected.hp))} / ${selected.maxHp}`, px + 8, py + 26);
-    ctx.fillText(`ATQ: ${selected.dmg}   Portée: ${selected.range}   Vit: ${(selected.spd * 100).toFixed(0)}`, px + 8, py + 42);
+    ctx.fillText(`ATQ: ${selected.dmg}   Portee: ${selected.range}   Vit: ${(selected.spd * 100).toFixed(0)}`, px + 8, py + 42);
     const zoneName = selected.gz === 2 ? 'Eau ouverte' : selected.gz === 1 ? 'Eau profonde' : 'Fond marin';
     ctx.fillText(`Niveau: ${zoneName}`, px + 8, py + 58);
     ctx.fillText(`Faction: ${pf.name}`, px + 8, py + 72);
@@ -567,93 +554,254 @@ function drawBtn(label, x, y, w, h, col, fill) {
 
 function hit(mx, my, b) { return b && mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h; }
 
+function fmtTime(frames) {
+  const sec = Math.floor(frames / 60);
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}m ${s < 10 ? '0' : ''}${s}s`;
+}
+
 // ── Screen: MENU ──────────────────────────────────────────────
 function drawMenu() {
   drawBg();
   ctx.textAlign = 'center';
 
-  ctx.fillStyle = '#0d1e42';
+  // Animated shimmer at top
+  const shimmer = 0.05 + 0.03 * Math.sin(frame * 0.02);
+  ctx.fillStyle = `rgba(20,60,180,${shimmer})`;
+  ctx.fillRect(0, 0, W, H * 0.35);
+
+  // Eyebrow
+  ctx.fillStyle = '#122244';
   ctx.font = '11px Courier New';
-  ctx.fillText('WAR OF THE OCEAN\'S LEGACY', W / 2, 118);
+  ctx.fillText('WAR  OF  THE  OCEAN\'S  LEGACY', W / 2, 115);
 
+  // Decorative lines around title
+  ctx.strokeStyle = '#0d1e42'; ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(W/2 - 200, 128); ctx.lineTo(W/2 - 30, 128); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W/2 + 30, 128); ctx.lineTo(W/2 + 200, 128); ctx.stroke();
+
+  // Animated logo
+  ctx.save();
+  const pulse = 28 + 10 * Math.sin(frame * 0.025);
+  ctx.shadowBlur = pulse; ctx.shadowColor = '#1155cc';
   ctx.fillStyle = '#3399ff';
-  ctx.font = 'bold 86px Courier New';
-  ctx.shadowBlur = 35; ctx.shadowColor = '#1155cc';
-  ctx.fillText('WOTOL', W / 2, 218);
-  ctx.shadowBlur = 0;
+  ctx.font = 'bold 92px Courier New';
+  ctx.fillText('WOTOL', W / 2, 228);
+  ctx.shadowBlur = pulse * 0.4; ctx.shadowColor = '#99ccff';
+  ctx.globalAlpha = 0.25;
+  ctx.fillText('WOTOL', W / 2, 228);
+  ctx.restore();
 
+  // Tagline
   ctx.fillStyle = '#0d1e42';
   ctx.font = '10px Courier New';
-  ctx.fillText('DÉMO TACTIQUE  •  PRÉ-ALPHA', W / 2, 246);
+  ctx.fillText('DEMO TACTIQUE  -  PRE-ALPHA', W / 2, 256);
 
-  ctx.fillStyle = '#1e2e4a';
+  // Separator
+  ctx.strokeStyle = '#0a1830'; ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(W/2 - 160, 272); ctx.lineTo(W/2 + 160, 272); ctx.stroke();
+
+  // Lore text
+  ctx.fillStyle = '#1a2e4a';
   ctx.font = '12px Courier New';
-  ctx.fillText('Les peuples des océans vivent dans une paix fragile.', W / 2, 310);
-  ctx.fillText("Un ancien artefact refait surface. Une nouvelle guerre éclate.", W / 2, 332);
-  ctx.fillText('Derrière cette guerre se cache une vérité bien plus ancienne.', W / 2, 354);
+  ctx.fillText('Les peuples des oceans vivent dans une paix fragile.', W / 2, 308);
+  ctx.fillText('Un ancien artefact refait surface. Une nouvelle guerre eclate.', W / 2, 330);
+  ctx.fillStyle = '#0f1e36';
+  ctx.fillText('Derriere cette guerre se cache une verite bien plus ancienne.', W / 2, 352);
 
-  BTN.play = drawBtn('NOUVELLE BATAILLE', W / 2 - 120, 410, 240, 46, '#3399ff');
+  // Play button
+  BTN.play = drawBtn('NOUVELLE BATAILLE', W / 2 - 130, 406, 260, 50, '#3399ff', 'rgba(0,20,60,0.55)');
 
-  ctx.fillStyle = '#0d1620';
-  ctx.font = '10px Courier New';
-  ctx.fillText('© WOTOL PROJECT  •  DÉMO', W / 2, H - 18);
+  // Copyright
+  ctx.fillStyle = '#080e1c';
+  ctx.font = '9px Courier New';
+  ctx.fillText('c WOTOL PROJECT  -  DEMO v0.1  -  5 FACTIONS  -  TACTICAL RTS', W / 2, H - 14);
 }
 
-// ── Screen: FACTION ───────────────────────────────────────────
+// ── Screen: FACTION (5 factions) ─────────────────────────────
 function drawFaction() {
   drawBg();
   ctx.textAlign = 'center';
 
   ctx.fillStyle = '#3399ff';
-  ctx.font = 'bold 26px Courier New';
-  ctx.fillText('CHOISIR VOTRE FACTION', W / 2, 54);
+  ctx.font = 'bold 22px Courier New';
+  ctx.fillText('CHOISIR VOTRE FACTION', W / 2, 46);
+  ctx.fillStyle = '#122244';
+  ctx.font = '10px Courier New';
+  ctx.fillText('DEMO : Aquiloris contre les Noxeens  |  3 factions a venir', W / 2, 66);
+
+  // 5 faction cards
+  const cardW = 156, cardH = 234, startX = 38, startY = 84, gap = 7;
+  BTN.pick = null;
+  BTN.back = null;
+
+  ALL_FACS.forEach((fac, i) => {
+    const cx = startX + i * (cardW + gap);
+    const isLocked = fac.locked;
+    const isEnemy = fac.isEnemy;
+    const isPlayer = !isLocked && !isEnemy;
+
+    // Card background
+    ctx.globalAlpha = isLocked ? 0.35 : 1;
+    ctx.fillStyle = isPlayer ? '#060e24' : (isEnemy ? '#040e06' : '#050810');
+    ctx.fillRect(cx, startY, cardW, cardH);
+    ctx.strokeStyle = isPlayer ? fac.color + '88' : (isEnemy ? fac.color + '33' : '#080e18');
+    ctx.lineWidth = isPlayer ? 1.5 : 1;
+    ctx.strokeRect(cx, startY, cardW, cardH);
+    ctx.globalAlpha = 1;
+
+    // Faction name
+    ctx.fillStyle = isLocked ? '#1a2030' : fac.color;
+    ctx.font = `bold 10px Courier New`;
+    ctx.fillText(fac.name.toUpperCase(), cx + cardW / 2, startY + 20);
+
+    // Emblem
+    ctx.save();
+    ctx.globalAlpha = isLocked ? 0.18 : (isEnemy ? 0.55 : 1);
+    ctx.shadowBlur = isLocked ? 0 : 18;
+    ctx.shadowColor = fac.glow;
+    ctx.strokeStyle = fac.color; ctx.lineWidth = 1.5;
+    const ex = cx + cardW / 2, ey = startY + 118;
+    if (i === 0)      drawStar(ex, ey, 5, 36, 14, fac.color);
+    else if (i === 1) drawPoly(ex, ey, 6, 36, fac.color);
+    else if (i === 2) drawDiamond(ex, ey, 36, fac.color);
+    else if (i === 3) { ctx.fillStyle = fac.color; ctx.beginPath(); ctx.arc(ex, ey, 32, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+    else              drawPoly(ex, ey, 3, 36, fac.color);
+    ctx.restore();
+
+    // Status badge inside card
+    const bx = cx + 8, by = startY + 188, bw = cardW - 16, bh = 26;
+    if (isLocked) {
+      ctx.fillStyle = '#08101c'; ctx.fillRect(bx, by, bw, bh);
+      ctx.strokeStyle = '#0a1428'; ctx.lineWidth = 1; ctx.strokeRect(bx, by, bw, bh);
+      ctx.fillStyle = '#1e2a3a'; ctx.font = 'bold 9px Courier New';
+      ctx.fillText('[  BIENTOT  ]', cx + cardW / 2, by + 13);
+    } else if (isEnemy) {
+      ctx.fillStyle = '#02080a'; ctx.fillRect(bx, by, bw, bh);
+      ctx.strokeStyle = fac.color + '22'; ctx.lineWidth = 1; ctx.strokeRect(bx, by, bw, bh);
+      ctx.fillStyle = fac.color + '77'; ctx.font = 'bold 9px Courier New';
+      ctx.fillText('ENNEMI  (IA)', cx + cardW / 2, by + 13);
+    } else {
+      ctx.fillStyle = fac.color + '18'; ctx.fillRect(bx, by, bw, bh);
+      ctx.strokeStyle = fac.color; ctx.lineWidth = 1; ctx.strokeRect(bx, by, bw, bh);
+      ctx.fillStyle = fac.color; ctx.font = 'bold 9px Courier New';
+      ctx.fillText('> CHOISIR', cx + cardW / 2, by + 13);
+      BTN.pick = { x: bx, y: by, w: bw, h: bh };
+    }
+  });
+
+  // Info panel
+  const pf = FAC.aquiloris, ef = FAC.noxeens;
+  const infoPy = 332;
+  ctx.fillStyle = 'rgba(4,8,24,0.94)'; ctx.fillRect(38, infoPy, 824, 162);
+  ctx.strokeStyle = pf.color + '22'; ctx.lineWidth = 1; ctx.strokeRect(38, infoPy, 824, 162);
+
+  ctx.save();
+  ctx.shadowBlur = 12; ctx.shadowColor = pf.glow;
+  ctx.fillStyle = pf.color; ctx.font = 'bold 15px Courier New'; ctx.textAlign = 'left';
+  ctx.fillText('AQUILORIS', 60, infoPy + 26);
+  ctx.restore();
+  ctx.fillStyle = '#3a5070'; ctx.font = '10px Courier New'; ctx.textAlign = 'left';
+  ctx.fillText(pf.lore, 60, infoPy + 48);
+  ctx.fillStyle = '#2a3a55';
+  ctx.fillText(`Specialite: ${pf.desc1}  -  ${pf.desc2}`, 60, infoPy + 68);
+  ctx.fillText(`Ressource strategique: ${pf.res}`, 60, infoPy + 86);
+
+  // VS divider
+  ctx.fillStyle = '#ff220033'; ctx.fillRect(W/2 - 1, infoPy + 14, 2, 130);
+  ctx.fillStyle = '#cc3322'; ctx.font = 'bold 14px Courier New'; ctx.textAlign = 'center';
+  ctx.fillText('VS', W/2, infoPy + 85);
+
+  // Enemy info
+  ctx.save();
+  ctx.shadowBlur = 10; ctx.shadowColor = ef.glow;
+  ctx.fillStyle = ef.color; ctx.font = 'bold 15px Courier New'; ctx.textAlign = 'right';
+  ctx.fillText('NOXEENS  (IA)', W - 60, infoPy + 26);
+  ctx.restore();
+  ctx.fillStyle = '#1a3020'; ctx.font = '10px Courier New'; ctx.textAlign = 'right';
+  ctx.fillText(ef.lore, W - 60, infoPy + 48);
+  ctx.fillStyle = '#1a2a1a';
+  ctx.fillText(`${ef.desc1}  -  ${ef.desc2}`, W - 60, infoPy + 68);
+  ctx.fillText(`Ressource: ${ef.res}`, W - 60, infoPy + 86);
+
+  // Back button
+  BTN.back = drawBtn('< RETOUR', 38, infoPy + 130, 110, 24, '#446688', 'rgba(4,8,20,0.8)');
+}
+
+// ── Screen: LOADING ───────────────────────────────────────────
+function drawLoading() {
+  drawBg();
+  const pf = FAC[playerFac];
+  const ef = FAC[enemyFac];
+  const progress = Math.min(1, loadTimer / LOAD_DURATION);
+
+  // Title
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = '#1a2840';
   ctx.font = '11px Courier New';
-  ctx.fillText('Dans cette démo : Aquiloris contre les Noxéens', W / 2, 78);
+  ctx.fillText('PREPARATION AU COMBAT', W / 2, 72);
 
-  // Aquiloris card
-  const f1 = FAC.aquiloris;
-  ctx.fillStyle = 'rgba(8,18,48,0.7)'; ctx.fillRect(55, 105, 340, 388);
-  ctx.strokeStyle = f1.color + '66'; ctx.lineWidth = 1; ctx.strokeRect(55, 105, 340, 388);
-  ctx.fillStyle = f1.color; ctx.font = 'bold 24px Courier New'; ctx.fillText('AQUILORIS', 225, 148);
-  ctx.fillStyle = '#1a3060'; ctx.font = '10px Courier New'; ctx.fillText(f1.res, 225, 168);
-
-  ctx.save(); ctx.shadowBlur = 24; ctx.shadowColor = f1.glow;
-  ctx.strokeStyle = f1.accent; ctx.lineWidth = 2;
-  drawStar(225, 265, 5, 38, 15, f1.color);
+  // Player emblem (left)
+  const lx = W / 2 - 170;
+  ctx.save();
+  const p1 = 24 + 10 * Math.sin(frame * 0.04);
+  ctx.shadowBlur = p1; ctx.shadowColor = pf.glow;
+  ctx.strokeStyle = pf.accent; ctx.lineWidth = 2;
+  drawStar(lx, H / 2 - 20, 5, 52, 20, pf.color);
   ctx.restore();
 
-  ctx.fillStyle = '#2a4060'; ctx.font = '11px Courier New';
-  ctx.fillText(f1.desc1, 225, 342);
-  ctx.fillText(f1.desc2, 225, 362);
+  ctx.save();
+  ctx.shadowBlur = 12; ctx.shadowColor = pf.glow;
+  ctx.fillStyle = pf.color; ctx.font = 'bold 17px Courier New';
+  ctx.fillText(pf.name.toUpperCase(), lx, H / 2 + 62);
+  ctx.restore();
+  ctx.fillStyle = '#2a3a55'; ctx.font = '9px Courier New';
+  ctx.fillText('JOUEUR', lx, H / 2 + 82);
 
-  BTN.pick = drawBtn('CHOISIR AQUILORIS', 105, 446, 240, 38, f1.color);
-
-  // Noxéens card (enemy, dimmed)
-  const f2 = FAC.noxeens;
-  ctx.fillStyle = 'rgba(4,2,12,0.7)'; ctx.fillRect(505, 105, 340, 388);
-  ctx.strokeStyle = '#1a0a2a'; ctx.lineWidth = 1; ctx.strokeRect(505, 105, 340, 388);
-  ctx.fillStyle = '#3a1e5a'; ctx.font = 'bold 24px Courier New'; ctx.fillText('NOXÉENS', 675, 148);
-  ctx.fillStyle = '#1a0a2a'; ctx.font = '10px Courier New'; ctx.fillText(f2.res, 675, 168);
-
-  ctx.save(); ctx.globalAlpha = 0.45; ctx.shadowBlur = 18; ctx.shadowColor = f2.glow;
-  ctx.strokeStyle = f2.accent; ctx.lineWidth = 2;
-  drawPoly(675, 265, 6, 38, f2.color);
+  // VS
+  ctx.save();
+  ctx.shadowBlur = 20; ctx.shadowColor = '#cc2200';
+  ctx.fillStyle = '#ff2200'; ctx.font = 'bold 38px Courier New';
+  ctx.fillText('VS', W / 2, H / 2 - 20);
   ctx.restore();
 
-  ctx.fillStyle = '#2a1840'; ctx.font = '11px Courier New';
-  ctx.fillText(f2.desc1, 675, 342);
-  ctx.fillText(f2.desc2, 675, 362);
-  ctx.fillStyle = '#2a1840'; ctx.font = 'bold 12px Courier New';
-  ctx.fillText('▸ ENNEMI CONTROLÉ PAR L\'IA', 675, 454);
+  // Enemy emblem (right)
+  const rx = W / 2 + 170;
+  ctx.save();
+  ctx.globalAlpha = 0.6;
+  ctx.shadowBlur = 16; ctx.shadowColor = ef.glow;
+  ctx.strokeStyle = ef.accent; ctx.lineWidth = 2;
+  drawPoly(rx, H / 2 - 20, 6, 52, ef.color);
+  ctx.restore();
+
+  ctx.fillStyle = ef.color + 'aa'; ctx.font = 'bold 17px Courier New';
+  ctx.fillText(ef.name.toUpperCase(), rx, H / 2 + 62);
+  ctx.fillStyle = '#1a2a1a'; ctx.font = '9px Courier New';
+  ctx.fillText('INTELLIGENCE ARTIFICIELLE', rx, H / 2 + 82);
+
+  // Progress bar
+  const bx = 180, by = H - 88, bw = 540, bh = 7;
+  ctx.fillStyle = '#080e1c'; ctx.fillRect(bx, by, bw, bh);
+  const bfill = bw * progress;
+  const bg = ctx.createLinearGradient(bx, 0, bx + bw, 0);
+  bg.addColorStop(0, pf.glow);
+  bg.addColorStop(1, pf.color);
+  ctx.fillStyle = bg; ctx.fillRect(bx, by, bfill, bh);
+  ctx.strokeStyle = pf.color + '33'; ctx.lineWidth = 1; ctx.strokeRect(bx, by, bw, bh);
+
+  // Loading text
+  const dots = '.'.repeat(Math.floor(frame / 20) % 4);
+  ctx.fillStyle = '#2a3a55'; ctx.font = '9px Courier New';
+  ctx.fillText(`CHARGEMENT${dots}  ${Math.floor(progress * 100)}%`, W / 2, H - 64);
 }
 
 // ── Screen: PLACEMENT ─────────────────────────────────────────
 const ROSTER_LIST = [
-  { type: 'hero',     icon: '✦', label: 'LÉVIAPHÉNIX' },
-  { type: 'infantry', icon: '⬡', label: 'AQUILORYON'  },
-  { type: 'ranged',   icon: '◆', label: 'AQUISTANCE'  },
-  { type: 'mounted',  icon: '●', label: 'AQUILANCE'   },
+  { type: 'hero',     icon: '*', label: 'LEVIAPHENIX' },
+  { type: 'infantry', icon: '#', label: 'AQUILORYON'  },
+  { type: 'ranged',   icon: '<', label: 'AQUISTANCE'  },
+  { type: 'mounted',  icon: 'o', label: 'AQUILANCE'   },
 ];
 
 function drawPlacement() {
@@ -661,7 +809,6 @@ function drawPlacement() {
   drawMap(true);
   drawEnemyPreview();
 
-  // Draw placed units
   const pf = FAC[playerFac];
   ctx.save();
   ctx.shadowBlur = 12; ctx.shadowColor = pf.glow;
@@ -677,7 +824,6 @@ function drawPlacement() {
   }
   ctx.restore();
 
-  // Hovered cell highlight in left zone
   if (hovCell && hovCell.gx < 6) {
     const gz = zoneOf(hovCell.gy);
     const { x, y } = iso(hovCell.gx, hovCell.gy, gz);
@@ -697,7 +843,7 @@ function drawPlacement() {
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   ctx.fillText('ROSTER', px + 86, py + 10);
   ctx.fillStyle = '#2a3a55'; ctx.font = '9px Courier New';
-  ctx.fillText(`Placés : ${placed.length} / 6`, px + 86, py + 26);
+  ctx.fillText(`Places: ${placed.length} / 6`, px + 86, py + 26);
 
   BTN.roster = [];
   ROSTER_LIST.forEach((item, i) => {
@@ -711,27 +857,25 @@ function drawPlacement() {
     ctx.font = 'bold 11px Courier New'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     ctx.fillText(`${item.icon} ${item.label}`, px + 16, iy + 8);
     ctx.fillStyle = '#2a3a50'; ctx.font = '9px Courier New';
-    ctx.fillText(`PV:${d.hp}  ATQ:${d.dmg}  PTÉ:${d.range}`, px + 16, iy + 26);
-    ctx.fillText('← Clic pour sélectionner', px + 16, iy + 42);
+    ctx.fillText(`PV:${d.hp}  ATQ:${d.dmg}  PTee:${d.range}`, px + 16, iy + 26);
+    ctx.fillText('< Clic pour selectionner', px + 16, iy + 42);
     BTN.roster.push({ type: item.type, x: px + 8, y: iy, w: 156, h: 62 });
   });
 
-  // Info
   ctx.fillStyle = '#1a2e50'; ctx.font = '9px Courier New'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  ctx.fillText('Sélectionnez un type puis', px + 86, py + 342);
+  ctx.fillText('Selectionnez un type puis', px + 86, py + 342);
   ctx.fillText('cliquez sur les cases bleues', px + 86, py + 356);
-  ctx.fillText('(moitié gauche de la carte)', px + 86, py + 370);
+  ctx.fillText('(moitie gauche de la carte)', px + 86, py + 370);
 
   const canLaunch = placed.length > 0;
   BTN.launch = drawBtn('LANCER BATAILLE', px + 8, py + 392, 156, 38, canLaunch ? pf.color : '#1a2840');
 
-  // Top title
   ctx.fillStyle = 'rgba(2,4,14,0.85)'; ctx.fillRect(0, 0, W, 30);
   ctx.fillStyle = pf.color; ctx.font = 'bold 12px Courier New'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('DÉPLOIEMENT — Placez vos unités sur la zone bleue (gauche)', W / 2 - 90, 15);
+  ctx.fillText('DEPLOIEMENT  -  Placez vos unites sur la zone bleue (gauche)', W / 2 - 90, 15);
 }
 
-// ── Screen: BATTLE ─────────────────────────────────────────────
+// ── Screen: BATTLE ────────────────────────────────────────────
 function drawBattle() {
   drawBg();
   drawMap(false);
@@ -743,34 +887,79 @@ function drawBattle() {
   drawBattleHUD();
 }
 
-// ── Screen: END ───────────────────────────────────────────────
+// ── Screen: END (Resume de la partie) ────────────────────────
 function drawEnd() {
   drawBg();
   drawMap(false);
   units.filter(u => !u.dead).forEach(u => u.draw());
   drawParticles();
 
-  ctx.fillStyle = 'rgba(0,2,10,0.86)'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(0,2,10,0.90)'; ctx.fillRect(0, 0, W, H);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 
+  // Header
+  ctx.fillStyle = '#1a2840';
+  ctx.font = '11px Courier New';
+  ctx.fillText('RESUME DE LA PARTIE', W / 2, 52);
+  ctx.strokeStyle = '#0d1828'; ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(W/2 - 180, 64); ctx.lineTo(W/2 + 180, 64); ctx.stroke();
+
+  // Victory / Defeat title
   const col = victory ? '#33ff66' : '#ff3311';
-  ctx.fillStyle = col; ctx.shadowBlur = 36; ctx.shadowColor = col;
-  ctx.font = 'bold 58px Courier New';
-  ctx.fillText(victory ? 'VICTOIRE' : 'DÉFAITE', W / 2, H / 2 - 90);
-  ctx.shadowBlur = 0;
+  ctx.save();
+  ctx.shadowBlur = 36; ctx.shadowColor = col;
+  ctx.fillStyle = col; ctx.font = 'bold 54px Courier New';
+  ctx.fillText(victory ? 'VICTOIRE' : 'DEFAITE', W / 2, 132);
+  ctx.restore();
 
-  ctx.fillStyle = '#667';
-  ctx.font = '15px Courier New';
-  ctx.fillText(victory ? 'Aquiloris écrase les Noxéens !' : "Les forces d'Aquiloris capitulent...", W / 2, H / 2 - 38);
-  ctx.fillStyle = '#99aacc';
-  ctx.font = '18px Courier New';
-  ctx.fillText(`Score : ${score}`, W / 2, H / 2 + 4);
+  ctx.fillStyle = victory ? '#1a4a28' : '#3a1a0a';
+  ctx.font = '13px Courier New';
+  ctx.fillText(
+    victory ? 'Aquiloris ecrase les Noxeens !' : 'Les forces d\'Aquiloris capitulent...',
+    W / 2, 172
+  );
 
-  BTN.replay = drawBtn('REJOUER', W / 2 - 230, H / 2 + 58, 200, 42, '#3399ff');
-  BTN.menu   = drawBtn('MENU PRINCIPAL', W / 2 + 30, H / 2 + 58, 200, 42, '#446688');
+  // Stats panel
+  const px = 248, py = 196, pw = 404, ph = 220;
+  ctx.fillStyle = 'rgba(4,8,24,0.96)'; ctx.fillRect(px, py, pw, ph);
+  ctx.strokeStyle = col + '44'; ctx.lineWidth = 1; ctx.strokeRect(px, py, pw, ph);
+  ctx.strokeStyle = col + '18'; ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(px + 20, py + 26); ctx.lineTo(px + pw - 20, py + 26); ctx.stroke();
+
+  ctx.fillStyle = col + 'cc'; ctx.font = 'bold 10px Courier New';
+  ctx.fillText('STATISTIQUES DE COMBAT', W / 2, py + 16);
+
+  const stats = [
+    { label: 'Faction joueur',      value: FAC[playerFac].name, color: FAC[playerFac].color },
+    { label: 'Faction ennemie',     value: FAC[enemyFac].name + ' (IA)', color: FAC[enemyFac].color },
+    { label: 'Ennemis elimines',    value: String(battleKills), color: '#33ff66' },
+    { label: 'Unites perdues',      value: String(playerLosses), color: '#ff6633' },
+    { label: 'Score total',         value: String(score), color: col },
+    { label: 'Duree du combat',     value: fmtTime(frame), color: '#99aacc' },
+  ];
+
+  ctx.textAlign = 'left';
+  stats.forEach((s, i) => {
+    const sy = py + 46 + i * 30;
+    const isLast = i === stats.length - 1;
+    ctx.fillStyle = '#2a3a55'; ctx.font = '10px Courier New';
+    ctx.fillText(s.label, px + 24, sy);
+    ctx.fillStyle = s.color; ctx.textAlign = 'right';
+    ctx.font = i === 4 ? 'bold 10px Courier New' : '10px Courier New';
+    ctx.fillText(s.value, px + pw - 24, sy);
+    ctx.textAlign = 'left';
+    if (!isLast) {
+      ctx.strokeStyle = '#0a1428'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(px + 16, sy + 18); ctx.lineTo(px + pw - 16, sy + 18); ctx.stroke();
+    }
+  });
+
+  // Buttons
+  BTN.replay = drawBtn('REJOUER', W / 2 - 238, H - 80, 208, 44, '#3399ff', 'rgba(0,15,50,0.7)');
+  BTN.menu   = drawBtn('MENU PRINCIPAL', W / 2 + 30, H - 80, 208, 44, '#446688', 'rgba(4,8,20,0.7)');
 }
 
-// ── Grid picking ───────────────────────────────────────────────
+// ── Grid picking ──────────────────────────────────────────────
 function pick(sx, sy) {
   for (let gz = 2; gz >= 0; gz--) {
     const dx = sx - OX, dy = sy - OY + gz * ZS;
@@ -807,16 +996,19 @@ C.addEventListener('click', e => {
     if (hit(mx, my, BTN.play)) state = 'FACTION';
   }
   else if (state === 'FACTION') {
-    if (hit(mx, my, BTN.pick)) { playerFac = 'aquiloris'; enemyFac = 'noxeens'; placed = []; placingType = null; state = 'PLACEMENT'; }
+    if (BTN.pick && hit(mx, my, BTN.pick)) {
+      playerFac = 'aquiloris'; enemyFac = 'noxeens';
+      placed = []; placingType = null;
+      loadTimer = 0;
+      state = 'LOADING';
+    }
+    if (BTN.back && hit(mx, my, BTN.back)) state = 'MENU';
   }
   else if (state === 'PLACEMENT') {
-    // Roster buttons
     if (BTN.roster) {
       for (const rb of BTN.roster) { if (hit(mx, my, rb)) { placingType = rb.type; return; } }
     }
-    // Launch
     if (hit(mx, my, BTN.launch) && placed.length > 0) { startBattle(); return; }
-    // Place on map
     if (placingType && placed.length < 6) {
       const cell = pick(mx, my);
       if (cell && cell.gx < 6) {
@@ -862,6 +1054,11 @@ function loop() {
 
   if      (state === 'MENU')      drawMenu();
   else if (state === 'FACTION')   drawFaction();
+  else if (state === 'LOADING') {
+    loadTimer++;
+    drawLoading();
+    if (loadTimer >= LOAD_DURATION) state = 'PLACEMENT';
+  }
   else if (state === 'PLACEMENT') drawPlacement();
   else if (state === 'BATTLE') {
     runAI();
