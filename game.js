@@ -1,262 +1,231 @@
 // ============================================================
-// WOTOL – War of the Ocean's Legacy | Tactical Demo
+// WOTOL – War of the Ocean's Legacy | Isometric Tactical Demo
+// States: MENU → FACTION → PLACEMENT → BATTLE → END
 // ============================================================
 
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
-const W = 900, H = 620;
+const C = document.getElementById('c');
+const ctx = C.getContext('2d');
+const W = 900, H = 600;
 
-// ── Zone definitions (3 vertical combat levels) ──────────────
-// y starts at 36 (below top HUD bar); bottom ends at H-22 (above bottom bar)
-const TOP_BAR = 36, BOT_BAR = 22;
-const ZONE_TOP = TOP_BAR, ZONE_BOT = H - BOT_BAR; // 36 to 598 = 562 px
-const ZONE_H = Math.floor((ZONE_BOT - ZONE_TOP) / 3);
+// ── Isometric config ─────────────────────────────────────────
+const TW = 64, TH = 32, ZS = 38;
+const GW = 12, GH = 8;
+const OX = 355, OY = 155;
 
-const ZONES = [
-  { level: 2, label: 'EAU OUVERTE  •  15m', y: ZONE_TOP,              h: ZONE_H,     dark: '#0e2545', light: '#12305a' },
-  { level: 1, label: 'EAU PROFONDE  •  5m', y: ZONE_TOP + ZONE_H,     h: ZONE_H,     dark: '#091a35', light: '#0e2545' },
-  { level: 0, label: 'FOND MARIN  •  0m',   y: ZONE_TOP + ZONE_H * 2, h: ZONE_BOT - (ZONE_TOP + ZONE_H * 2), dark: '#050e1e', light: '#091828' },
-];
+function iso(gx, gy, gz = 0) {
+  return {
+    x: OX + (gx - gy) * TW / 2,
+    y: OY + (gx + gy) * TH / 2 - gz * ZS,
+  };
+}
 
-// ── Faction colors ────────────────────────────────────────────
+function zoneOf(gy) {
+  if (gy <= 2) return 2; // EAU OUVERTE
+  if (gy <= 5) return 1; // EAU PROFONDE
+  return 0;              // FOND MARIN
+}
+
+// ── Factions ──────────────────────────────────────────────────
 const FAC = {
-  player: { color: '#4488ff', glow: '#2255bb', accent: '#aaccff', name: 'Aquiloris' },
-  enemy:  { color: '#33cc77', glow: '#116633', accent: '#88ffbb', name: 'Thalassidras' },
+  aquiloris: {
+    name: 'Aquiloris',
+    color: '#3399ff',
+    glow: '#1155cc',
+    accent: '#99ccff',
+    darkBg: '#040c22',
+    desc1: 'Technologie cristalline',
+    desc2: 'Discipline militaire',
+    res: 'Cristaux',
+  },
+  noxeens: {
+    name: 'Noxéens',
+    color: '#8833ee',
+    glow: '#551199',
+    accent: '#cc77ff',
+    darkBg: '#080418',
+    desc1: 'Créatures abyssales',
+    desc2: 'Bioluminescence mortelle',
+    res: 'Biolumens',
+  },
 };
 
-// ── Unit templates ────────────────────────────────────────────
-const TEMPLATES = {
-  hero:     { hp: 250, dmg: 35, range: 55, speed: 2.0, size: 20, label: 'Héros',      atkRate: 55  },
-  infantry: { hp: 130, dmg: 18, range: 42, speed: 1.4, size: 14, label: 'Infanterie', atkRate: 65  },
-  ranged:   { hp:  70, dmg: 28, range: 160, speed: 1.1, size: 12, label: 'Distance',  atkRate: 80  },
-  mounted:  { hp: 100, dmg: 22, range: 46, speed: 2.6, size: 16, label: 'Monté',      atkRate: 70  },
+// ── Unit definitions ──────────────────────────────────────────
+const UDEFS = {
+  hero:     { hp: 280, dmg: 38, range: 2.2, spd: 0.032, sz: 20, lbl: 'Héros'       },
+  infantry: { hp: 140, dmg: 20, range: 1.4, spd: 0.024, sz: 15, lbl: 'Infanterie'  },
+  ranged:   { hp:  75, dmg: 30, range: 5.5, spd: 0.018, sz: 13, lbl: 'Distance'    },
+  mounted:  { hp: 115, dmg: 24, range: 1.7, spd: 0.044, sz: 17, lbl: 'Monté'       },
 };
+
+const ROSTER_TYPES = ['hero', 'infantry', 'infantry', 'ranged', 'ranged', 'mounted'];
 
 // ── State ─────────────────────────────────────────────────────
-let units = [], particles = [], projectiles = [], bgDots = [];
-let selected = [], selBox = null, dragStart = null, isDragging = false;
-let frameCount = 0, score = 0, running = false;
-let mouseX = 0, mouseY = 0;
+let state       = 'MENU';
+let playerFac   = 'aquiloris';
+let enemyFac    = 'noxeens';
+let units       = [];
+let particles   = [];
+let projs       = [];
+let selected    = null;
+let hovCell     = null;
+let placed      = [];     // [{type, gx, gy}]
+let placingType = null;
+let score       = 0;
+let victory     = false;
+let frame       = 0;
+let bgDots      = [];
+let aiTick      = 0;
 
-// ─────────────────────────────────────────────────────────────
-// UNIT CLASS
-// ─────────────────────────────────────────────────────────────
+// ── Buttons (computed each frame) ────────────────────────────
+let BTN = {};
+
+// ── Unit ─────────────────────────────────────────────────────
 class Unit {
-  constructor(faction, type, x, y, level) {
-    const t = TEMPLATES[type];
+  constructor(fac, type, gx, gy) {
+    const d = UDEFS[type];
     Object.assign(this, {
-      faction, type, x, y, level,
-      hp: t.hp, maxHp: t.hp, dmg: t.dmg,
-      range: t.range, speed: t.speed, size: t.size,
-      atkRate: t.atkRate, atkTimer: 0,
+      fac, type,
+      gx: +gx, gy: +gy, gz: zoneOf(gy),
+      hp: d.hp, maxHp: d.hp,
+      dmg: d.dmg, range: d.range, spd: d.spd, sz: d.sz,
       target: null, dest: null,
-      dead: false, flash: 0,
-      id: Math.random(),
+      cd: 0, flash: 0, dead: false,
     });
   }
 
-  get fac() { return FAC[this.faction]; }
-  get zone() { return ZONES.find(z => z.level === this.level) || ZONES[2]; }
+  get f()  { return FAC[this.fac]; }
+  get sp() {
+    const gz = this.gz;
+    return {
+      x: OX + (this.gx - this.gy) * TW / 2,
+      y: OY + (this.gx + this.gy) * TH / 2 - (gz + 0.55) * ZS,
+    };
+  }
+
+  dist(o) { return Math.hypot(o.gx - this.gx, o.gy - this.gy); }
+
+  nearest(list) {
+    let b = null, bd = Infinity;
+    for (const u of list) { const d = this.dist(u); if (d < bd) { bd = d; b = u; } }
+    return b;
+  }
 
   update() {
     if (this.dead) return;
-    if (this.atkTimer > 0) this.atkTimer--;
+    if (this.cd > 0) this.cd--;
     if (this.flash > 0) this.flash--;
 
-    const foes = units.filter(u => !u.dead && u.faction !== this.faction);
+    const foes = units.filter(u => !u.dead && u.fac !== this.fac);
     if (!this.target || this.target.dead) this.target = this.nearest(foes);
 
     if (this.target) {
-      const dx = this.target.x - this.x, dy = this.target.y - this.y;
-      const dist = Math.hypot(dx, dy);
-      const lvDiff = Math.abs(this.target.level - this.level);
-      const canHit = lvDiff === 0 || (this.type === 'ranged' && lvDiff === 1);
-      const effRange = canHit ? this.range : 0;
-
-      if (canHit && dist < effRange) {
-        if (this.atkTimer === 0) {
-          this.atkTimer = this.atkRate;
-          this.attack(this.target);
-        }
-      } else if (!this.dest) {
-        // Enemies auto-chase; player units hold position until ordered
-        if (this.faction === 'enemy' && dist > 6) {
-          this.step(dx / dist * this.speed, dy / dist * this.speed);
-        }
+      const d = this.dist(this.target);
+      if (d <= this.range) {
+        if (this.cd === 0) { this.cd = 85; this.fire(this.target); }
+      } else if (!this.dest && this.fac === enemyFac) {
+        this.dest = { gx: this.target.gx, gy: this.target.gy };
       }
     }
 
     if (this.dest) {
-      const dx = this.dest.x - this.x, dy = this.dest.y - this.y;
-      const dist = Math.hypot(dx, dy);
-      if (dist < 4) { this.x = this.dest.x; this.y = this.dest.y; this.dest = null; }
-      else this.step(dx / dist * this.speed, dy / dist * this.speed);
+      const dx = this.dest.gx - this.gx, dy = this.dest.gy - this.gy;
+      const d = Math.hypot(dx, dy);
+      if (d < 0.08) {
+        this.gx = this.dest.gx; this.gy = this.dest.gy;
+        this.gz = zoneOf(Math.round(this.gy));
+        this.dest = null;
+      } else {
+        this.gx += dx / d * this.spd;
+        this.gy += dy / d * this.spd;
+        this.gz = zoneOf(Math.round(this.gy));
+      }
     }
   }
 
-  step(dx, dy) {
-    const z = this.zone;
-    this.x = clamp(this.x + dx, this.size + 1, W - this.size - 1);
-    this.y = clamp(this.y + dy, z.y + this.size + 22, z.y + z.h - this.size - 4);
-  }
-
-  nearest(list) {
-    let best = null, bd = Infinity;
-    for (const u of list) {
-      const d = Math.hypot(u.x - this.x, u.y - this.y);
-      if (d < bd) { bd = d; best = u; }
-    }
-    return best;
-  }
-
-  attack(target) {
+  fire(t) {
     if (this.type === 'ranged') {
-      projectiles.push(new Projectile(this, target));
+      const sp = this.sp, tp = t.sp;
+      projs.push({ x: sp.x, y: sp.y, tx: tp.x, ty: tp.y, t, dmg: this.dmg, col: this.f.color, dead: false });
     } else {
-      target.hit(this.dmg);
-      burst(target.x, target.y, this.fac.color, 5, 2.5);
+      t.hurt(this.dmg);
+      burst(t.sp.x, t.sp.y, this.f.color, 7);
     }
   }
 
-  hit(dmg) {
-    this.hp -= dmg;
-    this.flash = 10;
-    if (this.hp <= 0) this.die();
-  }
-
-  die() {
-    this.dead = true;
-    burst(this.x, this.y, this.fac.color, 22, 4.5);
-    if (this.faction === 'enemy') score += (this.type === 'hero' ? 300 : 100);
+  hurt(dmg) {
+    this.hp -= dmg; this.flash = 12;
+    if (this.hp <= 0) {
+      this.dead = true;
+      burst(this.sp.x, this.sp.y, this.f.color, 22);
+      if (this.fac === enemyFac) score += this.type === 'hero' ? 300 : 100;
+    }
   }
 
   draw() {
     if (this.dead) return;
-    const { color, glow, accent } = this.fac;
-    const sel = selected.includes(this);
-    const s = this.size;
+    const { x, y } = this.sp;
+    const f = this.f;
+    const sel = selected === this;
+    const s = this.sz;
 
     ctx.save();
-    ctx.shadowBlur = sel ? 24 : this.flash > 0 ? 18 : 10;
-    ctx.shadowColor = this.flash > 0 ? '#ff4422' : (sel ? '#ffffff' : glow);
+    ctx.shadowBlur = sel ? 28 : (this.flash > 0 ? 18 : 10);
+    ctx.shadowColor = this.flash > 0 ? '#ff3300' : (sel ? '#fff' : f.glow);
+    ctx.strokeStyle = f.accent;
+    ctx.lineWidth = sel ? 2.5 : 1.5;
 
-    ctx.strokeStyle = accent;
-    ctx.lineWidth = sel ? 2 : 1.5;
+    // Shadow
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = '#000020';
+    ctx.beginPath(); ctx.ellipse(x, y + s * 0.7, s * 0.8, s * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
 
-    // Unit shape per type
-    if (this.type === 'hero') {
-      drawStar(this.x, this.y, 5, s, s * 0.45, color);
-    } else if (this.type === 'infantry') {
-      drawPoly(this.x, this.y, 6, s, color);
-    } else if (this.type === 'ranged') {
-      drawDiamond(this.x, this.y, s, color);
-    } else {
-      ctx.fillStyle = color;
-      ctx.beginPath(); ctx.arc(this.x, this.y, s, 0, Math.PI * 2);
-      ctx.fill(); ctx.stroke();
-    }
+    // Shape
+    if      (this.type === 'hero')     drawStar(x, y, 5, s, s * 0.38, f.color);
+    else if (this.type === 'infantry') drawPoly(x, y, 6, s, f.color);
+    else if (this.type === 'ranged')   drawDiamond(x, y, s, f.color);
+    else { ctx.fillStyle = f.color; ctx.beginPath(); ctx.arc(x, y, s, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
 
     ctx.restore();
 
-    // Level badge
-    ctx.fillStyle = '#aabbcc';
-    ctx.font = 'bold 8px Courier New';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('L' + this.level, this.x, this.y + s + 10);
-
     // HP bar
-    const bw = s * 2.8, bh = 4;
-    const bx = this.x - bw / 2, by = this.y - s - 12;
-    ctx.fillStyle = '#0a0a15';
-    ctx.fillRect(bx, by, bw, bh);
-    const pct = this.hp / this.maxHp;
-    ctx.fillStyle = pct > 0.55 ? '#33ee66' : pct > 0.28 ? '#ffcc22' : '#ff3311';
+    const bw = s * 3, bh = 4, bx = x - bw / 2, by = y - s - 14;
+    ctx.fillStyle = '#08081a'; ctx.fillRect(bx, by, bw, bh);
+    const pct = Math.max(0, this.hp / this.maxHp);
+    ctx.fillStyle = pct > 0.5 ? '#22ee55' : pct > 0.25 ? '#ffcc00' : '#ff3300';
     ctx.fillRect(bx, by, bw * pct, bh);
 
     // Selection ring
     if (sel) {
       ctx.save();
-      ctx.strokeStyle = 'rgba(200,220,255,0.85)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
       ctx.lineWidth = 1.5;
-      ctx.setLineDash([5, 4]);
-      ctx.lineDashOffset = -(frameCount * 0.12);
-      ctx.beginPath(); ctx.arc(this.x, this.y, s + 7, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.setLineDash([4, 3]);
+      ctx.lineDashOffset = -frame * 0.1;
+      ctx.beginPath(); ctx.arc(x, y, s + 9, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
     }
 
-    // Hero crown indicator
-    if (this.type === 'hero') {
-      ctx.fillStyle = this.fac.color;
-      ctx.font = 'bold 10px Courier New';
-      ctx.textAlign = 'center';
-      ctx.fillText('♛', this.x, this.y - s - 18);
-    }
+    // Zone badge
+    const zoneName = ['FOND', 'MARIN', 'OUVERT'][this.gz];
+    ctx.fillStyle = '#778899';
+    ctx.font = '8px Courier New';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText('z' + this.gz, x, y + s + 3);
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// PROJECTILE
-// ─────────────────────────────────────────────────────────────
-class Projectile {
-  constructor(from, target) {
-    this.x = from.x; this.y = from.y;
-    this.target = target; this.dmg = from.dmg;
-    this.color = from.fac.color; this.dead = false;
-    const dx = target.x - from.x, dy = target.y - from.y;
-    const d = Math.hypot(dx, dy);
-    const spd = 6;
-    this.vx = dx / d * spd; this.vy = dy / d * spd;
-    this.trail = [];
-  }
-
-  update() {
-    if (this.dead) return;
-    this.trail.push({ x: this.x, y: this.y });
-    if (this.trail.length > 6) this.trail.shift();
-    this.x += this.vx; this.y += this.vy;
-    if (Math.hypot(this.target.x - this.x, this.target.y - this.y) < 12) {
-      this.target.hit(this.dmg);
-      burst(this.x, this.y, this.color, 8, 3);
-      this.dead = true;
-    }
-    if (this.x < 0 || this.x > W || this.y < 0 || this.y > H) this.dead = true;
-  }
-
-  draw() {
-    if (this.dead) return;
-    // Trail
-    ctx.save();
-    for (let i = 0; i < this.trail.length; i++) {
-      const a = (i / this.trail.length) * 0.5;
-      ctx.globalAlpha = a;
-      ctx.fillStyle = this.color;
-      ctx.beginPath(); ctx.arc(this.trail[i].x, this.trail[i].y, 2, 0, Math.PI * 2); ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur = 12; ctx.shadowColor = this.color;
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
-// PARTICLES
-// ─────────────────────────────────────────────────────────────
-function burst(x, y, color, n, spd) {
+// ── Particles ─────────────────────────────────────────────────
+function burst(x, y, col, n) {
   for (let i = 0; i < n; i++) {
-    const a = Math.random() * Math.PI * 2;
-    const s = Math.random() * spd + 0.8;
-    particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 30 + Math.random() * 20, max: 50, color, r: Math.random() * 3 + 1 });
+    const a = Math.random() * Math.PI * 2, sp = Math.random() * 4.5 + 1;
+    particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 38, max: 38, col, r: Math.random() * 3 + 1 });
   }
 }
 
-function updateParticles() {
+function tickParticles() {
   for (const p of particles) {
-    p.x += p.vx; p.y += p.vy;
-    p.vx *= 0.9; p.vy *= 0.9; p.life--;
+    p.x += p.vx; p.y += p.vy; p.vx *= 0.88; p.vy *= 0.88; p.life--;
   }
   particles = particles.filter(p => p.life > 0);
 }
@@ -264,65 +233,61 @@ function updateParticles() {
 function drawParticles() {
   ctx.save();
   for (const p of particles) {
-    ctx.globalAlpha = (p.life / p.max) * 0.85;
-    ctx.shadowBlur = 6; ctx.shadowColor = p.color;
-    ctx.fillStyle = p.color;
+    ctx.globalAlpha = (p.life / p.max) * 0.92;
+    ctx.shadowBlur = 7; ctx.shadowColor = p.col;
+    ctx.fillStyle = p.col;
     ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (p.life / p.max), 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
 }
 
-// ─────────────────────────────────────────────────────────────
-// BACKGROUND
-// ─────────────────────────────────────────────────────────────
-function initBgDots() {
+// ── Projectiles ───────────────────────────────────────────────
+function tickProjs() {
+  for (const p of projs) {
+    if (p.dead) continue;
+    const dx = p.tx - p.x, dy = p.ty - p.y, d = Math.hypot(dx, dy);
+    if (d < 8) { p.t.hurt(p.dmg); burst(p.x, p.y, p.col, 7); p.dead = true; }
+    else { p.x += dx / d * 7; p.y += dy / d * 7; }
+  }
+  projs = projs.filter(p => !p.dead);
+}
+
+function drawProjs() {
+  ctx.save();
+  for (const p of projs) {
+    ctx.shadowBlur = 12; ctx.shadowColor = p.col;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ── Background ────────────────────────────────────────────────
+function initDots() {
   bgDots = [];
-  for (let i = 0; i < 100; i++) {
-    bgDots.push({
-      x: Math.random() * W, y: Math.random() * H,
-      r: Math.random() * 2.5 + 0.5,
-      vy: -(Math.random() * 0.35 + 0.1),
-      vx: (Math.random() - 0.5) * 0.15,
-      a: Math.random() * 0.35 + 0.05,
-    });
+  for (let i = 0; i < 55; i++) {
+    bgDots.push({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 2.2 + 0.4, vy: -(Math.random() * 0.28 + 0.1), vx: (Math.random() - 0.5) * 0.1, a: Math.random() * 0.28 + 0.06 });
   }
 }
 
-function drawBackground() {
-  // Zones
-  for (const z of ZONES) {
-    const g = ctx.createLinearGradient(0, z.y, 0, z.y + z.h);
-    g.addColorStop(0, z.light); g.addColorStop(1, z.dark);
-    ctx.fillStyle = g; ctx.fillRect(0, z.y, W, z.h);
+function drawBg(dark) {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, dark || '#06101e');
+  g.addColorStop(1, '#020810');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 
-    // Zone separator line
-    ctx.strokeStyle = '#0e1e38'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(0, z.y + z.h); ctx.lineTo(W, z.y + z.h); ctx.stroke();
-
-    // Level label (left side)
-    ctx.fillStyle = '#1a3060';
-    ctx.font = '10px Courier New';
-    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    ctx.fillText(z.label, 8, z.y + 6);
-
-    // Right-side level indicator
-    ctx.textAlign = 'right';
-    ctx.fillText('NIVEAU ' + z.level, W - 8, z.y + 6);
-  }
-
-  // Light rays from surface
+  // Rays
   ctx.save();
-  for (let i = 0; i < 6; i++) {
-    const cx = (W / 6) * i + W / 12;
-    const wRay = 20 + Math.sin(frameCount * 0.008 + i * 1.1) * 12;
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, 'rgba(80,130,220,0.06)');
-    g.addColorStop(0.5, 'rgba(60,100,180,0.03)');
-    g.addColorStop(1, 'rgba(40,70,140,0)');
-    ctx.fillStyle = g;
+  for (let i = 0; i < 5; i++) {
+    const cx = W / 5 * i + W / 10;
+    const ww = 14 + Math.sin(frame * 0.007 + i) * 9;
+    const g2 = ctx.createLinearGradient(0, 0, 0, H);
+    g2.addColorStop(0, 'rgba(50,90,200,0.055)');
+    g2.addColorStop(1, 'rgba(30,60,140,0)');
+    ctx.fillStyle = g2;
     ctx.beginPath();
-    ctx.moveTo(cx - wRay, 0); ctx.lineTo(cx + wRay, 0);
-    ctx.lineTo(cx + wRay * 2.5, H); ctx.lineTo(cx - wRay * 2.5, H);
+    ctx.moveTo(cx - ww, 0); ctx.lineTo(cx + ww, 0);
+    ctx.lineTo(cx + ww * 3, H); ctx.lineTo(cx - ww * 3, H);
     ctx.closePath(); ctx.fill();
   }
   ctx.restore();
@@ -331,322 +296,228 @@ function drawBackground() {
   ctx.save();
   for (const d of bgDots) {
     d.x += d.vx; d.y += d.vy;
-    if (d.y < -10) { d.y = H + 10; d.x = Math.random() * W; }
+    if (d.y < -4) { d.y = H + 4; d.x = Math.random() * W; }
     ctx.globalAlpha = d.a;
-    ctx.strokeStyle = '#4499cc'; ctx.lineWidth = 0.8;
+    ctx.strokeStyle = '#3377aa'; ctx.lineWidth = 0.7;
     ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2); ctx.stroke();
   }
   ctx.restore();
 }
 
-// ─────────────────────────────────────────────────────────────
-// HUD
-// ─────────────────────────────────────────────────────────────
-function drawHUD() {
-  const pAlive = units.filter(u => !u.dead && u.faction === 'player').length;
-  const eAlive = units.filter(u => !u.dead && u.faction === 'enemy').length;
-
-  // Top bar
-  ctx.fillStyle = 'rgba(2,5,15,0.8)';
-  ctx.fillRect(0, 0, W, 36);
-
-  ctx.font = 'bold 12px Courier New';
-  ctx.textBaseline = 'middle';
-
-  ctx.fillStyle = FAC.player.color;
-  ctx.textAlign = 'left';
-  ctx.fillText(`♛ AQUILORIS  ${pAlive} UNITÉS`, 14, 18);
-
-  ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'center';
-  ctx.fillText(`SCORE  ${score}`, W / 2, 18);
-
-  ctx.fillStyle = FAC.enemy.color;
-  ctx.textAlign = 'right';
-  ctx.fillText(`THALASSIDRAS  ${eAlive} UNITÉS ♛`, W - 14, 18);
-
-  // Selected unit info panel (bottom-left)
-  if (selected.length === 1) {
-    const u = selected[0];
-    const px = 10, py = H - 90, pw = 210, ph = 78;
-    ctx.fillStyle = 'rgba(2,6,20,0.85)';
-    ctx.fillRect(px, py, pw, ph);
-    ctx.strokeStyle = FAC.player.color + '44';
-    ctx.lineWidth = 1; ctx.strokeRect(px, py, pw, ph);
-
-    ctx.fillStyle = FAC.player.color;
-    ctx.font = 'bold 11px Courier New';
-    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    ctx.fillText(`${TEMPLATES[u.type].label.toUpperCase()} – NIVEAU ${u.level}`, px + 10, py + 10);
-
-    ctx.fillStyle = '#778';
-    ctx.font = '10px Courier New';
-    ctx.fillText(`PV: ${Math.max(0, Math.ceil(u.hp))} / ${u.maxHp}`, px + 10, py + 28);
-    ctx.fillText(`ATQ: ${u.dmg}  PORTée: ${u.range}  VIT: ${u.speed.toFixed(1)}`, px + 10, py + 44);
-    ctx.fillText(`Faction: ${u.fac.name}`, px + 10, py + 60);
-  } else if (selected.length > 1) {
-    const px = 10, py = H - 58, pw = 160, ph = 46;
-    ctx.fillStyle = 'rgba(2,6,20,0.85)'; ctx.fillRect(px, py, pw, ph);
-    ctx.strokeStyle = FAC.player.color + '44'; ctx.lineWidth = 1; ctx.strokeRect(px, py, pw, ph);
-    ctx.fillStyle = FAC.player.color;
-    ctx.font = 'bold 11px Courier New'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    ctx.fillText(`${selected.length} UNITÉS SÉLECTIONNÉES`, px + 10, py + 10);
-    ctx.fillStyle = '#556';
-    ctx.font = '10px Courier New';
-    ctx.fillText('CLIC DROIT pour déplacer', px + 10, py + 30);
-  }
-
-  // Bottom bar
-  ctx.fillStyle = 'rgba(2,5,15,0.7)';
-  ctx.fillRect(0, H - 22, W, 22);
-  ctx.fillStyle = '#334';
-  ctx.font = '10px Courier New';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('G.CLIC Sélectionner  |  D.CLIC Déplacer/Attaquer  |  DRAG Groupe  |  Changer de zone avec D.CLIC dans un autre niveau', W / 2, H - 11);
-
-  // Selection box draw
-  if (selBox) {
-    ctx.save();
-    ctx.strokeStyle = 'rgba(160,200,255,0.7)'; ctx.lineWidth = 1;
-    ctx.setLineDash([4, 3]);
-    ctx.strokeRect(selBox.x, selBox.y, selBox.w, selBox.h);
-    ctx.fillStyle = 'rgba(80,140,255,0.06)';
-    ctx.fillRect(selBox.x, selBox.y, selBox.w, selBox.h);
-    ctx.restore();
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
-// ENEMY AI (simple wave logic)
-// ─────────────────────────────────────────────────────────────
-let aiTimer = 0;
-function runEnemyAI() {
-  aiTimer++;
-  if (aiTimer % 180 !== 0) return; // every 3 seconds
-
-  const enemies = units.filter(u => !u.dead && u.faction === 'enemy');
-  const players = units.filter(u => !u.dead && u.faction === 'player');
-  if (!players.length) return;
-
-  for (const e of enemies) {
-    // Pick a random player target or charge nearest
-    if (Math.random() < 0.4) {
-      const t = players[Math.floor(Math.random() * players.length)];
-      e.target = t;
-    }
-    // Occasionally switch level to create vertical pressure
-    if (Math.random() < 0.25) {
-      const newLevel = Math.floor(Math.random() * 3);
-      const newZone = ZONES.find(z => z.level === newLevel);
-      const cy = newZone.y + newZone.h * 0.4 + Math.random() * newZone.h * 0.3;
-      e.level = newLevel;
-      e.dest = { x: e.x, y: clamp(cy, newZone.y + e.size + 22, newZone.y + newZone.h - e.size - 4) };
+// ── Isometric map ─────────────────────────────────────────────
+function drawMap(highlightLeft) {
+  for (let gy = 0; gy < GH; gy++) {
+    for (let gx = 0; gx < GW; gx++) {
+      const gz = zoneOf(gy);
+      drawTile(gx, gy, gz, highlightLeft);
     }
   }
+  drawZoneLabels();
 }
 
-// ─────────────────────────────────────────────────────────────
-// GAME INIT
-// ─────────────────────────────────────────────────────────────
-function initGame() {
-  units = []; particles = []; projectiles = [];
-  selected = []; selBox = null; dragStart = null; isDragging = false;
-  score = 0; frameCount = 0; aiTimer = 0;
+const TILE_COLORS = [
+  { top: '#050c1a', sL: '#030710', sR: '#040912' },  // z=0 fond
+  { top: '#08162e', sL: '#04090e', sR: '#060e1e' },  // z=1 profonde
+  { top: '#0d2244', sL: '#071228', sR: '#0a1a38' },  // z=2 ouverte
+];
 
-  // Aquiloris (Player) – left side
-  const pz0 = ZONES.find(z => z.level === 0);
-  const pz1 = ZONES.find(z => z.level === 1);
-  const pz2 = ZONES.find(z => z.level === 2);
+function drawTile(gx, gy, gz, highlightLeft) {
+  const { x, y } = iso(gx, gy, gz);
+  const hw = TW / 2, hh = TH / 2;
+  const tc = TILE_COLORS[gz];
+  const hov = hovCell && hovCell.gx === gx && hovCell.gy === gy;
+  const isLeft = gx < 6;
 
-  spawnUnit('player', 'hero',     90,  pz1.y + pz1.h / 2,       1);
-  spawnUnit('player', 'infantry', 60,  pz0.y + pz0.h * 0.4,     0);
-  spawnUnit('player', 'infantry', 100, pz0.y + pz0.h * 0.65,    0);
-  spawnUnit('player', 'ranged',   50,  pz0.y + pz0.h * 0.25,    0);
-  spawnUnit('player', 'infantry', 60,  pz1.y + pz1.h * 0.35,    1);
-  spawnUnit('player', 'ranged',   45,  pz1.y + pz1.h * 0.65,    1);
-  spawnUnit('player', 'mounted',  110, pz2.y + pz2.h * 0.4,     2);
-  spawnUnit('player', 'infantry', 75,  pz2.y + pz2.h * 0.65,    2);
+  // Side faces (only for elevated tiles)
+  if (gz > 0) {
+    ctx.fillStyle = tc.sL;
+    ctx.beginPath();
+    ctx.moveTo(x - hw, y + hh); ctx.lineTo(x - hw, y + hh + gz * ZS);
+    ctx.lineTo(x, y + TH + gz * ZS); ctx.lineTo(x, y + TH);
+    ctx.closePath(); ctx.fill();
 
-  // Thalassidras (Enemy) – right side
-  spawnUnit('enemy',  'hero',     W - 90,  pz1.y + pz1.h / 2,    1);
-  spawnUnit('enemy',  'infantry', W - 60,  pz0.y + pz0.h * 0.4,  0);
-  spawnUnit('enemy',  'infantry', W - 100, pz0.y + pz0.h * 0.65, 0);
-  spawnUnit('enemy',  'ranged',   W - 50,  pz0.y + pz0.h * 0.25, 0);
-  spawnUnit('enemy',  'infantry', W - 60,  pz1.y + pz1.h * 0.35, 1);
-  spawnUnit('enemy',  'ranged',   W - 45,  pz1.y + pz1.h * 0.65, 1);
-  spawnUnit('enemy',  'mounted',  W - 110, pz2.y + pz2.h * 0.4,  2);
-  spawnUnit('enemy',  'infantry', W - 75,  pz2.y + pz2.h * 0.65, 2);
-}
-
-function spawnUnit(faction, type, x, y, level) {
-  units.push(new Unit(faction, type, x, y, level));
-}
-
-// ─────────────────────────────────────────────────────────────
-// END GAME CHECK
-// ─────────────────────────────────────────────────────────────
-function checkEnd() {
-  if (!running) return;
-  const pAlive = units.filter(u => !u.dead && u.faction === 'player').length;
-  const eAlive = units.filter(u => !u.dead && u.faction === 'enemy').length;
-
-  if (pAlive === 0) { endGame(false); return; }
-  if (eAlive === 0) { endGame(true); return; }
-}
-
-function endGame(victory) {
-  running = false;
-  const el = document.getElementById('endScreen');
-  const title = document.getElementById('endTitle');
-  const sub = document.getElementById('endSub');
-  const sc = document.getElementById('endScore');
-
-  title.textContent = victory ? 'VICTOIRE' : 'DÉFAITE';
-  title.style.color = victory ? '#55ff88' : '#ff4422';
-  sub.textContent = victory
-    ? 'Aquiloris écrase les Thalassidras !'
-    : "Les forces d'Aquiloris sont vaincues...";
-  sc.textContent = `Score final : ${score}`;
-
-  el.style.display = 'flex';
-}
-
-// ─────────────────────────────────────────────────────────────
-// MAIN LOOP
-// ─────────────────────────────────────────────────────────────
-function loop() {
-  requestAnimationFrame(loop);
-  if (!running) return;
-  frameCount++;
-
-  ctx.clearRect(0, 0, W, H);
-  drawBackground();
-
-  // Updates
-  runEnemyAI();
-  for (const u of units) u.update();
-  for (const p of projectiles) p.update();
-  updateParticles();
-  projectiles = projectiles.filter(p => !p.dead);
-  units = units.filter(u => { if (u.dead && !u._deathLogged) { u._deathLogged = true; } return true; });
-
-  // Draw
-  drawParticles();
-  for (const p of projectiles) p.draw();
-  for (const u of units) if (!u.dead) u.draw();
-
-  drawHUD();
-  checkEnd();
-}
-
-// ─────────────────────────────────────────────────────────────
-// INPUT
-// ─────────────────────────────────────────────────────────────
-canvas.addEventListener('mousedown', e => {
-  if (!running) return;
-  const { mx, my } = canvasMouse(e);
-  if (e.button === 0) {
-    isDragging = false;
-    dragStart = { x: mx, y: my };
-    selBox = null;
+    ctx.fillStyle = tc.sR;
+    ctx.beginPath();
+    ctx.moveTo(x + hw, y + hh); ctx.lineTo(x + hw, y + hh + gz * ZS);
+    ctx.lineTo(x, y + TH + gz * ZS); ctx.lineTo(x, y + TH);
+    ctx.closePath(); ctx.fill();
   }
-  if (e.button === 2) {
-    if (!selected.length) return;
-    const hit = unitAt(mx, my);
-    if (hit && hit.faction === 'enemy') {
-      for (const u of selected) { u.target = hit; u.dest = null; }
-    } else {
-      const zone = zoneAt(my);
-      if (!zone) return;
-      const cy = clamp(my, zone.y + 28, zone.y + zone.h - 8);
-      selected.forEach((u, i) => {
-        const col = (i % 3) - 1;
-        const row = Math.floor(i / 3);
-        const tx = clamp(mx + col * 36, u.size + 2, W - u.size - 2);
-        const ty = clamp(cy + row * 34, zone.y + u.size + 22, zone.y + zone.h - u.size - 4);
-        u.level = zone.level;
-        u.dest = { x: tx, y: ty };
-      });
-    }
-  }
-});
 
-canvas.addEventListener('mousemove', e => {
-  const { mx, my } = canvasMouse(e);
-  mouseX = mx; mouseY = my;
-  if (dragStart && e.buttons === 1) {
-    isDragging = true;
-    const x = Math.min(dragStart.x, mx), y = Math.min(dragStart.y, my);
-    const w = Math.abs(mx - dragStart.x), h = Math.abs(my - dragStart.y);
-    if (w > 6 || h > 6) selBox = { x, y, w, h };
-  }
-});
+  // Top face
+  let topCol = tc.top;
+  if (hov) topCol = '#1a3c70';
+  else if (highlightLeft && isLeft) topCol = gz === 2 ? '#0e2a55' : gz === 1 ? '#0a1e42' : '#080e28';
 
-canvas.addEventListener('mouseup', e => {
-  if (!running) return;
-  const { mx, my } = canvasMouse(e);
-  if (e.button === 0) {
-    if (isDragging && selBox && (selBox.w > 8 || selBox.h > 8)) {
-      selected = units.filter(u => !u.dead && u.faction === 'player' &&
-        u.x >= selBox.x && u.x <= selBox.x + selBox.w &&
-        u.y >= selBox.y && u.y <= selBox.y + selBox.h);
-    } else {
-      const hit = unitAt(mx, my);
-      selected = (hit && hit.faction === 'player') ? [hit] : [];
-    }
-    selBox = null; isDragging = false; dragStart = null;
-  }
-});
-
-canvas.addEventListener('contextmenu', e => e.preventDefault());
-
-function canvasMouse(e) {
-  const r = canvas.getBoundingClientRect();
-  return {
-    mx: (e.clientX - r.left) * (W / r.width),
-    my: (e.clientY - r.top)  * (H / r.height),
-  };
-}
-
-function unitAt(mx, my) {
-  for (const u of units) {
-    if (u.dead) continue;
-    if (Math.hypot(u.x - mx, u.y - my) < u.size + 6) return u;
-  }
-  return null;
-}
-
-function zoneAt(my) {
-  return ZONES.find(z => my >= z.y && my < z.y + z.h) || null;
-}
-
-// ─────────────────────────────────────────────────────────────
-// DRAW HELPERS
-// ─────────────────────────────────────────────────────────────
-function drawPoly(x, y, sides, r, color) {
-  ctx.fillStyle = color;
+  ctx.fillStyle = topCol;
   ctx.beginPath();
-  for (let i = 0; i < sides; i++) {
-    const a = (Math.PI * 2 / sides) * i - Math.PI / 2;
+  ctx.moveTo(x, y); ctx.lineTo(x + hw, y + hh);
+  ctx.lineTo(x, y + TH); ctx.lineTo(x - hw, y + hh);
+  ctx.closePath(); ctx.fill();
+
+  // Subtle grid
+  ctx.strokeStyle = 'rgba(20,50,110,0.25)';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(x, y); ctx.lineTo(x + hw, y + hh);
+  ctx.lineTo(x, y + TH); ctx.lineTo(x - hw, y + hh);
+  ctx.closePath(); ctx.stroke();
+
+  // Blue placement indicator
+  if (highlightLeft && isLeft) {
+    ctx.strokeStyle = 'rgba(60,120,255,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + hw, y + hh);
+    ctx.lineTo(x, y + TH); ctx.lineTo(x - hw, y + hh);
+    ctx.closePath(); ctx.stroke();
+  }
+
+  // Bioluminescent dots (z=0, Noxéens flavor)
+  if (gz === 0 && Math.sin(gx * 1.9 + gy * 2.7 + frame * 0.018) > 0.82) {
+    ctx.fillStyle = `rgba(150,60,255,${0.28 + 0.18 * Math.sin(frame * 0.04)})`;
+    ctx.beginPath(); ctx.arc(x + (gx % 3 - 1) * 7, y + hh, 1.8, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Crystal sparkles (z=2, Aquiloris flavor)
+  if (gz === 2 && Math.sin(gx * 2.3 + gy * 1.6 + frame * 0.013) > 0.88) {
+    ctx.fillStyle = `rgba(80,160,255,${0.38 + 0.22 * Math.sin(frame * 0.035)})`;
+    ctx.beginPath(); ctx.arc(x - 4 + (gy % 3) * 4, y + 6, 1.5, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+function drawZoneLabels() {
+  const zones = [
+    { gz: 2, label: 'EAU OUVERTE  •  15m', gy: 1 },
+    { gz: 1, label: 'EAU PROFONDE  •  5m',  gy: 4 },
+    { gz: 0, label: 'FOND MARIN  •  0m',    gy: 6.5 },
+  ];
+  ctx.font = '9px Courier New'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (const z of zones) {
+    const { x, y } = iso(-0.4, z.gy, z.gz + 0.9);
+    ctx.fillStyle = 'rgba(40,100,180,0.5)';
+    ctx.fillText(z.label, x - 2, y);
+  }
+}
+
+// ── Enemy unit draw in placement phase ────────────────────────
+function drawEnemyPreview() {
+  const types = ['hero', 'infantry', 'infantry', 'ranged', 'mounted', 'infantry'];
+  const positions = [[10,1],[11,2],[10,4],[11,5],[9,3],[10,6]];
+  const f = FAC[enemyFac];
+  ctx.save();
+  ctx.globalAlpha = 0.4;
+  positions.forEach(([gx, gy], i) => {
+    if (i >= types.length) return;
+    const gz = zoneOf(gy);
+    const { x, y } = iso(gx, gy, gz + 0.55);
+    const s = UDEFS[types[i]].sz;
+    ctx.shadowBlur = 8; ctx.shadowColor = f.glow;
+    ctx.strokeStyle = f.accent; ctx.lineWidth = 1.5;
+    if (types[i] === 'hero') drawStar(x, y, 5, s, s * 0.38, f.color);
+    else if (types[i] === 'infantry') drawPoly(x, y, 6, s, f.color);
+    else if (types[i] === 'ranged') drawDiamond(x, y, s, f.color);
+    else { ctx.fillStyle = f.color; ctx.beginPath(); ctx.arc(x, y, s, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+  });
+  ctx.restore();
+}
+
+// ── AI ────────────────────────────────────────────────────────
+function runAI() {
+  aiTick++;
+  if (aiTick % 140 !== 0) return;
+  const enemies = units.filter(u => !u.dead && u.fac === enemyFac);
+  const players = units.filter(u => !u.dead && u.fac === playerFac);
+  if (!players.length) return;
+  for (const e of enemies) {
+    const t = players[Math.floor(Math.random() * players.length)];
+    e.target = t;
+    if (Math.random() < 0.35) {
+      e.dest = { gx: Math.max(0, t.gx - 0.5 + Math.random()), gy: Math.max(0, Math.min(GH - 1, t.gy + (Math.random() - 0.5) * 2)) };
+    }
+  }
+}
+
+// ── Game start ─────────────────────────────────────────────────
+function startBattle() {
+  units = []; particles = []; projs = [];
+  selected = null; score = 0; frame = 0; aiTick = 0;
+
+  for (const p of placed) units.push(new Unit(playerFac, p.type, p.gx, p.gy));
+
+  const eT = ['hero', 'infantry', 'infantry', 'ranged', 'mounted', 'infantry'];
+  const eP = [[10,1],[11,2],[10,4],[11,5],[9,3],[10,6]];
+  eT.forEach((t, i) => {
+    const [gx, gy] = eP[i] || [10, 4];
+    units.push(new Unit(enemyFac, t, gx, Math.min(gy, GH - 1)));
+  });
+
+  state = 'BATTLE';
+}
+
+function checkEnd() {
+  const pA = units.filter(u => !u.dead && u.fac === playerFac).length;
+  const eA = units.filter(u => !u.dead && u.fac === enemyFac).length;
+  if (pA === 0) { victory = false; state = 'END'; }
+  if (eA === 0) { victory = true;  state = 'END'; }
+}
+
+// ── HUD ──────────────────────────────────────────────────────
+function drawBattleHUD() {
+  const pf = FAC[playerFac], ef = FAC[enemyFac];
+  const pA = units.filter(u => !u.dead && u.fac === playerFac).length;
+  const eA = units.filter(u => !u.dead && u.fac === enemyFac).length;
+
+  ctx.fillStyle = 'rgba(2,4,14,0.88)'; ctx.fillRect(0, 0, W, 32);
+  ctx.font = 'bold 12px Courier New'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = pf.color; ctx.textAlign = 'left';
+  ctx.fillText(`♛ ${pf.name}  ${pA} unités`, 12, 16);
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+  ctx.fillText(`SCORE  ${score}`, W / 2, 16);
+  ctx.fillStyle = ef.color; ctx.textAlign = 'right';
+  ctx.fillText(`${ef.name}  ${eA} unités ♛`, W - 12, 16);
+
+  ctx.fillStyle = 'rgba(2,4,14,0.75)'; ctx.fillRect(0, H - 22, W, 22);
+  ctx.fillStyle = '#2a3550'; ctx.font = '10px Courier New';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('CLIC G. : Sélectionner    |    CLIC D. : Déplacer / Attaquer', W / 2, H - 11);
+
+  if (selected) {
+    const px = 10, py = H - 112, pw = 205, ph = 86;
+    ctx.fillStyle = 'rgba(2,6,20,0.92)'; ctx.fillRect(px, py, pw, ph);
+    ctx.strokeStyle = pf.color + '44'; ctx.lineWidth = 1; ctx.strokeRect(px, py, pw, ph);
+    ctx.fillStyle = pf.color; ctx.font = 'bold 11px Courier New';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText(`${UDEFS[selected.type].lbl.toUpperCase()}  —  ZONE ${selected.gz}`, px + 8, py + 8);
+    ctx.fillStyle = '#5a6880'; ctx.font = '10px Courier New';
+    ctx.fillText(`PV: ${Math.max(0, Math.ceil(selected.hp))} / ${selected.maxHp}`, px + 8, py + 26);
+    ctx.fillText(`ATQ: ${selected.dmg}   Portée: ${selected.range}   Vit: ${(selected.spd * 100).toFixed(0)}`, px + 8, py + 42);
+    const zoneName = selected.gz === 2 ? 'Eau ouverte' : selected.gz === 1 ? 'Eau profonde' : 'Fond marin';
+    ctx.fillText(`Niveau: ${zoneName}`, px + 8, py + 58);
+    ctx.fillText(`Faction: ${pf.name}`, px + 8, py + 72);
+  }
+}
+
+// ── Draw helpers ──────────────────────────────────────────────
+function drawPoly(x, y, n, r, col) {
+  ctx.fillStyle = col; ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const a = Math.PI * 2 / n * i - Math.PI / 2;
     i === 0 ? ctx.moveTo(x + r * Math.cos(a), y + r * Math.sin(a))
             : ctx.lineTo(x + r * Math.cos(a), y + r * Math.sin(a));
   }
   ctx.closePath(); ctx.fill(); ctx.stroke();
 }
 
-function drawDiamond(x, y, r, color) {
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.moveTo(x, y - r); ctx.lineTo(x + r, y);
-  ctx.lineTo(x, y + r); ctx.lineTo(x - r, y);
+function drawDiamond(x, y, r, col) {
+  ctx.fillStyle = col; ctx.beginPath();
+  ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y);
   ctx.closePath(); ctx.fill(); ctx.stroke();
 }
 
-function drawStar(x, y, pts, ro, ri, color) {
-  ctx.fillStyle = color;
-  ctx.beginPath();
+function drawStar(x, y, pts, ro, ri, col) {
+  ctx.fillStyle = col; ctx.beginPath();
   for (let i = 0; i < pts * 2; i++) {
-    const a = (Math.PI / pts) * i - Math.PI / 2;
+    const a = Math.PI / pts * i - Math.PI / 2;
     const r = i % 2 === 0 ? ro : ri;
     i === 0 ? ctx.moveTo(x + r * Math.cos(a), y + r * Math.sin(a))
             : ctx.lineTo(x + r * Math.cos(a), y + r * Math.sin(a));
@@ -654,24 +525,323 @@ function drawStar(x, y, pts, ro, ri, color) {
   ctx.closePath(); ctx.fill(); ctx.stroke();
 }
 
-function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+function drawBtn(label, x, y, w, h, col, fill) {
+  ctx.fillStyle = fill || 'rgba(0,0,0,0)'; ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(x, y, w, h);
+  ctx.fillStyle = col; ctx.font = 'bold 13px Courier New';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(label, x + w / 2, y + h / 2);
+  return { x, y, w, h };
+}
 
-// ─────────────────────────────────────────────────────────────
-// BOOT
-// ─────────────────────────────────────────────────────────────
-initBgDots();
-loop(); // start rendering (no gameplay until button pressed)
+function hit(mx, my, b) { return b && mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h; }
 
-document.getElementById('playBtn').addEventListener('click', () => {
-  document.getElementById('menu').style.display = 'none';
-  initGame();
-  initBgDots();
-  running = true;
+// ── Screen: MENU ──────────────────────────────────────────────
+function drawMenu() {
+  drawBg();
+  ctx.textAlign = 'center';
+
+  ctx.fillStyle = '#0d1e42';
+  ctx.font = '11px Courier New';
+  ctx.fillText('WAR OF THE OCEAN\'S LEGACY', W / 2, 118);
+
+  ctx.fillStyle = '#3399ff';
+  ctx.font = 'bold 86px Courier New';
+  ctx.shadowBlur = 35; ctx.shadowColor = '#1155cc';
+  ctx.fillText('WOTOL', W / 2, 218);
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#0d1e42';
+  ctx.font = '10px Courier New';
+  ctx.fillText('DÉMO TACTIQUE  •  PRÉ-ALPHA', W / 2, 246);
+
+  ctx.fillStyle = '#1e2e4a';
+  ctx.font = '12px Courier New';
+  ctx.fillText('Les peuples des océans vivent dans une paix fragile.', W / 2, 310);
+  ctx.fillText("Un ancien artefact refait surface. Une nouvelle guerre éclate.", W / 2, 332);
+  ctx.fillText('Derrière cette guerre se cache une vérité bien plus ancienne.', W / 2, 354);
+
+  BTN.play = drawBtn('NOUVELLE BATAILLE', W / 2 - 120, 410, 240, 46, '#3399ff');
+
+  ctx.fillStyle = '#0d1620';
+  ctx.font = '10px Courier New';
+  ctx.fillText('© WOTOL PROJECT  •  DÉMO', W / 2, H - 18);
+}
+
+// ── Screen: FACTION ───────────────────────────────────────────
+function drawFaction() {
+  drawBg();
+  ctx.textAlign = 'center';
+
+  ctx.fillStyle = '#3399ff';
+  ctx.font = 'bold 26px Courier New';
+  ctx.fillText('CHOISIR VOTRE FACTION', W / 2, 54);
+  ctx.fillStyle = '#1a2840';
+  ctx.font = '11px Courier New';
+  ctx.fillText('Dans cette démo : Aquiloris contre les Noxéens', W / 2, 78);
+
+  // Aquiloris card
+  const f1 = FAC.aquiloris;
+  ctx.fillStyle = 'rgba(8,18,48,0.7)'; ctx.fillRect(55, 105, 340, 388);
+  ctx.strokeStyle = f1.color + '66'; ctx.lineWidth = 1; ctx.strokeRect(55, 105, 340, 388);
+  ctx.fillStyle = f1.color; ctx.font = 'bold 24px Courier New'; ctx.fillText('AQUILORIS', 225, 148);
+  ctx.fillStyle = '#1a3060'; ctx.font = '10px Courier New'; ctx.fillText(f1.res, 225, 168);
+
+  ctx.save(); ctx.shadowBlur = 24; ctx.shadowColor = f1.glow;
+  ctx.strokeStyle = f1.accent; ctx.lineWidth = 2;
+  drawStar(225, 265, 5, 38, 15, f1.color);
+  ctx.restore();
+
+  ctx.fillStyle = '#2a4060'; ctx.font = '11px Courier New';
+  ctx.fillText(f1.desc1, 225, 342);
+  ctx.fillText(f1.desc2, 225, 362);
+
+  BTN.pick = drawBtn('CHOISIR AQUILORIS', 105, 446, 240, 38, f1.color);
+
+  // Noxéens card (enemy, dimmed)
+  const f2 = FAC.noxeens;
+  ctx.fillStyle = 'rgba(4,2,12,0.7)'; ctx.fillRect(505, 105, 340, 388);
+  ctx.strokeStyle = '#1a0a2a'; ctx.lineWidth = 1; ctx.strokeRect(505, 105, 340, 388);
+  ctx.fillStyle = '#3a1e5a'; ctx.font = 'bold 24px Courier New'; ctx.fillText('NOXÉENS', 675, 148);
+  ctx.fillStyle = '#1a0a2a'; ctx.font = '10px Courier New'; ctx.fillText(f2.res, 675, 168);
+
+  ctx.save(); ctx.globalAlpha = 0.45; ctx.shadowBlur = 18; ctx.shadowColor = f2.glow;
+  ctx.strokeStyle = f2.accent; ctx.lineWidth = 2;
+  drawPoly(675, 265, 6, 38, f2.color);
+  ctx.restore();
+
+  ctx.fillStyle = '#2a1840'; ctx.font = '11px Courier New';
+  ctx.fillText(f2.desc1, 675, 342);
+  ctx.fillText(f2.desc2, 675, 362);
+  ctx.fillStyle = '#2a1840'; ctx.font = 'bold 12px Courier New';
+  ctx.fillText('▸ ENNEMI CONTROLÉ PAR L\'IA', 675, 454);
+}
+
+// ── Screen: PLACEMENT ─────────────────────────────────────────
+const ROSTER_LIST = [
+  { type: 'hero',     icon: '♛', label: 'HÉROS'       },
+  { type: 'infantry', icon: '⬡', label: 'INFANTERIE'  },
+  { type: 'ranged',   icon: '◆', label: 'DISTANCE'    },
+  { type: 'mounted',  icon: '●', label: 'MONTÉ'       },
+];
+
+function drawPlacement() {
+  drawBg();
+  drawMap(true);
+  drawEnemyPreview();
+
+  // Draw placed units
+  const pf = FAC[playerFac];
+  ctx.save();
+  ctx.shadowBlur = 12; ctx.shadowColor = pf.glow;
+  ctx.strokeStyle = pf.accent; ctx.lineWidth = 1.5;
+  for (const p of placed) {
+    const gz = zoneOf(p.gy);
+    const { x, y } = iso(p.gx, p.gy, gz + 0.55);
+    const s = UDEFS[p.type].sz;
+    if (p.type === 'hero') drawStar(x, y, 5, s, s * 0.38, pf.color);
+    else if (p.type === 'infantry') drawPoly(x, y, 6, s, pf.color);
+    else if (p.type === 'ranged') drawDiamond(x, y, s, pf.color);
+    else { ctx.fillStyle = pf.color; ctx.beginPath(); ctx.arc(x, y, s, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+  }
+  ctx.restore();
+
+  // Hovered cell highlight in left zone
+  if (hovCell && hovCell.gx < 6) {
+    const gz = zoneOf(hovCell.gy);
+    const { x, y } = iso(hovCell.gx, hovCell.gy, gz);
+    const hw = TW / 2;
+    ctx.strokeStyle = 'rgba(80,160,255,0.7)'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + hw, y + TH / 2); ctx.lineTo(x, y + TH); ctx.lineTo(x - hw, y + TH / 2);
+    ctx.closePath(); ctx.stroke();
+  }
+
+  // Right panel
+  const px = 720, py = 38;
+  ctx.fillStyle = 'rgba(2,5,16,0.94)'; ctx.fillRect(px, py, 172, 420);
+  ctx.strokeStyle = pf.color + '33'; ctx.lineWidth = 1; ctx.strokeRect(px, py, 172, 420);
+
+  ctx.fillStyle = pf.color; ctx.font = 'bold 11px Courier New';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillText('ROSTER', px + 86, py + 10);
+  ctx.fillStyle = '#2a3a55'; ctx.font = '9px Courier New';
+  ctx.fillText(`Placés : ${placed.length} / 6`, px + 86, py + 26);
+
+  BTN.roster = [];
+  ROSTER_LIST.forEach((item, i) => {
+    const iy = py + 48 + i * 72;
+    const isSel = placingType === item.type;
+    const d = UDEFS[item.type];
+    ctx.fillStyle = isSel ? pf.color + '22' : 'rgba(4,8,22,0.9)'; ctx.fillRect(px + 8, iy, 156, 62);
+    ctx.strokeStyle = isSel ? pf.color : '#12223a'; ctx.lineWidth = isSel ? 1.5 : 1;
+    ctx.strokeRect(px + 8, iy, 156, 62);
+    ctx.fillStyle = isSel ? pf.color : '#3a5070';
+    ctx.font = 'bold 11px Courier New'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText(`${item.icon} ${item.label}`, px + 16, iy + 8);
+    ctx.fillStyle = '#2a3a50'; ctx.font = '9px Courier New';
+    ctx.fillText(`PV:${d.hp}  ATQ:${d.dmg}  PTÉ:${d.range}`, px + 16, iy + 26);
+    ctx.fillText('← Clic pour sélectionner', px + 16, iy + 42);
+    BTN.roster.push({ type: item.type, x: px + 8, y: iy, w: 156, h: 62 });
+  });
+
+  // Info
+  ctx.fillStyle = '#1a2e50'; ctx.font = '9px Courier New'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillText('Sélectionnez un type puis', px + 86, py + 342);
+  ctx.fillText('cliquez sur les cases bleues', px + 86, py + 356);
+  ctx.fillText('(moitié gauche de la carte)', px + 86, py + 370);
+
+  const canLaunch = placed.length > 0;
+  BTN.launch = drawBtn('LANCER BATAILLE', px + 8, py + 392, 156, 38, canLaunch ? pf.color : '#1a2840');
+
+  // Top title
+  ctx.fillStyle = 'rgba(2,4,14,0.85)'; ctx.fillRect(0, 0, W, 30);
+  ctx.fillStyle = pf.color; ctx.font = 'bold 12px Courier New'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('DÉPLOIEMENT — Placez vos unités sur la zone bleue (gauche)', W / 2 - 90, 15);
+}
+
+// ── Screen: BATTLE ─────────────────────────────────────────────
+function drawBattle() {
+  drawBg();
+  drawMap(false);
+
+  const sorted = units.filter(u => !u.dead).sort((a, b) => (a.gy + a.gz * 0.1) - (b.gy + b.gz * 0.1));
+  drawParticles();
+  drawProjs();
+  for (const u of sorted) u.draw();
+  drawBattleHUD();
+}
+
+// ── Screen: END ───────────────────────────────────────────────
+function drawEnd() {
+  drawBg();
+  drawMap(false);
+  units.filter(u => !u.dead).forEach(u => u.draw());
+  drawParticles();
+
+  ctx.fillStyle = 'rgba(0,2,10,0.86)'; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+  const col = victory ? '#33ff66' : '#ff3311';
+  ctx.fillStyle = col; ctx.shadowBlur = 36; ctx.shadowColor = col;
+  ctx.font = 'bold 58px Courier New';
+  ctx.fillText(victory ? 'VICTOIRE' : 'DÉFAITE', W / 2, H / 2 - 90);
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#667';
+  ctx.font = '15px Courier New';
+  ctx.fillText(victory ? 'Aquiloris écrase les Noxéens !' : "Les forces d'Aquiloris capitulent...", W / 2, H / 2 - 38);
+  ctx.fillStyle = '#99aacc';
+  ctx.font = '18px Courier New';
+  ctx.fillText(`Score : ${score}`, W / 2, H / 2 + 4);
+
+  BTN.replay = drawBtn('REJOUER', W / 2 - 230, H / 2 + 58, 200, 42, '#3399ff');
+  BTN.menu   = drawBtn('MENU PRINCIPAL', W / 2 + 30, H / 2 + 58, 200, 42, '#446688');
+}
+
+// ── Grid picking ───────────────────────────────────────────────
+function pick(sx, sy) {
+  for (let gz = 2; gz >= 0; gz--) {
+    const dx = sx - OX, dy = sy - OY + gz * ZS;
+    const hw = TW / 2, hh = TH / 2;
+    const gx = Math.floor((dx / hw + dy / hh) / 2);
+    const gy = Math.floor((dy / hh - dx / hw) / 2);
+    if (gx >= 0 && gx < GW && gy >= 0 && gy < GH && zoneOf(gy) === gz) return { gx, gy, gz };
+  }
+  return null;
+}
+
+function unitAt(sx, sy) {
+  for (const u of units) {
+    if (u.dead) continue;
+    const p = u.sp;
+    if (Math.hypot(sx - p.x, sy - p.y) < u.sz + 8) return u;
+  }
+  return null;
+}
+
+function getMouse(e) {
+  const r = C.getBoundingClientRect();
+  return {
+    mx: (e.clientX - r.left) * (W / r.width),
+    my: (e.clientY - r.top) * (H / r.height),
+  };
+}
+
+// ── Input ─────────────────────────────────────────────────────
+C.addEventListener('click', e => {
+  const { mx, my } = getMouse(e);
+
+  if (state === 'MENU') {
+    if (hit(mx, my, BTN.play)) state = 'FACTION';
+  }
+  else if (state === 'FACTION') {
+    if (hit(mx, my, BTN.pick)) { playerFac = 'aquiloris'; enemyFac = 'noxeens'; placed = []; placingType = null; state = 'PLACEMENT'; }
+  }
+  else if (state === 'PLACEMENT') {
+    // Roster buttons
+    if (BTN.roster) {
+      for (const rb of BTN.roster) { if (hit(mx, my, rb)) { placingType = rb.type; return; } }
+    }
+    // Launch
+    if (hit(mx, my, BTN.launch) && placed.length > 0) { startBattle(); return; }
+    // Place on map
+    if (placingType && placed.length < 6) {
+      const cell = pick(mx, my);
+      if (cell && cell.gx < 6) {
+        if (!placed.find(p => p.gx === cell.gx && p.gy === cell.gy)) {
+          placed.push({ type: placingType, gx: cell.gx, gy: cell.gy });
+        }
+      }
+    }
+  }
+  else if (state === 'BATTLE') {
+    const u = unitAt(mx, my);
+    selected = (u && u.fac === playerFac) ? u : null;
+  }
+  else if (state === 'END') {
+    if (hit(mx, my, BTN.replay)) { placed = []; placingType = null; state = 'PLACEMENT'; }
+    if (hit(mx, my, BTN.menu))   { placed = []; placingType = null; selected = null; state = 'MENU'; }
+  }
 });
 
-document.getElementById('replayBtn').addEventListener('click', () => {
-  document.getElementById('endScreen').style.display = 'none';
-  initGame();
-  initBgDots();
-  running = true;
+C.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (state !== 'BATTLE' || !selected) return;
+  const { mx, my } = getMouse(e);
+  const foe = unitAt(mx, my);
+  if (foe && foe.fac === enemyFac) { selected.target = foe; selected.dest = null; }
+  else {
+    const cell = pick(mx, my);
+    if (cell) selected.dest = { gx: cell.gx, gy: cell.gy };
+  }
 });
+
+C.addEventListener('mousemove', e => {
+  if (state !== 'PLACEMENT' && state !== 'BATTLE') return;
+  const { mx, my } = getMouse(e);
+  hovCell = pick(mx, my);
+});
+
+// ── Main loop ─────────────────────────────────────────────────
+function loop() {
+  requestAnimationFrame(loop);
+  frame++;
+  ctx.clearRect(0, 0, W, H);
+
+  if      (state === 'MENU')      drawMenu();
+  else if (state === 'FACTION')   drawFaction();
+  else if (state === 'PLACEMENT') drawPlacement();
+  else if (state === 'BATTLE') {
+    runAI();
+    for (const u of units) u.update();
+    tickParticles(); tickProjs();
+    drawBattle();
+    checkEnd();
+  }
+  else if (state === 'END') { tickParticles(); drawEnd(); }
+}
+
+// ── Boot ──────────────────────────────────────────────────────
+initDots();
+loop();
