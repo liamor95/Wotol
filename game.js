@@ -39,10 +39,10 @@ const FAC = {
   },
   noxeens: {
     name: 'Noxéens',
-    color: '#8833ee',
-    glow: '#551199',
-    accent: '#cc77ff',
-    darkBg: '#080418',
+    color: '#00ee44',
+    glow: '#005522',
+    accent: '#88ffaa',
+    darkBg: '#020d04',
     desc1: 'Créatures abyssales',
     desc2: 'Bioluminescence mortelle',
     res: 'Biolumens',
@@ -51,10 +51,10 @@ const FAC = {
 
 // ── Unit definitions ──────────────────────────────────────────
 const UDEFS = {
-  hero:     { hp: 280, dmg: 38, range: 2.2, spd: 0.032, sz: 20, lbl: 'Héros'       },
-  infantry: { hp: 140, dmg: 20, range: 1.4, spd: 0.024, sz: 15, lbl: 'Infanterie'  },
-  ranged:   { hp:  75, dmg: 30, range: 5.5, spd: 0.018, sz: 13, lbl: 'Distance'    },
-  mounted:  { hp: 115, dmg: 24, range: 1.7, spd: 0.044, sz: 17, lbl: 'Monté'       },
+  hero:     { hp: 280, dmg: 38, range: 2.2, spd: 0.032, sz: 20, lbl: 'Léviaphénix', sublbl: 'Unité mythique'   },
+  infantry: { hp: 140, dmg: 20, range: 1.4, spd: 0.024, sz: 15, lbl: 'Aquiloryon',  sublbl: 'Infanterie lourde' },
+  ranged:   { hp:  75, dmg: 30, range: 5.5, spd: 0.018, sz: 13, lbl: 'Aquistance',  sublbl: 'Tireur à distance' },
+  mounted:  { hp: 115, dmg: 24, range: 1.7, spd: 0.044, sz: 17, lbl: 'Aquilance',   sublbl: 'Cavalier des mers' },
 };
 
 const ROSTER_TYPES = ['hero', 'infantry', 'infantry', 'ranged', 'ranged', 'mounted'];
@@ -481,6 +481,37 @@ function drawBattleHUD() {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('CLIC G. : Sélectionner    |    CLIC D. : Déplacer / Attaquer', W / 2, H - 11);
 
+  // SURFACE / MID / SOL vertical indicator (left side, like the UE5 UI)
+  const selZ = selected ? selected.gz : -1;
+  const levelPanel = [
+    { gz: 2, lbl: 'SURFACE', y: 90  },
+    { gz: 1, lbl: 'MID',     y: 150 },
+    { gz: 0, lbl: 'SOL',     y: 210 },
+  ];
+  ctx.fillStyle = 'rgba(2,4,14,0.85)'; ctx.fillRect(6, 80, 64, 148);
+  ctx.strokeStyle = '#1a2840'; ctx.lineWidth = 1; ctx.strokeRect(6, 80, 64, 148);
+  for (const lv of levelPanel) {
+    const active = lv.gz === selZ;
+    ctx.fillStyle = active ? pf.color + '33' : 'rgba(0,0,0,0)';
+    ctx.fillRect(8, lv.y - 14, 60, 28);
+    if (active) {
+      ctx.strokeStyle = pf.color; ctx.lineWidth = 1.5;
+      ctx.strokeRect(8, lv.y - 14, 60, 28);
+      ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 8; ctx.shadowColor = pf.color;
+    } else {
+      ctx.fillStyle = '#2a3a55'; ctx.shadowBlur = 0;
+    }
+    ctx.font = active ? 'bold 10px Courier New' : '9px Courier New';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(lv.lbl, 38, lv.y);
+    ctx.shadowBlur = 0;
+    // Connector line
+    if (lv.gz > 0) {
+      ctx.strokeStyle = '#1a2840'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(38, lv.y + 14); ctx.lineTo(38, lv.y + 28); ctx.stroke();
+    }
+  }
+
   if (selected) {
     const px = 10, py = H - 112, pw = 205, ph = 86;
     ctx.fillStyle = 'rgba(2,6,20,0.92)'; ctx.fillRect(px, py, pw, ph);
@@ -619,10 +650,10 @@ function drawFaction() {
 
 // ── Screen: PLACEMENT ─────────────────────────────────────────
 const ROSTER_LIST = [
-  { type: 'hero',     icon: '♛', label: 'HÉROS'       },
-  { type: 'infantry', icon: '⬡', label: 'INFANTERIE'  },
-  { type: 'ranged',   icon: '◆', label: 'DISTANCE'    },
-  { type: 'mounted',  icon: '●', label: 'MONTÉ'       },
+  { type: 'hero',     icon: '✦', label: 'LÉVIAPHÉNIX' },
+  { type: 'infantry', icon: '⬡', label: 'AQUILORYON'  },
+  { type: 'ranged',   icon: '◆', label: 'AQUISTANCE'  },
+  { type: 'mounted',  icon: '●', label: 'AQUILANCE'   },
 ];
 
 function drawPlacement() {
