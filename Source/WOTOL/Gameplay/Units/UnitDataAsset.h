@@ -5,63 +5,88 @@
 #include "Data/WOTOLTypes.h"
 #include "UnitDataAsset.generated.h"
 
-UENUM(BlueprintType)
-enum class EUnitAttackType : uint8
-{
-	Melee,
-	Ranged
-};
-
+// Data Asset pour une unité — source de vérité de TOUTES les stats
+// Une instance par type d'unité (ex: DA_Aquiloryons, DA_Noxeflare...)
+// JAMAIS hardcoder les stats dans le code
 UCLASS(BlueprintType)
 class WOTOL_API UUnitDataAsset : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 
 public:
+	// ─── Identité ──────────────────────────────────────────────────────────────
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
 	FText DisplayName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+	FText Description;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
 	EFactionID Faction = EFactionID::None;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+	EUnitRole Role = EUnitRole::Infanterie;
+
+	// ─── Stats de combat (correspond à S_UnitData du GDD) ─────────────────────
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
+	FUnitStats Stats;
+
+	// ─── Mesh & VFX (à assigner dans l'éditeur, jamais en code) ──────────────
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
+	TSoftObjectPtr<class USkeletalMesh> UnitMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
+	TSoftObjectPtr<class UAnimBlueprint> AnimBP;
+
+	// Classe du projectile (si AttackType == Ranged)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
-	float MaxHealth = 100.f;
+	TSoftClassPtr<AActor> ProjectileClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
-	float AttackDamage = 20.f;
+	// Portrait unité pour le HUD (WBP_BattleHUD)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
+	TSoftObjectPtr<class UTexture2D> Portrait;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
-	float AttackRange = 500.f;
+	// Icône unité (roster bar)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
+	TSoftObjectPtr<class UTexture2D> Icon;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
-	float AttackCooldown = 1.5f;
+	// ─── Compétences ───────────────────────────────────────────────────────────
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
-	float MovementSpeed = 300.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
+	FText AbilityName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
-	EUnitAttackType AttackType = EUnitAttackType::Melee;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
+	FText AbilityDescription;
 
-	// Classe de projectile — uniquement si AttackType == Ranged
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat",
-		meta = (EditCondition = "AttackType == EUnitAttackType::Ranged"))
-	TSoftClassPtr<class AWOTOLProjectileBase> ProjectileClass;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
+	FText AxisOneName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vertical")
-	EVerticalLayer PreferredLayer = EVerticalLayer::Ground;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
+	FText AxisOneDescription;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vertical")
-	bool bCanChangeLayer = false;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
+	FText AxisTwoName;
 
-	// Abilities par défaut de cette unité
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Abilities")
-	TArray<TSubclassOf<class UAbilityBase>> DefaultAbilities;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
+	FText AxisTwoDescription;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawn")
-	TSoftClassPtr<class AUnitBase> UnitClass;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
+	FText PassiveDescription;
 
-	virtual FPrimaryAssetId GetPrimaryAssetId() const override
-	{
-		return FPrimaryAssetId("UnitData", GetFName());
-	}
+	// Classes de compétence Blueprint (à créer en BP héritant UAbilityBase)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
+	TArray<TSoftClassPtr<UObject>> AbilityClasses;
+
+	// ─── Recrutement ───────────────────────────────────────────────────────────
+
+	// Quota max dans l'escouade (ex: 3 pour Aquistance, 1 pour Léviaphénix)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recruitment", meta = (ClampMin = "1"))
+	int32 MaxCountInSquad = 1;
+
+	// Bâtiment requis pour recruter
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recruitment")
+	FText RequiredBuilding;
 };

@@ -35,14 +35,16 @@ enum class EResourceType : uint8
 	Epaves            UMETA(DisplayName = "Épaves (Pirates Abyssaux)")
 };
 
-// ─── Verticalité (3 paliers démo, extensible à 4) ────────────────────────────
+// ─── Verticalité (4 couches océaniques) ──────────────────────────────────────
 
 UENUM(BlueprintType)
 enum class EVerticalLayer : uint8
 {
-	Ground  UMETA(DisplayName = "Sol"),
-	Mid     UMETA(DisplayName = "Mid (~5m)"),
-	High    UMETA(DisplayName = "Surface (~15m)")
+	// Nommage court pour le code — correspond aux profondeurs océaniques
+	Epipelagique    UMETA(DisplayName = "Épipélagique (0-200m)"),     // lumière max, vitesse +20%
+	Mesopelagique   UMETA(DisplayName = "Mésopélagique (200-1000m)"), // crépuscule, embuscades
+	Bathypelagique  UMETA(DisplayName = "Bathypélagique (1000-4000m)"),// obscurité, tanks dominent
+	Hadal           UMETA(DisplayName = "Hadal (4000m+)")              // élite/Titans, x3 dégâts ascendants
 };
 
 // ─── Bataille ─────────────────────────────────────────────────────────────────
@@ -88,14 +90,50 @@ enum class EHeroSpecialty : uint8
 
 // ─── Unités ───────────────────────────────────────────────────────────────────
 
+// Type d'unité — correspond aux rôles définis dans le GDD
 UENUM(BlueprintType)
 enum class EUnitRole : uint8
 {
-	Distance   UMETA(DisplayName = "Distance"),
-	Infanterie UMETA(DisplayName = "Infanterie"),
-	Magie      UMETA(DisplayName = "Magie"),
+	Chef       UMETA(DisplayName = "Chef / Commandant"),
+	Mythique   UMETA(DisplayName = "Mythique"),
+	Speciale   UMETA(DisplayName = "Spéciale"),
 	Montee     UMETA(DisplayName = "Montée"),
-	Mythique   UMETA(DisplayName = "Mythique")
+	Distance   UMETA(DisplayName = "Distance"),
+	Infanterie UMETA(DisplayName = "Infanterie")
+};
+
+// État interne d'une unité (state machine)
+UENUM(BlueprintType)
+enum class EUnitState : uint8
+{
+	Idle      UMETA(DisplayName = "Repos"),
+	Moving    UMETA(DisplayName = "Déplacement"),
+	Attacking UMETA(DisplayName = "Attaque"),
+	Ability   UMETA(DisplayName = "Compétence"),
+	Routing   UMETA(DisplayName = "Déroute"),  // moral à 0 — incontrôlable
+	Dead      UMETA(DisplayName = "Mort")
+};
+
+// Type d'attaque — mêlée ou distance (critique pour Noxar et Noxeflare)
+UENUM(BlueprintType)
+enum class EUnitAttackType : uint8
+{
+	Melee  UMETA(DisplayName = "Mêlée"),
+	Ranged UMETA(DisplayName = "Distance")
+};
+
+// Zone d'effet des compétences
+UENUM(BlueprintType)
+enum class EAbilityZoneType : uint8
+{
+	Mono        UMETA(DisplayName = "Mono-cible"),
+	PetiteZone  UMETA(DisplayName = "Petite zone"),
+	Zone        UMETA(DisplayName = "Zone"),
+	GrandeZone  UMETA(DisplayName = "Grande zone"),
+	Cone        UMETA(DisplayName = "Cône"),
+	Aura        UMETA(DisplayName = "Aura"),
+	ChargeLigne UMETA(DisplayName = "Charge en ligne"),
+	Souffle     UMETA(DisplayName = "Souffle (canal continu)")
 };
 
 // ─── Menu & Session ───────────────────────────────────────────────────────────
@@ -199,6 +237,75 @@ struct FUnitRosterEntry
 	// Quota max dans l'escouade (ex: 3 pour Aquistance, 1 pour Léviaphénix)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "1"))
 	int32 MaxCount = 1;
+};
+
+// Stats numériques d'une unité — source de vérité unique (S_UnitData)
+// JAMAIS hardcoder ces valeurs ailleurs
+USTRUCT(BlueprintType)
+struct FUnitStats
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "1"))
+	int32 MaxHealth = 1000;
+
+	// Dégâts par seconde moyens (ATK/s dans le GDD)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float AttackDPS = 100.f;
+
+	// Réduction dégâts reçus en % (DEF%)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", ClampMax = "100"))
+	float DefensePercent = 5.f;
+
+	// Multiplicateur vitesse (1.0 = normal, 1.2 = +20%)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MovementSpeed = 1.f;
+
+	// Portée d'attaque (1 = mêlée, 5 = longue distance)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "1", ClampMax = "5"))
+	int32 AttackRange = 1;
+
+	// Temps entre deux attaques en secondes
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float AttackCooldown = 1.0f;
+
+	// Cooldown compétence principale en secondes
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float AbilityCooldown = 10.f;
+
+	// Coût de recrutement en ressources primaires
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 RecruitmentCost = 100;
+
+	// Temps de recrutement en secondes
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float RecruitmentTime = 20.f;
+
+	// Moral de départ (0-100), distinct des PV
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", ClampMax = "100"))
+	float StartingMorale = 80.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EUnitAttackType AttackType = EUnitAttackType::Melee;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EAbilityZoneType AbilityZoneType = EAbilityZoneType::Mono;
+
+	// Couche verticale préférée (placement déploiement)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EVerticalLayer PreferredLayer = EVerticalLayer::Epipelagique;
+
+	// Peut-elle changer de couche verticale en combat ?
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bCanChangeLayer = true;
+
+	// Difficulté de maîtrise (1-5)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "1", ClampMax = "5"))
+	int32 MasteryDifficulty = 2;
+
+	// Dépendance au groupe (1-5 : 1=autonome, 5=dépend du groupe)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "1", ClampMax = "5"))
+	int32 SynergyRating = 3;
 };
 
 // Coordonnée hexagonale axiale (système standard q/r)

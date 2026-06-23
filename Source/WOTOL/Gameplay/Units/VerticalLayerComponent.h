@@ -24,15 +24,24 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Vertical")
 	void SetLayer(EVerticalLayer NewLayer);
 
-	// Hauteur cible en Z selon le palier
+	// Hauteur cible en Z selon le palier (valeur négative = profondeur)
 	UFUNCTION(BlueprintPure, Category = "Vertical")
 	static float GetLayerTargetZ(EVerticalLayer Layer);
+
+	// Multiplicateur de dégâts selon la direction d'attaque verticale
+	// Attaque ascendante depuis Hadal = ×3, depuis Bathypélagique = ×1.75, etc.
+	UFUNCTION(BlueprintPure, Category = "Vertical")
+	static float GetAttackDamageMultiplier(EVerticalLayer AttackerLayer, EVerticalLayer TargetLayer);
+
+	// Vitesse +20% en Épipélagique
+	UFUNCTION(BlueprintPure, Category = "Vertical")
+	static float GetSpeedMultiplierForLayer(EVerticalLayer Layer);
 
 	UPROPERTY(BlueprintAssignable, Category = "Vertical")
 	FOnLayerChanged OnLayerChanged;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vertical")
-	EVerticalLayer DefaultLayer = EVerticalLayer::Ground;
+	EVerticalLayer DefaultLayer = EVerticalLayer::Epipelagique;
 
 protected:
 	virtual void BeginPlay() override;
