@@ -294,3 +294,9 @@ E_VerticalLevel :
 - Tout point d'entrée Blueprint : `UFUNCTION(BlueprintCallable)` ou `BlueprintImplementableEvent`
 - **Scope démo : Aquiloris + Noxéens UNIQUEMENT**
 - **Ne jamais implémenter la carte stratégique (Couche 2)**
+
+---
+
+## 11. Journal technique Notion
+
+À la fin de chaque session de travail, tu mets à jour la page Notion 🛠️ Journal technique WOTOL avec ce que tu as fait, les décisions prises, et le prochain blocage. ID de la page : 38872c33-8b59-81d6-9686-cbd8653395ed
