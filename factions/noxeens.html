@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Noxéens — Maîtres de la bioluminescence abyssale. Faction offensive burst dans WOTOL War of the Ocean's Legacy.">
+  <title>NOXÉENS — WOTOL : War of the Ocean's Legacy</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;600;700&family=Exo+2:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--abyss); color: var(--text); font-family: 'Exo 2', sans-serif; overflow-x: hidden; line-height: 1.6; }
+    a { text-decoration: none; color: inherit; }
+    img { display: block; max-width: 100%; }
+
+    :root {
+      --abyss: #030810; --deep-sea: #0a1628; --panel: #0d1f38; --surface: #152d4a;
+      --biolum: #00c8b4; --abyssal: #0066ff; --corrupt: #7b2fff;
+      --glow-soft: rgba(0,200,180,0.15); --text: #e8f4ff; --muted: #7ab8cc;
+      --divider: rgba(0,200,180,0.2);
+      --aquiloris: #00a8ff; --thalassidras: #00cc80; --noxeens: #cc44ff;
+      --mureniens: #88ff00; --pirates: #ff2244;
+      --faction-color: #cc44ff;
+      --radius-sm: 4px; --radius-md: 8px; --radius-lg: 16px;
+    }
+
+    .container { max-width: 1280px; margin: 0 auto; padding: 0 40px; }
+    section { padding: 100px 0; }
+    .eyebrow { display: block; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--faction-color); letter-spacing: 4px; text-transform: uppercase; margin-bottom: 16px; }
+
+    #navbar { position: fixed; top: 0; left: 0; width: 100%; z-index: 1000; background: rgba(3,8,16,0); border-bottom: 1px solid transparent; transition: background 0.4s, backdrop-filter 0.4s, border-color 0.4s; padding: 0 40px; height: 72px; display: flex; align-items: center; justify-content: space-between; }
+    #navbar.scrolled { background: rgba(3,8,16,0.95); backdrop-filter: blur(12px); border-bottom-color: rgba(0,200,180,0.2); }
+    .nav-left { display: flex; align-items: center; gap: 24px; }
+    .back-link { font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 2px; color: var(--muted); transition: color 0.2s; }
+    .back-link:hover { color: var(--faction-color); }
+    .logo-main { font-family: 'Cinzel Decorative', cursive; font-size: 20px; font-weight: 700; color: var(--biolum); line-height: 1; }
+    .logo-sub { font-family: 'Exo 2', sans-serif; font-size: 9px; font-weight: 300; color: var(--muted); letter-spacing: 3px; text-transform: uppercase; display: block; margin-top: 3px; }
+    .nav-center { display: flex; gap: 28px; }
+    .nav-center a { font-family: 'Exo 2', sans-serif; font-size: 12px; font-weight: 600; color: var(--text); letter-spacing: 2px; text-transform: uppercase; transition: color 0.2s; }
+    .nav-center a:hover { color: var(--biolum); }
+    .btn-beta { font-family: 'Exo 2', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--abyss); background: var(--biolum); padding: 9px 20px; border-radius: 4px; transition: background 0.2s; }
+    .btn-beta:hover { background: #00e8d0; }
+
+    .faction-hero { height: 65vh; min-height: 500px; position: relative; overflow: hidden; background: linear-gradient(135deg, var(--abyss) 0%, rgba(123,0,80,0.2) 50%, rgba(204,68,255,0.1) 100%); display: flex; align-items: center; justify-content: center; padding-top: 72px; }
+    #hero-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+    .faction-hero-content { position: relative; z-index: 2; text-align: center; max-width: 800px; padding: 0 40px; }
+    .back-link-hero { display: inline-block; font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; margin-bottom: 32px; transition: color 0.2s; }
+    .back-link-hero:hover { color: var(--faction-color); }
+    .faction-eyebrow { display: block; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--faction-color); letter-spacing: 6px; text-transform: uppercase; margin-bottom: 16px; }
+    .faction-hero-title { font-family: 'Cinzel Decorative', cursive; font-size: clamp(56px, 8vw, 110px); font-weight: 900; color: var(--faction-color); line-height: 0.9; text-shadow: 0 0 60px rgba(204,68,255,0.7), 0 0 120px rgba(123,47,255,0.4); margin-bottom: 16px; }
+    .faction-hero-zone { display: block; font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--muted); letter-spacing: 4px; text-transform: uppercase; margin-bottom: 16px; }
+    .faction-hero-tagline { font-family: 'Exo 2', sans-serif; font-size: clamp(14px, 1.5vw, 18px); font-weight: 300; font-style: italic; color: var(--text); margin-bottom: 24px; line-height: 1.6; }
+    .faction-hero-badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .badge { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 1px; padding: 4px 10px; border-radius: 4px; background: rgba(0,0,0,0.4); border: 1px solid var(--faction-color); color: var(--faction-color); }
+
+    .faction-lore { background: var(--abyss); }
+    .lore-grid { display: flex; gap: 80px; align-items: flex-start; }
+    .lore-text { flex: 1; }
+    .lore-text h2 { font-family: 'Cinzel', serif; font-size: clamp(26px, 3.5vw, 40px); font-weight: 600; color: var(--text); margin-bottom: 24px; line-height: 1.2; }
+    .lore-body { font-size: 15px; color: var(--muted); line-height: 1.8; margin-bottom: 20px; }
+    .faction-quote { border-left: 3px solid var(--faction-color); padding: 16px 24px; background: rgba(204,68,255,0.06); border-radius: 0 8px 8px 0; margin-top: 32px; }
+    .faction-quote p { font-style: italic; font-size: 17px; color: var(--text); line-height: 1.6; }
+    .lore-image { flex: 0 0 420px; }
+    .lore-image img { width: 100%; border-radius: 8px; border: 1px solid var(--divider); box-shadow: 0 20px 60px rgba(0,0,0,0.5); min-height: 250px; object-fit: cover; }
+
+    .faction-units { background: var(--deep-sea); }
+    .section-h2 { font-family: 'Cinzel', serif; font-size: clamp(26px, 3.5vw, 40px); font-weight: 600; color: var(--text); margin-bottom: 12px; }
+    .section-lead { font-size: 15px; color: var(--muted); margin-bottom: 48px; line-height: 1.7; }
+    .units-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .unit-card { background: var(--panel); border: 1px solid var(--divider); border-radius: 8px; padding: 24px; transition: border-color 0.2s, transform 0.2s; }
+    .unit-card:hover { border-color: var(--faction-color); transform: translateY(-3px); }
+    .unit-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+    .unit-name { font-family: 'Cinzel', serif; font-size: 18px; font-weight: 600; color: var(--faction-color); }
+    .unit-type { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 2px; }
+    .unit-role { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 2px; color: var(--faction-color); background: rgba(204,68,255,0.1); padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 12px; }
+    .unit-ability { font-size: 13px; color: var(--text); margin-bottom: 14px; line-height: 1.6; }
+    .unit-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat-label { color: var(--muted); font-size: 12px; }
+    .stat-value { color: var(--text); font-size: 12px; font-weight: 500; }
+
+    .faction-mythic-section { background: var(--abyss); }
+    .mythic-card { background: linear-gradient(135deg, var(--panel), rgba(123,47,255,0.1)); border: 1px solid rgba(204,68,255,0.4); border-radius: 12px; padding: 48px; display: flex; gap: 60px; align-items: flex-start; }
+    .mythic-info { flex: 1; }
+    .mythic-label { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 4px; color: var(--faction-color); text-transform: uppercase; margin-bottom: 12px; display: block; }
+    .mythic-name { font-family: 'Cinzel Decorative', cursive; font-size: clamp(22px, 3vw, 34px); font-weight: 700; color: var(--faction-color); margin-bottom: 20px; text-shadow: 0 0 30px rgba(204,68,255,0.5); }
+    .mythic-lore { font-size: 14px; color: var(--muted); line-height: 1.7; margin-bottom: 24px; }
+    .mythic-powers { display: flex; flex-direction: column; gap: 16px; }
+    .power-block { background: rgba(0,0,0,0.3); border-radius: 8px; padding: 16px 20px; }
+    .power-name { font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 2px; color: var(--faction-color); margin-bottom: 6px; display: block; }
+    .power-desc { font-size: 13px; color: var(--text); line-height: 1.6; }
+    .mythic-img { flex: 0 0 320px; }
+    .mythic-img img { width: 100%; border-radius: 8px; border: 1px solid rgba(204,68,255,0.3); min-height: 200px; object-fit: cover; }
+
+    .faction-commander { background: var(--deep-sea); }
+    .commander-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
+    .commander-info h3 { font-family: 'Cinzel Decorative', cursive; font-size: 26px; font-weight: 700; color: var(--faction-color); margin-bottom: 8px; }
+    .commander-desc { font-size: 15px; color: var(--muted); line-height: 1.8; margin-bottom: 24px; }
+    .abilities-list { display: flex; flex-direction: column; gap: 12px; }
+    .ability-item { background: var(--panel); border: 1px solid var(--divider); border-radius: 8px; padding: 16px 20px; }
+    .ability-name { font-family: 'Cinzel', serif; font-size: 13px; font-weight: 600; color: var(--faction-color); margin-bottom: 6px; }
+    .ability-desc { font-size: 13px; color: var(--text); line-height: 1.6; }
+
+    .faction-playstyle { background: var(--abyss); }
+    .playstyle-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 48px; }
+    .ps-card { background: var(--panel); border: 1px solid var(--divider); border-radius: 8px; padding: 28px; }
+    .ps-card h3 { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--faction-color); margin-bottom: 16px; }
+    .ps-card ul { list-style: none; padding: 0; }
+    .ps-card ul li { font-size: 14px; color: var(--muted); line-height: 1.6; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04); display: flex; gap: 10px; }
+    .ps-card ul li::before { content: '—'; color: var(--faction-color); flex-shrink: 0; }
+    .synergy-block { background: var(--panel); border: 1px solid rgba(204,68,255,0.3); border-radius: 8px; padding: 32px; }
+    .synergy-block h3 { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--faction-color); margin-bottom: 20px; }
+    .synergy-row { display: flex; flex-direction: column; gap: 12px; }
+    .synergy-item { background: rgba(204,68,255,0.06); border-radius: 6px; padding: 12px 16px; font-size: 14px; color: var(--text); line-height: 1.5; }
+    .synergy-item strong { color: var(--faction-color); }
+
+    .faction-nav-section { background: var(--deep-sea); padding: 80px 0; text-align: center; }
+    .faction-nav-row { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 40px; }
+    .faction-nav-card { display: flex; flex-direction: column; gap: 4px; padding: 20px 28px; background: var(--panel); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; transition: border-color 0.2s, transform 0.2s; min-width: 160px; }
+    .faction-nav-card:hover { transform: translateY(-4px); }
+    .fnc-name { font-family: 'Cinzel', serif; font-size: 13px; font-weight: 600; letter-spacing: 2px; }
+    .fnc-zone { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--muted); letter-spacing: 1px; }
+    .faction-nav-home { display: flex; align-items: center; padding: 20px 28px; background: var(--panel); border: 1px solid var(--divider); border-radius: 8px; font-family: 'Exo 2', sans-serif; font-size: 13px; font-weight: 600; color: var(--muted); transition: color 0.2s, border-color 0.2s; }
+    .faction-nav-home:hover { color: var(--biolum); border-color: var(--biolum); }
+
+    footer { background: var(--abyss); border-top: 1px solid var(--divider); }
+    .footer-top { padding: 60px 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 40px; flex-wrap: wrap; }
+    .footer-logo-wrap .logo-main { font-family: 'Cinzel Decorative', cursive; font-size: 20px; font-weight: 700; color: var(--biolum); }
+    .footer-logo-wrap .logo-sub { font-family: 'Exo 2', sans-serif; font-size: 9px; font-weight: 300; color: var(--muted); letter-spacing: 3px; text-transform: uppercase; display: block; margin-top: 4px; }
+    .footer-nav { display: flex; gap: 48px; flex-wrap: wrap; }
+    .footer-col { display: flex; flex-direction: column; }
+    .footer-col h4 { font-family: 'Cinzel', serif; font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--biolum); margin-bottom: 16px; }
+    .footer-col a, .footer-col span { font-family: 'Exo 2', sans-serif; font-size: 13px; color: var(--muted); display: block; margin-bottom: 8px; transition: color 0.2s; }
+    .footer-col a:hover { color: var(--text); }
+    .footer-bottom { border-top: 1px solid var(--divider); padding: 20px 0; text-align: center; }
+    .footer-bottom p { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 1px; margin-bottom: 4px; }
+
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .reveal.revealed { opacity: 1; transform: translateY(0); }
+    .reveal:nth-child(2) { transition-delay: 0.1s; }
+    .reveal:nth-child(3) { transition-delay: 0.2s; }
+
+    @media (max-width: 900px) { .lore-grid, .mythic-card { flex-direction: column; } .lore-image, .mythic-img { flex: none; width: 100%; } .commander-grid, .playstyle-grid { grid-template-columns: 1fr; } .units-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 600px) { .nav-center { display: none; } .container { padding: 0 20px; } #navbar { padding: 0 20px; } }
+  </style>
+</head>
+<body>
+
+<nav id="navbar">
+  <div class="nav-left">
+    <a href="../index.html" class="back-link">← ACCUEIL</a>
+    <div><span class="logo-main">WOTOL</span><span class="logo-sub">War of the Ocean's Legacy</span></div>
+  </div>
+  <div class="nav-center">
+    <a href="../index.html#univers">Univers</a>
+    <a href="../index.html#factions">Factions</a>
+    <a href="../index.html#gameplay">Gameplay</a>
+    <a href="../index.html#medias">Médias</a>
+  </div>
+  <div class="nav-right"><a href="../index.html#communaute" class="btn-beta">REJOINDRE LA BÊTA</a></div>
+</nav>
+
+<section class="faction-hero">
+  <canvas id="hero-canvas"></canvas>
+  <div class="faction-hero-content">
+    <a href="../index.html#factions" class="back-link-hero">← Toutes les factions</a>
+    <span class="faction-eyebrow">FACTION</span>
+    <h1 class="faction-hero-title">NOXÉENS</h1>
+    <span class="faction-hero-zone">Domaines des Ombres</span>
+    <p class="faction-hero-tagline">Bioluminescence. Profondeur. Domination.</p>
+    <div class="faction-hero-badges">
+      <span class="badge">BURST</span>
+      <span class="badge">BIOLUMINESCENCE</span>
+      <span class="badge">TIMING</span>
+      <span class="badge">OFFENSIF</span>
+    </div>
+  </div>
+</section>
+
+<section class="faction-lore">
+  <div class="container">
+    <div class="lore-grid">
+      <div class="lore-text reveal">
+        <span class="eyebrow">HISTOIRE & ORIGINE</span>
+        <h2>Maîtres de l'Obscurité</h2>
+        <p class="lore-body">Les Noxéens tirent leur puissance des abysses où aucune lumière naturelle ne pénètre. Ils ont appris à créer la leur — une bioluminescence contrôlée, aussi belle qu'elle est mortelle. Dans les profondeurs, ils voient sans être vus. Ils attendent, accumulent, puis frappent avec une violence dévastatrice.</p>
+        <p class="lore-body">Leur rapport à l'artefact Æthérien est viscéral : ils y sentent une énergie lumineuse ancienne qui résonne avec leur propre bioluminescence. Ils ne veulent pas le contrôler — ils veulent le fusionner avec eux.</p>
+        <blockquote class="faction-quote">
+          <p>« Dans les ténèbres absolues, celui qui fait sa propre lumière gouverne tout. »</p>
+        </blockquote>
+      </div>
+      <div class="lore-image reveal">
+        <img src="https://drive.google.com/thumbnail?id=1zGtEf0Dr5Us4GrH2v-MJaq2MZFfiI1k9&sz=w1200"
+             alt="Concept Art — Noxéens"
+             onerror="this.style.opacity='0'; this.parentElement.style.background='var(--panel)'">
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="faction-units">
+  <div class="container">
+    <span class="eyebrow">ARMÉE</span>
+    <h2 class="section-h2">Forces des Domaines des Ombres</h2>
+    <p class="section-lead">Des prédateurs lumineux qui accumulent dans le noir pour déchaîner une violence absolue au moment précis. Le timing est tout.</p>
+    <div class="units-grid">
+      <div class="unit-card reveal">
+        <div class="unit-header"><span class="unit-name">Luminescents</span><span class="unit-type">DPS</span></div>
+        <div class="unit-role">BURST / RAPID FIRE</div>
+        <p class="unit-ability"><strong>Salve bioluminescente</strong> — Accumule de la charge lumineuse puis décharge en rafale dévastatrice. Puissance maximale au pic de charge.</p>
+        <div class="unit-stats">
+          <div><span class="stat-label">Force : </span><span class="stat-value">DPS burst extrême</span></div>
+          <div><span class="stat-label">Faiblesse : </span><span class="stat-value">Fragile pendant la charge</span></div>
+        </div>
+      </div>
+      <div class="unit-card reveal">
+        <div class="unit-header"><span class="unit-name">Abyssites</span><span class="unit-type">FURTIF</span></div>
+        <div class="unit-role">EMBUSCADE / DPS</div>
+        <p class="unit-ability"><strong>Extinction bioluminescente</strong> — Coupe sa propre lumière pour devenir invisible dans l'obscurité. Frappe critique depuis le néant.</p>
+        <div class="unit-stats">
+          <div><span class="stat-label">Force : </span><span class="stat-value">Critiques, total surprise</span></div>
+          <div><span class="stat-label">Faiblesse : </span><span class="stat-value">Inutile en terrain lumineux</span></div>
+        </div>
+      </div>
+      <div class="unit-card reveal">
+        <div class="unit-header"><span class="unit-name">Strobers</span><span class="unit-type">CONTRÔLE</span></div>
+        <div class="unit-role">ÉBLOUISSEMENT / CC</div>
+        <p class="unit-ability"><strong>Stroboscopie abyssale</strong> — Émets des éclairs bioluminescents intenses qui aveuglent et désorganisent les formations ennemies.</p>
+        <div class="unit-stats">
+          <div><span class="stat-label">Force : </span><span class="stat-value">Désorganisation massive</span></div>
+          <div><span class="stat-label">Faiblesse : </span><span class="stat-value">Peu de dégâts directs</span></div>
+        </div>
+      </div>
+      <div class="unit-card reveal">
+        <div class="unit-header"><span class="unit-name">Cœurs-Sombres</span><span class="unit-type">TANK DPS</span></div>
+        <div class="unit-role">CHARGE LOURDE</div>
+        <p class="unit-ability"><strong>Impact bioluminescent</strong> — Charge lourde qui libère une explosion de lumière à l'impact. Plus il accumule de dégâts, plus son impact est puissant.</p>
+        <div class="unit-stats">
+          <div><span class="stat-label">Force : </span><span class="stat-value">Charge amplifiée par dégâts reçus</span></div>
+          <div><span class="stat-label">Faiblesse : </span><span class="stat-value">Lent, dépend de l'accumulation</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="faction-mythic-section">
+  <div class="container">
+    <span class="eyebrow">UNITÉ MYTHIQUE</span>
+    <div class="mythic-card reveal">
+      <div class="mythic-info">
+        <span class="mythic-label">MYTHIQUE — ÉVÉNEMENT UNIQUE PAR BATAILLE</span>
+        <h2 class="mythic-name">CRÉATURE-LASER</h2>
+        <p class="mythic-lore">Un être de verre vivant, né dans les profondeurs les plus noires. Sa bioluminescence est concentrée à l'extrême — capable de percer les roches, de fondre les métaux, de couper les dômes de protection. Le mythique le plus fragile du jeu — et le plus dévastateur.</p>
+        <div class="mythic-powers">
+          <div class="power-block">
+            <span class="power-name">PASSIF — ABSORPTION BIOLUMINESCENTE</span>
+            <p class="power-desc">DPS continu à distance. La charge de l'ultime dépend de la luminosité du terrain — plus il y a de bioluminescence alliée autour, plus l'ultime charge vite. Le Chef peut accélérer cette charge.</p>
+          </div>
+          <div class="power-block">
+            <span class="power-name">ULTIME — LASER BIOLUMINESCENT (1 FOIS)</span>
+            <p class="power-desc">Détruit murs, dômes et structures. Dégâts massifs sur une ligne droite illimitée. Modifie le terrain de façon permanente — tranchées et dénivelés qui persistent jusqu'à la fin de la bataille. L'arme la plus destructrice du jeu.</p>
+          </div>
+          <div class="power-block">
+            <span class="power-name">⚠ ATTENTION — CANON DE VERRE</span>
+            <p class="power-desc">La Créature-Laser est extrêmement fragile. Sa perte avant l'ultime est un désastre tactique irréversible. Protégez-la à tout prix — son positionnement détermine la victoire ou la défaite.</p>
+          </div>
+        </div>
+      </div>
+      <div class="mythic-img">
+        <img src="https://drive.google.com/thumbnail?id=1zGtEf0Dr5Us4GrH2v-MJaq2MZFfiI1k9&sz=w800"
+             alt="Créature-Laser — Mythique Noxéens"
+             onerror="this.style.opacity='0'; this.parentElement.style.background='var(--panel)'">
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="faction-commander">
+  <div class="container">
+    <span class="eyebrow">CHEF DE FACTION</span>
+    <div class="commander-grid">
+      <div class="commander-info reveal">
+        <h3>AMPLIFICATEUR BIOLUMINESCENT</h3>
+        <p class="commander-desc">La mécanique centrale du Chef Noxéen est unique dans le jeu : plus il attaque, plus il devient visuellement lumineux et puissant. Sa luminescence croissante est visible par tous — une pression psychologique autant qu'une menace réelle.</p>
+        <div class="abilities-list">
+          <div class="ability-item">
+            <div class="ability-name">MÉCANIQUE CENTRALE — LUMINESCENCE ÉVOLUTIVE</div>
+            <p class="ability-desc">Chaque attaque augmente son niveau de luminescence (visible à l'écran). À pleine charge : vitesse, précision et dégâts maximaux. Vulnerable si interrompu — perd sa charge.</p>
+          </div>
+          <div class="ability-item">
+            <div class="ability-name">ATTAQUE MAJEURE — RAYON SURCHARGÉ</div>
+            <p class="ability-desc">Très gros dégâts en direction libre. Disponible seulement à haute charge. Direction libre — peut frapper en diagonale, en arc, ou en ligne droite.</p>
+          </div>
+          <div class="ability-item">
+            <div class="ability-name">SYNERGIE UNIQUE — SACRIFICE LUMINEUX</div>
+            <p class="ability-desc">Le Chef peut tirer volontairement sur sa propre Créature-Laser — accélère l'ultime et augmente les critiques. Contrepartie : épuisement + vulnérabilité temporaire du Chef. Risque calculé, récompense maximale.</p>
+          </div>
+        </div>
+      </div>
+      <div class="reveal">
+        <div style="background: var(--panel); border: 1px solid rgba(204,68,255,0.3); border-radius: 12px; padding: 32px;">
+          <h3 style="font-family: 'Cinzel', serif; font-size: 16px; font-weight: 600; letter-spacing: 2px; color: var(--faction-color); margin-bottom: 20px;">LA MÉCANIQUE DU TIMING</h3>
+          <p style="font-size: 14px; color: var(--muted); line-height: 1.7; margin-bottom: 20px;">Les Noxéens gagnent ou perdent en un instant. Leur fenêtre de burst — quand le Chef est à pleine charge et la Créature-Laser prête — dure environ 8 secondes. Dans cette fenêtre, ils peuvent détruire n'importe quelle armée. En dehors : fragiles et dangereux à surexposer.</p>
+          <div style="background: rgba(204,68,255,0.06); border-radius: 8px; padding: 16px;">
+            <p style="font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--faction-color); letter-spacing: 3px; margin-bottom: 8px;">RÈGLE D'OR NOXÉEN</p>
+            <p style="font-size: 13px; color: var(--text); line-height: 1.6;">Un Noxéen en retard est un Noxéen mort. Le timing ne tolère aucune improvisation. Préparez pendant 2 minutes. Frappez en 8 secondes. Recommencez.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="faction-playstyle">
+  <div class="container">
+    <span class="eyebrow">GUIDE TACTIQUE</span>
+    <h2 class="section-h2">Jouer les Noxéens</h2>
+    <p class="section-lead">La faction la plus exigeante du jeu. Le potentiel de burst est absolu — mais chaque erreur se paie immédiatement.</p>
+    <div class="playstyle-grid">
+      <div class="ps-card reveal">
+        <h3>Forces</h3>
+        <ul>
+          <li>DPS burst le plus élevé du jeu au bon moment</li>
+          <li>L'ultime laser détruit toute structure ou défense</li>
+          <li>Capables de retourner une situation défavorable</li>
+          <li>Les Abyssites contournent toutes les lignes défensives</li>
+          <li>Les Strobers désorganisent les formations les plus solides</li>
+        </ul>
+      </div>
+      <div class="ps-card reveal">
+        <h3>Faiblesses</h3>
+        <ul>
+          <li>Extrêmement fragiles hors fenêtre de burst</li>
+          <li>Punitifs si l'ultime est raté ou mal positionné</li>
+          <li>La Créature-Laser doit être protégée à tout prix</li>
+          <li>Inefficaces en terrain lumineux (avantage réduit)</li>
+          <li>Requièrent un micro-management permanent</li>
+        </ul>
+      </div>
+      <div class="ps-card reveal">
+        <h3>Conseils tactiques</h3>
+        <ul>
+          <li>Placez la Créature-Laser en arrière, entourée de Strobers</li>
+          <li>Accumulez la charge du Chef sans l'exposer au combat</li>
+          <li>Attendez que l'ennemi soit engagé avant de déclencher le burst</li>
+          <li>Le Sacrifice Lumineux est risqué mais souvent décisif</li>
+          <li>En zone bathypélagique — bonus de vision = avantage total</li>
+        </ul>
+      </div>
+    </div>
+    <div class="synergy-block reveal">
+      <h3>Synergies clés</h3>
+      <div class="synergy-row">
+        <div class="synergy-item"><strong>Strobers + Luminescents</strong> → Éblouissement ennemi pendant le burst = DPS sans riposte possible</div>
+        <div class="synergy-item"><strong>Chef + Créature-Laser (Sacrifice)</strong> → Ultime en 60% du temps normal — mais Chef vulnérable après</div>
+        <div class="synergy-item"><strong>Abyssites + Chef en Rayon Surchargé</strong> → Flanquement + frappe de face simultanés — confusion totale</div>
+        <div class="synergy-item"><strong>Cœurs-Sombres en bait + Laser</strong> → Faites attaquer les Cœurs-Sombres (qui deviennent plus forts), puis laser = combo auto-amplifié</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="faction-nav-section">
+  <div class="container">
+    <span class="eyebrow">DÉCOUVRIR LES AUTRES FACTIONS</span>
+    <div class="faction-nav-row">
+      <a href="aquiloris.html" class="faction-nav-card" style="border-color: rgba(0,168,255,0.3)">
+        <span class="fnc-name" style="color: var(--aquiloris)">AQUILORIS</span>
+        <span class="fnc-zone">Cité des Marées Éternelles</span>
+      </a>
+      <a href="thalassidras.html" class="faction-nav-card" style="border-color: rgba(0,204,128,0.3)">
+        <span class="fnc-name" style="color: var(--thalassidras)">THALASSIDRAS</span>
+        <span class="fnc-zone">Récifs Vivants</span>
+      </a>
+      <a href="mureniens.html" class="faction-nav-card" style="border-color: rgba(136,255,0,0.3)">
+        <span class="fnc-name" style="color: var(--mureniens)">MURÉNIENS</span>
+        <span class="fnc-zone">Fosses de Décomposition</span>
+      </a>
+      <a href="pirates-abyssaux.html" class="faction-nav-card" style="border-color: rgba(255,34,68,0.3)">
+        <span class="fnc-name" style="color: var(--pirates)">PIRATES ABYSSAUX</span>
+        <span class="fnc-zone">Épaves et Naufrages</span>
+      </a>
+      <a href="../index.html#factions" class="faction-nav-home">← Retour à l'accueil</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-logo-wrap"><span class="logo-main">WOTOL</span><span class="logo-sub">War of the Ocean's Legacy</span></div>
+      <div class="footer-nav">
+        <div class="footer-col"><h4>Navigation</h4><a href="../index.html#univers">Univers</a><a href="../index.html#factions">Factions</a><a href="../index.html#gameplay">Gameplay</a><a href="../index.html#medias">Médias</a></div>
+        <div class="footer-col"><h4>Factions</h4><a href="aquiloris.html">Aquiloris</a><a href="thalassidras.html">Thalassidras</a><a href="noxeens.html" style="color: var(--noxeens)">Noxéens</a><a href="mureniens.html">Muréniens</a><a href="pirates-abyssaux.html">Pirates Abyssaux</a></div>
+        <div class="footer-col"><h4>3Décors</h4><a href="mailto:association.3decors@gmail.com">Contact</a><span>Association Loi 1901</span><span>RNA W604009928</span><span>Marque INPI n° 26 5230895</span></div>
+      </div>
+    </div>
+    <div class="footer-bottom"><p>© 2026 WOTOL — War of the Ocean's Legacy | Association 3Décors | Tous droits réservés</p><p>Développé sous Unreal Engine 5 | Studio 3Décors — Montataire, France</p></div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var canvas = document.getElementById('hero-canvas');
+  var ctx = canvas.getContext('2d');
+  var color = '#cc44ff';
+  var particles = []; var time = 0;
+  function resize() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }
+  function createParticles() { particles = []; for (var i = 0; i < 80; i++) { particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: 1 + Math.random() * 2, speed: 0.3 + Math.random() * 0.9, opacity: 0.3 + Math.random() * 0.6, index: i }); } }
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height); time++;
+    particles.forEach(function (p) {
+      p.y -= p.speed; p.x += Math.sin(time * 0.01 + p.index) * 0.3;
+      if (p.y < 0) { p.y = canvas.height; p.x = Math.random() * canvas.width; }
+      ctx.save(); ctx.globalAlpha = p.opacity; ctx.shadowBlur = 15; ctx.shadowColor = color; ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    }); requestAnimationFrame(animate);
+  }
+  resize(); createParticles(); animate();
+  window.addEventListener('resize', function () { resize(); createParticles(); });
+})();
+window.addEventListener('scroll', function () { document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 80); });
+var observer = new IntersectionObserver(function (entries) { entries.forEach(function (entry) { if (entry.isIntersecting) { entry.target.classList.add('revealed'); observer.unobserve(entry.target); } }); }, { threshold: 0.12 });
+document.querySelectorAll('.reveal').forEach(function (el) { observer.observe(el); });
+</script>
+</body>
+</html>

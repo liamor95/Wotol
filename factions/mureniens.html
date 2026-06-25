@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Muréniens — Prédateurs des abysses, poison et mobilité. Faction de harcèlement dans WOTOL War of the Ocean's Legacy.">
+  <title>MURÉNIENS — WOTOL : War of the Ocean's Legacy</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;600;700&family=Exo+2:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--abyss); color: var(--text); font-family: 'Exo 2', sans-serif; overflow-x: hidden; line-height: 1.6; }
+    a { text-decoration: none; color: inherit; }
+    img { display: block; max-width: 100%; }
+
+    :root {
+      --abyss: #030810; --deep-sea: #0a1628; --panel: #0d1f38; --surface: #152d4a;
+      --biolum: #00c8b4; --abyssal: #0066ff; --corrupt: #7b2fff;
+      --glow-soft: rgba(0,200,180,0.15); --text: #e8f4ff; --muted: #7ab8cc;
+      --divider: rgba(0,200,180,0.2);
+      --aquiloris: #00a8ff; --thalassidras: #00cc80; --noxeens: #cc44ff;
+      --mureniens: #88ff00; --pirates: #ff2244;
+      --faction-color: #88ff00;
+      --radius-sm: 4px; --radius-md: 8px; --radius-lg: 16px;
+    }
+
+    .container { max-width: 1280px; margin: 0 auto; padding: 0 40px; }
+    section { padding: 100px 0; }
+    .eyebrow { display: block; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--faction-color); letter-spacing: 4px; text-transform: uppercase; margin-bottom: 16px; }
+
+    #navbar { position: fixed; top: 0; left: 0; width: 100%; z-index: 1000; background: rgba(3,8,16,0); border-bottom: 1px solid transparent; transition: background 0.4s, backdrop-filter 0.4s, border-color 0.4s; padding: 0 40px; height: 72px; display: flex; align-items: center; justify-content: space-between; }
+    #navbar.scrolled { background: rgba(3,8,16,0.95); backdrop-filter: blur(12px); border-bottom-color: rgba(0,200,180,0.2); }
+    .nav-left { display: flex; align-items: center; gap: 24px; }
+    .back-link { font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 2px; color: var(--muted); transition: color 0.2s; }
+    .back-link:hover { color: var(--faction-color); }
+    .logo-main { font-family: 'Cinzel Decorative', cursive; font-size: 20px; font-weight: 700; color: var(--biolum); line-height: 1; }
+    .logo-sub { font-family: 'Exo 2', sans-serif; font-size: 9px; font-weight: 300; color: var(--muted); letter-spacing: 3px; text-transform: uppercase; display: block; margin-top: 3px; }
+    .nav-center { display: flex; gap: 28px; }
+    .nav-center a { font-family: 'Exo 2', sans-serif; font-size: 12px; font-weight: 600; color: var(--text); letter-spacing: 2px; text-transform: uppercase; transition: color 0.2s; }
+    .nav-center a:hover { color: var(--biolum); }
+    .btn-beta { font-family: 'Exo 2', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--abyss); background: var(--biolum); padding: 9px 20px; border-radius: 4px; transition: background 0.2s; }
+    .btn-beta:hover { background: #00e8d0; }
+
+    .faction-hero { height: 65vh; min-height: 500px; position: relative; overflow: hidden; background: linear-gradient(135deg, #030810 0%, #091a03 50%, rgba(136,255,0,0.08) 100%); display: flex; align-items: center; justify-content: center; padding-top: 72px; }
+    #hero-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+    .faction-hero-content { position: relative; z-index: 2; text-align: center; max-width: 800px; padding: 0 40px; }
+    .back-link-hero { display: inline-block; font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; margin-bottom: 32px; transition: color 0.2s; }
+    .back-link-hero:hover { color: var(--faction-color); }
+    .faction-eyebrow { display: block; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--faction-color); letter-spacing: 6px; text-transform: uppercase; margin-bottom: 16px; }
+    .faction-hero-title { font-family: 'Cinzel Decorative', cursive; font-size: clamp(56px, 8vw, 110px); font-weight: 900; color: var(--faction-color); line-height: 0.9; text-shadow: 0 0 60px rgba(136,255,0,0.7), 0 0 120px rgba(136,255,0,0.3); margin-bottom: 16px; }
+    .faction-hero-zone { display: block; font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--muted); letter-spacing: 4px; text-transform: uppercase; margin-bottom: 16px; }
+    .faction-hero-tagline { font-family: 'Exo 2', sans-serif; font-size: clamp(14px, 1.5vw, 18px); font-weight: 300; font-style: italic; color: var(--text); margin-bottom: 24px; line-height: 1.6; }
+    .faction-hero-badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .badge { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 1px; padding: 4px 10px; border-radius: 4px; background: rgba(0,0,0,0.5); border: 1px solid var(--faction-color); color: var(--faction-color); }
+
+    .faction-lore { background: var(--abyss); }
+    .lore-grid { display: flex; gap: 80px; align-items: flex-start; }
+    .lore-text { flex: 1; }
+    .lore-text h2 { font-family: 'Cinzel', serif; font-size: clamp(26px, 3.5vw, 40px); font-weight: 600; color: var(--text); margin-bottom: 24px; line-height: 1.2; }
+    .lore-body { font-size: 15px; color: var(--muted); line-height: 1.8; margin-bottom: 20px; }
+    .faction-quote { border-left: 3px solid var(--faction-color); padding: 16px 24px; background: rgba(136,255,0,0.04); border-radius: 0 8px 8px 0; margin-top: 32px; }
+    .faction-quote p { font-style: italic; font-size: 17px; color: var(--text); line-height: 1.6; }
+    .lore-image { flex: 0 0 420px; }
+    .lore-image img { width: 100%; border-radius: 8px; border: 1px solid var(--divider); box-shadow: 0 20px 60px rgba(0,0,0,0.5); min-height: 250px; object-fit: cover; }
+
+    .faction-units { background: var(--deep-sea); }
+    .section-h2 { font-family: 'Cinzel', serif; font-size: clamp(26px, 3.5vw, 40px); font-weight: 600; color: var(--text); margin-bottom: 12px; }
+    .section-lead { font-size: 15px; color: var(--muted); margin-bottom: 48px; line-height: 1.7; }
+    .units-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .unit-card { background: var(--panel); border: 1px solid var(--divider); border-radius: 8px; padding: 24px; transition: border-color 0.2s, transform 0.2s; }
+    .unit-card:hover { border-color: var(--faction-color); transform: translateY(-3px); }
+    .unit-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+    .unit-name { font-family: 'Cinzel', serif; font-size: 18px; font-weight: 600; color: var(--faction-color); }
+    .unit-type { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 2px; }
+    .unit-role { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 2px; color: var(--faction-color); background: rgba(136,255,0,0.08); padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 12px; }
+    .unit-ability { font-size: 13px; color: var(--text); margin-bottom: 14px; line-height: 1.6; }
+    .unit-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat-label { color: var(--muted); font-size: 12px; }
+    .stat-value { color: var(--text); font-size: 12px; font-weight: 500; }
+
+    .faction-mythic-section { background: var(--abyss); }
+    .mythic-card { background: linear-gradient(135deg, var(--panel), rgba(100,180,0,0.07)); border: 1px solid rgba(136,255,0,0.35); border-radius: 12px; padding: 48px; display: flex; gap: 60px; align-items: flex-start; }
+    .mythic-info { flex: 1; }
+    .mythic-label { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 4px; color: var(--faction-color); text-transform: uppercase; margin-bottom: 12px; display: block; }
+    .mythic-name { font-family: 'Cinzel Decorative', cursive; font-size: clamp(22px, 3vw, 34px); font-weight: 700; color: var(--faction-color); margin-bottom: 20px; text-shadow: 0 0 30px rgba(136,255,0,0.4); }
+    .mythic-lore { font-size: 14px; color: var(--muted); line-height: 1.7; margin-bottom: 24px; }
+    .mythic-powers { display: flex; flex-direction: column; gap: 16px; }
+    .power-block { background: rgba(0,0,0,0.3); border-radius: 8px; padding: 16px 20px; }
+    .power-name { font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 2px; color: var(--faction-color); margin-bottom: 6px; display: block; }
+    .power-desc { font-size: 13px; color: var(--text); line-height: 1.6; }
+    .mythic-img { flex: 0 0 320px; }
+    .mythic-img img { width: 100%; border-radius: 8px; border: 1px solid rgba(136,255,0,0.3); min-height: 200px; object-fit: cover; }
+
+    .faction-commander { background: var(--deep-sea); }
+    .commander-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
+    .commander-info h3 { font-family: 'Cinzel Decorative', cursive; font-size: 26px; font-weight: 700; color: var(--faction-color); margin-bottom: 8px; }
+    .commander-desc { font-size: 15px; color: var(--muted); line-height: 1.8; margin-bottom: 24px; }
+    .abilities-list { display: flex; flex-direction: column; gap: 12px; }
+    .ability-item { background: var(--panel); border: 1px solid var(--divider); border-radius: 8px; padding: 16px 20px; }
+    .ability-name { font-family: 'Cinzel', serif; font-size: 13px; font-weight: 600; color: var(--faction-color); margin-bottom: 6px; }
+    .ability-desc { font-size: 13px; color: var(--text); line-height: 1.6; }
+
+    .faction-playstyle { background: var(--abyss); }
+    .playstyle-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 48px; }
+    .ps-card { background: var(--panel); border: 1px solid var(--divider); border-radius: 8px; padding: 28px; }
+    .ps-card h3 { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--faction-color); margin-bottom: 16px; }
+    .ps-card ul { list-style: none; padding: 0; }
+    .ps-card ul li { font-size: 14px; color: var(--muted); line-height: 1.6; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04); display: flex; gap: 10px; }
+    .ps-card ul li::before { content: '—'; color: var(--faction-color); flex-shrink: 0; }
+    .synergy-block { background: var(--panel); border: 1px solid rgba(136,255,0,0.25); border-radius: 8px; padding: 32px; }
+    .synergy-block h3 { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--faction-color); margin-bottom: 20px; }
+    .synergy-row { display: flex; flex-direction: column; gap: 12px; }
+    .synergy-item { background: rgba(136,255,0,0.04); border-radius: 6px; padding: 12px 16px; font-size: 14px; color: var(--text); line-height: 1.5; }
+    .synergy-item strong { color: var(--faction-color); }
+
+    .nuxim-warning { background: rgba(136,255,0,0.06); border: 1px solid rgba(136,255,0,0.3); border-radius: 8px; padding: 24px; margin-top: 32px; }
+    .nuxim-warning h4 { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 600; color: var(--faction-color); margin-bottom: 12px; letter-spacing: 2px; }
+    .nuxim-warning p { font-size: 14px; color: var(--muted); line-height: 1.7; }
+
+    .faction-nav-section { background: var(--deep-sea); padding: 80px 0; text-align: center; }
+    .faction-nav-row { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 40px; }
+    .faction-nav-card { display: flex; flex-direction: column; gap: 4px; padding: 20px 28px; background: var(--panel); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; transition: border-color 0.2s, transform 0.2s; min-width: 160px; }
+    .faction-nav-card:hover { transform: translateY(-4px); }
+    .fnc-name { font-family: 'Cinzel', serif; font-size: 13px; font-weight: 600; letter-spacing: 2px; }
+    .fnc-zone { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--muted); letter-spacing: 1px; }
+    .faction-nav-home { display: flex; align-items: center; padding: 20px 28px; background: var(--panel); border: 1px solid var(--divider); border-radius: 8px; font-family: 'Exo 2', sans-serif; font-size: 13px; font-weight: 600; color: var(--muted); transition: color 0.2s, border-color 0.2s; }
+    .faction-nav-home:hover { color: var(--biolum); border-color: var(--biolum); }
+
+    footer { background: var(--abyss); border-top: 1px solid var(--divider); }
+    .footer-top { padding: 60px 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 40px; flex-wrap: wrap; }
+    .footer-logo-wrap .logo-main { font-family: 'Cinzel Decorative', cursive; font-size: 20px; font-weight: 700; color: var(--biolum); }
+    .footer-logo-wrap .logo-sub { font-family: 'Exo 2', sans-serif; font-size: 9px; font-weight: 300; color: var(--muted); letter-spacing: 3px; text-transform: uppercase; display: block; margin-top: 4px; }
+    .footer-nav { display: flex; gap: 48px; flex-wrap: wrap; }
+    .footer-col { display: flex; flex-direction: column; }
+    .footer-col h4 { font-family: 'Cinzel', serif; font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--biolum); margin-bottom: 16px; }
+    .footer-col a, .footer-col span { font-family: 'Exo 2', sans-serif; font-size: 13px; color: var(--muted); display: block; margin-bottom: 8px; transition: color 0.2s; }
+    .footer-col a:hover { color: var(--text); }
+    .footer-bottom { border-top: 1px solid var(--divider); padding: 20px 0; text-align: center; }
+    .footer-bottom p { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 1px; margin-bottom: 4px; }
+
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .reveal.revealed { opacity: 1; transform: translateY(0); }
+    .reveal:nth-child(2) { transition-delay: 0.1s; }
+    .reveal:nth-child(3) { transition-delay: 0.2s; }
+
+    @media (max-width: 900px) { .lore-grid, .mythic-card { flex-direction: column; } .lore-image, .mythic-img { flex: none; width: 100%; } .commander-grid, .playstyle-grid { grid-template-columns: 1fr; } .units-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 600px) { .nav-center { display: none; } .container { padding: 0 20px; } #navbar { padding: 0 20px; } }
+  </style>
+</head>
+<body>
+
+<nav id="navbar">
+  <div class="nav-left">
+    <a href="../index.html" class="back-link">← ACCUEIL</a>
+    <div><span class="logo-main">WOTOL</span><span class="logo-sub">War of the Ocean's Legacy</span></div>
+  </div>
+  <div class="nav-center">
+    <a href="../index.html#univers">Univers</a>
+    <a href="../index.html#factions">Factions</a>
+    <a href="../index.html#gameplay">Gameplay</a>
+    <a href="../index.html#medias">Médias</a>
+  </div>
+  <div class="nav-right"><a href="../index.html#communaute" class="btn-beta">REJOINDRE LA BÊTA</a></div>
+</nav>
+
+<section class="faction-hero">
+  <canvas id="hero-canvas"></canvas>
+  <div class="faction-hero-content">
+    <a href="../index.html#factions" class="back-link-hero">← Toutes les factions</a>
+    <span class="faction-eyebrow">FACTION</span>
+    <h1 class="faction-hero-title">MURÉNIENS</h1>
+    <span class="faction-hero-zone">Fosses de Décomposition</span>
+    <p class="faction-hero-tagline">Poison. Vitesse. Harcèlement sans répit.</p>
+    <div class="faction-hero-badges">
+      <span class="badge">POISON</span>
+      <span class="badge">MOBILITÉ</span>
+      <span class="badge">HARCÈLEMENT</span>
+      <span class="badge">PRÉDATEUR</span>
+    </div>
+  </div>
+</section>
+
+<section class="faction-lore">
+  <div class="container">
+    <div class="lore-grid">
+      <div class="lore-text reveal">
+        <span class="eyebrow">HISTOIRE & ORIGINE</span>
+        <h2>Les Prédateurs des Fosses</h2>
+        <p class="lore-body">Les Muréniens n'ont pas construit d'empire — ils ont colonisé les fosses que les autres factions abandonnaient. Dans la décomposition et la corruption organique, ils ont trouvé leur force. Rapides, venimeux, imprévisibles, ils ne tiennent jamais leurs lignes : ils les dissolvent.</p>
+        <p class="lore-body">Leur stratégie est celle du prédateur de haute mer : harceler, empoisonner, isoler, puis frapper au moment de la faiblesse maximale. L'artefact Æthérien représente pour eux une source de corruption pure — un outil idéal.</p>
+        <blockquote class="faction-quote">
+          <p>« On ne résiste pas au poison. On l'endure jusqu'à ce qu'il ne reste plus rien d'autre. »</p>
+        </blockquote>
+      </div>
+      <div class="lore-image reveal">
+        <img src="https://drive.google.com/thumbnail?id=1kdK98mdpUvaHycHaN3hGYkt3cFJe0aze&sz=w1200"
+             alt="Concept Art — Muréniens"
+             onerror="this.style.opacity='0'; this.parentElement.style.background='var(--panel)'">
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="faction-units">
+  <div class="container">
+    <span class="eyebrow">ARMÉE</span>
+    <h2 class="section-h2">Forces des Fosses de Décomposition</h2>
+    <p class="section-lead">Chaque Murénier est un prédateur né. Rapides, venimeux, impossibles à attraper. Jamais en ligne droite — toujours en embuscade.</p>
+    <div class="units-grid">
+      <div class="unit-card reveal">
+        <div class="unit-header"><span class="unit-name">Venimards</span><span class="unit-type">DPS RAPIDE</span></div>
+        <div class="unit-role">HARCÈLEMENT / POISON</div>
+        <p class="unit-ability"><strong>Morsure empoisonnée</strong> — Attaque rapide qui applique un poison persistant. Frappe et recule immédiatement. Ne combat jamais au corps-à-corps prolongé.</p>
+        <div class="unit-stats">
+          <div><span class="stat-label">Force : </span><span class="stat-value">DPS continu via poison</span></div>
+          <div><span class="stat-label">Faiblesse : </span><span class="stat-value">Très fragile, corps-à-corps fatal</span></div>
+        </div>
+      </div>
+      <div class="unit-card reveal">
+        <div class="unit-header"><span class="unit-name">Glisseurs</span><span class="unit-type">ÉCLAIREUR</span></div>
+        <div class="unit-role">MOBILITÉ / SCOUT</div>
+        <p class="unit-ability"><strong>Décharge électrique</strong> — Vitesse de déplacement maximale. Génère une impulsion électrique qui paralyse brièvement les ennemis traversés.</p>
+        <div class="unit-stats">
+          <div><span class="stat-label">Force : </span><span class="stat-value">Mobilité inégalée</span></div>
+          <div><span class="stat-label">Faiblesse : </span><span class="stat-value">PV très faibles</span></div>
+        </div>
+      </div>
+      <div class="unit-card reveal">
+        <div class="unit-header"><span class="unit-name">Toxifieurs</span><span class="unit-type">ZONE</span></div>
+        <div class="unit-role">POISON DE ZONE</div>
+        <p class="unit-ability"><strong>Nuage toxique</strong> — Crache un nuage de poison persistant sur une zone. Les ennemis qui y restent accumulent des dégâts continus. Non effaçable sauf purification Thalassidra.</p>
+        <div class="unit-stats">
+          <div><span class="stat-label">Force : </span><span class="stat-value">Contrôle de zone par poison</span></div>
+          <div><span class="stat-label">Faiblesse : </span><span class="stat-value">Contre-hard par Thalassidras</span></div>
+        </div>
+      </div>
+      <div class="unit-card reveal">
+        <div class="unit-header"><span class="unit-name">Murénides</span><span class="unit-type">EMBUSCADE</span></div>
+        <div class="unit-role">ISOLATION / BURST</div>
+        <p class="unit-ability"><strong>Enroulement paralysant</strong> — Isole une unité ennemie en l'enroulant. L'unité ciblée ne peut ni bouger ni attaquer pendant 3 secondes. Dégâts de poison simultanés.</p>
+        <div class="unit-stats">
+          <div><span class="stat-label">Force : </span><span class="stat-value">Isolation totale d'une cible</span></div>
+          <div><span class="stat-label">Faiblesse : </span><span class="stat-value">Immobile pendant l'enroulement</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="faction-mythic-section">
+  <div class="container">
+    <span class="eyebrow">UNITÉ MYTHIQUE</span>
+    <div class="mythic-card reveal">
+      <div class="mythic-info">
+        <span class="mythic-label">MYTHIQUE — ÉVÉNEMENT UNIQUE PAR BATAILLE</span>
+        <h2 class="mythic-name">NUXIM — REINE DES MURÉNIENS</h2>
+        <p class="mythic-lore">Unique femelle de la faction. Unique rempart vivant d'une armée de prédateurs solitaires. Nuxim ne fuit pas — elle absorbe, endure, et libère. Plus elle souffre, plus sa vengeance est dévastatrice. Sa morsure finale est proportionnelle à ses cicatrices.</p>
+        <div class="mythic-powers">
+          <div class="power-block">
+            <span class="power-name">PASSIF — REINE REMPART</span>
+            <p class="power-desc">Très hauts PV. Absorbe les dégâts destinés aux alliés proches. Repousse les ennemis qui s'approchent trop (coups de queue puissants). Rempart vivant permanent tant qu'elle est debout.</p>
+          </div>
+          <div class="power-block">
+            <span class="power-name">ULTIME — ÉMERGENCE TOXIQUE (1 FOIS)</span>
+            <p class="power-desc">Nuxim s'enfonce sous le terrain → le joueur choisit un point d'émergence → elle surgit. Effets : dégâts radiaux dégressifs autour du point, impact vertical sur toutes les unités sur la trajectoire, contamination du sol persistante jusqu'à purification.</p>
+          </div>
+          <div class="power-block">
+            <span class="power-name">⚠ SPÉCIFICITÉ CRITIQUE — LA VENGEANCE DE LA REINE</span>
+            <p class="power-desc">Plus Nuxim perd de PV avant l'ultime, plus l'ultime est puissant. Si elle est à 20% PV → dégâts ×2. Si elle meurt avant d'utiliser l'ultime → pouvoir perdu définitivement. Le sacrifice de la Reine est la décision la plus lourde du jeu.</p>
+          </div>
+        </div>
+        <div class="nuxim-warning">
+          <h4>⚡ GUIDE DE DÉCISION</h4>
+          <p>Ne déclenchez jamais l'Émergence Toxique avec Nuxim à pleine vie. Attendez qu'elle soit blessée — mais pas trop. La fenêtre optimale est entre 20% et 40% PV. Un seul mauvais coup peut tout gâcher.</p>
+        </div>
+      </div>
+      <div class="mythic-img">
+        <img src="https://drive.google.com/thumbnail?id=1kdK98mdpUvaHycHaN3hGYkt3cFJe0aze&sz=w800"
+             alt="Nuxim — Reine des Muréniens"
+             onerror="this.style.opacity='0'; this.parentElement.style.background='var(--panel)'">
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="faction-commander">
+  <div class="container">
+    <span class="eyebrow">CHEF DE FACTION</span>
+    <div class="commander-grid">
+      <div class="commander-info reveal">
+        <h3>POISON & PRESSION</h3>
+        <p class="commander-desc">Le Chef Murénien est la définition de la pression permanente. Il ne laisse jamais l'ennemi respirer. Sa contamination territoriale transforme chaque mètre de terrain en zone dangereuse — forçant les repositionnements constants.</p>
+        <div class="abilities-list">
+          <div class="ability-item">
+            <div class="ability-name">CONTAMINATION TERRITORIALE</div>
+            <p class="ability-desc">Empoisonne une zone définie. Le poison persiste et s'intensifie avec le temps si personne ne purge. Une zone contaminée force l'ennemi à reculer ou subir des dégâts croissants.</p>
+          </div>
+          <div class="ability-item">
+            <div class="ability-name">ISOLEMENT CIBLÉ</div>
+            <p class="ability-desc">Désigne une unité ennemie — toutes les unités alliées proches reçoivent un bonus d'attaque contre cette cible. Idéal pour éliminer les unités de soutien ennemies en priorité.</p>
+          </div>
+          <div class="ability-item">
+            <div class="ability-name">PASSIF — PRÉDATEUR EN CHEF</div>
+            <p class="ability-desc">Chaque unité alliée qui élimine une cible empoisonnée récupère des PV. Le poison devient un cycle régénérateur — harceleurs qui récupèrent en attaquant.</p>
+          </div>
+        </div>
+      </div>
+      <div class="reveal">
+        <div style="background: var(--panel); border: 1px solid rgba(136,255,0,0.25); border-radius: 12px; padding: 32px;">
+          <h3 style="font-family: 'Cinzel', serif; font-size: 16px; font-weight: 600; letter-spacing: 2px; color: var(--faction-color); margin-bottom: 20px;">SYNERGIE CHEF + NUXIM</h3>
+          <p style="font-size: 14px; color: var(--muted); line-height: 1.7; margin-bottom: 20px;">Contamination de terrain par le Chef + Émergence Toxique de Nuxim sur une zone déjà empoisonnée = double couche de poison persistant. Aucun ennemi ne peut rester dans cette zone sans subir des dégâts catastrophiques.</p>
+          <div style="background: rgba(136,255,0,0.04); border-radius: 8px; padding: 16px;">
+            <p style="font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--faction-color); letter-spacing: 3px; margin-bottom: 8px;">TACTIQUE SIGNATURE</p>
+            <p style="font-size: 13px; color: var(--text); line-height: 1.6;">Glisseurs pour cartographier le terrain → Toxifieurs pour empoisonner les routes → Chef pour verrouiller une zone → Nuxim pour la contamination finale imprenable.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="faction-playstyle">
+  <div class="container">
+    <span class="eyebrow">GUIDE TACTIQUE</span>
+    <h2 class="section-h2">Jouer les Muréniens</h2>
+    <p class="section-lead">Ne vous battez jamais de face. Harcelez. Empoisonnez. Attendez. Frappez quand l'ennemi s'effondre.</p>
+    <div class="playstyle-grid">
+      <div class="ps-card reveal">
+        <h3>Forces</h3>
+        <ul>
+          <li>Mobilité la plus élevée du jeu — impossible à coincer</li>
+          <li>Pression territoriale par empoisonnement constant</li>
+          <li>Nuxim : le tank le plus résistant du jeu en phase finale</li>
+          <li>Dégâts passifs permanents via poison de zone</li>
+          <li>Gagnent par usure sur toutes les factions lentes</li>
+        </ul>
+      </div>
+      <div class="ps-card reveal">
+        <h3>Faiblesses</h3>
+        <ul>
+          <li>Fragiles en combat frontal direct — catastrophique</li>
+          <li>Entièrement dépendants du mouvement</li>
+          <li>Vulnérables si les Thalassidras purifient le terrain</li>
+          <li>Nuxim doit être gérée avec une précision extrême</li>
+          <li>Nécessitent une lecture constante du terrain</li>
+        </ul>
+      </div>
+      <div class="ps-card reveal">
+        <h3>Conseils tactiques</h3>
+        <ul>
+          <li>N'engagez jamais un combat frontal — contournez toujours</li>
+          <li>Empoisonnez les retraites ennemies avant l'assaut principal</li>
+          <li>Nuxim en avant-garde — laissez-la absorber pour maximiser l'ultime</li>
+          <li>Les Murénides isolent les unités de soutien en priorité</li>
+          <li>En zone bathypélagique — avantage défensif absolu</li>
+        </ul>
+      </div>
+    </div>
+    <div class="synergy-block reveal">
+      <h3>Synergies clés</h3>
+      <div class="synergy-row">
+        <div class="synergy-item"><strong>Venimards + Toxifieurs</strong> → Poison direct + poison de zone = accumulation double sur toute une formation</div>
+        <div class="synergy-item"><strong>Glisseurs + Murénides</strong> → Les Glisseurs paralysent, les Murénides isolent = une unité hors du combat pendant 6 secondes</div>
+        <div class="synergy-item"><strong>Chef (Contamination) + Nuxim (Émergence)</strong> → Zone doublement empoisonnée — aucune armée ne peut y rester plus de 5 secondes</div>
+        <div class="synergy-item"><strong>Nuxim blessée + Chef (Isolement)</strong> → Cible désignée sur le chef ennemi → Nuxim ultime sur sa position = élimination prioritaire garantie</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="faction-nav-section">
+  <div class="container">
+    <span class="eyebrow">DÉCOUVRIR LES AUTRES FACTIONS</span>
+    <div class="faction-nav-row">
+      <a href="aquiloris.html" class="faction-nav-card" style="border-color: rgba(0,168,255,0.3)">
+        <span class="fnc-name" style="color: var(--aquiloris)">AQUILORIS</span>
+        <span class="fnc-zone">Cité des Marées Éternelles</span>
+      </a>
+      <a href="thalassidras.html" class="faction-nav-card" style="border-color: rgba(0,204,128,0.3)">
+        <span class="fnc-name" style="color: var(--thalassidras)">THALASSIDRAS</span>
+        <span class="fnc-zone">Récifs Vivants</span>
+      </a>
+      <a href="noxeens.html" class="faction-nav-card" style="border-color: rgba(204,68,255,0.3)">
+        <span class="fnc-name" style="color: var(--noxeens)">NOXÉENS</span>
+        <span class="fnc-zone">Domaines des Ombres</span>
+      </a>
+      <a href="pirates-abyssaux.html" class="faction-nav-card" style="border-color: rgba(255,34,68,0.3)">
+        <span class="fnc-name" style="color: var(--pirates)">PIRATES ABYSSAUX</span>
+        <span class="fnc-zone">Épaves et Naufrages</span>
+      </a>
+      <a href="../index.html#factions" class="faction-nav-home">← Retour à l'accueil</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-logo-wrap"><span class="logo-main">WOTOL</span><span class="logo-sub">War of the Ocean's Legacy</span></div>
+      <div class="footer-nav">
+        <div class="footer-col"><h4>Navigation</h4><a href="../index.html#univers">Univers</a><a href="../index.html#factions">Factions</a><a href="../index.html#gameplay">Gameplay</a><a href="../index.html#medias">Médias</a></div>
+        <div class="footer-col"><h4>Factions</h4><a href="aquiloris.html">Aquiloris</a><a href="thalassidras.html">Thalassidras</a><a href="noxeens.html">Noxéens</a><a href="mureniens.html" style="color: var(--mureniens)">Muréniens</a><a href="pirates-abyssaux.html">Pirates Abyssaux</a></div>
+        <div class="footer-col"><h4>3Décors</h4><a href="mailto:association.3decors@gmail.com">Contact</a><span>Association Loi 1901</span><span>RNA W604009928</span><span>Marque INPI n° 26 5230895</span></div>
+      </div>
+    </div>
+    <div class="footer-bottom"><p>© 2026 WOTOL — War of the Ocean's Legacy | Association 3Décors | Tous droits réservés</p><p>Développé sous Unreal Engine 5 | Studio 3Décors — Montataire, France</p></div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var canvas = document.getElementById('hero-canvas');
+  var ctx = canvas.getContext('2d');
+  var color = '#88ff00';
+  var particles = []; var time = 0;
+  function resize() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }
+  function createParticles() { particles = []; for (var i = 0; i < 80; i++) { particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: 1 + Math.random() * 2, speed: 0.3 + Math.random() * 0.9, opacity: 0.3 + Math.random() * 0.6, index: i }); } }
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height); time++;
+    particles.forEach(function (p) {
+      p.y -= p.speed; p.x += Math.sin(time * 0.01 + p.index) * 0.3;
+      if (p.y < 0) { p.y = canvas.height; p.x = Math.random() * canvas.width; }
+      ctx.save(); ctx.globalAlpha = p.opacity; ctx.shadowBlur = 15; ctx.shadowColor = color; ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    }); requestAnimationFrame(animate);
+  }
+  resize(); createParticles(); animate();
+  window.addEventListener('resize', function () { resize(); createParticles(); });
+})();
+window.addEventListener('scroll', function () { document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 80); });
+var observer = new IntersectionObserver(function (entries) { entries.forEach(function (entry) { if (entry.isIntersecting) { entry.target.classList.add('revealed'); observer.unobserve(entry.target); } }); }, { threshold: 0.12 });
+document.querySelectorAll('.reveal').forEach(function (el) { observer.observe(el); });
+</script>
+</body>
+</html>

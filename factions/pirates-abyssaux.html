@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Pirates Abyssaux — Faction de corruption et chaos, guidée par Nekryss dans WOTOL War of the Ocean's Legacy.">
+  <title>PIRATES ABYSSAUX — WOTOL : War of the Ocean's Legacy</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;600;700&family=Exo+2:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--abyss); color: var(--text); font-family: 'Exo 2', sans-serif; overflow-x: hidden; line-height: 1.6; }
+    a { text-decoration: none; color: inherit; }
+    img { display: block; max-width: 100%; }
+
+    :root {
+      --abyss: #030810; --deep-sea: #0a1628; --panel: #0d1f38; --surface: #152d4a;
+      --biolum: #00c8b4; --abyssal: #0066ff; --corrupt: #7b2fff;
+      --glow-soft: rgba(0,200,180,0.15); --text: #e8f4ff; --muted: #7ab8cc;
+      --divider: rgba(0,200,180,0.2);
+      --aquiloris: #00a8ff; --thalassidras: #00cc80; --noxeens: #cc44ff;
+      --mureniens: #88ff00; --pirates: #ff2244;
+      --faction-color: #ff2244;
+      --radius-sm: 4px; --radius-md: 8px; --radius-lg: 16px;
+    }
+
+    .container { max-width: 1280px; margin: 0 auto; padding: 0 40px; }
+    section { padding: 100px 0; }
+    .eyebrow { display: block; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--faction-color); letter-spacing: 4px; text-transform: uppercase; margin-bottom: 16px; }
+
+    #navbar { position: fixed; top: 0; left: 0; width: 100%; z-index: 1000; background: rgba(3,8,16,0); border-bottom: 1px solid transparent; transition: background 0.4s, backdrop-filter 0.4s, border-color 0.4s; padding: 0 40px; height: 72px; display: flex; align-items: center; justify-content: space-between; }
+    #navbar.scrolled { background: rgba(3,8,16,0.95); backdrop-filter: blur(12px); border-bottom-color: rgba(0,200,180,0.2); }
+    .nav-left { display: flex; align-items: center; gap: 24px; }
+    .back-link { font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 2px; color: var(--muted); transition: color 0.2s; }
+    .back-link:hover { color: var(--faction-color); }
+    .logo-main { font-family: 'Cinzel Decorative', cursive; font-size: 20px; font-weight: 700; color: var(--biolum); line-height: 1; }
+    .logo-sub { font-family: 'Exo 2', sans-serif; font-size: 9px; font-weight: 300; color: var(--muted); letter-spacing: 3px; text-transform: uppercase; display: block; margin-top: 3px; }
+    .nav-center { display: flex; gap: 28px; }
+    .nav-center a { font-family: 'Exo 2', sans-serif; font-size: 12px; font-weight: 600; color: var(--text); letter-spacing: 2px; text-transform: uppercase; transition: color 0.2s; }
+    .nav-center a:hover { color: var(--biolum); }
+    .btn-beta { font-family: 'Exo 2', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--abyss); background: var(--biolum); padding: 9px 20px; border-radius: 4px; transition: background 0.2s; }
+    .btn-beta:hover { background: #00e8d0; }
+
+    .faction-hero { height: 65vh; min-height: 500px; position: relative; overflow: hidden; background: linear-gradient(135deg, #030810 0%, #1a0308 50%, rgba(255,34,68,0.08) 100%); display: flex; align-items: center; justify-content: center; padding-top: 72px; }
+    #hero-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+    .faction-hero-content { position: relative; z-index: 2; text-align: center; max-width: 800px; padding: 0 40px; }
+    .back-link-hero { display: inline-block; font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; margin-bottom: 32px; transition: color 0.2s; }
+    .back-link-hero:hover { color: var(--faction-color); }
+    .faction-eyebrow { display: block; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--faction-color); letter-spacing: 6px; text-transform: uppercase; margin-bottom: 16px; }
+    .faction-hero-title { font-family: 'Cinzel Decorative', cursive; font-size: clamp(36px, 6vw, 90px); font-weight: 900; color: var(--faction-color); line-height: 0.9; text-shadow: 0 0 60px rgba(255,34,68,0.7), 0 0 120px rgba(255,34,68,0.3); margin-bottom: 16px; }
+    .faction-hero-zone { display: block; font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--muted); letter-spacing: 4px; text-transform: uppercase; margin-bottom: 16px; }
+    .faction-hero-tagline { font-family: 'Exo 2', sans-serif; font-size: clamp(14px, 1.5vw, 18px); font-weight: 300; font-style: italic; color: var(--text); margin-bottom: 24px; line-height: 1.6; }
+    .faction-hero-badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .badge { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 1px; padding: 4px 10px; border-radius: 4px; background: rgba(0,0,0,0.5); border: 1px solid var(--faction-color); color: var(--faction-color); }
+
+    .faction-lore { background: var(--abyss); }
+    .lore-grid { display: flex; gap: 80px; align-items: flex-start; }
+    .lore-text { flex: 1; }
+    .lore-text h2 { font-family: 'Cinzel', serif; font-size: clamp(26px, 3.5vw, 40px); font-weight: 600; color: var(--text); margin-bottom: 24px; line-height: 1.2; }
+    .lore-body { font-size: 15px; color: var(--muted); line-height: 1.8; margin-bottom: 20px; }
+    .faction-quote { border-left: 3px solid var(--faction-color); padding: 16px 24px; background: rgba(255,34,68,0.04); border-radius: 0 8px 8px 0; margin-top: 32px; }
+    .faction-quote p { font-style: italic; font-size: 17px; color: var(--text); line-height: 1.6; }
+    .lore-image { flex: 0 0 420px; }
+    .lore-image img { width: 100%; border-radius: 8px; border: 1px solid var(--divider); box-shadow: 0 20px 60px rgba(0,0,0,0.5); min-height: 250px; object-fit: cover; }
+
+    .nekryss-encart { margin-top: 48px; background: rgba(123,47,255,0.1); border: 1px solid var(--corrupt); border-radius: 12px; padding: 36px; }
+    .nekryss-encart-label { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 4px; color: var(--corrupt); text-transform: uppercase; margin-bottom: 8px; display: block; }
+    .nekryss-encart-title { font-family: 'Cinzel Decorative', cursive; font-size: clamp(18px, 2.5vw, 26px); font-weight: 700; color: var(--corrupt); margin-bottom: 16px; text-shadow: 0 0 30px rgba(123,47,255,0.5); }
+    .nekryss-encart-body { font-size: 14px; color: var(--muted); line-height: 1.8; margin-bottom: 16px; }
+    .nekryss-status { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 3px; color: var(--corrupt); text-transform: uppercase; background: rgba(123,47,255,0.12); padding: 8px 16px; border-radius: 4px; display: inline-block; border: 1px solid rgba(123,47,255,0.3); }
+
+    .faction-units { background: var(--deep-sea); }
+    .section-h2 { font-family: 'Cinzel', serif; font-size: clamp(26px, 3.5vw, 40px); font-weight: 600; color: var(--text); margin-bottom: 12px; }
+    .section-lead { font-size: 15px; color: var(--muted); margin-bottom: 48px; line-height: 1.7; }
+    .corrupted-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+    .corrupted-faction-block { background: var(--panel); border: 1px solid var(--divider); border-radius: 8px; padding: 28px; }
+    .corrupted-faction-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .corrupted-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .corrupted-faction-name { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+    .corrupted-faction-origin { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--muted); letter-spacing: 2px; }
+    .corrupted-units-list { display: flex; flex-direction: column; gap: 12px; }
+    .corrupted-unit { background: rgba(0,0,0,0.25); border-radius: 6px; padding: 14px 16px; }
+    .corrupted-unit-name { font-family: 'Cinzel', serif; font-size: 13px; font-weight: 600; color: var(--faction-color); margin-bottom: 4px; }
+    .corrupted-unit-origin { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--muted); letter-spacing: 1px; margin-bottom: 8px; display: block; }
+    .corrupted-unit-desc { font-size: 13px; color: var(--text); line-height: 1.6; }
+
+    .faction-mythic-section { background: var(--abyss); }
+    .mythic-card { background: linear-gradient(135deg, var(--panel), rgba(123,47,255,0.1)); border: 1px solid rgba(255,34,68,0.35); border-radius: 12px; padding: 48px; display: flex; gap: 60px; align-items: flex-start; }
+    .mythic-info { flex: 1; }
+    .mythic-label { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 4px; color: var(--faction-color); text-transform: uppercase; margin-bottom: 12px; display: block; }
+    .mythic-name { font-family: 'Cinzel Decorative', cursive; font-size: clamp(22px, 3vw, 34px); font-weight: 700; color: var(--corrupt); margin-bottom: 20px; text-shadow: 0 0 30px rgba(123,47,255,0.5); }
+    .mythic-lore { font-size: 14px; color: var(--muted); line-height: 1.7; margin-bottom: 24px; }
+    .mythic-powers { display: flex; flex-direction: column; gap: 16px; }
+    .power-block { background: rgba(0,0,0,0.3); border-radius: 8px; padding: 16px 20px; }
+    .power-name { font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 2px; color: var(--faction-color); margin-bottom: 6px; display: block; }
+    .power-desc { font-size: 13px; color: var(--text); line-height: 1.6; }
+    .mythic-img { flex: 0 0 320px; }
+    .mythic-img img { width: 100%; border-radius: 8px; border: 1px solid rgba(255,34,68,0.3); min-height: 200px; object-fit: cover; }
+
+    .faction-commander { background: var(--deep-sea); }
+    .commander-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
+    .commander-info h3 { font-family: 'Cinzel Decorative', cursive; font-size: 26px; font-weight: 700; color: var(--faction-color); margin-bottom: 8px; }
+    .commander-desc { font-size: 15px; color: var(--muted); line-height: 1.8; margin-bottom: 24px; }
+    .abilities-list { display: flex; flex-direction: column; gap: 12px; }
+    .ability-item { background: var(--panel); border: 1px solid var(--divider); border-radius: 8px; padding: 16px 20px; }
+    .ability-name { font-family: 'Cinzel', serif; font-size: 13px; font-weight: 600; color: var(--faction-color); margin-bottom: 6px; }
+    .ability-desc { font-size: 13px; color: var(--text); line-height: 1.6; }
+
+    .faction-playstyle { background: var(--abyss); }
+    .playstyle-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 48px; }
+    .ps-card { background: var(--panel); border: 1px solid var(--divider); border-radius: 8px; padding: 28px; }
+    .ps-card h3 { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--faction-color); margin-bottom: 16px; }
+    .ps-card ul { list-style: none; padding: 0; }
+    .ps-card ul li { font-size: 14px; color: var(--muted); line-height: 1.6; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04); display: flex; gap: 10px; }
+    .ps-card ul li::before { content: '—'; color: var(--faction-color); flex-shrink: 0; }
+    .synergy-block { background: var(--panel); border: 1px solid rgba(255,34,68,0.25); border-radius: 8px; padding: 32px; }
+    .synergy-block h3 { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--faction-color); margin-bottom: 20px; }
+    .synergy-row { display: flex; flex-direction: column; gap: 12px; }
+    .synergy-item { background: rgba(255,34,68,0.04); border-radius: 6px; padding: 12px 16px; font-size: 14px; color: var(--text); line-height: 1.5; }
+    .synergy-item strong { color: var(--faction-color); }
+
+    .pirates-warning { background: rgba(255,34,68,0.06); border: 1px solid rgba(255,34,68,0.3); border-radius: 8px; padding: 24px; margin-top: 32px; }
+    .pirates-warning h4 { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 600; color: var(--faction-color); margin-bottom: 12px; letter-spacing: 2px; }
+    .pirates-warning p { font-size: 14px; color: var(--muted); line-height: 1.7; }
+
+    .faction-nav-section { background: var(--deep-sea); padding: 80px 0; text-align: center; }
+    .faction-nav-row { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 40px; }
+    .faction-nav-card { display: flex; flex-direction: column; gap: 4px; padding: 20px 28px; background: var(--panel); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; transition: border-color 0.2s, transform 0.2s; min-width: 160px; }
+    .faction-nav-card:hover { transform: translateY(-4px); }
+    .fnc-name { font-family: 'Cinzel', serif; font-size: 13px; font-weight: 600; letter-spacing: 2px; }
+    .fnc-zone { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--muted); letter-spacing: 1px; }
+    .faction-nav-home { display: flex; align-items: center; padding: 20px 28px; background: var(--panel); border: 1px solid var(--divider); border-radius: 8px; font-family: 'Exo 2', sans-serif; font-size: 13px; font-weight: 600; color: var(--muted); transition: color 0.2s, border-color 0.2s; }
+    .faction-nav-home:hover { color: var(--biolum); border-color: var(--biolum); }
+
+    footer { background: var(--abyss); border-top: 1px solid var(--divider); }
+    .footer-top { padding: 60px 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 40px; flex-wrap: wrap; }
+    .footer-logo-wrap .logo-main { font-family: 'Cinzel Decorative', cursive; font-size: 20px; font-weight: 700; color: var(--biolum); }
+    .footer-logo-wrap .logo-sub { font-family: 'Exo 2', sans-serif; font-size: 9px; font-weight: 300; color: var(--muted); letter-spacing: 3px; text-transform: uppercase; display: block; margin-top: 4px; }
+    .footer-nav { display: flex; gap: 48px; flex-wrap: wrap; }
+    .footer-col { display: flex; flex-direction: column; }
+    .footer-col h4 { font-family: 'Cinzel', serif; font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--biolum); margin-bottom: 16px; }
+    .footer-col a, .footer-col span { font-family: 'Exo 2', sans-serif; font-size: 13px; color: var(--muted); display: block; margin-bottom: 8px; transition: color 0.2s; }
+    .footer-col a:hover { color: var(--text); }
+    .footer-bottom { border-top: 1px solid var(--divider); padding: 20px 0; text-align: center; }
+    .footer-bottom p { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 1px; margin-bottom: 4px; }
+
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .reveal.revealed { opacity: 1; transform: translateY(0); }
+    .reveal:nth-child(2) { transition-delay: 0.1s; }
+    .reveal:nth-child(3) { transition-delay: 0.2s; }
+
+    @media (max-width: 900px) { .lore-grid, .mythic-card { flex-direction: column; } .lore-image, .mythic-img { flex: none; width: 100%; } .commander-grid, .playstyle-grid, .corrupted-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 600px) { .nav-center { display: none; } .container { padding: 0 20px; } #navbar { padding: 0 20px; } }
+  </style>
+</head>
+<body>
+
+<nav id="navbar">
+  <div class="nav-left">
+    <a href="../index.html" class="back-link">← ACCUEIL</a>
+    <div><span class="logo-main">WOTOL</span><span class="logo-sub">War of the Ocean's Legacy</span></div>
+  </div>
+  <div class="nav-center">
+    <a href="../index.html#univers">Univers</a>
+    <a href="../index.html#factions">Factions</a>
+    <a href="../index.html#gameplay">Gameplay</a>
+    <a href="../index.html#medias">Médias</a>
+  </div>
+  <div class="nav-right"><a href="../index.html#communaute" class="btn-beta">REJOINDRE LA BÊTA</a></div>
+</nav>
+
+<section class="faction-hero">
+  <canvas id="hero-canvas"></canvas>
+  <div class="faction-hero-content">
+    <a href="../index.html#factions" class="back-link-hero">← Toutes les factions</a>
+    <span class="faction-eyebrow">FACTION</span>
+    <h1 class="faction-hero-title">PIRATES ABYSSAUX</h1>
+    <span class="faction-hero-zone">Épaves et Naufrages</span>
+    <p class="faction-hero-tagline">Corruption. Chaos. L'empire de l'oubli.</p>
+    <div class="faction-hero-badges">
+      <span class="badge">CORRUPTION</span>
+      <span class="badge">CHAOS</span>
+      <span class="badge">MANIPULATION</span>
+      <span class="badge">ÆTHÉRIEN</span>
+    </div>
+  </div>
+</section>
+
+<section class="faction-lore">
+  <div class="container">
+    <div class="lore-grid">
+      <div class="lore-text reveal">
+        <span class="eyebrow">HISTOIRE & ORIGINE</span>
+        <h2>Les Héritiers de la Civilisation Perdue</h2>
+        <p class="lore-body">Les Pirates Abyssaux ne sont pas de simples pillards. Ils sont les survivants de la civilisation Æthérienne détruite — des êtres qui ont tout perdu et qui n'ont plus rien à préserver. Dans les épaves qui jonchent les abysses, ils ont reconstruit quelque chose de plus dangereux qu'une armée : une idéologie de la destruction.</p>
+        <p class="lore-body">Guidés dans l'ombre par Nekryss, l'Architecte des Ombres, ils ne combattent pas pour conquérir — ils combattent pour corrompre. Chaque unité ennemie capturée devient un soldat. Chaque territoire infiltré devient une plaie ouverte dans l'organisation adverse. Leur puissance est asymétrique, insidieuse, et quasiment impossible à contrer frontalement.</p>
+        <p class="lore-body">Là où les autres factions se battent pour l'artefact Æthérien, les Pirates Abyssaux cherchent à le réactiver — pour reconstruire l'empire qui leur a été volé, ou pour s'assurer que personne d'autre n'en bénéficie.</p>
+        <blockquote class="faction-quote">
+          <p>« Ils ont détruit mon empire. J'attendrai aussi longtemps qu'il le faudra. »</p>
+        </blockquote>
+      </div>
+      <div class="lore-image reveal">
+        <img src="https://drive.google.com/thumbnail?id=1BkXx_sDAMOP3P15TTuFXM6tLywFSiR38&sz=w1200"
+             alt="Concept Art — Pirates Abyssaux"
+             onerror="this.style.opacity='0'; this.parentElement.style.background='var(--panel)'">
+      </div>
+    </div>
+
+    <div class="nekryss-encart reveal">
+      <span class="nekryss-encart-label">FIGURE CENTRALE</span>
+      <h2 class="nekryss-encart-title">NEKRYSS — L'Architecte des Ombres</h2>
+      <p class="nekryss-encart-body">Nekryss n'est pas un chef de guerre ordinaire. C'est l'entité qui a survécu à la chute de la civilisation Æthérienne — et qui en a tiré la conclusion qu'aucune autre faction n'ose formuler : le monde sous-marin dans son état actuel est une erreur qui doit être corrigée. Nekryss opère dans les coulisses de chaque conflit, manipule les factions à distance, infiltre les commandements adverses, et attend.</p>
+      <p class="nekryss-encart-body">Sa présence dans la campagne est une révélation progressive. Les joueurs découvrent ses traces avant de le rencontrer — des décisions inexplicables dans les rangs ennemis, des trahisons internes, des unités qui "changent de camp" sans raison apparente. Nekryss est l'antagoniste principal : celui qui transforme la guerre pour l'artefact en quelque chose de bien plus grand.</p>
+      <span class="nekryss-status">ANTAGONISTE PRINCIPAL — RÉVÉLÉ EN FIN DE CAMPAGNE</span>
+    </div>
+  </div>
+</section>
+
+<section class="faction-units">
+  <div class="container">
+    <span class="eyebrow">ARMÉE</span>
+    <h2 class="section-h2 reveal">Forces des Épaves et Naufrages</h2>
+    <p class="section-lead reveal">Les Pirates Abyssaux ne construisent pas leurs propres unités — ils corrompent celles des autres. Chaque faction adverse a son double corrompu dans leurs rangs. Reconnaître l'ennemi devient impossible quand l'ennemi vous ressemble.</p>
+    <div class="corrupted-grid">
+      <div class="corrupted-faction-block reveal">
+        <div class="corrupted-faction-header">
+          <div class="corrupted-dot" style="background: var(--aquiloris);"></div>
+          <div>
+            <div class="corrupted-faction-name" style="color: var(--aquiloris);">Aquiloris Corrompus</div>
+            <div class="corrupted-faction-origin">ORIGINE : GARDIENS DES MARÉES</div>
+          </div>
+        </div>
+        <div class="corrupted-units-list">
+          <div class="corrupted-unit">
+            <div class="corrupted-unit-name">Aquilances Corrompus</div>
+            <span class="corrupted-unit-origin">EX-DPS/TANK AQUILORIS</span>
+            <p class="corrupted-unit-desc">La précision cristalline est devenue erratique et destructrice. Leurs percées ondulatoires s'inversent, blessant autant leurs alliés que leurs ennemis — une arme à double tranchant redoutable entre les mains d'un stratège chaotique.</p>
+          </div>
+          <div class="corrupted-unit">
+            <div class="corrupted-unit-name">Aquisphères Perverties</div>
+            <span class="corrupted-unit-origin">EX-DISTANCE AQUILORIS</span>
+            <p class="corrupted-unit-desc">L'Hydrolaser, autrefois outil chirurgical, s'est transformé en faisceau de corruption. Il ne détruit plus — il contamine. Les unités touchées subissent une désorientation progressive qui les retourne temporairement contre leurs propres alliés.</p>
+          </div>
+        </div>
+      </div>
+      <div class="corrupted-faction-block reveal">
+        <div class="corrupted-faction-header">
+          <div class="corrupted-dot" style="background: var(--thalassidras);"></div>
+          <div>
+            <div class="corrupted-faction-name" style="color: var(--thalassidras);">Thalassidras Corrompus</div>
+            <div class="corrupted-faction-origin">ORIGINE : GARDIENS DE L'ANCRAGE</div>
+          </div>
+        </div>
+        <div class="corrupted-units-list">
+          <div class="corrupted-unit">
+            <div class="corrupted-unit-name">Corallides Nécrosés</div>
+            <span class="corrupted-unit-origin">EX-TANK/ANCRAGE THALASSIDRAS</span>
+            <p class="corrupted-unit-desc">Le corail vivant est mort mais continue de se battre. Ces structures nécrosées émettent un champ d'inhibition qui ralentit et affaiblit les unités alliées à proximité autant que les ennemies — chaos contrôlé.</p>
+          </div>
+          <div class="corrupted-unit">
+            <div class="corrupted-unit-name">Médusaires Corrompues</div>
+            <span class="corrupted-unit-origin">EX-SUPPORT/SOIN THALASSIDRAS</span>
+            <p class="corrupted-unit-desc">Leur soin s'est inversé en drain de vie. Elles aspirent l'énergie vitale des unités — alliés comme ennemis — pour alimenter Nekryss en ressource corruputrice. Impossibles à distinguer des Médusaires originales jusqu'au premier contact.</p>
+          </div>
+        </div>
+      </div>
+      <div class="corrupted-faction-block reveal">
+        <div class="corrupted-faction-header">
+          <div class="corrupted-dot" style="background: var(--noxeens);"></div>
+          <div>
+            <div class="corrupted-faction-name" style="color: var(--noxeens);">Noxéens Corrompus</div>
+            <div class="corrupted-faction-origin">ORIGINE : MAÎTRES DE LA BIOLUMINESCENCE</div>
+          </div>
+        </div>
+        <div class="corrupted-units-list">
+          <div class="corrupted-unit">
+            <div class="corrupted-unit-name">Luminescents Noirs</div>
+            <span class="corrupted-unit-origin">EX-BURST DPS NOXÉENS</span>
+            <p class="corrupted-unit-desc">La bioluminescence corrompue n'éblouit plus — elle terrorise. Leur flash de ténèbres absorbe la lumière ambiante et plonge une zone entière dans l'obscurité totale pendant 5 secondes, rendant tous les systèmes de ciblage inopérants.</p>
+          </div>
+          <div class="corrupted-unit">
+            <div class="corrupted-unit-name">Abyssites Spectraux</div>
+            <span class="corrupted-unit-origin">EX-FURTIF/EMBUSCADE NOXÉENS</span>
+            <p class="corrupted-unit-desc">Leur furtivité corrompue leur permet de passer à travers les structures solides. Ils infiltrent les bases, sabotent les défenses de l'intérieur, et disparaissent avant que l'alarme ne soit donnée. Détection quasi impossible.</p>
+          </div>
+        </div>
+      </div>
+      <div class="corrupted-faction-block reveal">
+        <div class="corrupted-faction-header">
+          <div class="corrupted-dot" style="background: var(--mureniens);"></div>
+          <div>
+            <div class="corrupted-faction-name" style="color: var(--mureniens);">Muréniens Corrompus</div>
+            <div class="corrupted-faction-origin">ORIGINE : PRÉDATEURS DES FOSSES</div>
+          </div>
+        </div>
+        <div class="corrupted-units-list">
+          <div class="corrupted-unit">
+            <div class="corrupted-unit-name">Venimards Corrompus</div>
+            <span class="corrupted-unit-origin">EX-DPS RAPIDE MURÉNIENS</span>
+            <p class="corrupted-unit-desc">Leur poison s'est mué en vecteur de corruption Æthérienne. Les unités empoisonnées ne meurent pas — elles changent de camp temporairement, combattant pour les Pirates jusqu'à ce que l'effet se dissipe ou qu'elles soient éliminées.</p>
+          </div>
+          <div class="corrupted-unit">
+            <div class="corrupted-unit-name">Glisseurs Fantômes</div>
+            <span class="corrupted-unit-origin">EX-ÉCLAIREUR MURÉNIENS</span>
+            <p class="corrupted-unit-desc">Vitesse maximale conservée, augmentée par la corruption. Ils peuvent traverser les lignes ennemies sans déclencher les défenses automatiques. Idéaux pour la reconnaissance profonde et la pose de charges corruptrices à l'intérieur des bases adverses.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="faction-mythic-section">
+  <div class="container">
+    <span class="eyebrow">UNITÉ MYTHIQUE</span>
+    <div class="mythic-card reveal">
+      <div class="mythic-info">
+        <span class="mythic-label">MYTHIQUE — ÉVÉNEMENT UNIQUE PAR BATAILLE</span>
+        <h2 class="mythic-name">NEKRYSS — CORRUPTION ÆTHÉRIENNE</h2>
+        <p class="mythic-lore">Nekryss en jeu n'est pas seulement un combattant — c'est une présence. Son apparition sur le champ de bataille modifie les règles du conflit pour les deux camps. Les unités proches se désorientent. Les structures tremblent. L'artefact Æthérien pulse avec une intensité anormale. Nekryss est la preuve vivante que la civilisation détruite n'était pas morte — elle attendait.</p>
+        <div class="mythic-powers">
+          <div class="power-block">
+            <span class="power-name">PASSIF — AURA DE CORRUPTION</span>
+            <p class="power-desc">Les unités ennemies situées dans un rayon de 15 unités subissent une dégradation progressive de leurs statistiques (-5% par seconde jusqu'à -30% max). Les unités alliées à proximité gagnent un bonus de corruption (+15% dégâts, immunité aux poisons Muréniens). L'aura est visible par un halo violet pour les deux joueurs.</p>
+          </div>
+          <div class="power-block">
+            <span class="power-name">ULTIME — MAINMISE ÆTHÉRIENNE (1 FOIS)</span>
+            <p class="power-desc">Nekryss canalise l'énergie de l'artefact Æthérien pendant 4 secondes (interruptible). Si la canalisation complète : toutes les unités ennemies dans sa ligne de vue sont paralysées pendant 8 secondes et subissent une conversion forcée — 20% des unités paralysées rejoignent les Pirates jusqu'à leur mort. Changeur de partie absolu.</p>
+          </div>
+          <div class="power-block">
+            <span class="power-name">⚠ VULNÉRABILITÉ — CIBLE PRIORITAIRE</span>
+            <p class="power-desc">Durant la canalisation de la Mainmise, Nekryss est immobile et vulnérable. Toute interruption annule l'ultime définitivement. Les dégâts reçus pendant la canalisation sont multipliés par 3. Sa mort met fin à l'Aura de Corruption et déclenche un effondrement moral des unités Pirate alliées (-40% moral, -20% dégâts pour 30 secondes).</p>
+          </div>
+        </div>
+        <div class="pirates-warning">
+          <h4>⚡ RÈGLE D'OR PIRATE</h4>
+          <p>Ne déployez jamais Nekryss en ligne de front. Sa valeur est stratégique, pas tactique. Positionnez-le à couvert, entouré de ses unités corrompues. La Mainmise Æthérienne ne doit être lancée qu'au moment où l'ennemi est déjà désorganisé — quand il frappe une armée confuse, elle est irrésistible. Quand il frappe une armée ordonnée, il devient une cible.</p>
+        </div>
+      </div>
+      <div class="mythic-img">
+        <img src="https://drive.google.com/thumbnail?id=1BkXx_sDAMOP3P15TTuFXM6tLywFSiR38&sz=w800"
+             alt="Nekryss — Architecte des Ombres"
+             onerror="this.style.opacity='0'; this.parentElement.style.background='var(--panel)'">
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="faction-commander">
+  <div class="container">
+    <span class="eyebrow">CHEF DE FACTION</span>
+    <div class="commander-grid">
+      <div class="commander-info reveal">
+        <h3>DÉSTABILISATEUR</h3>
+        <p class="commander-desc">Le Chef Pirate ne cherche pas à détruire l'ennemi directement — il cherche à le rendre inefficace. Chaque capacité du Déstabilisateur transforme les points forts adverses en points faibles. Il amplifie les dégâts sur les cibles déjà affaiblies et gagne en vitesse après chaque élimination, créant une spirale d'accélération incontrôlable en fin de bataille.</p>
+        <div class="abilities-list">
+          <div class="ability-item">
+            <div class="ability-name">AMPLIFICATION DES DÉGÂTS</div>
+            <p class="ability-desc">Marque une cible ennemie affaiblie (sous 50% PV). Toutes les unités Pirates qui attaquent cette cible infligent +35% de dégâts supplémentaires pendant 10 secondes. Peut être maintenu en permanence sur plusieurs cibles simultanément.</p>
+          </div>
+          <div class="ability-item">
+            <div class="ability-name">VITESSE APRÈS ÉLIMINATION</div>
+            <p class="ability-desc">Chaque élimination d'une unité ennemie dans un rayon de 20 unités du Chef accorde +8% de vitesse de déplacement à toutes les unités Pirates proches, cumulable jusqu'à +40%. En fin de bataille quand les rangs ennemis s'effondrent, les Pirates deviennent insaisissables.</p>
+          </div>
+          <div class="ability-item">
+            <div class="ability-name">PASSIF — PRÉDATEUR DU CHAOS</div>
+            <p class="ability-desc">Le Déstabilisateur inflige +20% de dégâts aux unités qui ont changé de camp (corrompues ou converties). Il perçoit également toujours l'emplacement exact des unités ennemies désorientées par l'Aura de Corruption de Nekryss — synergie totale entre les deux entités.</p>
+          </div>
+        </div>
+      </div>
+      <div class="commander-visual reveal">
+        <div style="background: var(--panel); border: 1px solid rgba(255,34,68,0.2); border-radius: 12px; padding: 32px; text-align: center;">
+          <span style="font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 3px; color: var(--faction-color); display: block; margin-bottom: 16px;">DOCTRINE DE COMBAT</span>
+          <p style="font-style: italic; font-size: 16px; color: var(--text); line-height: 1.7; margin-bottom: 24px;">« Ne combats pas l'ordre. Infiltre-le. Corromps-le. Laisse-le s'effondrer de lui-même. »</p>
+          <div style="display: flex; flex-direction: column; gap: 12px; text-align: left;">
+            <div style="background: rgba(255,34,68,0.06); border-radius: 6px; padding: 12px 16px;">
+              <span style="font-family: 'Cinzel', serif; font-size: 12px; font-weight: 600; color: var(--faction-color); display: block; margin-bottom: 4px;">PHASE 1 — INFILTRATION</span>
+              <p style="font-size: 13px; color: var(--muted); line-height: 1.5;">Déployer les Abyssites Spectraux et Glisseurs Fantômes en éclairage profond. Cartographier les défenses adverses avant toute confrontation directe.</p>
+            </div>
+            <div style="background: rgba(255,34,68,0.06); border-radius: 6px; padding: 12px 16px;">
+              <span style="font-family: 'Cinzel', serif; font-size: 12px; font-weight: 600; color: var(--faction-color); display: block; margin-bottom: 4px;">PHASE 2 — CORRUPTION</span>
+              <p style="font-size: 13px; color: var(--muted); line-height: 1.5;">Introduire les Médusaires Corrompues et Venimards Corrompus dans les lignes ennemies. Laisser la corruption travailler. Ne pas engager frontalement.</p>
+            </div>
+            <div style="background: rgba(255,34,68,0.06); border-radius: 6px; padding: 12px 16px;">
+              <span style="font-family: 'Cinzel', serif; font-size: 12px; font-weight: 600; color: var(--faction-color); display: block; margin-bottom: 4px;">PHASE 3 — MAINMISE</span>
+              <p style="font-size: 13px; color: var(--muted); line-height: 1.5;">Quand l'ennemi est désorienté et divisé, avancer Nekryss pour la Mainmise Æthérienne. Le Déstabilisateur active l'Amplification. L'effondrement est total.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="faction-playstyle">
+  <div class="container">
+    <span class="eyebrow">STRATÉGIE</span>
+    <h2 class="section-h2 reveal">Maîtriser le Chaos</h2>
+    <p class="section-lead reveal">Les Pirates Abyssaux récompensent la patience et la manipulation. La victoire n'est jamais directe — elle est toujours le résultat d'une dégradation systémique de l'adversaire.</p>
+    <div class="playstyle-grid">
+      <div class="ps-card reveal">
+        <h3>Forces</h3>
+        <ul>
+          <li>Unités copiées de toutes les factions</li>
+          <li>Corruption crée des alliés temporaires</li>
+          <li>Nekryss, changer de partie absolu</li>
+          <li>Impossible à préparer un contre fixe</li>
+          <li>Infiltration totale des bases ennemies</li>
+          <li>Synergie Nekryss / Déstabilisateur dévastatrice</li>
+        </ul>
+      </div>
+      <div class="ps-card reveal">
+        <h3>Faiblesses</h3>
+        <ul>
+          <li>Nekryss vulnérable pendant la canalisation</li>
+          <li>Complexité stratégique très élevée</li>
+          <li>Pas d'unités originales de haute masse</li>
+          <li>Sa mort démoralise toute l'armée</li>
+          <li>Nécessite plusieurs phases pour être efficace</li>
+          <li>Contre-dur par armées très organisées</li>
+        </ul>
+      </div>
+      <div class="ps-card reveal">
+        <h3>Conseils</h3>
+        <ul>
+          <li>Ne jamais exposer Nekryss en avant-garde</li>
+          <li>Déployer d'abord les unités infiltrantes</li>
+          <li>Lancer la Mainmise sur armée désorganisée</li>
+          <li>Utiliser le Déstabilisateur avec l'Aura</li>
+          <li>Patience : laisser la corruption faire son travail</li>
+          <li>Garder une unité de protection sur Nekryss</li>
+        </ul>
+      </div>
+    </div>
+    <div class="synergy-block reveal">
+      <h3>Synergies & Contre-jeu</h3>
+      <div class="synergy-row">
+        <div class="synergy-item"><strong>Pirates + Nekryss Aura :</strong> L'Aura de Corruption affaiblit les ennemis, le Déstabilisateur amplifie les dégâts sur les affaiblis — combo qui transforme toute unité ennemie en cible prioritaire désavantageuse.</div>
+        <div class="synergy-item"><strong>Venimards Corrompus + Déstabilisateur :</strong> Les unités converties par le poison corrompu deviennent des cibles de l'Amplification, infligeant à leurs anciens alliés des dégâts +35% — retournement parfait.</div>
+        <div class="synergy-item"><strong>Abyssites Spectraux + Mainmise :</strong> Les Abyssites désorganisent l'intérieur de la base adverse, puis la Mainmise Æthérienne frappe un ennemi déjà chaotique — efficacité maximale garantie.</div>
+        <div class="synergy-item"><strong>Contre : Aquiloris :</strong> La précision et la coordination Aquiloris sont leur meilleur contrecoup. Une armée coordonnée interrompt la canalisation de Nekryss avant sa complétion. Priorité : protéger Nekryss des Aquilances.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="faction-nav-section">
+  <div class="container">
+    <span class="eyebrow">NAVIGUER</span>
+    <h2 style="font-family: 'Cinzel', serif; font-size: 28px; color: var(--text);">Toutes les Factions</h2>
+    <div class="faction-nav-row">
+      <a href="aquiloris.html" class="faction-nav-card" style="border-color: rgba(0,168,255,0.3);">
+        <span class="fnc-name" style="color: var(--aquiloris);">AQUILORIS</span>
+        <span class="fnc-zone">Récifs Pélagiques</span>
+      </a>
+      <a href="thalassidras.html" class="faction-nav-card" style="border-color: rgba(0,204,128,0.3);">
+        <span class="fnc-name" style="color: var(--thalassidras);">THALASSIDRAS</span>
+        <span class="fnc-zone">Forêts de Corail</span>
+      </a>
+      <a href="noxeens.html" class="faction-nav-card" style="border-color: rgba(204,68,255,0.3);">
+        <span class="fnc-name" style="color: var(--noxeens);">NOXÉENS</span>
+        <span class="fnc-zone">Zone d'Obscurité Totale</span>
+      </a>
+      <a href="mureniens.html" class="faction-nav-card" style="border-color: rgba(136,255,0,0.3);">
+        <span class="fnc-name" style="color: var(--mureniens);">MURÉNIENS</span>
+        <span class="fnc-zone">Fosses de Décomposition</span>
+      </a>
+      <a href="../index.html" class="faction-nav-home">← Retour Accueil</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-logo-wrap">
+        <span class="logo-main">WOTOL</span>
+        <span class="logo-sub">War of the Ocean's Legacy</span>
+      </div>
+      <nav class="footer-nav">
+        <div class="footer-col">
+          <h4>Jeu</h4>
+          <a href="../index.html#univers">Univers</a>
+          <a href="../index.html#factions">Factions</a>
+          <a href="../index.html#gameplay">Gameplay</a>
+          <a href="../index.html#medias">Médias</a>
+        </div>
+        <div class="footer-col">
+          <h4>Factions</h4>
+          <a href="aquiloris.html">Aquiloris</a>
+          <a href="thalassidras.html">Thalassidras</a>
+          <a href="noxeens.html">Noxéens</a>
+          <a href="mureniens.html">Muréniens</a>
+          <a href="pirates-abyssaux.html">Pirates Abyssaux</a>
+        </div>
+        <div class="footer-col">
+          <h4>Communauté</h4>
+          <a href="../index.html#communaute">Discord</a>
+          <a href="../index.html#actualites">Actualités</a>
+          <a href="../index.html#communaute">Newsletter</a>
+          <span>association 3Décors</span>
+        </div>
+      </nav>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2025 Association 3Décors — War of the Ocean's Legacy. Tous droits réservés.</p>
+      <p>Développé avec Unreal Engine 5 — Projet en développement actif</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Hero canvas particles
+  (function() {
+    const canvas = document.getElementById('hero-canvas');
+    const ctx = canvas.getContext('2d');
+    const color = '#ff2244';
+    let W, H, particles = [];
+
+    function resize() {
+      W = canvas.width = canvas.offsetWidth;
+      H = canvas.height = canvas.offsetHeight;
+    }
+
+    function createParticle() {
+      return {
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: Math.random() * 2.5 + 0.5,
+        alpha: Math.random() * 0.6 + 0.2,
+        alphaDir: Math.random() > 0.5 ? 1 : -1,
+        speed: Math.random() * 0.4 + 0.1,
+        drift: Math.random() * 0.3 - 0.15,
+        phase: Math.random() * Math.PI * 2,
+        amp: Math.random() * 1.5 + 0.5
+      };
+    }
+
+    function init() {
+      resize();
+      particles = [];
+      for (let i = 0; i < 80; i++) particles.push(createParticle());
+    }
+
+    function loop(t) {
+      ctx.clearRect(0, 0, W, H);
+      particles.forEach(p => {
+        p.y -= p.speed;
+        p.x += Math.sin(t * 0.001 + p.phase) * p.amp * 0.03 + p.drift;
+        p.alpha += 0.005 * p.alphaDir;
+        if (p.alpha > 0.9 || p.alpha < 0.1) p.alphaDir *= -1;
+        if (p.y < -10) { p.y = H + 10; p.x = Math.random() * W; }
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = color;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+      requestAnimationFrame(loop);
+    }
+
+    window.addEventListener('resize', init);
+    init();
+    requestAnimationFrame(loop);
+  })();
+
+  // Navbar scroll
+  const navbar = document.getElementById('navbar');
+  window.addEventListener('scroll', () => {
+    navbar.classList.toggle('scrolled', window.scrollY > 80);
+  });
+
+  // Intersection Observer
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('revealed'); observer.unobserve(e.target); } });
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>

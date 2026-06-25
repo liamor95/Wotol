@@ -1,0 +1,1852 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="WOTOL — War of the Ocean's Legacy. Un RTS tactique sous-marin épique développé sous Unreal Engine 5 par l'association 3Décors.">
+  <title>WOTOL — War of the Ocean's Legacy | Site Officiel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;600;700&family=Exo+2:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    /* === RESET & BASE === */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--abyss);
+      color: var(--text);
+      font-family: 'Exo 2', sans-serif;
+      font-weight: 400;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    a { text-decoration: none; color: inherit; }
+    img { display: block; max-width: 100%; }
+    ul { list-style: none; }
+
+    /* === CSS VARIABLES === */
+    :root {
+      --abyss:       #030810;
+      --deep-sea:    #0a1628;
+      --panel:       #0d1f38;
+      --surface:     #152d4a;
+      --biolum:      #00c8b4;
+      --abyssal:     #0066ff;
+      --corrupt:     #7b2fff;
+      --glow-soft:   rgba(0, 200, 180, 0.15);
+      --text:        #e8f4ff;
+      --muted:       #7ab8cc;
+      --divider:     rgba(0, 200, 180, 0.2);
+      --aquiloris:   #00a8ff;
+      --thalassidras:#00cc80;
+      --noxeens:     #cc44ff;
+      --mureniens:   #88ff00;
+      --pirates:     #ff2244;
+      --radius-sm:   4px;
+      --radius-md:   8px;
+      --radius-lg:   16px;
+      --gap-section: 120px;
+      --gap-content: 60px;
+    }
+
+    /* === CONTAINER === */
+    .container { max-width: 1280px; margin: 0 auto; padding: 0 40px; }
+
+    /* === SECTION HEADERS === */
+    .section-header { text-align: center; margin-bottom: var(--gap-content); }
+    .eyebrow {
+      display: block;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: var(--biolum);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .section-header h2 {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(28px, 4vw, 48px);
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.2;
+      margin-bottom: 20px;
+    }
+    .section-desc {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 16px;
+      color: var(--muted);
+      max-width: 680px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+
+    /* === NAV === */
+    #navbar {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%;
+      z-index: 1000;
+      background: rgba(3, 8, 16, 0);
+      border-bottom: 1px solid transparent;
+      transition: background 0.4s ease, backdrop-filter 0.4s ease, border-color 0.4s ease;
+      padding: 0 40px;
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #navbar.scrolled {
+      background: rgba(3, 8, 16, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom-color: rgba(0, 200, 180, 0.2);
+    }
+    .nav-logo { display: flex; flex-direction: column; }
+    .logo-main {
+      font-family: 'Cinzel Decorative', cursive;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--biolum);
+      line-height: 1;
+    }
+    .logo-sub {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 10px;
+      font-weight: 300;
+      color: var(--muted);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      display: block;
+      margin-top: 4px;
+    }
+    .nav-center { display: flex; gap: 32px; align-items: center; }
+    .nav-center a {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+    .nav-center a:hover { color: var(--biolum); }
+    .nav-right { display: flex; gap: 12px; align-items: center; }
+    .btn-wishlist {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--biolum);
+      border: 1px solid var(--biolum);
+      padding: 9px 20px;
+      border-radius: var(--radius-sm);
+      transition: background 0.2s, color 0.2s;
+    }
+    .btn-wishlist:hover { background: var(--biolum); color: var(--abyss); }
+    .btn-beta {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--abyss);
+      background: var(--biolum);
+      padding: 9px 20px;
+      border-radius: var(--radius-sm);
+      transition: background 0.2s;
+    }
+    .btn-beta:hover { background: #00e8d0; }
+
+    /* === HERO === */
+    #hero {
+      height: 100vh;
+      min-height: 700px;
+      position: relative;
+      overflow: hidden;
+      background: var(--abyss);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #particles-canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+    .hero-bg img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      opacity: 0.3;
+    }
+    .hero-bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(3,8,16,0.4) 0%, rgba(3,8,16,0.85) 100%);
+    }
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      max-width: 900px;
+      padding: 0 40px;
+    }
+    .hero-eyebrow {
+      display: block;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: var(--biolum);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+    .hero-title {
+      font-family: 'Cinzel Decorative', cursive;
+      font-size: clamp(60px, 10vw, 140px);
+      font-weight: 900;
+      color: var(--text);
+      line-height: 0.9;
+      text-shadow: 0 0 60px rgba(0,200,180,0.5), 0 0 120px rgba(0,102,255,0.3);
+      margin-bottom: 16px;
+    }
+    .hero-subtitle {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(16px, 2.5vw, 26px);
+      font-weight: 600;
+      color: var(--biolum);
+      letter-spacing: 8px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+    .hero-tagline {
+      font-family: 'Exo 2', sans-serif;
+      font-size: clamp(14px, 1.5vw, 18px);
+      font-weight: 300;
+      font-style: italic;
+      color: var(--muted);
+      max-width: 620px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+    }
+    .hero-cta { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+    .btn-primary {
+      display: inline-block;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--abyss);
+      background: var(--biolum);
+      padding: 14px 36px;
+      border-radius: var(--radius-sm);
+      transition: background 0.2s;
+      animation: ctaPulse 2.5s ease infinite;
+    }
+    .btn-primary:hover { background: #00e8d0; }
+    .btn-secondary {
+      display: inline-block;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.4);
+      padding: 14px 36px;
+      border-radius: var(--radius-sm);
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-secondary:hover { border-color: var(--biolum); color: var(--biolum); }
+
+    @keyframes ctaPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(0,200,180,0.4); }
+      50% { box-shadow: 0 0 20px 8px rgba(0,200,180,0.2); }
+    }
+
+    .scroll-indicator {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .scroll-text {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 4px;
+    }
+    .scroll-arrow {
+      width: 1px;
+      height: 40px;
+      background: linear-gradient(to bottom, var(--biolum), transparent);
+      animation: scrollBounce 1.5s ease-in-out infinite;
+    }
+    @keyframes scrollBounce {
+      0%, 100% { transform: translateY(0); opacity: 1; }
+      50% { transform: translateY(10px); opacity: 0.5; }
+    }
+
+    /* === TICKER === */
+    .ticker-wrap {
+      background: rgba(0, 200, 180, 0.08);
+      border-top: 1px solid var(--divider);
+      border-bottom: 1px solid var(--divider);
+      overflow: hidden;
+      height: 42px;
+      display: flex;
+      align-items: center;
+    }
+    .ticker-inner {
+      display: inline-flex;
+      gap: 0;
+      white-space: nowrap;
+      animation: ticker 25s linear infinite;
+    }
+    .ticker-inner span {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      padding: 0 40px;
+    }
+    .ticker-inner span::after {
+      content: ' ｜';
+      color: var(--divider);
+      margin-left: 40px;
+    }
+    @keyframes ticker {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    /* === SECTIONS === */
+    section { padding: var(--gap-section) 0; }
+
+    /* === FACTIONS TEASER === */
+    #factions-teaser { background: var(--deep-sea); }
+    .faction-cards-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: nowrap;
+      justify-content: center;
+    }
+    .faction-card {
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: var(--radius-md);
+      padding: 32px 20px;
+      flex: 1;
+      min-width: 0;
+      text-align: center;
+      transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    .faction-card-bg {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .faction-card:hover { transform: translateY(-6px); }
+    [data-faction="aquiloris"]:hover { border-color: var(--aquiloris); box-shadow: 0 8px 40px rgba(0,168,255,0.25); }
+    [data-faction="thalassidras"]:hover { border-color: var(--thalassidras); box-shadow: 0 8px 40px rgba(0,204,128,0.25); }
+    [data-faction="noxeens"]:hover { border-color: var(--noxeens); box-shadow: 0 8px 40px rgba(204,68,255,0.25); }
+    [data-faction="mureniens"]:hover { border-color: var(--mureniens); box-shadow: 0 8px 40px rgba(136,255,0,0.2); }
+    [data-faction="pirates"]:hover { border-color: var(--pirates); box-shadow: 0 8px 40px rgba(255,34,68,0.25); }
+
+    .faction-icon { font-size: 32px; margin-bottom: 14px; }
+    .faction-name {
+      font-family: 'Cinzel Decorative', cursive;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .faction-zone {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 2px;
+      display: block;
+      margin-bottom: 12px;
+    }
+    .faction-tagline {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 12px;
+      font-style: italic;
+      color: var(--text);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    .faction-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      justify-content: center;
+      margin-bottom: 18px;
+    }
+    .badge {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 8px;
+      letter-spacing: 1px;
+      padding: 3px 7px;
+      border-radius: var(--radius-sm);
+      background: rgba(0,0,0,0.3);
+      border: 1px solid currentColor;
+    }
+    .faction-link {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      transition: opacity 0.2s;
+    }
+    .faction-link:hover { opacity: 0.7; }
+
+    /* === UNIVERS === */
+    #univers { background: var(--abyss); }
+    .lore-columns { display: flex; gap: 80px; align-items: flex-start; }
+    .lore-col-left { flex: 1; }
+    .lore-col-right { flex: 1; }
+    .lore-beat {
+      border-left: 2px solid var(--divider);
+      padding-left: 24px;
+      margin-bottom: 40px;
+    }
+    .lore-era {
+      display: block;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      color: var(--biolum);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .lore-beat h3 {
+      font-family: 'Cinzel', serif;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+    .lore-beat p {
+      font-size: 15px;
+      color: var(--muted);
+      line-height: 1.75;
+    }
+    .nekryss-quote {
+      border-left: 3px solid var(--corrupt);
+      padding: 20px 24px;
+      background: rgba(123,47,255,0.08);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    }
+    .nekryss-quote p {
+      font-style: italic;
+      font-size: 16px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      line-height: 1.6;
+    }
+    .nekryss-quote footer {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: var(--corrupt);
+      letter-spacing: 2px;
+    }
+    .world-map-container {
+      position: relative;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .world-map {
+      width: 100%;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--divider);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .map-overlay-label {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 12px 20px;
+      background: linear-gradient(to top, rgba(3,8,16,0.9), transparent);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: var(--biolum);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    /* === FACTIONS DETAIL === */
+    #factions { background: var(--deep-sea); }
+    .faction-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--divider);
+      margin-bottom: 48px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .faction-tabs::-webkit-scrollbar { display: none; }
+    .faction-tab {
+      padding: 14px 24px;
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      cursor: pointer;
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: none;
+      transition: color 0.2s, border-color 0.2s;
+      white-space: nowrap;
+    }
+    .faction-tab:hover { color: var(--text); }
+    .faction-tab[data-tab="aquiloris"].active { color: var(--aquiloris); border-bottom-color: var(--aquiloris); }
+    .faction-tab[data-tab="thalassidras"].active { color: var(--thalassidras); border-bottom-color: var(--thalassidras); }
+    .faction-tab[data-tab="noxeens"].active { color: var(--noxeens); border-bottom-color: var(--noxeens); }
+    .faction-tab[data-tab="mureniens"].active { color: var(--mureniens); border-bottom-color: var(--mureniens); }
+    .faction-tab[data-tab="pirates"].active { color: var(--pirates); border-bottom-color: var(--pirates); }
+
+    .faction-content { display: none; }
+    .faction-content.active { display: flex; gap: 60px; align-items: flex-start; }
+    .faction-info { flex: 1; }
+    .faction-info h2 {
+      font-family: 'Cinzel Decorative', cursive;
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 700;
+      margin-bottom: 8px;
+      line-height: 1.1;
+    }
+    .faction-zone-detail {
+      display: block;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .faction-desc {
+      font-size: 15px;
+      color: var(--muted);
+      line-height: 1.8;
+      margin-bottom: 24px;
+    }
+    .faction-badges-detail { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 32px; }
+    .faction-mythic, .faction-chief {
+      background: var(--panel);
+      border: 1px solid var(--divider);
+      border-radius: var(--radius-md);
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+    .faction-mythic h4, .faction-chief h4 {
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--biolum);
+      margin-bottom: 10px;
+    }
+    .faction-mythic p, .faction-chief p {
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.65;
+    }
+    .faction-cta-btn {
+      display: inline-block;
+      margin-top: 24px;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--abyss);
+      background: var(--biolum);
+      padding: 12px 28px;
+      border-radius: var(--radius-sm);
+      transition: opacity 0.2s;
+    }
+    .faction-cta-btn:hover { opacity: 0.85; }
+    .faction-img-panel { flex: 0 0 360px; }
+    .faction-img-panel img {
+      width: 100%;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--divider);
+      min-height: 200px;
+      object-fit: cover;
+    }
+
+    /* === GAMEPLAY === */
+    #gameplay { background: var(--abyss); }
+    .gameplay-header { margin-bottom: 64px; }
+    .gameplay-header h2 {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(28px, 4vw, 48px);
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+    .lead {
+      font-size: 18px;
+      color: var(--muted);
+      line-height: 1.7;
+      margin-top: 16px;
+    }
+    .depth-visualization {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 80px;
+    }
+    .depth-layer {
+      display: flex;
+      align-items: center;
+      padding: 16px;
+      border-radius: var(--radius-md);
+      transition: background 0.2s;
+    }
+    .depth-layer:hover { background: rgba(255,255,255,0.02); }
+    .depth-layer:hover .depth-bar { width: 12px; }
+    .depth-bar {
+      width: 8px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      margin-right: 28px;
+      transition: width 0.2s;
+    }
+    .depth-info { flex: 1; }
+    .depth-name {
+      display: block;
+      font-family: 'Cinzel', serif;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .depth-range {
+      display: block;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: var(--biolum);
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+    .depth-desc {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .depth-icons { display: flex; gap: 6px; margin-top: 10px; }
+    .faction-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      opacity: 0.4;
+    }
+    .faction-dot.active { opacity: 1; }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+    .feature-card {
+      background: var(--panel);
+      border: 1px solid var(--divider);
+      border-radius: var(--radius-md);
+      padding: 32px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .feature-card:hover { border-color: var(--biolum); background: var(--surface); }
+    .feature-icon { font-size: 32px; color: var(--biolum); margin-bottom: 16px; }
+    .feature-card h3 {
+      font-family: 'Cinzel', serif;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+    .feature-card p { font-size: 14px; color: var(--muted); line-height: 1.7; }
+
+    /* === MEDIAS === */
+    #medias { background: var(--deep-sea); }
+    .media-tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--divider);
+      margin-bottom: 40px;
+    }
+    .media-tab {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 12px 20px;
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: none;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .media-tab:hover { color: var(--text); }
+    .media-tab.active { color: var(--biolum); border-bottom-color: var(--biolum); }
+    .media-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 80px;
+    }
+    .media-item {
+      position: relative;
+      overflow: hidden;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      background: var(--panel);
+      aspect-ratio: 16/9;
+    }
+    .media-item img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s;
+    }
+    .media-item:hover img { transform: scale(1.06); }
+    .media-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(3,8,16,0.75);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+    .media-item:hover .media-overlay { opacity: 1; }
+    .media-caption {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      text-align: center;
+      padding: 0 16px;
+    }
+    .media-zoom {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: var(--biolum);
+      letter-spacing: 2px;
+    }
+
+    .video-section { text-align: center; }
+    .video-section h2 {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(24px, 3vw, 36px);
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 32px;
+    }
+    .video-wrapper {
+      position: relative;
+      padding-bottom: 56.25%;
+      height: 0;
+      overflow: hidden;
+      max-width: 960px;
+      margin: 0 auto;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--divider);
+      box-shadow: 0 0 60px rgba(0, 200, 180, 0.1);
+    }
+    .video-wrapper iframe {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+    }
+
+    /* === LIGHTBOX === */
+    #lightbox {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    #lightbox.open { opacity: 1; pointer-events: all; }
+    .lightbox-img {
+      max-height: 90vh;
+      max-width: 90vw;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--divider);
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 24px; right: 32px;
+      font-size: 36px;
+      color: var(--text);
+      cursor: pointer;
+      background: none;
+      border: none;
+      transition: color 0.2s;
+      line-height: 1;
+    }
+    .lightbox-close:hover { color: var(--biolum); }
+    .lightbox-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 40px;
+      color: var(--text);
+      cursor: pointer;
+      background: rgba(0,0,0,0.5);
+      border: none;
+      padding: 12px 20px;
+      transition: color 0.2s, background 0.2s;
+      border-radius: var(--radius-sm);
+    }
+    .lightbox-nav:hover { color: var(--biolum); background: rgba(0,0,0,0.8); }
+    .lightbox-prev { left: 20px; }
+    .lightbox-next { right: 20px; }
+    .lightbox-caption {
+      position: absolute;
+      bottom: 24px; left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Exo 2', sans-serif;
+      font-size: 14px;
+      color: var(--muted);
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    /* === ACTUALITES === */
+    #actualites { background: var(--abyss); }
+    .news-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .news-card {
+      background: var(--panel);
+      border: 1px solid var(--divider);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .news-card:hover { border-color: var(--biolum); transform: translateY(-4px); }
+    .news-img { position: relative; aspect-ratio: 16/9; overflow: hidden; }
+    .news-img img { width: 100%; height: 100%; object-fit: cover; }
+    .news-tag {
+      position: absolute;
+      top: 12px; left: 12px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 2px;
+      background: var(--biolum);
+      color: var(--abyss);
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+    }
+    .news-body { padding: 24px; }
+    .news-date {
+      display: block;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 2px;
+      margin-bottom: 10px;
+    }
+    .news-title {
+      font-family: 'Cinzel', serif;
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+    .news-excerpt {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.7;
+      margin-bottom: 20px;
+    }
+    .news-link {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      color: var(--biolum);
+      transition: opacity 0.2s;
+    }
+    .news-link:hover { opacity: 0.7; }
+
+    /* === COMMUNAUTE === */
+    #communaute { background: var(--deep-sea); text-align: center; }
+    .community-inner { max-width: 680px; margin: 0 auto; }
+    .community-inner h2 {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 20px;
+    }
+    .community-inner > p {
+      font-size: 16px;
+      color: var(--muted);
+      line-height: 1.7;
+      margin-bottom: 40px;
+    }
+    .social-links { display: flex; gap: 16px; justify-content: center; margin-bottom: 40px; flex-wrap: wrap; }
+    .social-btn {
+      display: inline-block;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 12px 28px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--divider);
+      color: var(--text);
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .social-btn:hover { border-color: var(--biolum); color: var(--biolum); }
+    .newsletter-form {
+      display: flex;
+      gap: 8px;
+      max-width: 480px;
+      margin: 0 auto 16px;
+    }
+    .newsletter-form input {
+      flex: 1;
+      background: var(--panel);
+      border: 1px solid var(--divider);
+      border-radius: var(--radius-sm);
+      padding: 13px 20px;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .newsletter-form input::placeholder { color: var(--muted); }
+    .newsletter-form input:focus { border-color: var(--biolum); }
+    .newsletter-form button {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--abyss);
+      background: var(--biolum);
+      border: none;
+      padding: 13px 20px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .newsletter-form button:hover { background: #00e8d0; }
+    .newsletter-note {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 1px;
+    }
+
+    /* === FOOTER === */
+    footer { background: var(--abyss); border-top: 1px solid var(--divider); }
+    .footer-top {
+      padding: 80px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 60px;
+    }
+    .footer-nav { display: flex; gap: 60px; }
+    .footer-col { display: flex; flex-direction: column; }
+    .footer-col h4 {
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--biolum);
+      margin-bottom: 20px;
+    }
+    .footer-col a, .footer-col span {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 13px;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 8px;
+      transition: color 0.2s;
+    }
+    .footer-col a:hover { color: var(--text); }
+    .footer-bottom {
+      border-top: 1px solid var(--divider);
+      padding: 24px 0;
+      text-align: center;
+    }
+    .footer-bottom p {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      letter-spacing: 1px;
+    }
+
+    /* === REVEAL ANIMATIONS === */
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .reveal.revealed {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .reveal:nth-child(2) { transition-delay: 0.1s; }
+    .reveal:nth-child(3) { transition-delay: 0.2s; }
+    .reveal:nth-child(4) { transition-delay: 0.3s; }
+    .reveal:nth-child(5) { transition-delay: 0.4s; }
+
+    .depth-layer.reveal { transform: translateX(-30px); }
+    .depth-layer.reveal.revealed { transform: translateX(0); }
+    .depth-layer:nth-child(2).reveal { transition-delay: 0.15s; }
+    .depth-layer:nth-child(3).reveal { transition-delay: 0.30s; }
+    .depth-layer:nth-child(4).reveal { transition-delay: 0.45s; }
+
+    /* === RESPONSIVE === */
+    @media (max-width: 1200px) {
+      .faction-content.active { gap: 40px; }
+      .faction-img-panel { flex: 0 0 280px; }
+      .footer-nav { gap: 40px; }
+    }
+    @media (max-width: 900px) {
+      .faction-cards-row { flex-wrap: wrap; }
+      .faction-card { min-width: calc(50% - 8px); flex: none; }
+      .lore-columns { flex-direction: column; }
+      .footer-top { flex-direction: column; gap: 40px; }
+      .footer-nav { flex-wrap: wrap; gap: 32px; }
+      .news-grid { grid-template-columns: 1fr; }
+      .faction-content.active { flex-direction: column; }
+      .faction-img-panel { flex: none; width: 100%; }
+      .media-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .nav-center { display: none; }
+      .nav-right .btn-wishlist { display: none; }
+      .faction-card { min-width: 100%; }
+      .features-grid { grid-template-columns: 1fr; }
+      .hero-title { font-size: clamp(48px, 15vw, 80px); }
+      .container { padding: 0 20px; }
+      #navbar { padding: 0 20px; }
+      .media-grid { grid-template-columns: 1fr; }
+      .newsletter-form { flex-direction: column; }
+      .social-links { flex-direction: column; }
+      .footer-nav { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- === NAVIGATION === -->
+<nav id="navbar">
+  <div class="nav-logo">
+    <span class="logo-main">WOTOL</span>
+    <span class="logo-sub">War of the Ocean's Legacy</span>
+  </div>
+  <div class="nav-center">
+    <a href="#univers">Univers</a>
+    <a href="#factions">Factions</a>
+    <a href="#gameplay">Gameplay</a>
+    <a href="#medias">Médias</a>
+    <a href="#actualites">Actualités</a>
+    <a href="#communaute">Communauté</a>
+  </div>
+  <div class="nav-right">
+    <a href="#" class="btn-wishlist">WISHLIST STEAM</a>
+    <a href="#communaute" class="btn-beta">REJOINDRE LA BÊTA</a>
+  </div>
+</nav>
+
+<!-- === HERO === -->
+<section id="hero">
+  <canvas id="particles-canvas"></canvas>
+  <div class="hero-bg">
+    <img src="https://drive.google.com/thumbnail?id=18MgoxnF7eCMcwzoNhEpEV00kQSR1XX5S&sz=w1600"
+         alt="WOTOL — War of the Ocean's Legacy"
+         onerror="this.style.opacity='0'; this.parentElement.style.background='var(--panel)'">
+  </div>
+  <div class="hero-content">
+    <span class="hero-eyebrow">UN RTS TACTIQUE SOUS-MARIN — UNREAL ENGINE 5</span>
+    <h1 class="hero-title">WOTOL</h1>
+    <p class="hero-subtitle">War of the Ocean's Legacy</p>
+    <p class="hero-tagline">
+      « Commander une armée des profondeurs dans une bataille épique<br>
+      où chaque décision tactique est aussi belle à voir qu'elle est satisfaisante à exécuter. »
+    </p>
+    <div class="hero-cta">
+      <a href="#univers" class="btn-primary">DÉCOUVRIR L'UNIVERS</a>
+      <a href="https://www.youtube.com/watch?v=LNPJZwyYEt0" target="_blank" class="btn-secondary">▶ BANDE-ANNONCE</a>
+    </div>
+  </div>
+  <div class="scroll-indicator">
+    <span class="scroll-text">EXPLORER</span>
+    <div class="scroll-arrow"></div>
+  </div>
+</section>
+
+<!-- === TICKER === -->
+<div class="ticker-wrap">
+  <div class="ticker-inner">
+    <span>⚓ WOTOL en pré-production active — Démo verticale en cours</span>
+    <span>🔱 Marque INPI déposée — n° 26 5230895</span>
+    <span>⚔ 5 factions jouables : Aquiloris, Thalassidras, Noxéens, Muréniens, Pirates Abyssaux</span>
+    <span>🌊 Développé sous Unreal Engine 5 — Blueprint exclusif</span>
+    <span>🏛 Porté par l'association 3Décors — RNA W604009928</span>
+    <span>⚓ WOTOL en pré-production active — Démo verticale en cours</span>
+    <span>🔱 Marque INPI déposée — n° 26 5230895</span>
+    <span>⚔ 5 factions jouables : Aquiloris, Thalassidras, Noxéens, Muréniens, Pirates Abyssaux</span>
+    <span>🌊 Développé sous Unreal Engine 5 — Blueprint exclusif</span>
+    <span>🏛 Porté par l'association 3Décors — RNA W604009928</span>
+  </div>
+</div>
+
+<!-- === FACTIONS TEASER === -->
+<section id="factions-teaser">
+  <div class="container">
+    <div class="section-header">
+      <span class="eyebrow">CINQ FACTIONS</span>
+      <h2>Un océan. Cinq volontés.<br>Un seul héritage à conquérir.</h2>
+      <p class="section-desc">Des civilisations aux identités radicalement différentes. Chaque faction joue, vit et pense différemment — stratégiquement incompatibles, épiquement asymétriques.</p>
+    </div>
+    <div class="faction-cards-row">
+      <div class="faction-card reveal" data-faction="aquiloris">
+        <div class="faction-card-bg"></div>
+        <div class="faction-icon" style="color: var(--aquiloris)">◈</div>
+        <h3 class="faction-name" style="color: var(--aquiloris)">AQUILORIS</h3>
+        <span class="faction-zone">Cité des Marées Éternelles</span>
+        <p class="faction-tagline">Cristaux. Discipline. Synergie d'élite.</p>
+        <div class="faction-badges">
+          <span class="badge" style="color: var(--aquiloris)">COORDINATION</span>
+          <span class="badge" style="color: var(--aquiloris)">SYNERGIE</span>
+          <span class="badge" style="color: var(--aquiloris)">ÉLITE</span>
+        </div>
+        <a href="factions/aquiloris.html" class="faction-link" style="color: var(--aquiloris)">Découvrir →</a>
+      </div>
+      <div class="faction-card reveal" data-faction="thalassidras">
+        <div class="faction-card-bg"></div>
+        <div class="faction-icon" style="color: var(--thalassidras)">🪸</div>
+        <h3 class="faction-name" style="color: var(--thalassidras)">THALASSIDRAS</h3>
+        <span class="faction-zone">Récifs Vivants</span>
+        <p class="faction-tagline">Récifs vivants. Défense imprenable. Harmonie.</p>
+        <div class="faction-badges">
+          <span class="badge" style="color: var(--thalassidras)">DÉFENSIF</span>
+          <span class="badge" style="color: var(--thalassidras)">ANCRAGE</span>
+          <span class="badge" style="color: var(--thalassidras)">SUSTAIN</span>
+        </div>
+        <a href="factions/thalassidras.html" class="faction-link" style="color: var(--thalassidras)">Découvrir →</a>
+      </div>
+      <div class="faction-card reveal" data-faction="noxeens">
+        <div class="faction-card-bg"></div>
+        <div class="faction-icon" style="color: var(--noxeens)">✦</div>
+        <h3 class="faction-name" style="color: var(--noxeens)">NOXÉENS</h3>
+        <span class="faction-zone">Domaines des Ombres</span>
+        <p class="faction-tagline">Bioluminescence létale. Burst dévastateur.</p>
+        <div class="faction-badges">
+          <span class="badge" style="color: var(--noxeens)">BURST</span>
+          <span class="badge" style="color: var(--noxeens)">TIMING</span>
+          <span class="badge" style="color: var(--noxeens)">OFFENSIF</span>
+        </div>
+        <a href="factions/noxeens.html" class="faction-link" style="color: var(--noxeens)">Découvrir →</a>
+      </div>
+      <div class="faction-card reveal" data-faction="mureniens">
+        <div class="faction-card-bg"></div>
+        <div class="faction-icon" style="color: var(--mureniens)">⚡</div>
+        <h3 class="faction-name" style="color: var(--mureniens)">MURÉNIENS</h3>
+        <span class="faction-zone">Fosses de Décomposition</span>
+        <p class="faction-tagline">Poison. Vitesse. Harcèlement sans répit.</p>
+        <div class="faction-badges">
+          <span class="badge" style="color: var(--mureniens)">POISON</span>
+          <span class="badge" style="color: var(--mureniens)">MOBILITÉ</span>
+          <span class="badge" style="color: var(--mureniens)">PRÉDATEUR</span>
+        </div>
+        <a href="factions/mureniens.html" class="faction-link" style="color: var(--mureniens)">Découvrir →</a>
+      </div>
+      <div class="faction-card reveal" data-faction="pirates">
+        <div class="faction-card-bg"></div>
+        <div class="faction-icon" style="color: var(--pirates)">☠</div>
+        <h3 class="faction-name" style="color: var(--pirates)">PIRATES ABYSSAUX</h3>
+        <span class="faction-zone">Restes des Naufrages</span>
+        <p class="faction-tagline">Corruption. Chaos. L'empire de l'oubli.</p>
+        <div class="faction-badges">
+          <span class="badge" style="color: var(--pirates)">CORRUPTION</span>
+          <span class="badge" style="color: var(--pirates)">CHAOS</span>
+          <span class="badge" style="color: var(--pirates)">ÆTHÉRIEN</span>
+        </div>
+        <a href="factions/pirates-abyssaux.html" class="faction-link" style="color: var(--pirates)">Découvrir →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- === UNIVERS & LORE === -->
+<section id="univers">
+  <div class="container">
+    <div class="section-header">
+      <span class="eyebrow">L'UNIVERS</span>
+      <h2>Un monde englouti.<br>Une guerre inévitable.</h2>
+    </div>
+    <div class="lore-columns">
+      <div class="lore-col-left">
+        <div class="lore-timeline">
+          <div class="lore-beat reveal">
+            <span class="lore-era">— I. LES ÆTHÉRIENS —</span>
+            <h3>Une civilisation disparue régnait sur les océans</h3>
+            <p>Les Æthériens maîtrisaient une technologie si avancée qu'elle semblait magique. Ils modifièrent la faune sous-marine, accélérèrent l'évolution des créatures, créèrent les bases des futures civilisations. Leur civilisation était indiscernable de la sorcellerie.</p>
+          </div>
+          <div class="lore-beat reveal">
+            <span class="lore-era">— II. LA GRANDE GUERRE —</span>
+            <h3>Les peuples se rebellèrent</h3>
+            <p>Conscients de leur servitude, les factions se soulevèrent. Une immense guerre éclata. Les Æthériens furent quasi-exterminés. Leurs cités détruites. Leur savoir dispersé dans les profondeurs. Des siècles de silence s'ensuivirent.</p>
+          </div>
+          <div class="lore-beat reveal">
+            <span class="lore-era">— III. L'ARTEFACT —</span>
+            <h3>Un héritage refait surface</h3>
+            <p>Une rumeur commence à circuler : un artefact Æthérien ancien a été aperçu dans les courants profonds. Cinq factions en paix fragile. Une découverte. Le début d'une guerre totale pour le contrôle des océans.</p>
+          </div>
+        </div>
+        <blockquote class="nekryss-quote reveal">
+          <p>« Son empire détruit. Son peuple disparu. Sa vengeance, lente comme les abysses. »</p>
+          <footer>— Nekryss, dernier Æthérien survivant</footer>
+        </blockquote>
+      </div>
+      <div class="lore-col-right reveal">
+        <div class="world-map-container">
+          <img src="https://drive.google.com/thumbnail?id=13blr6ZVL1_iacOE2Qq1oBlk0D7Ih-jdb&sz=w1200"
+               alt="Carte du monde WOTOL — 5 factions"
+               class="world-map"
+               onerror="this.style.opacity='0'; this.parentElement.style.background='var(--panel)'">
+          <div class="map-overlay-label">CARTE DU MONDE CONNU</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- === FACTIONS DETAIL === -->
+<section id="factions">
+  <div class="container">
+    <div class="section-header">
+      <span class="eyebrow">LES FACTIONS</span>
+      <h2>Choisissez votre camp</h2>
+      <p class="section-desc">Cinq civilisations. Cinq philosophies de guerre. Cinq façons de dominer les océans.</p>
+    </div>
+
+    <div class="faction-tabs">
+      <button class="faction-tab active" data-tab="aquiloris">AQUILORIS</button>
+      <button class="faction-tab" data-tab="thalassidras">THALASSIDRAS</button>
+      <button class="faction-tab" data-tab="noxeens">NOXÉENS</button>
+      <button class="faction-tab" data-tab="mureniens">MURÉNIENS</button>
+      <button class="faction-tab" data-tab="pirates">PIRATES ABYSSAUX</button>
+    </div>
+
+    <!-- Aquiloris -->
+    <div class="faction-content active" id="tab-aquiloris">
+      <div class="faction-info">
+        <h2 style="color: var(--aquiloris)">AQUILORIS</h2>
+        <span class="faction-zone-detail">Cité des Marées Éternelles</span>
+        <p class="faction-desc">Gardiens des anciens savoirs, les Aquiloris combinent technologie cristalline et discipline militaire absolue. Leur force réside dans la synergie collective : seuls, leurs unités sont capables — ensemble, elles deviennent inarrêtables.</p>
+        <div class="faction-badges-detail">
+          <span class="badge" style="color: var(--aquiloris)">COORDINATION</span>
+          <span class="badge" style="color: var(--aquiloris)">SYNERGIE</span>
+          <span class="badge" style="color: var(--aquiloris)">TECHNOLOGIE</span>
+          <span class="badge" style="color: var(--aquiloris)">ÉLITE</span>
+        </div>
+        <div class="faction-mythic">
+          <h4>✦ MYTHIQUE — LÉVIAPHÉNIX</h4>
+          <p>Né du Cœur-Éclat. Fusion Léviathan / Phénix. Amplifie toutes les unités alliées dans sa portée. Son ultime <em>Résonance Technologique</em> booste dégâts, cadence et boucliers en une onde énergétique dévastatrice.</p>
+        </div>
+        <div class="faction-chief">
+          <h4>⚔ CHEF — AQUIS</h4>
+          <p>Lame photonique : onde de choc directionnelle (axe DPS) ou circulaire (projection des ennemis). Passifs de coordination et réduction des cooldowns alliés.</p>
+        </div>
+        <a href="factions/aquiloris.html" class="faction-cta-btn" style="background: var(--aquiloris)">DÉCOUVRIR AQUILORIS →</a>
+      </div>
+      <div class="faction-img-panel">
+        <img src="https://drive.google.com/thumbnail?id=1NsZKA2Zr-XvdsY28VIYlRAE0nPAuUj3P&sz=w800"
+             alt="Aquiloris — Concept Art"
+             onerror="this.style.opacity='0'; this.parentElement.style.background='var(--panel)'">
+      </div>
+    </div>
+
+    <!-- Thalassidras -->
+    <div class="faction-content" id="tab-thalassidras">
+      <div class="faction-info">
+        <h2 style="color: var(--thalassidras)">THALASSIDRAS</h2>
+        <span class="faction-zone-detail">Récifs Vivants</span>
+        <p class="faction-desc">Nés de la symbiose entre corail et créatures marines, les Thalassidras protègent l'équilibre naturel avec une patience implacable. Leur défense est une forteresse vivante. On ne les déplace pas — on les contourne, ou on échoue.</p>
+        <div class="faction-badges-detail">
+          <span class="badge" style="color: var(--thalassidras)">DÉFENSIF</span>
+          <span class="badge" style="color: var(--thalassidras)">ANCRAGE</span>
+          <span class="badge" style="color: var(--thalassidras)">CONTRÔLE DE ZONE</span>
+          <span class="badge" style="color: var(--thalassidras)">SUSTAIN</span>
+        </div>
+        <div class="faction-mythic">
+          <h4>✦ MYTHIQUE — MÉDUSE GÉANTE</h4>
+          <p>Dôme protecteur vivant. Absorbe projectiles et attaques venant du haut. Soins progressifs constants aux alliés proches via ses parasites qui volent la vie aux ennemis.</p>
+        </div>
+        <div class="faction-chief">
+          <h4>⚔ CHEF — POUVOIR ENVIRONNEMENTAL</h4>
+          <p>Mur vivant, purification du terrain, ou renforcement allié. Choix stratégique selon la situation — barrière, neutralisation de poison, ou terrain favorable.</p>
+        </div>
+        <a href="factions/thalassidras.html" class="faction-cta-btn" style="background: var(--thalassidras)">DÉCOUVRIR THALASSIDRAS →</a>
+      </div>
+      <div class="faction-img-panel">
+        <img src="https://drive.google.com/thumbnail?id=1JVVqihsrg9_tz-3TIma2-AZqnogp5vm0&sz=w800"
+             alt="Thalassidras — Concept Art"
+             onerror="this.style.opacity='0'; this.parentElement.style.background='var(--panel)'">
+      </div>
+    </div>
+
+    <!-- Noxéens -->
+    <div class="faction-content" id="tab-noxeens">
+      <div class="faction-info">
+        <h2 style="color: var(--noxeens)">NOXÉENS</h2>
+        <span class="faction-zone-detail">Domaines des Ombres</span>
+        <p class="faction-desc">Maîtres de la bioluminescence abyssale, les Noxéens frappent vite, fort, au moment précis. Leurs fenêtres de burst sont dévastatrices — mais fragiles hors timing. Un Noxéen en retard est un Noxéen mort.</p>
+        <div class="faction-badges-detail">
+          <span class="badge" style="color: var(--noxeens)">BURST</span>
+          <span class="badge" style="color: var(--noxeens)">BIOLUMINESCENCE</span>
+          <span class="badge" style="color: var(--noxeens)">TIMING</span>
+          <span class="badge" style="color: var(--noxeens)">OFFENSIF</span>
+        </div>
+        <div class="faction-mythic">
+          <h4>✦ MYTHIQUE — CRÉATURE-LASER</h4>
+          <p>Canon de verre. DPS pur. L'ultime laser bioluminescent détruit murs, dômes, terrain. Charge via l'accumulation de bioluminescence alliée — plus puissant si le chef l'alimente.</p>
+        </div>
+        <div class="faction-chief">
+          <h4>⚔ CHEF — AMPLIFICATEUR BIOLUMINESCENT</h4>
+          <p>Plus il attaque, plus il devient puissant (luminescence évolutive visible). Peut tirer sur son propre mythique pour accélérer l'ultime — au prix d'une vulnérabilité temporaire.</p>
+        </div>
+        <a href="factions/noxeens.html" class="faction-cta-btn" style="background: var(--noxeens)">DÉCOUVRIR LES NOXÉENS →</a>
+      </div>
+      <div class="faction-img-panel">
+        <img src="https://drive.google.com/thumbnail?id=1zGtEf0Dr5Us4GrH2v-MJaq2MZFfiI1k9&sz=w800"
+             alt="Noxéens — Concept Art"
+             onerror="this.style.opacity='0'; this.parentElement.style.background='var(--panel)'">
+      </div>
+    </div>
+
+    <!-- Muréniens -->
+    <div class="faction-content" id="tab-mureniens">
+      <div class="faction-info">
+        <h2 style="color: var(--mureniens)">MURÉNIENS</h2>
+        <span class="faction-zone-detail">Fosses de Décomposition</span>
+        <p class="faction-desc">Prédateurs agiles et venimeux, les Muréniens harcèlent, isolent, empoisonnent, et disparaissent. Ils gagnent par rupture et usure. Peu de défense, aucune tolérance au corps-à-corps frontal — mais impossibles à attraper.</p>
+        <div class="faction-badges-detail">
+          <span class="badge" style="color: var(--mureniens)">POISON</span>
+          <span class="badge" style="color: var(--mureniens)">MOBILITÉ</span>
+          <span class="badge" style="color: var(--mureniens)">HARCÈLEMENT</span>
+          <span class="badge" style="color: var(--mureniens)">PRÉDATEUR</span>
+        </div>
+        <div class="faction-mythic">
+          <h4>✦ MYTHIQUE — NUXIM, REINE DES MURÉNIENS</h4>
+          <p>Rempart vivant. Son ultime <em>Émergence Toxique</em> est plus puissant si elle est blessée. Surgit sous terre en un point choisi — dégâts radiaux, contamination persistante du sol.</p>
+        </div>
+        <div class="faction-chief">
+          <h4>⚔ CHEF — POISON & PRESSION</h4>
+          <p>Contamination territoriale persistante. Isole les ennemis, empoisonne les zones, force les repositionnements constants. La pression ne cesse jamais.</p>
+        </div>
+        <a href="factions/mureniens.html" class="faction-cta-btn" style="background: var(--mureniens); color: var(--abyss)">DÉCOUVRIR LES MURÉNIENS →</a>
+      </div>
+      <div class="faction-img-panel">
+        <img src="https://drive.google.com/thumbnail?id=1kdK98mdpUvaHycHaN3hGYkt3cFJe0aze&sz=w800"
+             alt="Muréniens — Concept Art"
+             onerror="this.style.opacity='0'; this.parentElement.style.background='var(--panel)'">
+      </div>
+    </div>
+
+    <!-- Pirates Abyssaux -->
+    <div class="faction-content" id="tab-pirates">
+      <div class="faction-info">
+        <h2 style="color: var(--pirates)">PIRATES ABYSSAUX</h2>
+        <span class="faction-zone-detail">Restes des Naufrages</span>
+        <p class="faction-desc">Rejetés par tous, redoutés de chacun. Les Pirates Abyssaux corrompent, manipulent et exploitent les failles. Ils contrôlent des unités corrompues issues de chaque faction ennemie. Nekryss lui-même les guide depuis l'ombre.</p>
+        <div class="faction-badges-detail">
+          <span class="badge" style="color: var(--pirates)">CORRUPTION</span>
+          <span class="badge" style="color: var(--pirates)">CHAOS</span>
+          <span class="badge" style="color: var(--pirates)">MANIPULATION</span>
+          <span class="badge" style="color: var(--pirates)">ÆTHÉRIEN</span>
+        </div>
+        <div class="faction-mythic">
+          <h4>✦ MYTHIQUE — NEKRYSS (INFLUENCEUR)</h4>
+          <p>Le dernier Æthérien. Il ne combat pas directement — il corrompt les unités ennemies et les retourne contre leurs anciens alliés. Révélé en fin de campagne.</p>
+        </div>
+        <div class="faction-chief">
+          <h4>⚔ CHEF — DÉSTABILISATEUR</h4>
+          <p>Amplification des dégâts sur cibles affaiblies. Vitesse après élimination. Chaque kill renforce l'armée corrompue — un cycle de puissance croissante.</p>
+        </div>
+        <a href="factions/pirates-abyssaux.html" class="faction-cta-btn" style="background: var(--pirates)">DÉCOUVRIR LES PIRATES →</a>
+      </div>
+      <div class="faction-img-panel">
+        <img src="https://drive.google.com/thumbnail?id=1BkXx_sDAMOP3P15TTuFXM6tLywFSiR38&sz=w800"
+             alt="Pirates Abyssaux — Concept Art"
+             onerror="this.style.opacity='0'; this.parentElement.style.background='var(--panel)'">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- === GAMEPLAY === -->
+<section id="gameplay">
+  <div class="container">
+    <div class="gameplay-header">
+      <span class="eyebrow">MÉCANIQUE SIGNATURE</span>
+      <h2>La profondeur est une arme</h2>
+      <p class="lead">4 couches océaniques. 4 tactiques radicalement différentes.<br>Une dimension que le genre RTS n'a jamais exploitée.</p>
+    </div>
+
+    <div class="depth-visualization">
+      <div class="depth-layer reveal" data-depth="epipelagique">
+        <div class="depth-bar" style="background: linear-gradient(to right, #0066cc, #00aaff); height: 80px;"></div>
+        <div class="depth-info">
+          <span class="depth-name">ÉPIPÉLAGIQUE</span>
+          <span class="depth-range">0 — 200m</span>
+          <span class="depth-desc">Lumière maximale. Vitesse +20%. Couverture réduite. Zone de toutes les factions.</span>
+          <div class="depth-icons">
+            <span class="faction-dot active" style="background: var(--aquiloris)"></span>
+            <span class="faction-dot active" style="background: var(--thalassidras)"></span>
+            <span class="faction-dot active" style="background: var(--noxeens)"></span>
+            <span class="faction-dot active" style="background: var(--mureniens)"></span>
+            <span class="faction-dot active" style="background: var(--pirates)"></span>
+          </div>
+        </div>
+      </div>
+      <div class="depth-layer reveal" data-depth="mesopel">
+        <div class="depth-bar" style="background: linear-gradient(to right, #004499, #0033aa); height: 90px;"></div>
+        <div class="depth-info">
+          <span class="depth-name">MÉSOPÉLAGIQUE</span>
+          <span class="depth-range">200 — 1 000m</span>
+          <span class="depth-desc">Zone crépusculaire. Embuscades et flanquements. Les Noxéens voient sans être vus.</span>
+          <div class="depth-icons">
+            <span class="faction-dot active" style="background: var(--noxeens); box-shadow: 0 0 8px var(--noxeens)"></span>
+          </div>
+        </div>
+      </div>
+      <div class="depth-layer reveal" data-depth="bathypelagique">
+        <div class="depth-bar" style="background: linear-gradient(to right, #001166, #000d55); height: 100px;"></div>
+        <div class="depth-info">
+          <span class="depth-name">BATHYPÉLAGIQUE</span>
+          <span class="depth-range">1 000 — 4 000m</span>
+          <span class="depth-desc">Quasi-obscurité. Attaque ascendante = bonus dégâts. Zone des Muréniens.</span>
+          <div class="depth-icons">
+            <span class="faction-dot active" style="background: var(--mureniens); box-shadow: 0 0 8px var(--mureniens)"></span>
+          </div>
+        </div>
+      </div>
+      <div class="depth-layer reveal" data-depth="hadal">
+        <div class="depth-bar" style="background: linear-gradient(to right, #110022, #0a0010); height: 110px;"></div>
+        <div class="depth-info">
+          <span class="depth-name">HADAL</span>
+          <span class="depth-range">4 000m+</span>
+          <span class="depth-desc">Aucune lumière. Titans uniquement. Dégâts ×3. Vestiges Æthériens. Zone interdite.</span>
+          <div class="depth-icons">
+            <span class="faction-dot active" style="background: var(--corrupt); box-shadow: 0 0 8px var(--corrupt)"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card reveal">
+        <div class="feature-icon">⬆</div>
+        <h3>Verticalité Tactique</h3>
+        <p>Attaquer depuis les abysses. Tenir les hauteurs. Exploiter le crépuscule. La profondeur est une arme tactique à part entière — pas une décoration.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">⚔</div>
+        <h3>Factions Asymétriques</h3>
+        <p>Le playstyle Thalassidra (ancrage défensif) est fondamentalement incompatible avec les Noxéens (burst offensif). Pas juste des stats différentes. Des philosophies de guerre radicalement opposées.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">👁</div>
+        <h3>Spectacle Épique</h3>
+        <p>Des batailles grandioses visuellement, dignes des grandes confrontations de Total War. Le joueur doit ressentir la puissance de chaque décision à l'écran. Unreal Engine 5.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">🔱</div>
+        <h3>Chefs & Mythiques</h3>
+        <p>Chaque faction a un Mythique — événement unique par bataille — et un Chef aux pouvoirs réutilisables. La synergie Chef + Mythique définit l'identité tactique de chaque armée.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- === MEDIAS === -->
+<section id="medias">
+  <div class="container">
+    <div class="section-header">
+      <span class="eyebrow">MÉDIAS</span>
+      <h2>Galerie officielle</h2>
+      <p class="section-desc">Concept art, captures d'écran et cartes du monde de WOTOL.</p>
+    </div>
+
+    <div class="media-tabs">
+      <button class="media-tab active" data-filter="all">TOUT</button>
+      <button class="media-tab" data-filter="captures">CAPTURES D'ÉCRAN</button>
+      <button class="media-tab" data-filter="concept">CONCEPT ART</button>
+      <button class="media-tab" data-filter="cartes">CARTES</button>
+    </div>
+
+    <div class="media-grid" id="media-grid"></div>
+
+    <div class="video-section reveal">
+      <span class="eyebrow">BANDE-ANNONCE OFFICIELLE</span>
+      <h2>WOTOL — War of the Ocean's Legacy</h2>
+      <div class="video-wrapper">
+        <iframe
+          src="https://www.youtube.com/embed/LNPJZwyYEt0"
+          title="WOTOL — Bande-Annonce Officielle 2026"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowfullscreen>
+        </iframe>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- === ACTUALITES === -->
+<section id="actualites">
+  <div class="container">
+    <div class="section-header">
+      <span class="eyebrow">ACTUALITÉS</span>
+      <h2>Suivez le développement</h2>
+      <p class="section-desc">Toutes les dernières nouvelles de WOTOL — progression, technique, roadmap.</p>
+    </div>
+    <div class="news-grid" id="news-grid"></div>
+  </div>
+</section>
+
+<!-- === COMMUNAUTE === -->
+<section id="communaute">
+  <div class="container">
+    <div class="community-inner">
+      <span class="eyebrow">REJOINDRE LA COMMUNAUTÉ</span>
+      <h2>Soyez au cœur de la création de WOTOL</h2>
+      <p>Le jeu est en pré-production active. Rejoignez la communauté maintenant pour suivre chaque étape, participer aux tests futurs et influencer le développement.</p>
+      <div class="social-links">
+        <a href="#" class="social-btn discord">Discord</a>
+        <a href="#" class="social-btn twitter">X / Twitter</a>
+        <a href="#" class="social-btn youtube">YouTube</a>
+      </div>
+      <div class="newsletter-form">
+        <input type="email" placeholder="Votre adresse e-mail">
+        <button type="button">M'ALERTER AU LANCEMENT</button>
+      </div>
+      <p class="newsletter-note">Association 3Décors — Vos données ne seront jamais partagées.</p>
+    </div>
+  </div>
+</section>
+
+<!-- === LIGHTBOX === -->
+<div id="lightbox">
+  <button class="lightbox-close" id="lb-close">×</button>
+  <button class="lightbox-nav lightbox-prev" id="lb-prev">‹</button>
+  <img class="lightbox-img" id="lb-img" src="" alt="">
+  <button class="lightbox-nav lightbox-next" id="lb-next">›</button>
+  <span class="lightbox-caption" id="lb-caption"></span>
+</div>
+
+<!-- === FOOTER === -->
+<footer>
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-logo">
+        <span class="logo-main">WOTOL</span>
+        <span class="logo-sub">War of the Ocean's Legacy</span>
+      </div>
+      <div class="footer-nav">
+        <div class="footer-col">
+          <h4>Navigation</h4>
+          <a href="#univers">Univers</a>
+          <a href="#factions">Factions</a>
+          <a href="#gameplay">Gameplay</a>
+          <a href="#medias">Médias</a>
+          <a href="#actualites">Actualités</a>
+        </div>
+        <div class="footer-col">
+          <h4>Factions</h4>
+          <a href="factions/aquiloris.html">Aquiloris</a>
+          <a href="factions/thalassidras.html">Thalassidras</a>
+          <a href="factions/noxeens.html">Noxéens</a>
+          <a href="factions/mureniens.html">Muréniens</a>
+          <a href="factions/pirates-abyssaux.html">Pirates Abyssaux</a>
+        </div>
+        <div class="footer-col">
+          <h4>3Décors</h4>
+          <a href="mailto:association.3decors@gmail.com">Contact</a>
+          <span>Association Loi 1901</span>
+          <span>RNA W604009928</span>
+          <span>Marque INPI n° 26 5230895</span>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 WOTOL — War of the Ocean's Legacy | Association 3Décors | Tous droits réservés</p>
+      <p>Développé sous Unreal Engine 5 | Studio 3Décors — Montataire, France</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* === PARTICLES CANVAS === */
+(function () {
+  const canvas = document.getElementById('particles-canvas');
+  const ctx = canvas.getContext('2d');
+  const colors = ['#00c8b4', '#0066ff', '#cc44ff', '#00a8ff', '#88ff00'];
+  let particles = [];
+  let time = 0;
+
+  function resize() {
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+  }
+
+  function createParticles() {
+    particles = [];
+    for (let i = 0; i < 80; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        radius: 1 + Math.random() * 2,
+        speed: 0.3 + Math.random() * 0.9,
+        opacity: 0.3 + Math.random() * 0.6,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        index: i
+      });
+    }
+  }
+
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    time++;
+    particles.forEach(function (p) {
+      p.y -= p.speed;
+      p.x += Math.sin(time * 0.01 + p.index) * 0.3;
+      if (p.y < 0) { p.y = canvas.height; p.x = Math.random() * canvas.width; }
+      ctx.save();
+      ctx.globalAlpha = p.opacity;
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = p.color;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+    requestAnimationFrame(animate);
+  }
+
+  resize();
+  createParticles();
+  animate();
+  window.addEventListener('resize', function () { resize(); createParticles(); });
+})();
+
+/* === NAVBAR SCROLL === */
+window.addEventListener('scroll', function () {
+  document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 80);
+});
+
+/* === SMOOTH SCROLL === */
+document.querySelectorAll('a[href^="#"]').forEach(function (link) {
+  link.addEventListener('click', function (e) {
+    var href = link.getAttribute('href');
+    if (href === '#') return;
+    e.preventDefault();
+    var target = document.querySelector(href);
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+
+/* === FACTION TABS === */
+document.querySelectorAll('.faction-tab').forEach(function (tab) {
+  tab.addEventListener('click', function () {
+    var target = tab.dataset.tab;
+    document.querySelectorAll('.faction-tab').forEach(function (t) { t.classList.remove('active'); });
+    document.querySelectorAll('.faction-content').forEach(function (c) { c.classList.remove('active'); });
+    tab.classList.add('active');
+    document.getElementById('tab-' + target).classList.add('active');
+  });
+});
+
+/* === MEDIA GALLERY === */
+var mediaItems = [
+  { src: 'https://drive.google.com/thumbnail?id=18MgoxnF7eCMcwzoNhEpEV00kQSR1XX5S&sz=w800', caption: 'WOTOL — Title Screen', type: 'captures' },
+  { src: 'https://drive.google.com/thumbnail?id=1NsZKA2Zr-XvdsY28VIYlRAE0nPAuUj3P&sz=w800', caption: 'Concept Art — Aquiloris', type: 'concept' },
+  { src: 'https://drive.google.com/thumbnail?id=1JVVqihsrg9_tz-3TIma2-AZqnogp5vm0&sz=w800', caption: 'Concept Art — Thalassidras', type: 'concept' },
+  { src: 'https://drive.google.com/thumbnail?id=1zGtEf0Dr5Us4GrH2v-MJaq2MZFfiI1k9&sz=w800', caption: 'Concept Art — Noxéens', type: 'concept' },
+  { src: 'https://drive.google.com/thumbnail?id=1kdK98mdpUvaHycHaN3hGYkt3cFJe0aze&sz=w800', caption: 'Concept Art — Muréniens', type: 'concept' },
+  { src: 'https://drive.google.com/thumbnail?id=1BkXx_sDAMOP3P15TTuFXM6tLywFSiR38&sz=w800', caption: 'Concept Art — Pirates Abyssaux', type: 'concept' },
+  { src: 'https://drive.google.com/thumbnail?id=13blr6ZVL1_iacOE2Qq1oBlk0D7Ih-jdb&sz=w800', caption: 'Carte du Monde — Factions', type: 'cartes' },
+  { src: 'https://drive.google.com/thumbnail?id=1r1MdTMkOeq7cDed_L3L4CaKUk2hOcb5_&sz=w800', caption: 'Carte Stratégique — Légende', type: 'cartes' },
+  { src: 'https://drive.google.com/thumbnail?id=1titbeTgZtU6PK5H_XfsXRtTDyk-48VDt&sz=w800', caption: 'Carte — Territoires', type: 'cartes' },
+  { src: 'https://drive.google.com/thumbnail?id=1i7aQPmvicilpdbE2JqM7yJSJyCCYIT28&sz=w800', caption: 'Aperçu — 5 Factions', type: 'cartes' }
+];
+var visibleItems = mediaItems.slice();
+var currentLightboxIndex = 0;
+
+function renderMedia(filter) {
+  visibleItems = filter === 'all' ? mediaItems : mediaItems.filter(function (m) { return m.type === filter; });
+  var grid = document.getElementById('media-grid');
+  grid.innerHTML = '';
+  visibleItems.forEach(function (item, i) {
+    var div = document.createElement('div');
+    div.className = 'media-item reveal';
+    div.innerHTML =
+      '<img src="' + item.src + '" alt="' + item.caption + '" loading="lazy"' +
+      ' onerror="this.style.opacity=\'0\'; this.parentElement.style.background=\'var(--panel)\'">' +
+      '<div class="media-overlay">' +
+      '<span class="media-caption">' + item.caption + '</span>' +
+      '<span class="media-zoom">⊕ Agrandir</span>' +
+      '</div>';
+    (function (idx) {
+      div.addEventListener('click', function () { openLightbox(idx); });
+    })(i);
+    grid.appendChild(div);
+    observer.observe(div);
+  });
+}
+
+document.querySelectorAll('.media-tab').forEach(function (tab) {
+  tab.addEventListener('click', function () {
+    document.querySelectorAll('.media-tab').forEach(function (t) { t.classList.remove('active'); });
+    tab.classList.add('active');
+    renderMedia(tab.dataset.filter);
+  });
+});
+
+/* === LIGHTBOX === */
+function openLightbox(index) {
+  currentLightboxIndex = index;
+  updateLightbox();
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function updateLightbox() {
+  var item = visibleItems[currentLightboxIndex];
+  document.getElementById('lb-img').src = item.src;
+  document.getElementById('lb-img').alt = item.caption;
+  document.getElementById('lb-caption').textContent = item.caption;
+}
+
+document.getElementById('lb-close').addEventListener('click', closeLightbox);
+document.getElementById('lb-prev').addEventListener('click', function () {
+  currentLightboxIndex = (currentLightboxIndex - 1 + visibleItems.length) % visibleItems.length;
+  updateLightbox();
+});
+document.getElementById('lb-next').addEventListener('click', function () {
+  currentLightboxIndex = (currentLightboxIndex + 1) % visibleItems.length;
+  updateLightbox();
+});
+document.getElementById('lightbox').addEventListener('click', function (e) {
+  if (e.target === document.getElementById('lightbox')) closeLightbox();
+});
+document.addEventListener('keydown', function (e) {
+  var lb = document.getElementById('lightbox');
+  if (!lb.classList.contains('open')) return;
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowLeft') { currentLightboxIndex = (currentLightboxIndex - 1 + visibleItems.length) % visibleItems.length; updateLightbox(); }
+  if (e.key === 'ArrowRight') { currentLightboxIndex = (currentLightboxIndex + 1) % visibleItems.length; updateLightbox(); }
+});
+
+/* === NEWS === */
+var newsItems = [
+  {
+    date: '23.06.2026',
+    img: 'https://drive.google.com/thumbnail?id=18MgoxnF7eCMcwzoNhEpEV00kQSR1XX5S&sz=w400',
+    title: 'GDD v3.0 publié — Document de référence complet',
+    excerpt: 'Le Game Design Document officiel de WOTOL est désormais structuré en 18 chapitres. Factions, unités, systèmes de combat, roadmap et architecture technique — tout est documenté.',
+    tag: 'DÉVELOPPEMENT'
+  },
+  {
+    date: '16.05.2026',
+    img: 'https://drive.google.com/thumbnail?id=1JVVqihsrg9_tz-3TIma2-AZqnogp5vm0&sz=w400',
+    title: 'Architecture Blueprint UE5 — Boucle de jeu complète',
+    excerpt: 'Menu → Sélection Faction → Carte Stratégique → Bataille → Résolution → Capture de Zone. Tous les Blueprints clés, Enums et Structs sont définis et documentés.',
+    tag: 'TECHNIQUE'
+  },
+  {
+    date: '01.06.2026',
+    img: 'https://drive.google.com/thumbnail?id=13blr6ZVL1_iacOE2Qq1oBlk0D7Ih-jdb&sz=w400',
+    title: 'Démo verticale — Milestone prioritaire confirmé',
+    excerpt: 'Une bataille jouable, deux factions, mécaniques signature. La démo verticale est le prochain livrable officiel de WOTOL — objectif : convaincre les financeurs dès le premier écran.',
+    tag: 'ROADMAP'
+  }
+];
+
+var newsGrid = document.getElementById('news-grid');
+newsItems.forEach(function (news) {
+  var article = document.createElement('article');
+  article.className = 'news-card reveal';
+  article.innerHTML =
+    '<div class="news-img">' +
+    '<img src="' + news.img + '" alt="' + news.title + '" loading="lazy"' +
+    ' onerror="this.style.opacity=\'0\'; this.parentElement.style.background=\'var(--panel)\'">' +
+    '<span class="news-tag">' + news.tag + '</span>' +
+    '</div>' +
+    '<div class="news-body">' +
+    '<span class="news-date">' + news.date + '</span>' +
+    '<h3 class="news-title">' + news.title + '</h3>' +
+    '<p class="news-excerpt">' + news.excerpt + '</p>' +
+    '<a href="#" class="news-link">En savoir plus →</a>' +
+    '</div>';
+  newsGrid.appendChild(article);
+});
+
+/* === INTERSECTION OBSERVER === */
+var observer = new IntersectionObserver(function (entries) {
+  entries.forEach(function (entry) {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('revealed');
+      observer.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.15 });
+
+document.querySelectorAll('.reveal').forEach(function (el) { observer.observe(el); });
+
+/* === INIT === */
+renderMedia('all');
+setTimeout(function () {
+  document.querySelectorAll('.reveal:not(.revealed)').forEach(function (el) { observer.observe(el); });
+}, 100);
+</script>
+</body>
+</html>
