@@ -2,14 +2,10 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 
-void UTacticalPhaseManager::Initialize(UWorld* InWorld)
-{
-	WorldRef = InWorld;
-}
-
-void UTacticalPhaseManager::Shutdown()
+void UTacticalPhaseManager::Deinitialize()
 {
 	StopPhase();
+	Super::Deinitialize();
 }
 
 void UTacticalPhaseManager::StartPhase(
@@ -31,7 +27,7 @@ void UTacticalPhaseManager::StopPhase()
 
 	bRunning = false;
 
-	if (UWorld* World = WorldRef.Get())
+	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(TurnTimer);
 	}
@@ -47,7 +43,6 @@ void UTacticalPhaseManager::AdvanceTurn()
 {
 	if (!bRunning || CurrentTurnOrder.IsEmpty()) return;
 
-	// Ferme la fenêtre précédente
 	if (ActiveFaction != EFactionID::None)
 	{
 		OnTacticalWindowClosed.Broadcast(ActiveFaction);
@@ -58,7 +53,7 @@ void UTacticalPhaseManager::AdvanceTurn()
 
 	OnTacticalWindowOpened.Broadcast(ActiveFaction);
 
-	if (UWorld* World = WorldRef.Get())
+	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().SetTimer(
 			TurnTimer,

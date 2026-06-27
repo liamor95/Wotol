@@ -21,10 +21,30 @@ void UAIAdaptiveController::OnPossess(APawn* InPawn)
 	{
 		ControlledFaction = Unit->GetFaction();
 	}
+
+	// S'abonner au gestionnaire de tours — un seul timer central pour toutes les unités
+	if (UTacticalPhaseManager* PhaseManager =
+			GetWorld()->GetSubsystem<UTacticalPhaseManager>())
+	{
+		PhaseManager->OnTacticalWindowOpened.AddDynamic(
+			this, &UAIAdaptiveController::OnTacticalWindowOpened);
+		PhaseManager->OnTacticalWindowClosed.AddDynamic(
+			this, &UAIAdaptiveController::OnTacticalWindowClosed);
+	}
 }
 
 void UAIAdaptiveController::EndPlay(const EEndPlayReason::Type Reason)
 {
+	// Désabonnement propre
+	if (UTacticalPhaseManager* PhaseManager =
+			GetWorld()->GetSubsystem<UTacticalPhaseManager>())
+	{
+		PhaseManager->OnTacticalWindowOpened.RemoveDynamic(
+			this, &UAIAdaptiveController::OnTacticalWindowOpened);
+		PhaseManager->OnTacticalWindowClosed.RemoveDynamic(
+			this, &UAIAdaptiveController::OnTacticalWindowClosed);
+	}
+
 	Super::EndPlay(Reason);
 }
 
@@ -40,14 +60,7 @@ void UAIAdaptiveController::UpdatePlayerProfile(const FPlayerBehaviorProfile& Pr
 
 void UAIAdaptiveController::IssueMoveCommand(FVector TargetLocation)
 {
-	// Interrompt l'IA autonome momentanément — l'unité obéit au joueur
 	MoveToLocation(TargetLocation, 50.f);
-
-	if (UUnitAIStateComponent* State = GetStateComponent())
-	{
-		// Remettre en Idle après déplacement ; l'IA reprend dès l'arrivée
-		// (évaluation automatique au prochain AITick)
-	}
 }
 
 void UAIAdaptiveController::IssueAttackCommand(AUnitBase* TargetUnit)
@@ -61,10 +74,8 @@ void UAIAdaptiveController::AdaptToPlayerProfile(const FPlayerBehaviorProfile& P
 	ComputedAggressionLevel = FMath::Clamp(1.f - Profile.AggressionScore * 0.6f, 0.2f, 1.f);
 	ComputedCautionLevel    = FMath::Clamp(Profile.AggressionScore * 0.7f, 0.2f, 1.f);
 
-	// Propager au composant d'état pour ajuster les seuils de retraite / agressivité
 	if (UUnitAIStateComponent* State = GetStateComponent())
 	{
-		// Plus le joueur est agressif, plus l'IA recule tard (seuil de retraite plus bas)
 		State->RetreatHealthRatio =
 			FMath::Lerp(0.35f, 0.15f, ComputedCautionLevel);
 	}

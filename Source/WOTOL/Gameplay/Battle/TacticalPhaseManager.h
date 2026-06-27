@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
+#include "Subsystems/WorldSubsystem.h"
 #include "Data/WOTOLTypes.h"
 #include "TacticalPhaseManager.generated.h"
 
@@ -11,13 +11,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTacticalWindowOpened, EFactionID,
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTacticalWindowClosed, EFactionID, Faction);
 
 UCLASS()
-class WOTOL_API UTacticalPhaseManager : public UObject
+class WOTOL_API UTacticalPhaseManager : public UWorldSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	void Initialize(UWorld* InWorld);
-	void Shutdown();
+	virtual void Deinitialize() override;
 
 	UFUNCTION(BlueprintCallable, Category = "Tactical")
 	void StartPhase(const TArray<EFactionID>& TurnOrder, float WindowDurationSeconds);
@@ -40,8 +39,7 @@ public:
 private:
 	void AdvanceTurn();
 
-	TWeakObjectPtr<UWorld> WorldRef;
-	FTimerHandle           TurnTimer;   // un seul timer pour tout le système
+	FTimerHandle TurnTimer;   // un seul timer pour tout le système
 
 	TArray<EFactionID> CurrentTurnOrder;
 	int32              TurnIndex        = 0;

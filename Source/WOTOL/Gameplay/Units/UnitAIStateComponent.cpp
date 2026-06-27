@@ -301,6 +301,7 @@ bool UUnitAIStateComponent::IsInAttackRange(AUnitBase* Target) const
 	AUnitBase* Owner = Cast<AUnitBase>(GetOwner());
 	if (!Owner || !Owner->GetUnitData()) return false;
 
-	const float RangeSq = FMath::Square(Owner->GetUnitData()->AttackRange);
+	// AttackRange est en "cases hex" — 1 case ≈ 200 UE units
+	const float RangeSq = FMath::Square(Owner->GetUnitData()->Stats.AttackRange * 200.f);
 	return FVector::DistSquared(Owner->GetActorLocation(), Target->GetActorLocation()) <= RangeSq;
 }

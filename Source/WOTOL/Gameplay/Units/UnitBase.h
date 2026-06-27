@@ -7,6 +7,7 @@
 
 class UVerticalLayerComponent;
 class UAbilityComponent;
+class UUnitMoraleComponent;
 class UUnitDataAsset;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnitDied,      AUnitBase*, Unit);
@@ -34,6 +35,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Abilities")
 	TObjectPtr<UAbilityComponent> AbilityComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Morale")
+	TObjectPtr<UUnitMoraleComponent> MoraleComp;
 
 	// ---- État combat ----
 	UFUNCTION(BlueprintCallable, Category = "Combat")
@@ -91,7 +95,7 @@ protected:
 private:
 	void InitFromDataAsset();
 	void Die();
-	void SpawnProjectileToward(AUnitBase* Target);
+	void SpawnProjectileToward(AUnitBase* Target, float OverrideDamage);
 
 	float LastAttackTime  = -9999.f;
 	bool  bSelected       = false;
