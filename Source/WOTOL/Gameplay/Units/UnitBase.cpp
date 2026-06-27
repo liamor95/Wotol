@@ -6,6 +6,7 @@
 #include "AbilityBase.h"
 #include "WOTOLProjectileBase.h"
 #include "Core/FactionRegistrySubsystem.h"
+#include "Gameplay/Factions/FactionSynergySubsystem.h"
 
 AUnitBase::AUnitBase()
 {
@@ -154,6 +155,14 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 		BaseDamage *= UVerticalLayerComponent::GetAttackDamageMultiplier(
 			VerticalLayer->GetCurrentLayer(),
 			Target->VerticalLayer->GetCurrentLayer());
+	}
+
+	// Appliquer les synergies de faction (Aquiloris coordination, Noxéens bio-zones)
+	if (UFactionSynergySubsystem* Synergy =
+			GetWorld()->GetSubsystem<UFactionSynergySubsystem>())
+	{
+		const FSynergyBonus Bonus = Synergy->ComputeSynergyBonus(this);
+		BaseDamage *= Bonus.DamageMultiplier;
 	}
 
 	if (UnitData->Stats.AttackType == EUnitAttackType::Ranged)
