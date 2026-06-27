@@ -1,7 +1,8 @@
 #include "AIAdaptiveController.h"
 #include "Gameplay/Units/UnitBase.h"
 #include "Gameplay/Units/UnitAIStateComponent.h"
-#include "Gameplay/Battle/TacticalPhaseManager.h"
+#include "Gameplay/Units/VerticalLayerComponent.h"
+#include "Gameplay/Units/AbilityComponent.h"
 
 UAIAdaptiveController::UAIAdaptiveController()
 {
@@ -20,33 +21,154 @@ void UAIAdaptiveController::OnPossess(APawn* InPawn)
 	if (AUnitBase* Unit = Cast<AUnitBase>(InPawn))
 	{
 		ControlledFaction = Unit->GetFaction();
-	}
 
-	// S'abonner au gestionnaire de tours — un seul timer central pour toutes les unités
-	if (UTacticalPhaseManager* PhaseManager =
-			GetWorld()->GetSubsystem<UTacticalPhaseManager>())
-	{
-		PhaseManager->OnTacticalWindowOpened.AddDynamic(
-			this, &UAIAdaptiveController::OnTacticalWindowOpened);
-		PhaseManager->OnTacticalWindowClosed.AddDynamic(
-			this, &UAIAdaptiveController::OnTacticalWindowClosed);
+		// L'IA démarre inactive — activée par URTSBattleManager::StartBattlePhase()
+		// Les unités du JOUEUR sont contrôlées par AWOTOLPlayerController_Battle
+		// Les unités ENNEMIES reçoivent ActivateRTSBehavior() au début du combat
 	}
 }
 
 void UAIAdaptiveController::EndPlay(const EEndPlayReason::Type Reason)
 {
-	// Désabonnement propre
-	if (UTacticalPhaseManager* PhaseManager =
-			GetWorld()->GetSubsystem<UTacticalPhaseManager>())
-	{
-		PhaseManager->OnTacticalWindowOpened.RemoveDynamic(
-			this, &UAIAdaptiveController::OnTacticalWindowOpened);
-		PhaseManager->OnTacticalWindowClosed.RemoveDynamic(
-			this, &UAIAdaptiveController::OnTacticalWindowClosed);
-	}
-
+	DeactivateRTSBehavior();
 	Super::EndPlay(Reason);
 }
+
+// ─── Activation RTS ───────────────────────────────────────────────────────────
+
+void UAIAdaptiveController::ActivateRTSBehavior()
+{
+	bAIActive    = true;
+	CurrentOrder = ERTSOrder::AttackMove; // comportement par défaut : chercher et combattre
+	SetAIStateActive(true);
+}
+
+void UAIAdaptiveController::DeactivateRTSBehavior()
+{
+	bAIActive    = false;
+	CurrentOrder = ERTSOrder::None;
+	SetAIStateActive(false);
+	StopMovement();
+}
+
+// ─── Ordres RTS ───────────────────────────────────────────────────────────────
+
+void UAIAdaptiveController::IssueOrder_Move(FVector TargetLocation)
+{
+	CurrentOrder = ERTSOrder::Move;
+
+	// Passer la state machine en Idle pendant le déplacement ordonné
+	// (elle reprendra le comportement auto à l'arrivée)
+	if (UUnitAIStateComponent* State = GetStateComponent())
+	{
+		State->bFollowingPlayerOrder = true;
+	}
+
+	MoveToLocation(TargetLocation, 50.f);
+}
+
+void UAIAdaptiveController::IssueOrder_AttackMove(FVector TargetLocation)
+{
+	CurrentOrder = ERTSOrder::AttackMove;
+
+	if (UUnitAIStateComponent* State = GetStateComponent())
+	{
+		State->bFollowingPlayerOrder = false; // IA reprend en cours de route si ennemi visible
+		State->AttackMoveDestination = TargetLocation;
+		State->bAttackMoveActive     = true;
+	}
+
+	MoveToLocation(TargetLocation, 50.f);
+}
+
+void UAIAdaptiveController::IssueOrder_AttackTarget(AUnitBase* Target)
+{
+	if (!Target || !Target->IsAlive()) return;
+
+	CurrentOrder = ERTSOrder::AttackTarget;
+
+	if (UUnitAIStateComponent* State = GetStateComponent())
+	{
+		State->bFollowingPlayerOrder = false;
+		State->ForceTarget           = Target;
+		State->bAttackMoveActive     = false;
+	}
+
+	MoveToActor(Target, 50.f);
+}
+
+void UAIAdaptiveController::IssueOrder_HoldPosition()
+{
+	CurrentOrder = ERTSOrder::HoldPosition;
+	StopMovement();
+
+	if (UUnitAIStateComponent* State = GetStateComponent())
+	{
+		State->bHoldPosition         = true;
+		State->bFollowingPlayerOrder = false;
+		State->bAttackMoveActive     = false;
+	}
+}
+
+void UAIAdaptiveController::IssueOrder_UseAbility(
+	int32 AbilityIndex, FVector TargetLocation, AUnitBase* TargetUnit)
+{
+	CurrentOrder = ERTSOrder::UseAbility;
+
+	AUnitBase* Unit = Cast<AUnitBase>(GetPawn());
+	if (!Unit) return;
+
+	if (UAbilityComponent* AbilComp = Unit->AbilityComp)
+	{
+		AbilComp->ActivateAbilityByIndex(AbilityIndex, TargetLocation, TargetUnit);
+	}
+}
+
+void UAIAdaptiveController::IssueOrder_ChangeLayer(EVerticalLayer NewLayer)
+{
+	CurrentOrder = ERTSOrder::ChangeLayer;
+
+	AUnitBase* Unit = Cast<AUnitBase>(GetPawn());
+	if (!Unit || !Unit->VerticalLayer) return;
+
+	if (!Unit->GetUnitData() || !Unit->GetUnitData()->Stats.bCanChangeLayer) return;
+
+	Unit->VerticalLayer->SetLayer(NewLayer);
+
+	// Déplacer physiquement l'unité vers la Z cible
+	const float TargetZ = UVerticalLayerComponent::GetLayerTargetZ(NewLayer);
+	FVector NewLoc = Unit->GetActorLocation();
+	NewLoc.Z = TargetZ;
+	Unit->SetActorLocation(NewLoc, true);
+
+	// Rétablir l'ordre précédent après changement de couche
+	CurrentOrder = ERTSOrder::AttackMove;
+	if (UUnitAIStateComponent* State = GetStateComponent())
+	{
+		State->bFollowingPlayerOrder = false;
+	}
+}
+
+void UAIAdaptiveController::IssueOrder_Retreat()
+{
+	CurrentOrder = ERTSOrder::Retreat;
+
+	if (UUnitAIStateComponent* State = GetStateComponent())
+	{
+		State->bHoldPosition         = false;
+		State->bFollowingPlayerOrder = true;
+		State->ForceTarget           = nullptr;
+		State->bAttackMoveActive     = false;
+	}
+
+	// La state machine gère la retraite vers SpawnLocation dans EvaluateRetreating()
+	if (UUnitAIStateComponent* State = GetStateComponent())
+	{
+		State->TransitionTo(EUnitAIState::Retreating);
+	}
+}
+
+// ─── Adaptation comportementale ───────────────────────────────────────────────
 
 void UAIAdaptiveController::SetControlledFaction(EFactionID InFaction)
 {
@@ -58,17 +180,6 @@ void UAIAdaptiveController::UpdatePlayerProfile(const FPlayerBehaviorProfile& Pr
 	AdaptToPlayerProfile(Profile);
 }
 
-void UAIAdaptiveController::IssueMoveCommand(FVector TargetLocation)
-{
-	MoveToLocation(TargetLocation, 50.f);
-}
-
-void UAIAdaptiveController::IssueAttackCommand(AUnitBase* TargetUnit)
-{
-	if (!TargetUnit || !TargetUnit->IsAlive()) return;
-	MoveToActor(TargetUnit, 50.f);
-}
-
 void UAIAdaptiveController::AdaptToPlayerProfile(const FPlayerBehaviorProfile& Profile)
 {
 	ComputedAggressionLevel = FMath::Clamp(1.f - Profile.AggressionScore * 0.6f, 0.2f, 1.f);
@@ -76,24 +187,16 @@ void UAIAdaptiveController::AdaptToPlayerProfile(const FPlayerBehaviorProfile& P
 
 	if (UUnitAIStateComponent* State = GetStateComponent())
 	{
-		State->RetreatHealthRatio =
-			FMath::Lerp(0.35f, 0.15f, ComputedCautionLevel);
+		// Joueur agressif → IA recule plus tard (seuil retraite réduit)
+		State->RetreatHealthRatio = FMath::Lerp(0.35f, 0.15f, ComputedCautionLevel);
+
+		// Joueur prudent → IA plus agressive (SightRange augmentée)
+		State->SightRange = FMath::Lerp(1200.f, 2000.f, 1.f - ComputedCautionLevel);
 	}
-}
-
-void UAIAdaptiveController::OnTacticalWindowOpened(EFactionID Faction)
-{
-	if (Faction == ControlledFaction) SetAIStateActive(true);
-}
-
-void UAIAdaptiveController::OnTacticalWindowClosed(EFactionID Faction)
-{
-	if (Faction == ControlledFaction) SetAIStateActive(false);
 }
 
 void UAIAdaptiveController::SetAIStateActive(bool bActive)
 {
-	bIsActive = bActive;
 	if (UUnitAIStateComponent* State = GetStateComponent())
 	{
 		State->SetAIActive(bActive);

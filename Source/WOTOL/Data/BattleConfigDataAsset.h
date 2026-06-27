@@ -13,9 +13,9 @@ class WOTOL_API UBattleConfigDataAsset : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	// Durée d'une fenêtre tactique par faction (secondes)
+	// Durée totale de la bataille RTS (secondes) — 0 = infini
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing")
-	float TacticalWindowDuration = 30.f;
+	float BattleDurationSeconds = 3600.f;
 
 	// Vitesse de capture du territoire par seconde
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Territory")

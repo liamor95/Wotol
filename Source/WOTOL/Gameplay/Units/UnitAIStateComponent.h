@@ -8,17 +8,17 @@
 class AUnitBase;
 class UAIAdaptiveController;
 
-// Machine d'états C++ complète — remplace les Behavior Trees
-// Liamor n'a pas besoin de créer un seul asset BT
+// Machine d'états C++ pour un RTS temps réel — inspire Total War / Bannerlord
+// PAS de tours. PAS de fenêtres tactiques. L'IA tourne en continu à 250ms.
 UENUM(BlueprintType)
 enum class EUnitAIState : uint8
 {
-	Idle,         // en attente (hors fenêtre tactique)
-	Patrolling,   // déplacement aléatoire dans la zone
-	Seeking,      // se déplace vers l'ennemi détecté
-	Attacking,    // en portée — exécute une attaque
-	Retreating,   // PV bas — fuit vers une position sûre
-	ChangingLayer,// transition de palier vertical
+	Idle,          // en attente — aucun ennemi détecté
+	Patrolling,    // déplacement aléatoire dans la zone (sans ennemi)
+	Seeking,       // se déplace vers l'ennemi détecté
+	Attacking,     // en portée — exécute des attaques
+	Retreating,    // PV bas — fuit vers une position sûre
+	ChangingLayer, // transition de palier vertical en cours
 	Dead
 };
 
@@ -33,22 +33,49 @@ class WOTOL_API UUnitAIStateComponent : public UActorComponent
 public:
 	UUnitAIStateComponent();
 
-	// Activé/désactivé par le TacticalPhaseManager via l'AIAdaptiveController
+	// Activé/désactivé par URTSBattleManager (plus par TacticalPhaseManager)
 	UFUNCTION(BlueprintCallable, Category = "AI")
 	void SetAIActive(bool bActive);
 
 	UFUNCTION(BlueprintPure, Category = "AI")
 	EUnitAIState GetCurrentState() const { return CurrentState; }
 
-	// Config — peut être surchargée par unité dans le BP
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Config")
-	float SightRange          = 1500.f;
+	// Transition publique — appelée par IssueOrder_Retreat dans AIAdaptiveController
+	UFUNCTION(BlueprintCallable, Category = "AI")
+	void TransitionTo(EUnitAIState NewState);
+
+	// ─── Config (surchargeable par unité dans le BP) ──────────────────────────
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Config")
-	float RetreatHealthRatio  = 0.25f;
+	float SightRange = 1500.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Config")
-	float TickInterval        = 0.25f; // évaluation toutes les 250ms
+	float RetreatHealthRatio = 0.25f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Config")
+	float TickInterval = 0.25f;  // évaluation toutes les 250ms
+
+	// ─── État d'ordre RTS (écrit par AIAdaptiveController) ───────────────────
+
+	// Cible imposée par le joueur (IssueOrder_AttackTarget)
+	UPROPERTY()
+	TWeakObjectPtr<AUnitBase> ForceTarget;
+
+	// Destination pour AttackMove
+	UPROPERTY(BlueprintReadWrite, Category = "AI")
+	FVector AttackMoveDestination;
+
+	// Vrai si un AttackMove est en cours
+	UPROPERTY(BlueprintReadWrite, Category = "AI")
+	bool bAttackMoveActive = false;
+
+	// Vrai si l'unité tient position (HoldPosition — attaque à portée, pas de poursuite)
+	UPROPERTY(BlueprintReadWrite, Category = "AI")
+	bool bHoldPosition = false;
+
+	// Vrai pendant qu'un ordre joueur de déplacement simple est en cours
+	UPROPERTY(BlueprintReadWrite, Category = "AI")
+	bool bFollowingPlayerOrder = false;
 
 	UPROPERTY(BlueprintAssignable, Category = "AI")
 	FOnAIStateChanged OnAIStateChanged;
@@ -59,7 +86,6 @@ protected:
 
 private:
 	void AITick();
-	void TransitionTo(EUnitAIState NewState);
 
 	// Logique par état
 	void EvaluateIdle();
@@ -69,12 +95,13 @@ private:
 	void EvaluatePatrolling();
 
 	AUnitBase*             FindNearestEnemy() const;
+	AUnitBase*             FindBestTarget() const;  // tient compte de ForceTarget
 	UAIAdaptiveController* GetAIController() const;
 	bool                   HasLowHealth() const;
 	bool                   IsInAttackRange(AUnitBase* Target) const;
 
-	EUnitAIState CurrentState  = EUnitAIState::Idle;
-	bool         bAIActive     = false;
+	EUnitAIState CurrentState = EUnitAIState::Idle;
+	bool         bAIActive    = false;
 
 	UPROPERTY()
 	TWeakObjectPtr<AUnitBase> CurrentTarget;

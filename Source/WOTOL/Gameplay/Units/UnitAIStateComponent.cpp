@@ -18,7 +18,6 @@ void UUnitAIStateComponent::BeginPlay()
 	{
 		SpawnLocation = Owner->GetActorLocation();
 
-		// Se désactiver quand l'unité meurt
 		Owner->OnUnitDied.AddWeakLambda(this, [this](AUnitBase*)
 		{
 			TransitionTo(EUnitAIState::Dead);
@@ -55,6 +54,9 @@ void UUnitAIStateComponent::SetAIActive(bool bActive)
 
 void UUnitAIStateComponent::AITick()
 {
+	// Ordre de déplacement simple en cours — attendre l'arrivée
+	if (bFollowingPlayerOrder) return;
+
 	switch (CurrentState)
 	{
 		case EUnitAIState::Idle:        EvaluateIdle();       break;
@@ -74,28 +76,36 @@ void UUnitAIStateComponent::EvaluateIdle()
 		return;
 	}
 
-	AUnitBase* Enemy = FindNearestEnemy();
-	if (Enemy)
+	AUnitBase* Target = FindBestTarget();
+	if (Target)
 	{
-		CurrentTarget = Enemy;
-		if (IsInAttackRange(Enemy))
+		CurrentTarget = Target;
+		if (IsInAttackRange(Target))
 			TransitionTo(EUnitAIState::Attacking);
 		else
 			TransitionTo(EUnitAIState::Seeking);
 		return;
 	}
 
-	// Aucun ennemi — patrol après 2 évaluations
+	// En AttackMove : continuer vers la destination
+	if (bAttackMoveActive)
+	{
+		if (UAIAdaptiveController* AIC = GetAIController())
+		{
+			AIC->MoveToLocation(AttackMoveDestination, 100.f);
+		}
+		return;
+	}
+
 	TransitionTo(EUnitAIState::Patrolling);
 }
 
 void UUnitAIStateComponent::EvaluatePatrolling()
 {
-	// Un ennemi est-il apparu ?
-	AUnitBase* Enemy = FindNearestEnemy();
-	if (Enemy)
+	AUnitBase* Target = FindBestTarget();
+	if (Target)
 	{
-		CurrentTarget = Enemy;
+		CurrentTarget = Target;
 		TransitionTo(EUnitAIState::Seeking);
 		return;
 	}
@@ -106,25 +116,20 @@ void UUnitAIStateComponent::EvaluatePatrolling()
 		return;
 	}
 
-	// Nouvelle destination de patrol si on est arrivé
 	if (UAIAdaptiveController* AIC = GetAIController())
 	{
 		AUnitBase* Owner = Cast<AUnitBase>(GetOwner());
-		if (Owner)
+		if (!Owner) return;
+
+		const float Dist = FVector::Dist2D(Owner->GetActorLocation(), PatrolDestination);
+		if (Dist < 200.f)
 		{
-			const float Dist = FVector::Dist2D(Owner->GetActorLocation(), PatrolDestination);
-			if (Dist < 200.f)
+			UNavigationSystemV1* NavSys = UNavigationSystemV1::GetCurrent(GetWorld());
+			FNavLocation NavLoc;
+			if (NavSys && NavSys->GetRandomReachablePointInRadius(SpawnLocation, 600.f, NavLoc))
 			{
-				// Nouvelle destination aléatoire dans un rayon de 600 unités
-				UNavigationSystemV1* NavSys =
-					UNavigationSystemV1::GetCurrent(GetWorld());
-				FNavLocation NavLoc;
-				if (NavSys && NavSys->GetRandomReachablePointInRadius(
-						SpawnLocation, 600.f, NavLoc))
-				{
-					PatrolDestination = NavLoc.Location;
-					AIC->MoveToLocation(PatrolDestination, 100.f);
-				}
+				PatrolDestination = NavLoc.Location;
+				AIC->MoveToLocation(PatrolDestination, 100.f);
 			}
 		}
 	}
@@ -138,26 +143,25 @@ void UUnitAIStateComponent::EvaluateSeeking()
 		return;
 	}
 
-	if (!CurrentTarget.IsValid() || !CurrentTarget->IsAlive())
+	AUnitBase* Target = FindBestTarget();
+	if (!Target)
 	{
-		CurrentTarget = FindNearestEnemy();
-		if (!CurrentTarget.IsValid())
-		{
-			TransitionTo(EUnitAIState::Idle);
-			return;
-		}
+		CurrentTarget.Reset();
+		TransitionTo(EUnitAIState::Idle);
+		return;
 	}
 
-	if (IsInAttackRange(CurrentTarget.Get()))
+	CurrentTarget = Target;
+
+	if (IsInAttackRange(Target))
 	{
 		TransitionTo(EUnitAIState::Attacking);
 		return;
 	}
 
-	// Continuer à se déplacer vers la cible
 	if (UAIAdaptiveController* AIC = GetAIController())
 	{
-		AIC->MoveToActor(CurrentTarget.Get(), 50.f);
+		AIC->MoveToActor(Target, 50.f);
 	}
 }
 
@@ -169,26 +173,30 @@ void UUnitAIStateComponent::EvaluateAttacking()
 		return;
 	}
 
-	if (!CurrentTarget.IsValid() || !CurrentTarget->IsAlive())
+	AUnitBase* Target = FindBestTarget();
+	if (!Target)
 	{
-		CurrentTarget = FindNearestEnemy();
-		if (!CurrentTarget.IsValid())
-		{
-			TransitionTo(EUnitAIState::Idle);
-			return;
-		}
+		CurrentTarget.Reset();
+		TransitionTo(EUnitAIState::Idle);
+		return;
 	}
 
-	if (!IsInAttackRange(CurrentTarget.Get()))
+	CurrentTarget = Target;
+
+	if (!IsInAttackRange(Target))
 	{
+		// HoldPosition : pas de poursuite — attendre que l'ennemi vienne
+		if (bHoldPosition)
+		{
+			return;
+		}
 		TransitionTo(EUnitAIState::Seeking);
 		return;
 	}
 
-	// Déclencher l'attaque via l'unité propriétaire
 	if (AUnitBase* Owner = Cast<AUnitBase>(GetOwner()))
 	{
-		Owner->PerformAttack(CurrentTarget.Get());
+		Owner->PerformAttack(Target);
 	}
 }
 
@@ -197,14 +205,13 @@ void UUnitAIStateComponent::EvaluateRetreating()
 	AUnitBase* Owner = Cast<AUnitBase>(GetOwner());
 	if (!Owner) return;
 
-	// PV remontés ? Reprendre le combat
 	if (!HasLowHealth())
 	{
+		bHoldPosition = false;
 		TransitionTo(EUnitAIState::Idle);
 		return;
 	}
 
-	// Se déplacer vers le point de spawn (zone arrière = sécurité)
 	if (UAIAdaptiveController* AIC = GetAIController())
 	{
 		const float DistToSpawn = FVector::Dist2D(Owner->GetActorLocation(), SpawnLocation);
@@ -222,12 +229,14 @@ void UUnitAIStateComponent::TransitionTo(EUnitAIState NewState)
 	const EUnitAIState Old = CurrentState;
 	CurrentState = NewState;
 
-	// Stop navigation si on sort de Seeking/Patrolling
-	if ((Old == EUnitAIState::Seeking || Old == EUnitAIState::Patrolling
-		|| Old == EUnitAIState::Retreating)
-		&& NewState != EUnitAIState::Seeking
-		&& NewState != EUnitAIState::Patrolling
-		&& NewState != EUnitAIState::Retreating)
+	const bool bWasMoving = (Old == EUnitAIState::Seeking
+		|| Old == EUnitAIState::Patrolling
+		|| Old == EUnitAIState::Retreating);
+	const bool bWillMove = (NewState == EUnitAIState::Seeking
+		|| NewState == EUnitAIState::Patrolling
+		|| NewState == EUnitAIState::Retreating);
+
+	if (bWasMoving && !bWillMove)
 	{
 		if (UAIAdaptiveController* AIC = GetAIController())
 		{
@@ -235,13 +244,23 @@ void UUnitAIStateComponent::TransitionTo(EUnitAIState NewState)
 		}
 	}
 
-	// Initialisation de patrol
 	if (NewState == EUnitAIState::Patrolling)
 	{
 		PatrolDestination = SpawnLocation;
 	}
 
 	OnAIStateChanged.Broadcast(Old, NewState);
+}
+
+AUnitBase* UUnitAIStateComponent::FindBestTarget() const
+{
+	// Priorité : cible imposée par ordre joueur
+	if (ForceTarget.IsValid() && ForceTarget->IsAlive())
+	{
+		return ForceTarget.Get();
+	}
+
+	return FindNearestEnemy();
 }
 
 AUnitBase* UUnitAIStateComponent::FindNearestEnemy() const
@@ -253,16 +272,15 @@ AUnitBase* UUnitAIStateComponent::FindNearestEnemy() const
 		GetWorld()->GetSubsystem<UFactionRegistrySubsystem>();
 	if (!Registry) return nullptr;
 
-	AUnitBase* Nearest    = nullptr;
+	AUnitBase* Nearest     = nullptr;
 	float      NearestDist = SightRange * SightRange;
 
-	// Parcourir toutes les factions sauf la nôtre
 	const EFactionID OwnFaction = Owner->GetFaction();
 	const FVector    OwnLoc     = Owner->GetActorLocation();
 
-	for (uint8 i = 1; i <= (uint8)EFactionID::PiratesAbyssaux; ++i)
+	for (uint8 i = 1; i <= static_cast<uint8>(EFactionID::PiratesAbyssaux); ++i)
 	{
-		const EFactionID FID = (EFactionID)i;
+		const EFactionID FID = static_cast<EFactionID>(i);
 		if (FID == OwnFaction) continue;
 
 		for (AUnitBase* Enemy : Registry->GetUnitsForFaction(FID))
