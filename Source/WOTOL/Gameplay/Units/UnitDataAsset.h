@@ -33,6 +33,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
 	FUnitStats Stats;
 
+	// ─── Classe à instancier en jeu ──────────────────────────────────────────
+
+	// Blueprint de l'unité (hérite de BP_UnitBase / AUnitBase) — spawné par le UnitSpawner
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spawn")
+	TSoftClassPtr<class AUnitBase> UnitClass;
+
 	// ─── Mesh & VFX (à assigner dans l'éditeur, jamais en code) ──────────────
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
