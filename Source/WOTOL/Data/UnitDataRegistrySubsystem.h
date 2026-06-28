@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "Data/WOTOLTypes.h"
 #include "UnitDataRegistrySubsystem.generated.h"
 
 class UUnitDataAsset;
