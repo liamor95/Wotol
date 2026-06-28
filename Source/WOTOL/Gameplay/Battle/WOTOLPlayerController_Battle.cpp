@@ -122,7 +122,7 @@ void AWOTOLPlayerController_Battle::OnRightMousePressed()
 	if (!SelectionMgr || !SelectionMgr->HasSelection()) return;
 
 	AUnitBase* TargetUnit = GetUnitUnderCursor();
-	FVector    TargetLocation;
+	FVector    TargetLocation = FVector::ZeroVector;
 
 	if (!TargetUnit)
 	{

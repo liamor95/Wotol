@@ -38,6 +38,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaSeconds) override;
 
 	UFUNCTION()
 	void OnSphereOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
