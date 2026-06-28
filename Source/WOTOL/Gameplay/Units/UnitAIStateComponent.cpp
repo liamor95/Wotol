@@ -90,7 +90,7 @@ void UUnitAIStateComponent::EvaluateIdle()
 	// En AttackMove : continuer vers la destination
 	if (bAttackMoveActive)
 	{
-		if (UAIAdaptiveController* AIC = GetAIController())
+		if (AAIAdaptiveController* AIC = GetAIController())
 		{
 			AIC->MoveToLocation(AttackMoveDestination, 100.f);
 		}
@@ -116,7 +116,7 @@ void UUnitAIStateComponent::EvaluatePatrolling()
 		return;
 	}
 
-	if (UAIAdaptiveController* AIC = GetAIController())
+	if (AAIAdaptiveController* AIC = GetAIController())
 	{
 		AUnitBase* Owner = Cast<AUnitBase>(GetOwner());
 		if (!Owner) return;
@@ -159,7 +159,7 @@ void UUnitAIStateComponent::EvaluateSeeking()
 		return;
 	}
 
-	if (UAIAdaptiveController* AIC = GetAIController())
+	if (AAIAdaptiveController* AIC = GetAIController())
 	{
 		AIC->MoveToActor(Target, 50.f);
 	}
@@ -212,7 +212,7 @@ void UUnitAIStateComponent::EvaluateRetreating()
 		return;
 	}
 
-	if (UAIAdaptiveController* AIC = GetAIController())
+	if (AAIAdaptiveController* AIC = GetAIController())
 	{
 		const float DistToSpawn = FVector::Dist2D(Owner->GetActorLocation(), SpawnLocation);
 		if (DistToSpawn > 200.f)
@@ -238,7 +238,7 @@ void UUnitAIStateComponent::TransitionTo(EUnitAIState NewState)
 
 	if (bWasMoving && !bWillMove)
 	{
-		if (UAIAdaptiveController* AIC = GetAIController())
+		if (AAIAdaptiveController* AIC = GetAIController())
 		{
 			AIC->StopMovement();
 		}
@@ -298,11 +298,11 @@ AUnitBase* UUnitAIStateComponent::FindNearestEnemy() const
 	return Nearest;
 }
 
-UAIAdaptiveController* UUnitAIStateComponent::GetAIController() const
+AAIAdaptiveController* UUnitAIStateComponent::GetAIController() const
 {
 	if (AUnitBase* Owner = Cast<AUnitBase>(GetOwner()))
 	{
-		return Cast<UAIAdaptiveController>(Owner->GetController());
+		return Cast<AAIAdaptiveController>(Owner->GetController());
 	}
 	return nullptr;
 }

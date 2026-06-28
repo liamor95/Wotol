@@ -110,8 +110,8 @@ void URTSBattleManager::ActivateAllEnemyAI()
 		for (AUnitBase* Unit : Registry->GetUnitsForFaction(FID))
 		{
 			if (!Unit) continue;
-			if (UAIAdaptiveController* AIC =
-					Cast<UAIAdaptiveController>(Unit->GetController()))
+			if (AAIAdaptiveController* AIC =
+					Cast<AAIAdaptiveController>(Unit->GetController()))
 			{
 				AIC->ActivateRTSBehavior();
 			}

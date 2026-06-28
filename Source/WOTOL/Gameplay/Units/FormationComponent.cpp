@@ -69,8 +69,8 @@ void UFormationComponent::UpdateFormationPositions(
 
 		if (i < CachedSlots.Num())
 		{
-			if (UAIAdaptiveController* AIC =
-					Cast<UAIAdaptiveController>(Unit->GetController()))
+			if (AAIAdaptiveController* AIC =
+					Cast<AAIAdaptiveController>(Unit->GetController()))
 			{
 				AIC->IssueOrder_Move(CachedSlots[i]);
 			}

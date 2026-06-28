@@ -51,7 +51,7 @@ public:
 
 	// Inflige des dégâts ; valeur négative = soin
 	UFUNCTION(BlueprintCallable, Category = "Combat")
-	float TakeDamageFromUnit(float Damage, AUnitBase* Instigator);
+	float TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit);
 
 	// Déclenche une attaque vers la cible (appelé par l'IA ou le joueur)
 	UFUNCTION(BlueprintCallable, Category = "Combat")

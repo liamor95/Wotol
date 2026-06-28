@@ -60,7 +60,7 @@ void AWOTOLGameMode_Battle::SetupBattleFromGameInstance()
 	if (!GS) return;
 
 	GS->PlayerFaction = GI->GetSelectedFaction();
-	GS->EnemyFaction  = (GI->SelectedFaction == EFactionID::Aquiloris)
+	GS->EnemyFaction  = (GI->GetSelectedFaction() == EFactionID::Aquiloris)
 		? EFactionID::Noxeens : EFactionID::Aquiloris;
 
 	if (StateObserver)
@@ -154,8 +154,8 @@ void AWOTOLGameMode_Battle::BroadcastPlayerProfileToAI()
 	for (AUnitBase* Unit : Registry->GetUnitsForFaction(GS->EnemyFaction))
 	{
 		if (!Unit) continue;
-		if (UAIAdaptiveController* AIC =
-				Cast<UAIAdaptiveController>(Unit->GetController()))
+		if (AAIAdaptiveController* AIC =
+				Cast<AAIAdaptiveController>(Unit->GetController()))
 		{
 			AIC->UpdatePlayerProfile(Profile);
 		}

@@ -28,12 +28,12 @@ enum class ERTSOrder : uint8
 // - Adapte son comportement selon le profil comportemental du joueur
 // - PAS d'abonnement à un TacticalPhaseManager (système tour par tour supprimé)
 UCLASS()
-class WOTOL_API UAIAdaptiveController : public AAIController
+class WOTOL_API AAIAdaptiveController : public AAIController
 {
 	GENERATED_BODY()
 
 public:
-	UAIAdaptiveController();
+	AAIAdaptiveController();
 
 	virtual void BeginPlay() override;
 	virtual void OnPossess(APawn* InPawn) override;

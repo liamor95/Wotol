@@ -4,17 +4,17 @@
 #include "Gameplay/Units/VerticalLayerComponent.h"
 #include "Gameplay/Units/AbilityComponent.h"
 
-UAIAdaptiveController::UAIAdaptiveController()
+AAIAdaptiveController::AAIAdaptiveController()
 {
 	bWantsPlayerState = false;
 }
 
-void UAIAdaptiveController::BeginPlay()
+void AAIAdaptiveController::BeginPlay()
 {
 	Super::BeginPlay();
 }
 
-void UAIAdaptiveController::OnPossess(APawn* InPawn)
+void AAIAdaptiveController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
@@ -28,7 +28,7 @@ void UAIAdaptiveController::OnPossess(APawn* InPawn)
 	}
 }
 
-void UAIAdaptiveController::EndPlay(const EEndPlayReason::Type Reason)
+void AAIAdaptiveController::EndPlay(const EEndPlayReason::Type Reason)
 {
 	DeactivateRTSBehavior();
 	Super::EndPlay(Reason);
@@ -36,14 +36,14 @@ void UAIAdaptiveController::EndPlay(const EEndPlayReason::Type Reason)
 
 // ─── Activation RTS ───────────────────────────────────────────────────────────
 
-void UAIAdaptiveController::ActivateRTSBehavior()
+void AAIAdaptiveController::ActivateRTSBehavior()
 {
 	bAIActive    = true;
 	CurrentOrder = ERTSOrder::AttackMove; // comportement par défaut : chercher et combattre
 	SetAIStateActive(true);
 }
 
-void UAIAdaptiveController::DeactivateRTSBehavior()
+void AAIAdaptiveController::DeactivateRTSBehavior()
 {
 	bAIActive    = false;
 	CurrentOrder = ERTSOrder::None;
@@ -53,7 +53,7 @@ void UAIAdaptiveController::DeactivateRTSBehavior()
 
 // ─── Ordres RTS ───────────────────────────────────────────────────────────────
 
-void UAIAdaptiveController::IssueOrder_Move(FVector TargetLocation)
+void AAIAdaptiveController::IssueOrder_Move(FVector TargetLocation)
 {
 	CurrentOrder = ERTSOrder::Move;
 
@@ -67,7 +67,7 @@ void UAIAdaptiveController::IssueOrder_Move(FVector TargetLocation)
 	MoveToLocation(TargetLocation, 50.f);
 }
 
-void UAIAdaptiveController::IssueOrder_AttackMove(FVector TargetLocation)
+void AAIAdaptiveController::IssueOrder_AttackMove(FVector TargetLocation)
 {
 	CurrentOrder = ERTSOrder::AttackMove;
 
@@ -81,7 +81,7 @@ void UAIAdaptiveController::IssueOrder_AttackMove(FVector TargetLocation)
 	MoveToLocation(TargetLocation, 50.f);
 }
 
-void UAIAdaptiveController::IssueOrder_AttackTarget(AUnitBase* Target)
+void AAIAdaptiveController::IssueOrder_AttackTarget(AUnitBase* Target)
 {
 	if (!Target || !Target->IsAlive()) return;
 
@@ -97,7 +97,7 @@ void UAIAdaptiveController::IssueOrder_AttackTarget(AUnitBase* Target)
 	MoveToActor(Target, 50.f);
 }
 
-void UAIAdaptiveController::IssueOrder_HoldPosition()
+void AAIAdaptiveController::IssueOrder_HoldPosition()
 {
 	CurrentOrder = ERTSOrder::HoldPosition;
 	StopMovement();
@@ -110,7 +110,7 @@ void UAIAdaptiveController::IssueOrder_HoldPosition()
 	}
 }
 
-void UAIAdaptiveController::IssueOrder_UseAbility(
+void AAIAdaptiveController::IssueOrder_UseAbility(
 	int32 AbilityIndex, FVector TargetLocation, AUnitBase* TargetUnit)
 {
 	CurrentOrder = ERTSOrder::UseAbility;
@@ -124,7 +124,7 @@ void UAIAdaptiveController::IssueOrder_UseAbility(
 	}
 }
 
-void UAIAdaptiveController::IssueOrder_ChangeLayer(EVerticalLayer NewLayer)
+void AAIAdaptiveController::IssueOrder_ChangeLayer(EVerticalLayer NewLayer)
 {
 	CurrentOrder = ERTSOrder::ChangeLayer;
 
@@ -149,7 +149,7 @@ void UAIAdaptiveController::IssueOrder_ChangeLayer(EVerticalLayer NewLayer)
 	}
 }
 
-void UAIAdaptiveController::IssueOrder_Retreat()
+void AAIAdaptiveController::IssueOrder_Retreat()
 {
 	CurrentOrder = ERTSOrder::Retreat;
 
@@ -170,17 +170,17 @@ void UAIAdaptiveController::IssueOrder_Retreat()
 
 // ─── Adaptation comportementale ───────────────────────────────────────────────
 
-void UAIAdaptiveController::SetControlledFaction(EFactionID InFaction)
+void AAIAdaptiveController::SetControlledFaction(EFactionID InFaction)
 {
 	ControlledFaction = InFaction;
 }
 
-void UAIAdaptiveController::UpdatePlayerProfile(const FPlayerBehaviorProfile& Profile)
+void AAIAdaptiveController::UpdatePlayerProfile(const FPlayerBehaviorProfile& Profile)
 {
 	AdaptToPlayerProfile(Profile);
 }
 
-void UAIAdaptiveController::AdaptToPlayerProfile(const FPlayerBehaviorProfile& Profile)
+void AAIAdaptiveController::AdaptToPlayerProfile(const FPlayerBehaviorProfile& Profile)
 {
 	ComputedAggressionLevel = FMath::Clamp(1.f - Profile.AggressionScore * 0.6f, 0.2f, 1.f);
 	ComputedCautionLevel    = FMath::Clamp(Profile.AggressionScore * 0.7f, 0.2f, 1.f);
@@ -195,7 +195,7 @@ void UAIAdaptiveController::AdaptToPlayerProfile(const FPlayerBehaviorProfile& P
 	}
 }
 
-void UAIAdaptiveController::SetAIStateActive(bool bActive)
+void AAIAdaptiveController::SetAIStateActive(bool bActive)
 {
 	if (UUnitAIStateComponent* State = GetStateComponent())
 	{
@@ -203,7 +203,7 @@ void UAIAdaptiveController::SetAIStateActive(bool bActive)
 	}
 }
 
-UUnitAIStateComponent* UAIAdaptiveController::GetStateComponent() const
+UUnitAIStateComponent* AAIAdaptiveController::GetStateComponent() const
 {
 	if (APawn* P = GetPawn())
 	{

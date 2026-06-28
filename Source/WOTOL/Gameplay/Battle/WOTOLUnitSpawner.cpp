@@ -40,8 +40,8 @@ void AWOTOLUnitSpawner::SpawnUnits()
 
 			// L'AIController est auto-spawné par ACharacter si AIControllerClass est set
 			// On l'informe de la faction
-			if (UAIAdaptiveController* AIC =
-					Cast<UAIAdaptiveController>(Unit->GetController()))
+			if (AAIAdaptiveController* AIC =
+					Cast<AAIAdaptiveController>(Unit->GetController()))
 			{
 				AIC->SetControlledFaction(Faction);
 			}

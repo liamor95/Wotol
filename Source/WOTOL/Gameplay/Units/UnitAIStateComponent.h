@@ -6,7 +6,7 @@
 #include "UnitAIStateComponent.generated.h"
 
 class AUnitBase;
-class UAIAdaptiveController;
+class AAIAdaptiveController;
 
 // Machine d'états C++ pour un RTS temps réel — inspire Total War / Bannerlord
 // PAS de tours. PAS de fenêtres tactiques. L'IA tourne en continu à 250ms.
@@ -96,7 +96,7 @@ private:
 
 	AUnitBase*             FindNearestEnemy() const;
 	AUnitBase*             FindBestTarget() const;  // tient compte de ForceTarget
-	UAIAdaptiveController* GetAIController() const;
+	AAIAdaptiveController* GetAIController() const;
 	bool                   HasLowHealth() const;
 	bool                   IsInAttackRange(AUnitBase* Target) const;
 

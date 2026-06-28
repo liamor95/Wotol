@@ -173,7 +173,7 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 	{
 		if (!Unit || !Unit->IsAlive()) continue;
 
-		UAIAdaptiveController* AIC = Cast<UAIAdaptiveController>(Unit->GetController());
+		AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(Unit->GetController());
 		if (!AIC) continue;
 
 		if (TargetUnit && TargetUnit->GetFaction() != PlayerFaction)
