@@ -141,6 +141,17 @@ const FBuildingInstance* UBuildingManagerSubsystem::GetBuilding(FName BuildingID
 	return Buildings.Find(BuildingID);
 }
 
+bool UBuildingManagerSubsystem::GetBuildingInfo(
+	FName BuildingID, FBuildingInstance& OutBuilding) const
+{
+	if (const FBuildingInstance* B = Buildings.Find(BuildingID))
+	{
+		OutBuilding = *B;
+		return true;
+	}
+	return false;
+}
+
 TArray<FName> UBuildingManagerSubsystem::GetBuildingsForFaction(EFactionID Faction) const
 {
 	TArray<FName> Result;

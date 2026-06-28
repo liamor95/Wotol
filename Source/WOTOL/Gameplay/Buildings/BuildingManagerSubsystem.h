@@ -78,8 +78,13 @@ public:
 
 	// ─── Lecture ───────────────────────────────────────────────────────────────
 
-	UFUNCTION(BlueprintPure, Category = "Buildings")
+	// C++ interne uniquement — un pointeur de struct ne peut pas être exposé au Blueprint.
+	// Pour le Blueprint, utiliser GetBuildingInfo() ci-dessous qui renvoie une copie.
 	const FBuildingInstance* GetBuilding(FName BuildingID) const;
+
+	// Version Blueprint : renvoie une copie + un booléen de validité
+	UFUNCTION(BlueprintPure, Category = "Buildings")
+	bool GetBuildingInfo(FName BuildingID, FBuildingInstance& OutBuilding) const;
 
 	UFUNCTION(BlueprintPure, Category = "Buildings")
 	TArray<FName> GetBuildingsForFaction(EFactionID Faction) const;
