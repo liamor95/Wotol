@@ -75,6 +75,29 @@
 - **Cause** : forward declaration insuffisante pour un enum/struct utilisé par valeur.
 - **Correction** : `#include` du header qui définit le type (ex. `"Data/WOTOLTypes.h"`).
 
+### C5 — Accès à un membre sur un type incomplet (forward-declared)
+- **Symptôme** : `error C2027: use of undefined type 'UXxx'` en accédant à `Ptr->Membre`.
+- **Cause** : la classe n'est que forward-declared (`class UXxx;`), le `.cpp` doit voir sa définition.
+- **Correction** : `#include` du header de la classe dans le `.cpp` (ex. `#include "UnitDataAsset.h"`
+  dès qu'on fait `GetUnitData()->Stats.X`). Pareil pour `GetCharacterMovement()->X`
+  → `#include "GameFramework/CharacterMovementComponent.h"`.
+
+### C6 — Lambda sur un délégué DYNAMIC
+- **Symptôme** : `error C2039: 'AddWeakLambda' (ou 'AddLambda') is not a member of 'FOnXxx'`.
+- **Cause** : un `DECLARE_DYNAMIC_MULTICAST_DELEGATE` n'accepte PAS de lambda — uniquement `AddDynamic`.
+- **Correction** : créer une `UFUNCTION() void Handler(...)` et faire `Delegate.AddDynamic(this, &Class::Handler)`.
+  (Les lambdas ne marchent que sur les délégués NON-dynamiques : `DECLARE_MULTICAST_DELEGATE`.)
+
+### C7 — Valeur d'enum inexistante
+- **Symptôme** : `error C2065: 'Ground': undeclared identifier` sur `EMonEnum::Ground`.
+- **Cause** : la valeur n'existe pas dans l'enum (ex. `EVerticalLayer` n'a pas `Ground`, mais `Epipelagique`).
+- **Correction** : toujours vérifier les valeurs réelles de l'enum dans `WOTOLTypes.h` avant usage.
+
+### ⚡ Astuce diagnostic (gain de temps majeur)
+- Quand la compilation échoue, **copier-coller le TEXTE du log** (fichier `Saved/Logs/WOTOL.log`)
+  plutôt qu'une photo : le texte montre TOUTES les erreurs d'un coup → correction groupée en 1 passe
+  au lieu d'itérer une erreur à la fois (chaque recompilation coûtant plusieurs minutes).
+
 ---
 
 ## D. Process de travail recommandé (récupération du code)
