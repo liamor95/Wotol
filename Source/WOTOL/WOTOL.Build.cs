@@ -6,6 +6,10 @@ public class WOTOL : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
+		// Permet les includes relatifs à la racine du module (ex: "Data/WOTOLTypes.h",
+		// "Gameplay/Units/UnitBase.h") depuis n'importe quel fichier du module.
+		PublicIncludePaths.Add(ModuleDirectory);
+
 		PublicDependencyModuleNames.AddRange(new string[]
 		{
 			"Core", "CoreUObject", "Engine", "InputCore",

@@ -337,6 +337,9 @@ ces règles pour compiler du premier coup dans UE 5.7.4.
 ### Includes
 - Tout header qui utilise un type de `WOTOLTypes.h` (`EFactionID`, `EResourceType`, `FUnitStats`…)
   doit faire `#include "Data/WOTOLTypes.h"` (les forward declarations ne suffisent pas pour les enums/structs utilisés par valeur)
+- `WOTOL.Build.cs` DOIT contenir `PublicIncludePaths.Add(ModuleDirectory);` sinon les includes
+  relatifs à la racine du module (`"Data/WOTOLTypes.h"`, `"Gameplay/Units/UnitBase.h"`) échouent →
+  erreur `fatal error C1083: Cannot open include file`
 
 ### Méthode de récupération du code recommandée (Liamor)
 - Utiliser **GitHub Desktop** (clone + bouton « Pull ») plutôt que « Download ZIP » à répétition :
