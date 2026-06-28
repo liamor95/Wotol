@@ -1,5 +1,6 @@
 #include "AIAdaptiveController.h"
 #include "Gameplay/Units/UnitBase.h"
+#include "Gameplay/Units/UnitDataAsset.h"
 #include "Gameplay/Units/UnitAIStateComponent.h"
 #include "Gameplay/Units/VerticalLayerComponent.h"
 #include "Gameplay/Units/AbilityComponent.h"

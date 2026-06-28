@@ -1,5 +1,6 @@
 #include "UnitBase.h"
 #include "UnitDataAsset.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "VerticalLayerComponent.h"
 #include "UnitMoraleComponent.h"
 #include "AbilityComponent.h"
@@ -28,14 +29,8 @@ void AUnitBase::BeginPlay()
 		Registry->RegisterUnit(this, Faction);
 	}
 
-	// Rerouting déclenché quand le moral tombe à 0
-	if (MoraleComp)
-	{
-		MoraleComp->OnUnitRouting.AddWeakLambda(this, [this]()
-		{
-			// Blueprint peut écouter OnUnitRouting pour changer l'animation
-		});
-	}
+	// La déroute (moral à 0) est exposée via MoraleComp->OnUnitRouting :
+	// le Blueprint de l'unité peut s'y abonner pour changer l'animation.
 }
 
 void AUnitBase::EndPlay(const EEndPlayReason::Type Reason)

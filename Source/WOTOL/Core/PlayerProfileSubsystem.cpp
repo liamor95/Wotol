@@ -14,7 +14,9 @@ void UPlayerProfileSubsystem::RecordAttack(bool bWasAggressive)
 
 void UPlayerProfileSubsystem::RecordLayerChange(EVerticalLayer NewLayer)
 {
-	if (NewLayer != EVerticalLayer::Ground)
+	// La couche de surface est Épipélagique ; tout changement vers une couche
+	// plus profonde compte comme une utilisation de la verticalité.
+	if (NewLayer != EVerticalLayer::Epipelagique)
 	{
 		Profile.VerticalUsageRatio = FMath::Clamp(
 			Profile.VerticalUsageRatio + 0.05f, 0.f, 1.f);

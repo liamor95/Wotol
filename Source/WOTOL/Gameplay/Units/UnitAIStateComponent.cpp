@@ -1,5 +1,6 @@
 #include "UnitAIStateComponent.h"
 #include "UnitBase.h"
+#include "UnitDataAsset.h"
 #include "Gameplay/AI/AIAdaptiveController.h"
 #include "Core/FactionRegistrySubsystem.h"
 #include "AIController.h"
@@ -18,12 +19,14 @@ void UUnitAIStateComponent::BeginPlay()
 	{
 		SpawnLocation = Owner->GetActorLocation();
 
-		Owner->OnUnitDied.AddWeakLambda(this, [this](AUnitBase*)
-		{
-			TransitionTo(EUnitAIState::Dead);
-			SetAIActive(false);
-		});
+		Owner->OnUnitDied.AddDynamic(this, &UUnitAIStateComponent::HandleOwnerDied);
 	}
+}
+
+void UUnitAIStateComponent::HandleOwnerDied(AUnitBase* /*Unit*/)
+{
+	TransitionTo(EUnitAIState::Dead);
+	SetAIActive(false);
 }
 
 void UUnitAIStateComponent::EndPlay(const EEndPlayReason::Type Reason)

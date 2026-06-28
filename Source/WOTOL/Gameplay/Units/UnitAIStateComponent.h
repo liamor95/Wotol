@@ -85,6 +85,10 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 
 private:
+	// Réagit à la mort de l'unité possédée (lié à AUnitBase::OnUnitDied, délégué dynamique)
+	UFUNCTION()
+	void HandleOwnerDied(AUnitBase* Unit);
+
 	void AITick();
 
 	// Logique par état
