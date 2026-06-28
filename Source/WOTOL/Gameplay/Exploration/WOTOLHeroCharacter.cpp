@@ -29,7 +29,7 @@ void AWOTOLHeroCharacter::BeginPlay()
 
 	if (UWOTOLGameInstance* GI = Cast<UWOTOLGameInstance>(GetGameInstance()))
 	{
-		Faction = GI->SelectedFaction;
+		Faction = GI->GetSelectedFaction();
 	}
 }
 
