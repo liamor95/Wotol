@@ -35,21 +35,15 @@ float UWOTOLBattleWidget::GetCaptureProgress() const
 
 EFactionID UWOTOLBattleWidget::GetCapturingFaction() const
 {
-	if (AWOTOLGameState_Battle* GS = Cast<AWOTOLGameState_Battle>(
-			UGameplayStatics::GetGameState(this)))
-	{
-		return GS->ActiveTurnFaction;
-	}
+	// RTS : la faction qui capture vient du TerritoryStateManager (zone principale).
+	// Branché en BP via TerritoryStateManager ; placeholder ici.
 	return EFactionID::None;
 }
 
 EFactionID UWOTOLBattleWidget::GetActiveTurnFaction() const
 {
-	if (AWOTOLGameState_Battle* GS = Cast<AWOTOLGameState_Battle>(
-			UGameplayStatics::GetGameState(this)))
-	{
-		return GS->ActiveTurnFaction;
-	}
+	// Obsolète (système tour par tour supprimé — jeu RTS temps réel).
+	// Conservé pour compatibilité Blueprint ; renvoie toujours None.
 	return EFactionID::None;
 }
 
