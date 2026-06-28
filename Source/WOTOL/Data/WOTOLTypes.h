@@ -407,3 +407,42 @@ struct FSessionConfig
 	UPROPERTY(BlueprintReadWrite)
 	TArray<TSoftObjectPtr<class UUnitDataAsset>> SelectedSquad;
 };
+
+// ─── Couleurs officielles des factions — SOURCE DE VÉRITÉ UNIQUE ─────────────
+// Aquiloris   = Bleu
+// Noxéens     = Vert (PAS violet)
+// Thalassidras = Jaune-orange
+// Muréniens   = Violet (PAS vert)
+// Pirates Abyssaux = Rouge
+// Ne jamais définir ces couleurs ailleurs dans le code ou les assets.
+
+USTRUCT(BlueprintType)
+struct FFactionColors
+{
+	GENERATED_BODY()
+
+	static FLinearColor Get(EFactionID Faction)
+	{
+		switch (Faction)
+		{
+			case EFactionID::Aquiloris:       return FLinearColor(0.05f, 0.35f, 0.90f, 1.f); // Bleu
+			case EFactionID::Noxeens:         return FLinearColor(0.05f, 0.75f, 0.20f, 1.f); // Vert
+			case EFactionID::Thalassidras:    return FLinearColor(0.95f, 0.65f, 0.05f, 1.f); // Jaune-orange
+			case EFactionID::Mureniens:       return FLinearColor(0.50f, 0.10f, 0.80f, 1.f); // Violet
+			case EFactionID::PiratesAbyssaux: return FLinearColor(0.85f, 0.10f, 0.10f, 1.f); // Rouge
+			default:                          return FLinearColor::White;
+		}
+	}
+
+	// Vrai si la faction est jouable dans la démo (Couche 1 uniquement)
+	static bool IsPlayableInDemo(EFactionID Faction)
+	{
+		return Faction == EFactionID::Aquiloris || Faction == EFactionID::Noxeens;
+	}
+
+	// Vrai si le nom de la faction doit être caché dans l'écran de sélection
+	static bool IsNameHiddenInDemo(EFactionID Faction)
+	{
+		return !IsPlayableInDemo(Faction) && Faction != EFactionID::None;
+	}
+};

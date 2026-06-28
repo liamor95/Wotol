@@ -59,7 +59,7 @@ void AWOTOLGameMode_Battle::SetupBattleFromGameInstance()
 	AWOTOLGameState_Battle* GS = GetGameState<AWOTOLGameState_Battle>();
 	if (!GS) return;
 
-	GS->PlayerFaction = GI->SelectedFaction;
+	GS->PlayerFaction = GI->GetSelectedFaction();
 	GS->EnemyFaction  = (GI->SelectedFaction == EFactionID::Aquiloris)
 		? EFactionID::Noxeens : EFactionID::Aquiloris;
 
@@ -101,7 +101,16 @@ void AWOTOLGameMode_Battle::SpawnBattleCamera()
 	Params.Owner = this;
 	BattleCamera = GetWorld()->SpawnActor<AWOTOLBattleCamera>(
 		AWOTOLBattleCamera::StaticClass(),
-		FVector(0.f, 0.f, 2000.f), FRotator(-60.f, 0.f, 0.f), Params);
+		FVector(0.f, 0.f, 2000.f), FRotator::ZeroRotator, Params);
+
+	if (BattleCamera)
+	{
+		if (AWOTOLPlayerController_Battle* PC =
+				Cast<AWOTOLPlayerController_Battle>(GetWorld()->GetFirstPlayerController()))
+		{
+			PC->SetBattleCamera(BattleCamera.Get());
+		}
+	}
 }
 
 void AWOTOLGameMode_Battle::StartDeploymentPhase()
@@ -192,4 +201,17 @@ void AWOTOLGameMode_Battle::OnVictoryConditionMet(EFactionID Winner, EBattleResu
 		}
 		SaveSys->SaveGame();
 	}
+
+	// Stocker le résultat dans le GameInstance pour que le Hub puisse l'afficher
+	if (UWOTOLGameInstance* GI = Cast<UWOTOLGameInstance>(GetGameInstance()))
+	{
+		GI->LastBattleResult = Result;
+	}
+
+	// Délai 3 s pour que l'écran de résultats s'affiche, puis charger le Hub
+	FTimerHandle TH;
+	GetWorldTimerManager().SetTimer(TH, [this]()
+	{
+		UGameplayStatics::OpenLevel(this, TEXT("Hub"));
+	}, 3.f, false);
 }

@@ -19,17 +19,11 @@ void AWOTOLPlayerController_Battle::BeginPlay()
 	// Récupérer la faction depuis le GameInstance
 	if (UWOTOLGameInstance* GI = Cast<UWOTOLGameInstance>(GetGameInstance()))
 	{
-		PlayerFaction = GI->SelectedFaction;
+		PlayerFaction = GI->GetSelectedFaction();
 	}
 
-	// Trouver la caméra de bataille dans le monde
-	TArray<AActor*> Cameras;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AWOTOLBattleCamera::StaticClass(), Cameras);
-	if (!Cameras.IsEmpty())
-	{
-		BattleCamera = Cast<AWOTOLBattleCamera>(Cameras[0]);
-		Possess(BattleCamera.Get());
-	}
+	// La caméra est spawnée par le GameMode et placée dans le niveau.
+	// Le GameMode appellera SetBattleCamera() juste avant BeginPlay.
 }
 
 void AWOTOLPlayerController_Battle::SetupInputComponent()
@@ -55,6 +49,15 @@ void AWOTOLPlayerController_Battle::Tick(float DeltaSeconds)
 		float X, Y;
 		GetMousePosition(X, Y);
 		BoxSelectCurrent = FVector2D(X, Y);
+	}
+}
+
+void AWOTOLPlayerController_Battle::SetBattleCamera(AWOTOLBattleCamera* Camera)
+{
+	BattleCamera = Camera;
+	if (Camera)
+	{
+		Possess(Camera);
 	}
 }
 
@@ -176,7 +179,7 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 		if (TargetUnit && TargetUnit->GetFaction() != PlayerFaction)
 		{
 			// Ordre d'attaque
-			AIC->IssueAttackCommand(TargetUnit);
+			AIC->IssueOrder_AttackTarget(TargetUnit);
 		}
 		else
 		{
@@ -186,7 +189,7 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 				SelectionMgr->GetSelectionCount()));
 			const FVector Offset(FMath::Cos(Angle) * 150.f,
 			                     FMath::Sin(Angle) * 150.f, 0.f);
-			AIC->IssueMoveCommand(TargetLocation + Offset);
+			AIC->IssueOrder_Move(TargetLocation + Offset);
 		}
 	}
 }

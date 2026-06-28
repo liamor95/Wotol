@@ -39,6 +39,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Session")
 	void RestoreSessionFromSave();
 
+	// ─── Résultat de la dernière bataille (pour le Hub) ──────────────────────
+
+	UPROPERTY(BlueprintReadWrite, Category = "Battle")
+	EBattleResult LastBattleResult = EBattleResult::None;
+
 	// ─── Compatibilité ancien code ────────────────────────────────────────────
 	UFUNCTION(BlueprintPure, Category = "Session")
 	EFactionID GetSelectedFactionLegacy() const { return SessionConfig.SelectedFaction; }

@@ -29,6 +29,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Battle")
 	void SetPlayerFaction(EFactionID Faction);
 
+	// Appelé par le GameMode après le spawn de la caméra
+	UFUNCTION(BlueprintCallable, Category = "Battle")
+	void SetBattleCamera(AWOTOLBattleCamera* Camera);
+
 	// Exposé pour que le HUD affiche l'état de sélection
 	UFUNCTION(BlueprintPure, Category = "Battle")
 	UUnitSelectionManager* GetSelectionManager() const;

@@ -7,8 +7,17 @@
 class UCameraComponent;
 class USpringArmComponent;
 
-// Caméra isométrique de la bataille tactique
-// Spawné et possédé par le PlayerController_Battle au BeginPlay
+// Caméra de bataille libre 3D — Total War / Bannerlord style
+// Sous-marin → verticalité complète, 4 couches de profondeur navigables
+//
+// Contrôles :
+//   WASD / flèches      → pan horizontal
+//   Q / E               → descente / montée verticale (profondeur)
+//   Molette             → zoom avant/arrière
+//   Clic milieu + drag  → rotation Yaw (orbite horizontale)
+//   Clic droit + drag   → rotation Pitch (inclinaison)
+//   F                   → focus sur sélection
+//   Bord écran          → edge scrolling (optionnel, activable)
 UCLASS()
 class WOTOL_API AWOTOLBattleCamera : public APawn
 {
@@ -20,31 +29,67 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* Input) override;
 
-	// Bornes de déplacement de la caméra dans le niveau (à configurer dans l'éditeur)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Bounds")
-	FVector2D PanBoundsMin = FVector2D(-5000.f, -5000.f);
+	// ─── Limites de la carte ──────────────────────────────────────────────────
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Bounds")
-	FVector2D PanBoundsMax = FVector2D(5000.f, 5000.f);
+	FVector BoundsMin = FVector(-8000.f, -8000.f, -14000.f); // Hadal = -12000 UE units
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Bounds")
+	FVector BoundsMax = FVector(8000.f, 8000.f, 500.f);      // Épipélagique + marge
+
+	// ─── Vitesses ─────────────────────────────────────────────────────────────
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Speed")
-	float PanSpeed = 1200.f;
+	float PanSpeed = 2000.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Speed")
-	float ZoomSpeed = 200.f;
+	float VerticalSpeed = 1000.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Speed")
+	float RotationSpeed = 120.f;   // degrés/s (clic milieu + drag)
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Speed")
+	float ZoomSpeed = 300.f;
+
+	// ─── Zoom ─────────────────────────────────────────────────────────────────
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Zoom")
-	float MinArmLength = 400.f;
+	float MinArmLength = 300.f;    // très proche des unités
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Zoom")
-	float MaxArmLength = 2500.f;
+	float MaxArmLength = 6000.f;   // vue globale du champ de bataille
+
+	// ─── Angles ───────────────────────────────────────────────────────────────
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Angle")
-	float PitchAngle = -55.f;
+	float DefaultPitch = -50.f;    // vue 3/4 vers le bas au départ
 
-	// Centre la caméra sur une position monde
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Angle")
+	float MinPitch = -89.f;        // vue quasi verticale
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Angle")
+	float MaxPitch = -10.f;        // vue quasi horizontale (cinématique)
+
+	// ─── Edge scrolling ───────────────────────────────────────────────────────
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|EdgeScroll")
+	bool bEdgeScrollEnabled = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|EdgeScroll")
+	float EdgeScrollZonePercent = 0.03f; // 3% du bord écran
+
+	// ─── API publique ─────────────────────────────────────────────────────────
+
+	// Centre la caméra sur un point monde (conserve la hauteur courante)
 	UFUNCTION(BlueprintCallable, Category = "Camera")
 	void FocusOn(FVector WorldLocation);
+
+	// Aller directement à une couche verticale (Épipélagique = 0, Hadal = -12000)
+	UFUNCTION(BlueprintCallable, Category = "Camera")
+	void FocusOnLayer(float TargetZ);
+
+	UFUNCTION(BlueprintPure, Category = "Camera")
+	float GetCurrentZoom() const;
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
@@ -57,11 +102,39 @@ protected:
 	TObjectPtr<UCameraComponent> Camera;
 
 private:
-	FVector2D PanInput;
-	float     ZoomInput = 0.f;
+	// Inputs accumulés ce frame
+	FVector2D PanInput      = FVector2D::ZeroVector;
+	float     VerticalInput = 0.f;
+	float     ZoomInput     = 0.f;
+	float     YawInput      = 0.f;
+	float     PitchInput    = 0.f;
 
-	void PanForward(float Value);
-	void PanRight(float Value);
-	void Zoom(float Value);
+	// État rotation par drag
+	bool      bRotatingYaw   = false; // bouton milieu
+	bool      bRotatingPitch = false; // bouton droit (optionnel)
+	FVector2D LastMousePos;
+
+	// Rotation courante du bras (indépendante du contrôleur)
+	float CurrentYaw   = -45.f;
+	float CurrentPitch = -50.f;
+
+	// ─── Bindings ─────────────────────────────────────────────────────────────
+	void InputPanForward(float V);
+	void InputPanRight(float V);
+	void InputVertical(float V);
+	void InputZoom(float V);
+	void InputMiddleMousePressed();
+	void InputMiddleMouseReleased();
+	void InputMouseX(float V);
+	void InputMouseY(float V);
+
+	// ─── Update ───────────────────────────────────────────────────────────────
+	void TickPan(float DT);
+	void TickZoom(float DT);
+	void TickEdgeScroll(float DT);
+	void TickRotation(float DT);
 	void ClampPosition();
+	void ApplyArmRotation();
+
+	APlayerController* GetOwnerPC() const;
 };
