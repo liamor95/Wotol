@@ -300,3 +300,45 @@ E_VerticalLevel :
 ## 11. Journal technique Notion
 
 À la fin de chaque session de travail, tu mets à jour la page Notion 🛠️ Journal technique WOTOL avec ce que tu as fait, les décisions prises, et le prochain blocage. ID de la page : 38872c33-8b59-81d6-9686-cbd8653395ed
+
+---
+
+## 12. Build & compilation — RÈGLES ANTI-BUG (vécues, ne JAMAIS réintroduire)
+
+Ces problèmes ont déjà bloqué l'ouverture du projet. Tout code généré doit respecter
+ces règles pour compiler du premier coup dans UE 5.7.4.
+
+### Environnement
+- **Moteur installé : Unreal Engine 5.7.4** → `WOTOL.uproject` doit avoir `"EngineAssociation": "5.7"`
+- **Visual Studio 2022** avec la charge de travail **« Game development with C++ »** OBLIGATOIRE
+- Fichiers `Target.cs` obligatoires dans `Source/` : `WOTOL.Target.cs` + `WOTOLEditor.Target.cs`
+- Dans les `Target.cs` : `DefaultBuildSettings = BuildSettingsVersion.Latest` (JAMAIS `V5` →
+  provoque le conflit `UndefinedIdentifierWarningLevel: Off != Error` avec l'éditeur partagé)
+
+### Encodage des fichiers
+- `WOTOL.uproject` doit rester **UTF-8 sans BOM**. **NE JAMAIS l'ouvrir/enregistrer dans le Bloc-notes**
+  (ça le convertit en UTF-16 → erreur `JsonException: '0xFF' is an invalid start of a value`)
+- Tous les fichiers source `.h`/`.cpp` en UTF-8
+
+### Conventions de nommage UE (erreurs UHT bloquantes)
+- Classe dérivée d'un **Acteur** (AActor, ACharacter, **AAIController**, APawn, AController…) →
+  préfixe **`A`** obligatoire. Ex : `AAIAdaptiveController` (PAS `UAIAdaptiveController`)
+- Classe dérivée de **UObject** (subsystem, component, data asset, widget) → préfixe **`U`**
+- Erreur typique : `Class 'UXxx' has an invalid Unreal prefix, expecting 'AXxx'`
+
+### UFUNCTION — interdits UHT
+- **Jamais** retourner un **pointeur de struct** (`const FMaStruct*`) depuis une `UFUNCTION`.
+  → Garder la fonction en C++ pur (sans macro UFUNCTION), et fournir une version Blueprint
+  qui renvoie une **copie + booléen** via paramètre de sortie (`bool GetX(FName, FMaStruct& Out)`)
+- **Jamais** nommer un paramètre de `UFUNCTION` comme un membre hérité d'`AActor` :
+  `Instigator`, `Owner`, `Role`, `Owner` masquent les membres → erreur `shadowing is not allowed`.
+  Utiliser `InstigatorUnit`, `OwnerActor`, etc.
+
+### Includes
+- Tout header qui utilise un type de `WOTOLTypes.h` (`EFactionID`, `EResourceType`, `FUnitStats`…)
+  doit faire `#include "Data/WOTOLTypes.h"` (les forward declarations ne suffisent pas pour les enums/structs utilisés par valeur)
+
+### Méthode de récupération du code recommandée (Liamor)
+- Utiliser **GitHub Desktop** (clone + bouton « Pull ») plutôt que « Download ZIP » à répétition :
+  évite la corruption d'encodage et permet la compilation **incrémentale** (rapide).
+- Workflow : Pull origin → ouvrir `WOTOL.uproject` → recompiler. Jamais éditer les fichiers à la main.
