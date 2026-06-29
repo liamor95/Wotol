@@ -76,21 +76,8 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		: FFactionColors::Get(GetFaction());
 	NameTag->SetTextRenderColor(TagColor.ToFColor(true));
 
-	// Recolore le kraken en violet "calamar" une seule fois (toutes ses pièces)
-	if (bCreatureBrain && !bCreatureStyled && PartMIDs.Num() > 0)
-	{
-		const FLinearColor Squid(0.55f, 0.1f, 0.7f, 1.f);
-		const FLinearColor SquidAccent(0.2f, 0.85f, 1.f, 1.f); // craquelures cyan
-		for (int32 i = 0; i < PartMIDs.Num(); ++i)
-		{
-			if (!PartMIDs[i]) continue;
-			// la 1re pièce (manteau pointu) garde un liseré cyan, le reste violet
-			const FLinearColor C = (i % 4 == 1) ? SquidAccent : Squid;
-			PartMIDs[i]->SetVectorParameterValue(TEXT("Color"), C);
-			if (PartBaseColors.IsValidIndex(i)) PartBaseColors[i] = C;
-		}
-		bCreatureStyled = true;
-	}
+	// (Le kraken/Noxedrake a déjà ses couleurs fidèles — armure bleu-violet +
+	//  craquelures cyan — construites dans AssembleSilhouette. Pas de surcharge.)
 
 	// L'étiquette fait toujours face à la caméra du joueur
 	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
@@ -284,159 +271,166 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole Role, float H,
 	const FRotator NoRot = FRotator::ZeroRotator;
 	const float h = H / 100.f; // facteur d'échelle vertical (mesh primitif = 100 UE)
 
-	// Corps humanoïde générique (torse + tête) réutilisé par la plupart des unités.
-	auto BuildHumanoid = [&](float BodyW)
+	// ── Palette FIDÈLE aux références (couleurs propres à chaque unité) ──
+	// Aquiloris : armure bleu acier, lisérés or, énergie cyan
+	const FLinearColor AqArmor (0.11f, 0.20f, 0.50f, 1.f);
+	const FLinearColor AqGold  (0.95f, 0.78f, 0.25f, 1.f);
+	const FLinearColor AqEnergy(0.45f, 0.88f, 1.00f, 1.f);
+	// Noxéens : corps sombre, lumens violets / bleus / verts selon l'unité
+	const FLinearColor NoxDark  (0.08f, 0.07f, 0.13f, 1.f);
+	const FLinearColor NoxViolet(0.62f, 0.20f, 0.98f, 1.f);
+	const FLinearColor NoxBlue  (0.25f, 0.60f, 1.00f, 1.f);
+	const FLinearColor NoxGreen (0.28f, 0.95f, 0.42f, 1.f);
+	const FLinearColor NoxBronze(0.10f, 0.09f, 0.07f, 1.f);
+	const FLinearColor Tusk     (0.55f, 0.42f, 0.20f, 1.f);
+
+	// Corps humanoïde générique (torse + tête) — couleur passée en paramètre.
+	auto BuildHumanoid = [&](float BodyW, const FLinearColor& Col)
 	{
 		SetupMainPart(M_CYL, FVector(0, 0, -H * 0.06f),
-			FVector(BodyW, BodyW, h * 0.5f), NoRot, Base);              // torse
+			FVector(BodyW, BodyW, h * 0.5f), NoRot, Col);              // torse
 		AddPart(M_SPH, FVector(0, 0, H * 0.33f),
-			FVector(BodyW * 0.95f, BodyW * 0.95f, BodyW * 0.95f), NoRot, Base); // tête
+			FVector(BodyW * 0.95f, BodyW * 0.95f, BodyW * 0.95f), NoRot, Col); // tête
 	};
 
 	const FString Id = UnitID.ToString();
 
-	// ───────────────── AQUILORIS ─────────────────
+	// ───────────────── AQUILORIS (bleu acier + or + énergie cyan) ─────────────
 	if (Id == TEXT("Aquis")) // Chef : épée photonique + cape
 	{
-		BuildHumanoid(0.34f);
-		AddPart(M_CONE, FVector(20, 36, H * 0.20f), FVector(0.10f, 0.10f, h * 0.7f), FRotator(0, 0, 8.f), Accent); // épée
-		AddPart(M_CUBE, FVector(-22, 0, H * 0.05f), FVector(0.05f, 0.55f, h * 0.45f), FRotator(8.f, 0, 0), Base);  // cape
-		AddPart(M_CONE, FVector(0, 0, H * 0.50f), FVector(0.18f, 0.18f, h * 0.12f), NoRot, Accent);                // crête
+		BuildHumanoid(0.34f, AqArmor);
+		AddPart(M_CONE, FVector(20, 36, H * 0.20f), FVector(0.10f, 0.10f, h * 0.7f), FRotator(0, 0, 8.f), AqEnergy); // épée
+		AddPart(M_CUBE, FVector(-22, 0, H * 0.05f), FVector(0.05f, 0.55f, h * 0.45f), FRotator(8.f, 0, 0), AqArmor); // cape
+		AddPart(M_CONE, FVector(0, 0, H * 0.50f), FVector(0.18f, 0.18f, h * 0.12f), NoRot, AqGold);                  // crête or
 		return;
 	}
 	if (Id == TEXT("Aquiloryons")) // Infanterie : épée + bouclier cristal
 	{
-		BuildHumanoid(0.34f);
-		AddPart(M_CONE, FVector(18, 34, H * 0.20f), FVector(0.09f, 0.09f, h * 0.55f), FRotator(0, 0, 6.f), Accent); // épée
-		AddPart(M_CUBE, FVector(16, -38, H * 0.02f), FVector(0.08f, 0.45f, h * 0.4f), FRotator(0, 0, -10.f), Accent); // bouclier
+		BuildHumanoid(0.34f, AqArmor);
+		AddPart(M_CONE, FVector(18, 34, H * 0.20f), FVector(0.09f, 0.09f, h * 0.55f), FRotator(0, 0, 6.f), AqEnergy);   // épée
+		AddPart(M_CUBE, FVector(16, -38, H * 0.02f), FVector(0.08f, 0.45f, h * 0.4f), FRotator(0, 0, -10.f), AqEnergy); // bouclier cristal
 		return;
 	}
 	if (Id == TEXT("Aquilances")) // Montée : cavalier sur monture + lance
 	{
-		// Monture (corps allongé bas)
 		SetupMainPart(M_SPH, FVector(10, 0, -H * 0.22f),
-			FVector(h * 1.4f, h * 0.7f, h * 0.55f), NoRot, Base);
-		AddPart(M_CONE, FVector(70, 0, -H * 0.20f), FVector(0.5f, 0.5f, h * 0.3f), FRotator(70.f, 0, 0), Base); // tête monture
-		// Cavalier
-		AddPart(M_CYL, FVector(-10, 0, H * 0.10f), FVector(0.26f, 0.26f, h * 0.3f), NoRot, Base);
-		AddPart(M_SPH, FVector(-10, 0, H * 0.34f), FVector(0.26f, 0.26f, 0.26f), NoRot, Base);
-		AddPart(M_CYL, FVector(20, 22, H * 0.18f), FVector(0.05f, 0.05f, h * 0.9f), FRotator(20.f, 0, 60.f), Accent); // lance
+			FVector(h * 1.4f, h * 0.7f, h * 0.55f), NoRot, AqArmor);                                      // monture
+		AddPart(M_CONE, FVector(70, 0, -H * 0.20f), FVector(0.5f, 0.5f, h * 0.3f), FRotator(70.f, 0, 0), AqArmor); // tête monture
+		AddPart(M_CYL, FVector(-10, 0, H * 0.10f), FVector(0.26f, 0.26f, h * 0.3f), NoRot, AqArmor);      // cavalier corps
+		AddPart(M_SPH, FVector(-10, 0, H * 0.34f), FVector(0.26f, 0.26f, 0.26f), NoRot, AqArmor);         // cavalier tête
+		AddPart(M_CYL, FVector(20, 22, H * 0.18f), FVector(0.05f, 0.05f, h * 0.9f), FRotator(20.f, 0, 60.f), AqEnergy); // lance
 		return;
 	}
 	if (Id == TEXT("Aquipheres") || Id == TEXT("Aquispheres")) // Distance : canon à sphère
 	{
-		BuildHumanoid(0.32f);
-		AddPart(M_CYL, FVector(42, 10, H * 0.04f), FVector(0.16f, 0.16f, h * 0.5f), FRotator(90.f, 0, 0), Base); // canon (axe +X)
-		AddPart(M_SPH, FVector(42 + H * 0.28f, 10, H * 0.04f), FVector(0.22f, 0.22f, 0.22f), NoRot, Accent);     // sphère d'énergie
+		BuildHumanoid(0.32f, AqArmor);
+		AddPart(M_CYL, FVector(42, 10, H * 0.04f), FVector(0.16f, 0.16f, h * 0.5f), FRotator(90.f, 0, 0), AqGold); // canon (liseré or)
+		AddPart(M_SPH, FVector(42 + H * 0.28f, 10, H * 0.04f), FVector(0.22f, 0.22f, 0.22f), NoRot, AqEnergy);     // sphère d'énergie
 		return;
 	}
-	if (Id == TEXT("Aquilombres")) // Spéciale : assassin furtif, fin + dague
+	if (Id == TEXT("Aquilombres")) // Spéciale : assassin furtif (bleu nuit) + dague
 	{
-		BuildHumanoid(0.26f);
-		AddPart(M_CONE, FVector(16, 24, H * 0.10f), FVector(0.07f, 0.07f, h * 0.35f), FRotator(0, 0, 20.f), Accent);
+		BuildHumanoid(0.26f, FLinearColor(0.05f, 0.07f, 0.20f, 1.f));
+		AddPart(M_CONE, FVector(16, 24, H * 0.10f), FVector(0.07f, 0.07f, h * 0.35f), FRotator(0, 0, 20.f), AqEnergy);
 		return;
 	}
-	if (Id == TEXT("Leviaphenix")) // Mythique Aquiloris : grand corps + ailes
+	if (Id == TEXT("Leviaphenix")) // Mythique Aquiloris : grand corps + ailes or
 	{
-		SetupMainPart(M_SPH, FVector(0, 0, 0), FVector(h * 0.7f, h * 0.5f, h * 0.8f), NoRot, Base);
-		AddPart(M_CONE, FVector(20, 0, H * 0.45f), FVector(0.6f, 0.6f, h * 0.3f), NoRot, Base);                 // tête/bec
-		AddPart(M_CUBE, FVector(-10, 70, H * 0.1f), FVector(0.1f, h * 0.6f, h * 0.5f), FRotator(0, 0, 25.f), Accent); // aile
-		AddPart(M_CUBE, FVector(-10, -70, H * 0.1f), FVector(0.1f, h * 0.6f, h * 0.5f), FRotator(0, 0, -25.f), Accent);
+		SetupMainPart(M_SPH, FVector(0, 0, 0), FVector(h * 0.7f, h * 0.5f, h * 0.8f), NoRot, AqArmor);
+		AddPart(M_CONE, FVector(20, 0, H * 0.45f), FVector(0.6f, 0.6f, h * 0.3f), NoRot, AqGold);                  // tête/bec or
+		AddPart(M_CUBE, FVector(-10, 70, H * 0.1f), FVector(0.1f, h * 0.6f, h * 0.5f), FRotator(0, 0, 25.f), AqGold);  // aile
+		AddPart(M_CUBE, FVector(-10, -70, H * 0.1f), FVector(0.1f, h * 0.6f, h * 0.5f), FRotator(0, 0, -25.f), AqGold);
 		return;
 	}
 
-	// ───────────────── NOXÉENS ─────────────────
-	if (Id == TEXT("Noxar")) // Chef : humanoïde tentaculé
+	// ───────────────── NOXÉENS (corps sombre + lumens) ─────────────────
+	if (Id == TEXT("Noxar")) // Chef : humanoïde sombre tentaculé (lumens violets)
 	{
-		BuildHumanoid(0.34f);
+		BuildHumanoid(0.34f, NoxDark);
+		AddPart(M_SPH, FVector(8, 0, H * 0.33f), FVector(0.12f, 0.12f, 0.12f), NoRot, NoxViolet); // yeux violets
 		for (int32 i = 0; i < 4; ++i)
 		{
 			const float Side = (i % 2 == 0) ? 1.f : -1.f;
 			const float Up   = (i < 2) ? 0.30f : 0.18f;
 			AddPart(M_CONE, FVector(-8, Side * 26, H * Up),
-				FVector(0.07f, 0.07f, h * 0.4f), FRotator(0, 0, Side * 50.f), Accent);
+				FVector(0.07f, 0.07f, h * 0.4f), FRotator(0, 0, Side * 50.f), NoxViolet);
 		}
 		return;
 	}
-	if (Id == TEXT("Noxeflare")) // Infanterie : corps sombre, yeux/épines violets
+	if (Id == TEXT("Noxeflare")) // Infanterie : corps violet sombre, amas d'yeux violets
 	{
-		BuildHumanoid(0.32f);
-		AddPart(M_SPH, FVector(8, 0, H * 0.33f), FVector(0.12f, 0.12f, 0.12f), NoRot, Accent); // amas d'yeux violets
-		AddPart(M_CONE, FVector(0, 16, H * 0.42f), FVector(0.08f, 0.08f, h * 0.18f), FRotator(0, 0, 30.f), Accent);
-		AddPart(M_CONE, FVector(0, -16, H * 0.42f), FVector(0.08f, 0.08f, h * 0.18f), FRotator(0, 0, -30.f), Accent);
+		BuildHumanoid(0.32f, FLinearColor(0.12f, 0.06f, 0.18f, 1.f));
+		AddPart(M_SPH, FVector(8, 0, H * 0.33f), FVector(0.13f, 0.13f, 0.13f), NoRot, NoxViolet); // amas d'yeux
+		AddPart(M_CONE, FVector(0, 16, H * 0.42f), FVector(0.08f, 0.08f, h * 0.18f), FRotator(0, 0, 30.f), NoxViolet);
+		AddPart(M_CONE, FVector(0, -16, H * 0.42f), FVector(0.08f, 0.08f, h * 0.18f), FRotator(0, 0, -30.f), NoxViolet);
 		return;
 	}
-	if (Id == TEXT("Noxeblast")) // Distance : 2 tentacules dorsales lumineuses
+	if (Id == TEXT("Noxeblast")) // Distance : sombre, yeux + 2 tentacules dorsales BLEUES
 	{
-		BuildHumanoid(0.32f);
-		AddPart(M_SPH, FVector(8, 0, H * 0.33f), FVector(0.10f, 0.10f, 0.10f), NoRot, Accent); // yeux
-		AddPart(M_CONE, FVector(-14, 18, H * 0.30f), FVector(0.06f, 0.06f, h * 0.6f), FRotator(-30.f, 0, 35.f), Accent);
-		AddPart(M_CONE, FVector(-14, -18, H * 0.30f), FVector(0.06f, 0.06f, h * 0.6f), FRotator(-30.f, 0, -35.f), Accent);
+		BuildHumanoid(0.32f, NoxDark);
+		AddPart(M_SPH, FVector(8, 0, H * 0.33f), FVector(0.10f, 0.10f, 0.10f), NoRot, NoxBlue); // yeux bleus
+		AddPart(M_CONE, FVector(-14, 18, H * 0.30f), FVector(0.06f, 0.06f, h * 0.6f), FRotator(-30.f, 0, 35.f), NoxBlue);
+		AddPart(M_CONE, FVector(-14, -18, H * 0.30f), FVector(0.06f, 0.06f, h * 0.6f), FRotator(-30.f, 0, -35.f), NoxBlue);
 		return;
 	}
-	if (Id == TEXT("Noxebeast")) // Montée : quadrupède cuirassé (défenses + épines)
+	if (Id == TEXT("Noxebeast")) // Montée : quadrupède cuirassé bronze, yeux verts, défenses
 	{
 		SetupMainPart(M_CUBE, FVector(0, 0, -H * 0.18f),
-			FVector(h * 1.3f, h * 0.85f, h * 0.55f), NoRot, Base); // corps massif
-		AddPart(M_CUBE, FVector(H * 0.55f, 0, -H * 0.10f), FVector(h * 0.45f, h * 0.6f, h * 0.4f), NoRot, Base); // tête
-		AddPart(M_SPH, FVector(H * 0.78f, 14, -H * 0.06f), FVector(0.07f, 0.07f, 0.07f), NoRot, Accent);          // œil vert
-		AddPart(M_SPH, FVector(H * 0.78f, -14, -H * 0.06f), FVector(0.07f, 0.07f, 0.07f), NoRot, Accent);
-		AddPart(M_CONE, FVector(H * 0.7f, 22, -H * 0.22f), FVector(0.08f, 0.08f, h * 0.25f), FRotator(120.f, 0, 0), Accent); // défense
-		AddPart(M_CONE, FVector(H * 0.7f, -22, -H * 0.22f), FVector(0.08f, 0.08f, h * 0.25f), FRotator(120.f, 0, 0), Accent);
-		// 4 pattes
+			FVector(h * 1.3f, h * 0.85f, h * 0.55f), NoRot, NoxBronze); // corps massif
+		AddPart(M_CUBE, FVector(H * 0.55f, 0, -H * 0.10f), FVector(h * 0.45f, h * 0.6f, h * 0.4f), NoRot, NoxBronze); // tête
+		AddPart(M_SPH, FVector(H * 0.78f, 14, -H * 0.06f), FVector(0.07f, 0.07f, 0.07f), NoRot, NoxGreen);            // œil vert
+		AddPart(M_SPH, FVector(H * 0.78f, -14, -H * 0.06f), FVector(0.07f, 0.07f, 0.07f), NoRot, NoxGreen);
+		AddPart(M_CONE, FVector(H * 0.7f, 22, -H * 0.22f), FVector(0.08f, 0.08f, h * 0.25f), FRotator(120.f, 0, 0), Tusk); // défense
+		AddPart(M_CONE, FVector(H * 0.7f, -22, -H * 0.22f), FVector(0.08f, 0.08f, h * 0.25f), FRotator(120.f, 0, 0), Tusk);
 		const float LegZ = -H * 0.36f, LegX = H * 0.32f, LegY = H * 0.30f;
 		for (int32 i = 0; i < 4; ++i)
 		{
 			const float Sx = (i < 2) ? 1.f : -1.f;
 			const float Sy = (i % 2 == 0) ? 1.f : -1.f;
-			AddPart(M_CYL, FVector(Sx * LegX, Sy * LegY, LegZ), FVector(0.16f, 0.16f, h * 0.18f), NoRot, Base);
+			AddPart(M_CYL, FVector(Sx * LegX, Sy * LegY, LegZ), FVector(0.16f, 0.16f, h * 0.18f), NoRot, NoxBronze);
 		}
-		// épines dorsales
-		AddPart(M_CONE, FVector(-H * 0.1f, 0, H * 0.06f), FVector(0.12f, 0.12f, h * 0.2f), NoRot, Base);
+		AddPart(M_CONE, FVector(-H * 0.1f, 0, H * 0.06f), FVector(0.12f, 0.12f, h * 0.2f), NoRot, NoxBronze); // épine dorsale
 		return;
 	}
-	if (Id == TEXT("Noxeons")) // Spéciale : organisme bioluminescent
+	if (Id == TEXT("Noxeons")) // Spéciale : organisme bioluminescent vert
 	{
-		SetupMainPart(M_SPH, FVector(0, 0, -H * 0.1f), FVector(h * 0.6f, h * 0.6f, h * 0.55f), NoRot, Base);
+		SetupMainPart(M_SPH, FVector(0, 0, -H * 0.1f), FVector(h * 0.6f, h * 0.6f, h * 0.55f), NoRot, NoxDark);
 		for (int32 i = 0; i < 5; ++i)
 		{
 			const float Ang = 2.f * PI * i / 5.f;
 			AddPart(M_CONE, FVector(FMath::Cos(Ang) * 20.f, FMath::Sin(Ang) * 20.f, -H * 0.3f),
-				FVector(0.07f, 0.07f, h * 0.3f), FRotator(0, FMath::RadiansToDegrees(Ang), 30.f), Accent);
+				FVector(0.07f, 0.07f, h * 0.3f), FRotator(0, FMath::RadiansToDegrees(Ang), 30.f), NoxGreen);
 		}
 		return;
 	}
-	if (Id == TEXT("Noxedrake")) // Mythique / boss "Kraken" : manteau + tentacules
+	if (Id == TEXT("Noxedrake")) // Mythique / boss "Kraken" : armure bleu-violet + craquelures cyan
 	{
-		// Tête bulbeuse
-		SetupMainPart(M_SPH, FVector(0, 0, H * 0.05f), FVector(h * 0.55f, h * 0.55f, h * 0.5f), NoRot, Base);
-		// Manteau pointu (capuchon) — pièce 1 = accent cyan côté kraken
-		AddPart(M_CONE, FVector(-10, 0, H * 0.35f), FVector(h * 0.6f, h * 0.6f, h * 0.5f), NoRot, Accent);
-		// Yeux
-		AddPart(M_SPH, FVector(H * 0.4f, 18, H * 0.08f), FVector(0.12f, 0.12f, 0.12f), NoRot, Accent);
-		AddPart(M_SPH, FVector(H * 0.4f, -18, H * 0.08f), FVector(0.12f, 0.12f, 0.12f), NoRot, Accent);
-		// Tentacules splayés vers le bas/avant
+		const FLinearColor KrakArmor(0.14f, 0.11f, 0.26f, 1.f);
+		const FLinearColor KrakGlow (0.20f, 0.85f, 1.00f, 1.f);
+		SetupMainPart(M_SPH, FVector(0, 0, H * 0.05f), FVector(h * 0.55f, h * 0.55f, h * 0.5f), NoRot, KrakArmor); // tête bulbeuse
+		AddPart(M_CONE, FVector(-10, 0, H * 0.35f), FVector(h * 0.6f, h * 0.6f, h * 0.5f), NoRot, KrakArmor);      // manteau pointu
+		AddPart(M_SPH, FVector(H * 0.4f, 18, H * 0.08f), FVector(0.12f, 0.12f, 0.12f), NoRot, KrakGlow);           // œil
+		AddPart(M_SPH, FVector(H * 0.4f, -18, H * 0.08f), FVector(0.12f, 0.12f, 0.12f), NoRot, KrakGlow);
 		for (int32 i = 0; i < 6; ++i)
 		{
 			const float Ang = PI * (i / 5.f) - PI * 0.5f; // -90°..+90°
 			AddPart(M_CONE, FVector(H * 0.25f + FMath::Cos(Ang) * 20.f, FMath::Sin(Ang) * 40.f, -H * 0.25f),
-				FVector(0.14f, 0.14f, h * 0.55f), FRotator(120.f, FMath::RadiansToDegrees(Ang), 0), Base);
+				FVector(0.14f, 0.14f, h * 0.55f), FRotator(120.f, FMath::RadiansToDegrees(Ang), 0), KrakArmor);
 		}
-		// 2 longs fouets vers l'avant
-		AddPart(M_CYL, FVector(H * 0.6f, 16, -H * 0.1f), FVector(0.06f, 0.06f, h * 0.9f), FRotator(80.f, 0, 0), Base);
-		AddPart(M_CYL, FVector(H * 0.6f, -16, -H * 0.1f), FVector(0.06f, 0.06f, h * 0.9f), FRotator(80.f, 0, 0), Base);
+		AddPart(M_CYL, FVector(H * 0.6f, 16, -H * 0.1f), FVector(0.06f, 0.06f, h * 0.9f), FRotator(80.f, 0, 0), KrakArmor); // fouet
+		AddPart(M_CYL, FVector(H * 0.6f, -16, -H * 0.1f), FVector(0.06f, 0.06f, h * 0.9f), FRotator(80.f, 0, 0), KrakArmor);
 		return;
 	}
 
 	// ───────────────── Fallback générique (rôle) ─────────────────
 	switch (Role)
 	{
-		case EUnitRole::Chef:       BuildHumanoid(0.36f); break;
+		case EUnitRole::Chef:       BuildHumanoid(0.36f, Base); break;
 		case EUnitRole::Montee:     SetupMainPart(M_CUBE, FVector(0,0,-H*0.1f), FVector(h*0.9f,h*0.6f,h*0.6f), NoRot, Base); break;
-		case EUnitRole::Distance:   BuildHumanoid(0.30f); AddPart(M_CONE, FVector(36,0,0), FVector(0.14f,0.14f,h*0.3f), FRotator(90.f,0,0), Accent); break;
+		case EUnitRole::Distance:   BuildHumanoid(0.30f, Base); AddPart(M_CONE, FVector(36,0,0), FVector(0.14f,0.14f,h*0.3f), FRotator(90.f,0,0), Accent); break;
 		case EUnitRole::Mythique:   SetupMainPart(M_SPH, FVector(0,0,0), FVector(h*0.7f,h*0.7f,h*0.8f), NoRot, Base); break;
-		case EUnitRole::Speciale:   BuildHumanoid(0.24f); break;
-		default:                    BuildHumanoid(0.32f); break;
+		case EUnitRole::Speciale:   BuildHumanoid(0.24f, Base); break;
+		default:                    BuildHumanoid(0.32f, Base); break;
 	}
 }
 
