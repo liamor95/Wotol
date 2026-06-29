@@ -64,6 +64,23 @@ Faction joueur : vient du menu si lancé depuis le flow ; sinon **Aquiloris par 
 
 ---
 
+## 5bis. ⭐ MISE À JOUR — Démo AUTO-JOUABLE (Stage 3)
+
+La démo s'enchaîne maintenant **toute seule** (idéal projection réunion), sans intervention :
+
+1. **Bataille créature** : ton armée (chef + 10 infanterie + 5 montées) vs 1 créature massive
+2. **Victoire détectée** (camp anéanti) → distance **débloquée**, mythique **découvert**, **objet de capture posé** (Cristalliseur/Abyssalyseur), message « Zone capturée — Grade 1 »
+3. **Bataille de défense rivale** : ton armée (cette fois **AVEC la distance**) vs escouade rivale
+4. **Victoire** → objet de capture **endommagé puis réparé** → **« Fin de démo »**
+
++ **Décor contextualisé** par code : sol fond marin, **arche centrale** repère, plateaux verticaux, **zones de déploiement colorées** par faction. Messages narratifs affichés à l'écran.
+
+Fichiers ajoutés : `WOTOLGreyboxEnvironment.h/.cpp`. Director enrichi (détection fin de bataille via FactionRegistry + IsAlive, enchaînement des phases, objet de capture, messages).
+
+**Test = 3 étapes** : niveau avec sol + `NavMeshBoundsVolume` → GameMode Override `WOTOLGameMode_Demo` → Play. Tout se déroule seul.
+
+---
+
 ## 6. Garanties
 
 - Base figée `claude/base-jouable-v1` **non touchée**.
