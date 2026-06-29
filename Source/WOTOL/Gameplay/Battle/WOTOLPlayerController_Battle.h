@@ -37,6 +37,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Battle")
 	UUnitSelectionManager* GetSelectionManager() const;
 
+	// État de la boîte de sélection (lu par le HUD pour dessiner le rectangle)
+	bool      IsBoxSelecting() const { return bIsBoxSelecting; }
+	FVector2D GetBoxStart()    const { return BoxSelectStart; }
+	FVector2D GetBoxCurrent()  const { return BoxSelectCurrent; }
+
 	// Seuil en pixels pour décider si un clic devient un drag
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	float BoxSelectDragThreshold = 10.f;

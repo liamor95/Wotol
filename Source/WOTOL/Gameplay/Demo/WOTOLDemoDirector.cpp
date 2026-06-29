@@ -370,6 +370,16 @@ void AWOTOLDemoDirector::EndDemo(bool bPlayerWon)
 void AWOTOLDemoDirector::Say(const FString& Message)
 {
 	OnDemoMessage.Broadcast(Message);
+
+	// Publie au HUD (affichage centré)
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
+		{
+			Demo->SetMessage(Message);
+		}
+	}
+
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 6.f, FColor::Cyan, Message);

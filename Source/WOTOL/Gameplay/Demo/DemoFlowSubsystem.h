@@ -134,6 +134,13 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Demo")
 	FOnDemoPhaseChanged OnDemoPhaseChanged;
 
+	// Message courant affiché par le HUD (objectif / narration)
+	UPROPERTY(BlueprintReadOnly, Category = "Demo")
+	FString CurrentMessage;
+
+	UFUNCTION(BlueprintCallable, Category = "Demo")
+	void SetMessage(const FString& Msg) { CurrentMessage = Msg; }
+
 private:
 	EDemoPhase    CurrentPhase = EDemoPhase::None;
 	FDemoProgress Progress;

@@ -1,6 +1,7 @@
 #include "WOTOLGameMode_Demo.h"
 #include "WOTOLDemoDirector.h"
 #include "WOTOLGreyboxEnvironment.h"
+#include "WOTOLDemoHUD.h"
 #include "Gameplay/Battle/WOTOLBattleCamera.h"
 #include "Gameplay/Battle/WOTOLPlayerController_Battle.h"
 #include "Core/WOTOLGameInstance.h"
@@ -11,6 +12,7 @@ AWOTOLGameMode_Demo::AWOTOLGameMode_Demo()
 	// PlayerController de bataille : sélection + ordres (clic droit) sur tes unités
 	DefaultPawnClass      = nullptr;
 	PlayerControllerClass = AWOTOLPlayerController_Battle::StaticClass();
+	HUDClass              = AWOTOLDemoHUD::StaticClass(); // HUD dessiné en C++ (pas d'UMG)
 }
 
 void AWOTOLGameMode_Demo::BeginPlay()
