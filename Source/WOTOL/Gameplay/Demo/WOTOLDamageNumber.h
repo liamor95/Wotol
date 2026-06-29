@@ -29,5 +29,5 @@ protected:
 	TObjectPtr<UTextRenderComponent> Text;
 
 	float Age  = 0.f;
-	float Life = 1.1f;
+	float Life = 1.5f;
 };

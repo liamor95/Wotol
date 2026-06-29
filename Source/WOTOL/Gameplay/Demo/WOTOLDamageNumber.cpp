@@ -10,7 +10,7 @@ AWOTOLDamageNumber::AWOTOLDamageNumber()
 	Text = CreateDefaultSubobject<UTextRenderComponent>(TEXT("Text"));
 	RootComponent = Text;
 	Text->SetHorizontalAlignment(EHTA_Center);
-	Text->SetWorldSize(70.f);
+	Text->SetWorldSize(120.f); // gros et lisible
 }
 
 void AWOTOLDamageNumber::Init(float Amount, const FLinearColor& Color)

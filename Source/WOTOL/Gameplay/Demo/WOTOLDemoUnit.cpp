@@ -105,7 +105,7 @@ void AWOTOLDemoUnit::HandleHealthChanged(float NewHealth, float MaxHealth)
 	{
 		const float Dmg = LastKnownHealth - NewHealth;
 		const FVector Loc = GetActorLocation() + FVector(0.f, 0.f, 60.f);
-		AWOTOLDamageNumber::Spawn(GetWorld(), Loc, Dmg, FLinearColor(1.f, 0.25f, 0.1f, 1.f));
+		AWOTOLDamageNumber::Spawn(GetWorld(), Loc, Dmg, FLinearColor(1.f, 0.f, 0.f, 1.f)); // rouge vif
 	}
 	LastKnownHealth = NewHealth;
 }
