@@ -62,7 +62,7 @@ public:
 	FOnCaptureObjectHealthChanged OnHealthChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "Capture")
-	FOnCaptureObjectDestroyed OnDestroyed;
+	FOnCaptureObjectDestroyed OnCaptureDestroyed;
 
 protected:
 	virtual void BeginPlay() override;

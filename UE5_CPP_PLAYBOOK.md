@@ -65,10 +65,13 @@
 - **Cause** : une `UFUNCTION` renvoie `const FMaStruct*`.
 - **Correction** : garder la fonction en **C++ pur** (sans macro UFUNCTION) ; pour le Blueprint, exposer une version `bool GetX(FName Id, FMaStruct& Out)` (copie + booléen).
 
-### C3 — Paramètre qui masque un membre d'AActor
-- **Symptôme** : `Function parameter: 'Instigator' ... already defined in scope 'AActor' (shadowing is not allowed)`.
-- **Cause** : paramètre de `UFUNCTION` nommé comme un membre hérité (`Instigator`, `Owner`, `Role`).
-- **Correction** : renommer (`InstigatorUnit`, `OwnerActor`, `UnitRole`…).
+### C3 — Nom qui masque un membre d'AActor (paramètre OU variable membre)
+- **Symptôme** : `... cannot be defined ... already defined in scope 'AActor' (shadowing is not allowed)`.
+- **Cause** : un **paramètre de UFUNCTION** OU une **UPROPERTY membre** porte le nom d'un membre hérité.
+  Noms piégeux : `Instigator`, `Owner`, `Role`, **`OnDestroyed`** (délégué déjà sur AActor),
+  `InputComponent`, `Children`, `Tags`…
+- **Correction** : renommer (`InstigatorUnit`, `OwnerActor`, `UnitRole`, `OnCaptureDestroyed`…).
+- ⚠️ Vérifier en particulier les **délégués** UPROPERTY : `OnDestroyed` existe déjà sur AActor.
 
 ### C4 — Enum/struct utilisé sans include
 - **Symptôme** : type non déclaré (`EFactionID` undeclared, etc.).

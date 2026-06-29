@@ -71,7 +71,7 @@ void AWOTOLCaptureObject::ApplyDamage(float Amount)
 
 	if (CurrentHealth <= 0.f)
 	{
-		OnDestroyed.Broadcast();
+		OnCaptureDestroyed.Broadcast();
 	}
 }
 
