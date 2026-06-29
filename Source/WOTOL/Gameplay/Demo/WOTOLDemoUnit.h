@@ -68,7 +68,7 @@ private:
 	void SetupMainPart(const TCHAR* MeshPath, const FVector& RelLoc,
 		const FVector& RelScale, const FRotator& RelRot, const FLinearColor& Color);
 	// Assemble la silhouette selon l'unité (corps + tête + accessoires).
-	void AssembleSilhouette(FName UnitID, EUnitRole Role, float HeightU,
+	void AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float HeightU,
 		const FLinearColor& Base, const FLinearColor& Accent);
 
 	UPROPERTY()

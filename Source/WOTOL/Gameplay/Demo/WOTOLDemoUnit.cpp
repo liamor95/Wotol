@@ -265,7 +265,7 @@ void AWOTOLDemoUnit::SetupMainPart(const TCHAR* MeshPath, const FVector& RelLoc,
 
 // Assemble une silhouette reconnaissable par unité (corps + tête + accessoires).
 // Tout est exprimé par rapport au CENTRE de la capsule ; H = hauteur totale (UE).
-void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole Role, float H,
+void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float H,
 	const FLinearColor& Base, const FLinearColor& Accent)
 {
 	const FRotator NoRot = FRotator::ZeroRotator;
@@ -423,7 +423,7 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole Role, float H,
 	}
 
 	// ───────────────── Fallback générique (rôle) ─────────────────
-	switch (Role)
+	switch (UnitRole)
 	{
 		case EUnitRole::Chef:       BuildHumanoid(0.36f, Base); break;
 		case EUnitRole::Montee:     SetupMainPart(M_CUBE, FVector(0,0,-H*0.1f), FVector(h*0.9f,h*0.6f,h*0.6f), NoRot, Base); break;
