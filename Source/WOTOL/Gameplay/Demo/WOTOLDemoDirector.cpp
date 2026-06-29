@@ -1,24 +1,42 @@
 #include "WOTOLDemoDirector.h"
 #include "WOTOLDemoUnit.h"
+#include "WOTOLCaptureObject.h"
 #include "DemoFlowSubsystem.h"
 #include "Gameplay/Units/UnitBase.h"
 #include "Gameplay/Units/UnitDataAsset.h"
 #include "Gameplay/Battle/RTSBattleManager.h"
+#include "Core/FactionRegistrySubsystem.h"
 #include "Data/UnitDataRegistrySubsystem.h"
 #include "Core/WOTOLGameInstance.h"
 #include "Engine/GameInstance.h"
+#include "Engine/Engine.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 
 AWOTOLDemoDirector::AWOTOLDemoDirector()
 {
 	PrimaryActorTick.bCanEverTick = false;
-	DemoUnitClass = AWOTOLDemoUnit::StaticClass();
+	DemoUnitClass      = AWOTOLDemoUnit::StaticClass();
+	CaptureObjectClass = AWOTOLCaptureObject::StaticClass();
 }
 
 void AWOTOLDemoDirector::BeginPlay()
 {
 	Super::BeginPlay();
+
+	CachedPlayerFaction = ResolvePlayerFaction();
+	CachedRivalFaction  = RivalOf(CachedPlayerFaction);
+
+	// Démarre la démo à la première bataille (créature)
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
+		{
+			Demo->SetPhase(EDemoPhase::Battle_Creature);
+		}
+	}
+
+	Say(TEXT("Phase 1 — Bataille contre la créature. Anéantissez-la !"));
 	StartCurrentBattle();
 }
 
@@ -37,20 +55,34 @@ EFactionID AWOTOLDemoDirector::RivalOf(EFactionID Faction) const
 	return (Faction == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
 }
 
+int32 AWOTOLDemoDirector::CountAlive(EFactionID Faction) const
+{
+	int32 Alive = 0;
+	if (UWorld* W = GetWorld())
+	{
+		if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
+		{
+			for (AUnitBase* U : Reg->GetUnitsForFaction(Faction))
+			{
+				if (U && U->IsAlive()) ++Alive;
+			}
+		}
+	}
+	return Alive;
+}
+
 void AWOTOLDemoDirector::StartCurrentBattle()
 {
-	const EFactionID Player = ResolvePlayerFaction();
-	const EFactionID Rival  = RivalOf(Player);
-	const FVector Center    = GetActorLocation();
+	bBattleConcluded = false;
 
+	const FVector Center = GetActorLocation();
 	const FVector PlayerOrigin = Center + FVector(-ArmySeparation * 0.5f, 0.f, 0.f);
-	const FVector EnemyOrigin   = Center + FVector( ArmySeparation * 0.5f, 0.f, 0.f);
+	const FVector EnemyOrigin  = Center + FVector( ArmySeparation * 0.5f, 0.f, 0.f);
 	const FRotator FaceRight(0.f, 0.f, 0.f);
 	const FRotator FaceLeft(0.f, 180.f, 0.f);
 
-	SpawnPlayerArmy(Player, PlayerOrigin, FaceRight);
+	SpawnPlayerArmy(CachedPlayerFaction, PlayerOrigin, FaceRight);
 
-	// Type de bataille selon la phase de démo
 	EBattleType BattleType = EBattleType::CreatureEncounter;
 	if (UGameInstance* GI = GetGameInstance())
 	{
@@ -62,22 +94,23 @@ void AWOTOLDemoDirector::StartCurrentBattle()
 
 	if (BattleType == EBattleType::RivalDefense)
 	{
-		SpawnRivalSquad(Rival, EnemyOrigin, FaceLeft);
+		SpawnRivalSquad(CachedRivalFaction, EnemyOrigin, FaceLeft);
 	}
 	else
 	{
-		SpawnEnemyForCreature(Rival, EnemyOrigin, FaceLeft);
+		SpawnEnemyForCreature(CachedRivalFaction, EnemyOrigin, FaceLeft);
 	}
 
-	FTimerHandle TH;
 	GetWorldTimerManager().SetTimer(
-		TH, this, &AWOTOLDemoDirector::LaunchBattle, FMath::Max(0.1f, BattleStartDelay), false);
+		BattleStartHandle, this, &AWOTOLDemoDirector::LaunchBattle,
+		FMath::Max(0.1f, BattleStartDelay), false);
 }
 
 void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Origin, const FRotator& Facing)
 {
 	UGameInstance* GI = GetGameInstance();
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
 
 	int32 Row = 0;
 	auto PlaceLine = [&](FName UnitID, int32 Count)
@@ -92,13 +125,11 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 		++Row;
 	};
 
-	// Chef (toujours) + infanterie + montée
-	PlaceLine(Demo ? Demo->GetUnitID(Faction, EDemoUnitCategory::Chef) : NAME_None, 1);
-	PlaceLine(Demo ? Demo->GetUnitID(Faction, EDemoUnitCategory::Infanterie) : NAME_None, InfantryCount);
-	PlaceLine(Demo ? Demo->GetUnitID(Faction, EDemoUnitCategory::Montee) : NAME_None, MountedCount);
+	PlaceLine(Demo->GetUnitID(Faction, EDemoUnitCategory::Chef), 1);
+	PlaceLine(Demo->GetUnitID(Faction, EDemoUnitCategory::Infanterie), InfantryCount);
+	PlaceLine(Demo->GetUnitID(Faction, EDemoUnitCategory::Montee), MountedCount);
 
-	// Distance UNIQUEMENT si débloquée (après la 1ère victoire)
-	if (Demo && Demo->IsCategoryUnlocked(EDemoUnitCategory::Distance))
+	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Distance))
 	{
 		PlaceLine(Demo->GetUnitID(Faction, EDemoUnitCategory::Distance), RangedCount);
 	}
@@ -106,8 +137,6 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 
 void AWOTOLDemoDirector::SpawnEnemyForCreature(EFactionID RivalFaction, const FVector& Origin, const FRotator& Facing)
 {
-	// Créature massive : réutilise les stats du mythique rival (gros PV existants),
-	// agrandie pour la lisibilité. Placeholder, aucune stat inventée.
 	UGameInstance* GI = GetGameInstance();
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	const FName CreatureID = Demo
@@ -122,7 +151,6 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	if (!Demo) return;
 
-	// Petite escouade rivale : chef + infanterie réduite + montée réduite
 	SpawnUnit(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Chef),
 		Origin + FVector(0.f, 0.f, 100.f), Facing, 1.f);
 
@@ -159,6 +187,8 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 
 	Unit->UnitData = Data;
 	UGameplayStatics::FinishSpawningActor(Unit, SpawnTM);
+
+	SpawnedUnits.Add(Unit);
 	return Unit;
 }
 
@@ -167,5 +197,145 @@ void AWOTOLDemoDirector::LaunchBattle()
 	if (URTSBattleManager* RTS = GetWorld()->GetSubsystem<URTSBattleManager>())
 	{
 		RTS->StartBattlePhase(600.f);
+	}
+
+	// Surveille la fin de bataille (un camp anéanti) toutes les 2 s
+	GetWorldTimerManager().SetTimer(
+		BattleCheckHandle, this, &AWOTOLDemoDirector::CheckBattleEnd, 2.f, true);
+}
+
+void AWOTOLDemoDirector::CheckBattleEnd()
+{
+	if (bBattleConcluded) return;
+
+	const int32 PlayerAlive = CountAlive(CachedPlayerFaction);
+	const int32 EnemyAlive  = CountAlive(CachedRivalFaction);
+
+	if (EnemyAlive <= 0 && PlayerAlive > 0)
+	{
+		bBattleConcluded = true;
+		GetWorldTimerManager().ClearTimer(BattleCheckHandle);
+		OnPlayerVictory();
+	}
+	else if (PlayerAlive <= 0)
+	{
+		bBattleConcluded = true;
+		GetWorldTimerManager().ClearTimer(BattleCheckHandle);
+		OnPlayerDefeat();
+	}
+}
+
+void AWOTOLDemoDirector::OnPlayerVictory()
+{
+	UGameInstance* GI = GetGameInstance();
+	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+
+	if (URTSBattleManager* RTS = GetWorld()->GetSubsystem<URTSBattleManager>())
+	{
+		RTS->EndBattle(CachedPlayerFaction, EBattleResult::Victory);
+	}
+
+	const EDemoPhase Phase = Demo ? Demo->GetPhase() : EDemoPhase::None;
+
+	if (Phase == EDemoPhase::Battle_Creature)
+	{
+		Say(TEXT("VICTOIRE ! Créature vaincue. Distance débloquée, mythique juvénile découvert."));
+		if (Demo)
+		{
+			Demo->UnlockRangedUnit();
+			Demo->DiscoverMythic();
+		}
+		SpawnCaptureObject(CachedPlayerFaction);
+		Say(TEXT("Zone capturée — Grade 1. Préparez la défense..."));
+
+		GetWorldTimerManager().SetTimer(
+			PhaseHandle, this, &AWOTOLDemoDirector::StartRivalDefense,
+			FMath::Max(0.5f, PhaseTransitionDelay), false);
+	}
+	else if (Phase == EDemoPhase::Battle_Rival)
+	{
+		Say(TEXT("Objectif atteint ! Zone défendue. Réparation de l'objet de capture..."));
+		if (CaptureObject)
+		{
+			CaptureObject->ApplyDamage(CaptureObject->MaxHealth * 0.4f); // endommagé
+			CaptureObject->Repair(CaptureObject->MaxHealth);             // puis réparé
+		}
+		EndDemo(true);
+	}
+}
+
+void AWOTOLDemoDirector::OnPlayerDefeat()
+{
+	if (URTSBattleManager* RTS = GetWorld()->GetSubsystem<URTSBattleManager>())
+	{
+		RTS->EndBattle(CachedRivalFaction, EBattleResult::Defeat);
+	}
+	Say(TEXT("Défaite... La démo se relance bientôt."));
+	EndDemo(false);
+}
+
+void AWOTOLDemoDirector::CleanupUnits()
+{
+	for (TObjectPtr<AWOTOLDemoUnit>& U : SpawnedUnits)
+	{
+		if (U) U->Destroy();
+	}
+	SpawnedUnits.Empty();
+}
+
+void AWOTOLDemoDirector::SpawnCaptureObject(EFactionID Faction)
+{
+	if (!CaptureObjectClass) return;
+
+	const FTransform TM(FRotator::ZeroRotator, GetActorLocation() + FVector(0.f, 0.f, 200.f));
+	AWOTOLCaptureObject* Obj = GetWorld()->SpawnActorDeferred<AWOTOLCaptureObject>(
+		CaptureObjectClass, TM, this, nullptr,
+		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
+	if (!Obj) return;
+
+	Obj->OwnerFaction = Faction;
+	UGameplayStatics::FinishSpawningActor(Obj, TM);
+	Obj->ClaimZone();
+	CaptureObject = Obj;
+}
+
+void AWOTOLDemoDirector::StartRivalDefense()
+{
+	CleanupUnits();
+
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
+		{
+			Demo->SetPhase(EDemoPhase::Battle_Rival);
+		}
+	}
+
+	Say(TEXT("Phase 2 — La faction rivale attaque votre zone ! Défendez-la !"));
+	StartCurrentBattle();
+}
+
+void AWOTOLDemoDirector::EndDemo(bool bPlayerWon)
+{
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
+		{
+			Demo->SetPhase(EDemoPhase::DemoEnd);
+		}
+	}
+
+	if (bPlayerWon)
+	{
+		Say(TEXT("FIN DE DÉMO — Le conflit Aquiloris / Noxéens ne fait que commencer. La suite éveillera le mythique."));
+	}
+}
+
+void AWOTOLDemoDirector::Say(const FString& Message)
+{
+	OnDemoMessage.Broadcast(Message);
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 6.f, FColor::Cyan, Message);
 	}
 }

@@ -6,22 +6,27 @@
 #include "WOTOLDemoDirector.generated.h"
 
 class AWOTOLDemoUnit;
+class AWOTOLCaptureObject;
 class UUnitDataAsset;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDemoMessage, const FString&, Message);
+
 // ─────────────────────────────────────────────────────────────────────────────
-// DIRECTOR DE DÉMO (Stage 2) — assemble une bataille greybox jouable selon la
-// phase courante et le roster débloqué, puis lance la bataille RTS existante.
+// DIRECTOR DE DÉMO — orchestre une boucle greybox AUTO-JOUABLE en un seul niveau.
 //
-// UTILISATION ÉDITEUR (minimal) :
-//   1. Ouvre un niveau avec un sol + un NavMeshBoundsVolume au-dessus
-//   2. Glisse cet acteur (WOTOLDemoDirector) dans le niveau
-//   3. Choisis la faction via le menu (ou DefaultPlayerFaction ci-dessous)
-//   4. Play → deux camps de formes contextualisées apparaissent et se battent
+//   1) Bataille CRÉATURE  : armée joueur (chef + infanterie + montée) vs créature
+//   2) Victoire           : débloque la distance, découvre le mythique,
+//                           pose l'objet de capture (Cristalliseur/Abyssalyseur),
+//                           "Zone capturée — Grade 1"
+//   3) Bataille RIVALE     : armée joueur (AVEC distance) vs escouade rivale
+//   4) Victoire           : objet de capture endommagé puis réparé
+//   5) Fin de démo
 //
-// Respecte le roster du cahier des charges : chef + infanterie + montée, et
-// distance UNIQUEMENT si débloquée. Spéciale + mythique restent verrouillées.
-// CreatureEncounter = 1 créature massive (réutilise les stats du mythique rival).
-// RivalDefense       = petite escouade de la faction rivale.
+// Tout s'enchaîne tout seul (idéal projection). Réutilise RTSBattleManager,
+// FactionRegistrySubsystem, UnitDataRegistrySubsystem, WOTOLDemoUnit. Additif.
+//
+// UTILISATION : poser ce Director (ou le GameMode WOTOLGameMode_Demo) dans un
+// niveau avec sol + NavMeshBoundsVolume, puis Play.
 // ─────────────────────────────────────────────────────────────────────────────
 UCLASS()
 class WOTOL_API AWOTOLDemoDirector : public AActor
@@ -31,11 +36,9 @@ class WOTOL_API AWOTOLDemoDirector : public AActor
 public:
 	AWOTOLDemoDirector();
 
-	// Faction joueur par défaut si le GameInstance n'en a pas (test direct)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
 	EFactionID DefaultPlayerFaction = EFactionID::Aquiloris;
 
-	// Quantités du roster (valeurs du cahier des charges)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Roster")
 	int32 InfantryCount = 10;
 
@@ -54,10 +57,20 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
 	float BattleStartDelay = 1.5f;
 
+	// Délai entre deux phases (lecture des messages à l'écran)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
+	float PhaseTransitionDelay = 4.f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
 	TSubclassOf<AWOTOLDemoUnit> DemoUnitClass;
 
-	// Lance/relance la bataille de la phase courante
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
+	TSubclassOf<AWOTOLCaptureObject> CaptureObjectClass;
+
+	// Messages narratifs (le HUD/BP peut s'y abonner pour les afficher à l'écran)
+	UPROPERTY(BlueprintAssignable, Category = "Demo")
+	FOnDemoMessage OnDemoMessage;
+
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void StartCurrentBattle();
 
@@ -67,11 +80,34 @@ protected:
 private:
 	EFactionID ResolvePlayerFaction() const;
 	EFactionID RivalOf(EFactionID Faction) const;
+	int32 CountAlive(EFactionID Faction) const;
 
 	void SpawnPlayerArmy(EFactionID Faction, const FVector& Origin, const FRotator& Facing);
 	void SpawnEnemyForCreature(EFactionID RivalFaction, const FVector& Origin, const FRotator& Facing);
 	void SpawnRivalSquad(EFactionID RivalFaction, const FVector& Origin, const FRotator& Facing);
-
 	AWOTOLDemoUnit* SpawnUnit(FName UnitID, const FVector& Loc, const FRotator& Facing, float ScaleBoost);
+
 	void LaunchBattle();
+	void CheckBattleEnd();
+	void OnPlayerVictory();
+	void OnPlayerDefeat();
+	void CleanupUnits();
+	void SpawnCaptureObject(EFactionID Faction);
+	void StartRivalDefense();
+	void EndDemo(bool bPlayerWon);
+	void Say(const FString& Message);
+
+	EFactionID CachedPlayerFaction = EFactionID::None;
+	EFactionID CachedRivalFaction  = EFactionID::None;
+
+	UPROPERTY()
+	TArray<TObjectPtr<AWOTOLDemoUnit>> SpawnedUnits;
+
+	UPROPERTY()
+	TObjectPtr<AWOTOLCaptureObject> CaptureObject;
+
+	FTimerHandle BattleStartHandle;
+	FTimerHandle BattleCheckHandle;
+	FTimerHandle PhaseHandle;
+	bool bBattleConcluded = false;
 };
