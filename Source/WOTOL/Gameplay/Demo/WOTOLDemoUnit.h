@@ -60,6 +60,23 @@ private:
 	UPROPERTY()
 	TObjectPtr<class UMaterialInstanceDynamic> ShapeMID;
 
+	// ─── Kitbash : pièces additionnelles formant la silhouette de l'unité ─────
+	// Ajoute une primitive enfant (mesh + transform + couleur) à l'unité.
+	UStaticMeshComponent* AddPart(const TCHAR* MeshPath, const FVector& RelLoc,
+		const FVector& RelScale, const FRotator& RelRot, const FLinearColor& Color);
+	// Configure le corps principal (ShapeMesh) comme une pièce kitbash.
+	void SetupMainPart(const TCHAR* MeshPath, const FVector& RelLoc,
+		const FVector& RelScale, const FRotator& RelRot, const FLinearColor& Color);
+	// Assemble la silhouette selon l'unité (corps + tête + accessoires).
+	void AssembleSilhouette(FName UnitID, EUnitRole Role, float HeightU,
+		const FLinearColor& Base, const FLinearColor& Accent);
+
+	UPROPERTY()
+	TArray<TObjectPtr<UStaticMeshComponent>> Parts;
+	UPROPERTY()
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> PartMIDs;
+	TArray<FLinearColor> PartBaseColors;
+
 	// Réagit à la sélection joueur : surligne l'unité
 	UFUNCTION()
 	void HandleSelected(bool bSel);

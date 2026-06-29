@@ -14,6 +14,14 @@
 #include "Core/FactionRegistrySubsystem.h"
 #include "WOTOLDamageNumber.h"
 
+namespace
+{
+	const TCHAR* M_CUBE = TEXT("/Engine/BasicShapes/Cube.Cube");
+	const TCHAR* M_SPH  = TEXT("/Engine/BasicShapes/Sphere.Sphere");
+	const TCHAR* M_CYL  = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
+	const TCHAR* M_CONE = TEXT("/Engine/BasicShapes/Cone.Cone");
+}
+
 AWOTOLDemoUnit::AWOTOLDemoUnit()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -68,10 +76,19 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		: FFactionColors::Get(GetFaction());
 	NameTag->SetTextRenderColor(TagColor.ToFColor(true));
 
-	// Recolore la forme du kraken en violet une seule fois (sa couleur n'est pas verte/océan)
-	if (bCreatureBrain && ShapeMID && !bCreatureStyled)
+	// Recolore le kraken en violet "calamar" une seule fois (toutes ses pièces)
+	if (bCreatureBrain && !bCreatureStyled && PartMIDs.Num() > 0)
 	{
-		ShapeMID->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.55f, 0.1f, 0.7f, 1.f));
+		const FLinearColor Squid(0.55f, 0.1f, 0.7f, 1.f);
+		const FLinearColor SquidAccent(0.2f, 0.85f, 1.f, 1.f); // craquelures cyan
+		for (int32 i = 0; i < PartMIDs.Num(); ++i)
+		{
+			if (!PartMIDs[i]) continue;
+			// la 1re pièce (manteau pointu) garde un liseré cyan, le reste violet
+			const FLinearColor C = (i % 4 == 1) ? SquidAccent : Squid;
+			PartMIDs[i]->SetVectorParameterValue(TEXT("Color"), C);
+			if (PartBaseColors.IsValidIndex(i)) PartBaseColors[i] = C;
+		}
 		bCreatureStyled = true;
 	}
 
@@ -125,11 +142,15 @@ void AWOTOLDemoUnit::HandleHealthChanged(float NewHealth, float MaxHealth)
 
 void AWOTOLDemoUnit::HandleSelected(bool bSel)
 {
-	if (!ShapeMID) return;
-	// Sélectionnée = blanc lumineux ; sinon couleur de faction
-	const FLinearColor C = bSel ? FLinearColor(1.f, 1.f, 1.f, 1.f)
-	                            : FFactionColors::Get(GetFaction());
-	ShapeMID->SetVectorParameterValue(TEXT("Color"), C);
+	// Sélectionnée = toutes les pièces en blanc lumineux ; sinon couleur de base
+	// propre à chaque pièce (conserve les accents or/violet au désélectionnement).
+	for (int32 i = 0; i < PartMIDs.Num(); ++i)
+	{
+		if (!PartMIDs[i]) continue;
+		const FLinearColor C = bSel ? FLinearColor(1.f, 1.f, 1.f, 1.f)
+			: (PartBaseColors.IsValidIndex(i) ? PartBaseColors[i] : FFactionColors::Get(GetFaction()));
+		PartMIDs[i]->SetVectorParameterValue(TEXT("Color"), C);
+	}
 }
 
 void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
@@ -199,72 +220,254 @@ float AWOTOLDemoUnit::GetUnitHeightMeters(FName UnitID)
 	return 1.75f; // défaut prototype
 }
 
+// ─── Helpers kitbash ────────────────────────────────────────────────────────
+UStaticMeshComponent* AWOTOLDemoUnit::AddPart(const TCHAR* MeshPath, const FVector& RelLoc,
+	const FVector& RelScale, const FRotator& RelRot, const FLinearColor& Color)
+{
+	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
+	if (!C) return nullptr;
+	C->SetupAttachment(RootComponent);
+	C->RegisterComponent();
+	C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	if (UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, MeshPath))
+	{
+		C->SetStaticMesh(M);
+	}
+	C->SetRelativeLocationAndRotation(RelLoc, RelRot);
+	C->SetRelativeScale3D(RelScale);
+
+	if (UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
+			nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
+	{
+		if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, this))
+		{
+			MID->SetVectorParameterValue(TEXT("Color"), Color);
+			C->SetMaterial(0, MID);
+			PartMIDs.Add(MID);
+			PartBaseColors.Add(Color);
+		}
+	}
+	Parts.Add(C);
+	return C;
+}
+
+void AWOTOLDemoUnit::SetupMainPart(const TCHAR* MeshPath, const FVector& RelLoc,
+	const FVector& RelScale, const FRotator& RelRot, const FLinearColor& Color)
+{
+	if (!ShapeMesh) return;
+	if (UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, MeshPath))
+	{
+		ShapeMesh->SetStaticMesh(M);
+	}
+	ShapeMesh->SetRelativeLocationAndRotation(RelLoc, RelRot);
+	ShapeMesh->SetRelativeScale3D(RelScale);
+
+	if (UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
+			nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
+	{
+		if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, this))
+		{
+			MID->SetVectorParameterValue(TEXT("Color"), Color);
+			ShapeMesh->SetMaterial(0, MID);
+			ShapeMID = MID;
+			PartMIDs.Add(MID);
+			PartBaseColors.Add(Color);
+		}
+	}
+}
+
+// Assemble une silhouette reconnaissable par unité (corps + tête + accessoires).
+// Tout est exprimé par rapport au CENTRE de la capsule ; H = hauteur totale (UE).
+void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole Role, float H,
+	const FLinearColor& Base, const FLinearColor& Accent)
+{
+	const FRotator NoRot = FRotator::ZeroRotator;
+	const float h = H / 100.f; // facteur d'échelle vertical (mesh primitif = 100 UE)
+
+	// Corps humanoïde générique (torse + tête) réutilisé par la plupart des unités.
+	auto BuildHumanoid = [&](float BodyW)
+	{
+		SetupMainPart(M_CYL, FVector(0, 0, -H * 0.06f),
+			FVector(BodyW, BodyW, h * 0.5f), NoRot, Base);              // torse
+		AddPart(M_SPH, FVector(0, 0, H * 0.33f),
+			FVector(BodyW * 0.95f, BodyW * 0.95f, BodyW * 0.95f), NoRot, Base); // tête
+	};
+
+	const FString Id = UnitID.ToString();
+
+	// ───────────────── AQUILORIS ─────────────────
+	if (Id == TEXT("Aquis")) // Chef : épée photonique + cape
+	{
+		BuildHumanoid(0.34f);
+		AddPart(M_CONE, FVector(20, 36, H * 0.20f), FVector(0.10f, 0.10f, h * 0.7f), FRotator(0, 0, 8.f), Accent); // épée
+		AddPart(M_CUBE, FVector(-22, 0, H * 0.05f), FVector(0.05f, 0.55f, h * 0.45f), FRotator(8.f, 0, 0), Base);  // cape
+		AddPart(M_CONE, FVector(0, 0, H * 0.50f), FVector(0.18f, 0.18f, h * 0.12f), NoRot, Accent);                // crête
+		return;
+	}
+	if (Id == TEXT("Aquiloryons")) // Infanterie : épée + bouclier cristal
+	{
+		BuildHumanoid(0.34f);
+		AddPart(M_CONE, FVector(18, 34, H * 0.20f), FVector(0.09f, 0.09f, h * 0.55f), FRotator(0, 0, 6.f), Accent); // épée
+		AddPart(M_CUBE, FVector(16, -38, H * 0.02f), FVector(0.08f, 0.45f, h * 0.4f), FRotator(0, 0, -10.f), Accent); // bouclier
+		return;
+	}
+	if (Id == TEXT("Aquilances")) // Montée : cavalier sur monture + lance
+	{
+		// Monture (corps allongé bas)
+		SetupMainPart(M_SPH, FVector(10, 0, -H * 0.22f),
+			FVector(h * 1.4f, h * 0.7f, h * 0.55f), NoRot, Base);
+		AddPart(M_CONE, FVector(70, 0, -H * 0.20f), FVector(0.5f, 0.5f, h * 0.3f), FRotator(70.f, 0, 0), Base); // tête monture
+		// Cavalier
+		AddPart(M_CYL, FVector(-10, 0, H * 0.10f), FVector(0.26f, 0.26f, h * 0.3f), NoRot, Base);
+		AddPart(M_SPH, FVector(-10, 0, H * 0.34f), FVector(0.26f, 0.26f, 0.26f), NoRot, Base);
+		AddPart(M_CYL, FVector(20, 22, H * 0.18f), FVector(0.05f, 0.05f, h * 0.9f), FRotator(20.f, 0, 60.f), Accent); // lance
+		return;
+	}
+	if (Id == TEXT("Aquipheres") || Id == TEXT("Aquispheres")) // Distance : canon à sphère
+	{
+		BuildHumanoid(0.32f);
+		AddPart(M_CYL, FVector(42, 10, H * 0.04f), FVector(0.16f, 0.16f, h * 0.5f), FRotator(90.f, 0, 0), Base); // canon (axe +X)
+		AddPart(M_SPH, FVector(42 + H * 0.28f, 10, H * 0.04f), FVector(0.22f, 0.22f, 0.22f), NoRot, Accent);     // sphère d'énergie
+		return;
+	}
+	if (Id == TEXT("Aquilombres")) // Spéciale : assassin furtif, fin + dague
+	{
+		BuildHumanoid(0.26f);
+		AddPart(M_CONE, FVector(16, 24, H * 0.10f), FVector(0.07f, 0.07f, h * 0.35f), FRotator(0, 0, 20.f), Accent);
+		return;
+	}
+	if (Id == TEXT("Leviaphenix")) // Mythique Aquiloris : grand corps + ailes
+	{
+		SetupMainPart(M_SPH, FVector(0, 0, 0), FVector(h * 0.7f, h * 0.5f, h * 0.8f), NoRot, Base);
+		AddPart(M_CONE, FVector(20, 0, H * 0.45f), FVector(0.6f, 0.6f, h * 0.3f), NoRot, Base);                 // tête/bec
+		AddPart(M_CUBE, FVector(-10, 70, H * 0.1f), FVector(0.1f, h * 0.6f, h * 0.5f), FRotator(0, 0, 25.f), Accent); // aile
+		AddPart(M_CUBE, FVector(-10, -70, H * 0.1f), FVector(0.1f, h * 0.6f, h * 0.5f), FRotator(0, 0, -25.f), Accent);
+		return;
+	}
+
+	// ───────────────── NOXÉENS ─────────────────
+	if (Id == TEXT("Noxar")) // Chef : humanoïde tentaculé
+	{
+		BuildHumanoid(0.34f);
+		for (int32 i = 0; i < 4; ++i)
+		{
+			const float Side = (i % 2 == 0) ? 1.f : -1.f;
+			const float Up   = (i < 2) ? 0.30f : 0.18f;
+			AddPart(M_CONE, FVector(-8, Side * 26, H * Up),
+				FVector(0.07f, 0.07f, h * 0.4f), FRotator(0, 0, Side * 50.f), Accent);
+		}
+		return;
+	}
+	if (Id == TEXT("Noxeflare")) // Infanterie : corps sombre, yeux/épines violets
+	{
+		BuildHumanoid(0.32f);
+		AddPart(M_SPH, FVector(8, 0, H * 0.33f), FVector(0.12f, 0.12f, 0.12f), NoRot, Accent); // amas d'yeux violets
+		AddPart(M_CONE, FVector(0, 16, H * 0.42f), FVector(0.08f, 0.08f, h * 0.18f), FRotator(0, 0, 30.f), Accent);
+		AddPart(M_CONE, FVector(0, -16, H * 0.42f), FVector(0.08f, 0.08f, h * 0.18f), FRotator(0, 0, -30.f), Accent);
+		return;
+	}
+	if (Id == TEXT("Noxeblast")) // Distance : 2 tentacules dorsales lumineuses
+	{
+		BuildHumanoid(0.32f);
+		AddPart(M_SPH, FVector(8, 0, H * 0.33f), FVector(0.10f, 0.10f, 0.10f), NoRot, Accent); // yeux
+		AddPart(M_CONE, FVector(-14, 18, H * 0.30f), FVector(0.06f, 0.06f, h * 0.6f), FRotator(-30.f, 0, 35.f), Accent);
+		AddPart(M_CONE, FVector(-14, -18, H * 0.30f), FVector(0.06f, 0.06f, h * 0.6f), FRotator(-30.f, 0, -35.f), Accent);
+		return;
+	}
+	if (Id == TEXT("Noxebeast")) // Montée : quadrupède cuirassé (défenses + épines)
+	{
+		SetupMainPart(M_CUBE, FVector(0, 0, -H * 0.18f),
+			FVector(h * 1.3f, h * 0.85f, h * 0.55f), NoRot, Base); // corps massif
+		AddPart(M_CUBE, FVector(H * 0.55f, 0, -H * 0.10f), FVector(h * 0.45f, h * 0.6f, h * 0.4f), NoRot, Base); // tête
+		AddPart(M_SPH, FVector(H * 0.78f, 14, -H * 0.06f), FVector(0.07f, 0.07f, 0.07f), NoRot, Accent);          // œil vert
+		AddPart(M_SPH, FVector(H * 0.78f, -14, -H * 0.06f), FVector(0.07f, 0.07f, 0.07f), NoRot, Accent);
+		AddPart(M_CONE, FVector(H * 0.7f, 22, -H * 0.22f), FVector(0.08f, 0.08f, h * 0.25f), FRotator(120.f, 0, 0), Accent); // défense
+		AddPart(M_CONE, FVector(H * 0.7f, -22, -H * 0.22f), FVector(0.08f, 0.08f, h * 0.25f), FRotator(120.f, 0, 0), Accent);
+		// 4 pattes
+		const float LegZ = -H * 0.36f, LegX = H * 0.32f, LegY = H * 0.30f;
+		for (int32 i = 0; i < 4; ++i)
+		{
+			const float Sx = (i < 2) ? 1.f : -1.f;
+			const float Sy = (i % 2 == 0) ? 1.f : -1.f;
+			AddPart(M_CYL, FVector(Sx * LegX, Sy * LegY, LegZ), FVector(0.16f, 0.16f, h * 0.18f), NoRot, Base);
+		}
+		// épines dorsales
+		AddPart(M_CONE, FVector(-H * 0.1f, 0, H * 0.06f), FVector(0.12f, 0.12f, h * 0.2f), NoRot, Base);
+		return;
+	}
+	if (Id == TEXT("Noxeons")) // Spéciale : organisme bioluminescent
+	{
+		SetupMainPart(M_SPH, FVector(0, 0, -H * 0.1f), FVector(h * 0.6f, h * 0.6f, h * 0.55f), NoRot, Base);
+		for (int32 i = 0; i < 5; ++i)
+		{
+			const float Ang = 2.f * PI * i / 5.f;
+			AddPart(M_CONE, FVector(FMath::Cos(Ang) * 20.f, FMath::Sin(Ang) * 20.f, -H * 0.3f),
+				FVector(0.07f, 0.07f, h * 0.3f), FRotator(0, FMath::RadiansToDegrees(Ang), 30.f), Accent);
+		}
+		return;
+	}
+	if (Id == TEXT("Noxedrake")) // Mythique / boss "Kraken" : manteau + tentacules
+	{
+		// Tête bulbeuse
+		SetupMainPart(M_SPH, FVector(0, 0, H * 0.05f), FVector(h * 0.55f, h * 0.55f, h * 0.5f), NoRot, Base);
+		// Manteau pointu (capuchon) — pièce 1 = accent cyan côté kraken
+		AddPart(M_CONE, FVector(-10, 0, H * 0.35f), FVector(h * 0.6f, h * 0.6f, h * 0.5f), NoRot, Accent);
+		// Yeux
+		AddPart(M_SPH, FVector(H * 0.4f, 18, H * 0.08f), FVector(0.12f, 0.12f, 0.12f), NoRot, Accent);
+		AddPart(M_SPH, FVector(H * 0.4f, -18, H * 0.08f), FVector(0.12f, 0.12f, 0.12f), NoRot, Accent);
+		// Tentacules splayés vers le bas/avant
+		for (int32 i = 0; i < 6; ++i)
+		{
+			const float Ang = PI * (i / 5.f) - PI * 0.5f; // -90°..+90°
+			AddPart(M_CONE, FVector(H * 0.25f + FMath::Cos(Ang) * 20.f, FMath::Sin(Ang) * 40.f, -H * 0.25f),
+				FVector(0.14f, 0.14f, h * 0.55f), FRotator(120.f, FMath::RadiansToDegrees(Ang), 0), Base);
+		}
+		// 2 longs fouets vers l'avant
+		AddPart(M_CYL, FVector(H * 0.6f, 16, -H * 0.1f), FVector(0.06f, 0.06f, h * 0.9f), FRotator(80.f, 0, 0), Base);
+		AddPart(M_CYL, FVector(H * 0.6f, -16, -H * 0.1f), FVector(0.06f, 0.06f, h * 0.9f), FRotator(80.f, 0, 0), Base);
+		return;
+	}
+
+	// ───────────────── Fallback générique (rôle) ─────────────────
+	switch (Role)
+	{
+		case EUnitRole::Chef:       BuildHumanoid(0.36f); break;
+		case EUnitRole::Montee:     SetupMainPart(M_CUBE, FVector(0,0,-H*0.1f), FVector(h*0.9f,h*0.6f,h*0.6f), NoRot, Base); break;
+		case EUnitRole::Distance:   BuildHumanoid(0.30f); AddPart(M_CONE, FVector(36,0,0), FVector(0.14f,0.14f,h*0.3f), FRotator(90.f,0,0), Accent); break;
+		case EUnitRole::Mythique:   SetupMainPart(M_SPH, FVector(0,0,0), FVector(h*0.7f,h*0.7f,h*0.8f), NoRot, Base); break;
+		case EUnitRole::Speciale:   BuildHumanoid(0.24f); break;
+		default:                    BuildHumanoid(0.32f); break;
+	}
+}
+
 void AWOTOLDemoUnit::BuildGreyboxShape()
 {
 	if (!ShapeMesh) return;
 
 	const EUnitRole UnitRole = UnitData ? UnitData->Role : EUnitRole::Infanterie;
 	const FName UnitID       = UnitData ? UnitData->GetFName() : NAME_None;
-	const float HeightM  = GetUnitHeightMeters(UnitID);
-	const float HeightU  = HeightM * 100.f; // mètres -> UE units (cm)
+	const float HeightU      = GetUnitHeightMeters(UnitID) * 100.f; // mètres -> UE units
 
-	// Forme primitive selon la catégorie (rôle)
-	const TCHAR* MeshPath = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
-	FVector Scale(0.5f, 0.5f, 1.f);
+	// Couleur d'ÉQUIPE en base (lisibilité RTS) + accent caractéristique de faction.
+	const FLinearColor Base   = FFactionColors::Get(GetFaction());
+	const FLinearColor Accent = (GetFaction() == EFactionID::Aquiloris)
+		? FLinearColor(0.98f, 0.80f, 0.25f, 1.f)   // or/cyan Aquiloris
+		: FLinearColor(0.65f, 0.20f, 0.95f, 1.f);  // violet bioluminescent Noxéen
+
+	AssembleSilhouette(UnitID, UnitRole, HeightU, Base, Accent);
+
+	// COLLISION : capsule dimensionnée selon le gabarit du rôle (empêche les
+	// chevauchements et les unités qui rentrent dans la créature géante).
+	float WidthFactor = 0.40f; // humanoïde par défaut
 	switch (UnitRole)
 	{
-		case EUnitRole::Chef:        // sphère = chef/commandant (silhouette unique)
-			MeshPath = TEXT("/Engine/BasicShapes/Sphere.Sphere");
-			Scale = FVector(0.9f, 0.9f, HeightU / 100.f);
-			break;
-		case EUnitRole::Infanterie:  // cylindre simple
-			MeshPath = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
-			Scale = FVector(0.5f, 0.5f, HeightU / 100.f);
-			break;
-		case EUnitRole::Montee:      // bloc compact (monture) — moins large qu'avant
-			MeshPath = TEXT("/Engine/BasicShapes/Cube.Cube");
-			Scale = FVector(0.9f, 0.6f, HeightU / 100.f);
-			break;
-		case EUnitRole::Distance:    // cône orienté (direction de tir visible)
-			MeshPath = TEXT("/Engine/BasicShapes/Cone.Cone");
-			Scale = FVector(0.7f, 0.7f, HeightU / 100.f);
-			break;
-		case EUnitRole::Speciale:    // cylindre fin/atypique
-			MeshPath = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
-			Scale = FVector(0.35f, 0.35f, HeightU / 100.f);
-			break;
-		case EUnitRole::Mythique:    // grand bloc imposant (teaser)
-			MeshPath = TEXT("/Engine/BasicShapes/Cube.Cube");
-			Scale = FVector(2.2f, 2.2f, HeightU / 100.f);
-			break;
+		case EUnitRole::Montee:   WidthFactor = 0.80f; break;
+		case EUnitRole::Mythique: WidthFactor = 1.60f; break;
+		case EUnitRole::Chef:     WidthFactor = 0.45f; break;
+		default: break;
 	}
-
-	if (UStaticMesh* LoadedMesh = LoadObject<UStaticMesh>(nullptr, MeshPath))
-	{
-		ShapeMesh->SetStaticMesh(LoadedMesh);
-	}
-	ShapeMesh->SetRelativeScale3D(Scale);
-	// Forme centrée sur la capsule
-	ShapeMesh->SetRelativeLocation(FVector::ZeroVector);
-
-	// COLLISION : la capsule épouse la taille réelle de la forme (les meshes
-	// primitifs font 100 UE -> demi-extent = Scale * 50). Les unités ne se
-	// rentrent plus dedans ni dans la créature géante.
-	const float CapR = FMath::Max(20.f, FMath::Max(Scale.X, Scale.Y) * 50.f);
-	const float CapH = FMath::Max(20.f, Scale.Z * 50.f);
+	const float CapH = FMath::Max(40.f, HeightU * 0.5f);
+	const float CapR = FMath::Max(24.f, HeightU * WidthFactor * 0.5f);
 	GetCapsuleComponent()->SetCapsuleSize(CapR, CapH);
-	// Remonte l'étiquette au-dessus de la forme
-	if (NameTag) NameTag->SetRelativeLocation(FVector(0.f, 0.f, CapH + 40.f));
-
-	// Couleur officielle de la faction (FFactionColors = source de vérité)
-	if (UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
-			nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
-	{
-		if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, this))
-		{
-			MID->SetVectorParameterValue(TEXT("Color"), FFactionColors::Get(GetFaction()));
-			ShapeMesh->SetMaterial(0, MID);
-			ShapeMID = MID; // conservé pour le surlignage de sélection
-		}
-	}
+	if (NameTag) NameTag->SetRelativeLocation(FVector(0.f, 0.f, CapH + 50.f));
 }
