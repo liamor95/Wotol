@@ -63,6 +63,8 @@ void AAIAdaptiveController::IssueOrder_Move(FVector TargetLocation)
 	if (UUnitAIStateComponent* State = GetStateComponent())
 	{
 		State->bFollowingPlayerOrder = true;
+		State->bHoldPosition         = false;   // un ordre de déplacement annule le "tenir position"
+		State->ForceTarget           = nullptr;
 	}
 
 	MoveToLocation(TargetLocation, 50.f);
@@ -91,6 +93,7 @@ void AAIAdaptiveController::IssueOrder_AttackTarget(AUnitBase* Target)
 	if (UUnitAIStateComponent* State = GetStateComponent())
 	{
 		State->bFollowingPlayerOrder = false;
+		State->bHoldPosition         = false;   // un ordre d'attaque annule le "tenir position"
 		State->ForceTarget           = Target;
 		State->bAttackMoveActive     = false;
 	}

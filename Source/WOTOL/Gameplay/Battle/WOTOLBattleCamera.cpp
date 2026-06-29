@@ -56,6 +56,11 @@ void AWOTOLBattleCamera::SetupPlayerInputComponent(UInputComponent* Input)
 	Input->BindAxisKey(EKeys::S,              this, &AWOTOLBattleCamera::InputPanBackward);
 	Input->BindAxisKey(EKeys::D,              this, &AWOTOLBattleCamera::InputPanRight);
 	Input->BindAxisKey(EKeys::A,              this, &AWOTOLBattleCamera::InputPanLeft);
+	// Flèches directionnelles = même chose que WASD
+	Input->BindAxisKey(EKeys::Up,             this, &AWOTOLBattleCamera::InputPanForward);
+	Input->BindAxisKey(EKeys::Down,           this, &AWOTOLBattleCamera::InputPanBackward);
+	Input->BindAxisKey(EKeys::Right,          this, &AWOTOLBattleCamera::InputPanRight);
+	Input->BindAxisKey(EKeys::Left,           this, &AWOTOLBattleCamera::InputPanLeft);
 	Input->BindAxisKey(EKeys::E,              this, &AWOTOLBattleCamera::InputVertical);
 	Input->BindAxisKey(EKeys::Q,              this, &AWOTOLBattleCamera::InputVerticalDown);
 	Input->BindAxisKey(EKeys::MouseWheelAxis, this, &AWOTOLBattleCamera::InputZoom);
@@ -99,7 +104,9 @@ void AWOTOLBattleCamera::InputZoom(float V)        { ZoomInput += V; }
 
 void AWOTOLBattleCamera::InputMiddleMousePressed()
 {
-	bRotatingYaw = true;
+	// Orbite libre : clic-milieu glissé fait tourner la vue en yaw ET en pitch
+	bRotatingYaw   = true;
+	bRotatingPitch = true;
 	if (APlayerController* PC = GetOwnerPC())
 	{
 		PC->GetMousePosition(LastMousePos.X, LastMousePos.Y);
@@ -108,7 +115,8 @@ void AWOTOLBattleCamera::InputMiddleMousePressed()
 
 void AWOTOLBattleCamera::InputMiddleMouseReleased()
 {
-	bRotatingYaw = false;
+	bRotatingYaw   = false;
+	bRotatingPitch = false;
 }
 
 void AWOTOLBattleCamera::InputMouseX(float V)

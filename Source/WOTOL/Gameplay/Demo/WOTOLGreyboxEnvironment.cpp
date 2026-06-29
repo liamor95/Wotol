@@ -60,10 +60,11 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 	const EFactionID Rival = (PlayerFaction == EFactionID::Aquiloris)
 		? EFactionID::Noxeens : EFactionID::Aquiloris;
 
-	const FLinearColor FloorColor(0.04f, 0.06f, 0.10f, 1.f); // fond marin sombre
+	const FLinearColor FloorColor(0.03f, 0.07f, 0.09f, 1.f); // fond marin sombre
 	const FLinearColor StoneColor(0.20f, 0.22f, 0.25f, 1.f); // ruines grises
-	const FLinearColor PlayerColor = FFactionColors::Get(PlayerFaction);
-	const FLinearColor RivalColor  = FFactionColors::Get(Rival);
+	// Zones de déploiement = teinte TRÈS sombre de la faction (les unités, vives, ressortent)
+	const FLinearColor PlayerColor = FFactionColors::Get(PlayerFaction) * 0.22f;
+	const FLinearColor RivalColor  = FFactionColors::Get(Rival) * 0.22f;
 
 	// Sol (plane 1m -> 130m)
 	SpawnBlock(TEXT("/Engine/BasicShapes/Plane.Plane"),

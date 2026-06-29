@@ -200,10 +200,9 @@ void AWOTOLDemoDirector::LaunchBattle()
 		RTS->StartBattlePhase(600.f);
 	}
 
-	// IMPORTANT : rendre la démo JOUABLE.
-	// StartBattlePhase active l'IA de TOUTES les factions. On désactive l'IA des
-	// unités du JOUEUR pour qu'elles obéissent à tes ordres (sélection + clic droit),
-	// pendant que l'ennemi reste piloté par l'IA.
+	// JOUABILITÉ : tes unités gardent leur IA ACTIVE (donc elles attaquent), mais on
+	// les met en "Tenir la position" -> elles n'avancent pas toutes seules et attendent
+	// tes ordres (clic droit = bouger/attaquer). L'ennemi reste en attaque automatique.
 	if (UWorld* W = GetWorld())
 	{
 		if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
@@ -213,7 +212,8 @@ void AWOTOLDemoDirector::LaunchBattle()
 				if (!U) continue;
 				if (AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(U->GetController()))
 				{
-					AIC->DeactivateRTSBehavior();
+					AIC->ActivateRTSBehavior();   // IA active = les attaques fonctionnent
+					AIC->IssueOrder_HoldPosition(); // mais elles attendent tes ordres
 				}
 			}
 		}

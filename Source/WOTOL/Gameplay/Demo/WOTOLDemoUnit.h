@@ -5,6 +5,7 @@
 #include "WOTOLDemoUnit.generated.h"
 
 class UStaticMeshComponent;
+class UTextRenderComponent;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UNITÉ GREYBOX CONTEXTUALISÉE (sections 3-5 du cahier des charges).
@@ -29,9 +30,14 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaSeconds) override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Demo|Greybox")
 	TObjectPtr<UStaticMeshComponent> ShapeMesh;
+
+	// Étiquette flottante : nom de l'unité + PV% (remplace une barre de vie UMG)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Demo|Greybox")
+	TObjectPtr<UTextRenderComponent> NameTag;
 
 	// Construit la forme greybox (mesh + échelle + couleur) selon rôle/faction/taille
 	void BuildGreyboxShape();

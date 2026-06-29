@@ -2,20 +2,61 @@
 #include "Gameplay/Units/UnitDataAsset.h"
 #include "Gameplay/AI/AIAdaptiveController.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/TextRenderComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Data/WOTOLTypes.h"
+#include "GameFramework/PlayerController.h"
+#include "Camera/PlayerCameraManager.h"
 
 AWOTOLDemoUnit::AWOTOLDemoUnit()
 {
+	PrimaryActorTick.bCanEverTick = true;
+
 	ShapeMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShapeMesh"));
 	ShapeMesh->SetupAttachment(RootComponent);
 	ShapeMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
+	// Étiquette flottante nom + PV (au-dessus de la tête)
+	NameTag = CreateDefaultSubobject<UTextRenderComponent>(TEXT("NameTag"));
+	NameTag->SetupAttachment(RootComponent);
+	NameTag->SetRelativeLocation(FVector(0.f, 0.f, 140.f));
+	NameTag->SetHorizontalAlignment(EHTA_Center);
+	NameTag->SetWorldSize(40.f);
+	NameTag->SetText(FText::GetEmpty());
+
 	// L'IA RTS possède automatiquement l'unité au spawn
 	AIControllerClass = AAIAdaptiveController::StaticClass();
 	AutoPossessAI     = EAutoPossessAI::PlacedInWorldOrSpawned;
+}
+
+void AWOTOLDemoUnit::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	if (!NameTag) return;
+
+	const FString DisplayName = (UnitData && !UnitData->DisplayName.IsEmpty())
+		? UnitData->DisplayName.ToString()
+		: GetName();
+	const int32 HpPct = FMath::RoundToInt(GetHealthPercent() * 100.f);
+
+	NameTag->SetText(FText::FromString(FString::Printf(TEXT("%s\n%d%%"), *DisplayName, HpPct)));
+	NameTag->SetTextRenderColor(FFactionColors::Get(GetFaction()).ToFColor(true));
+
+	// L'étiquette fait toujours face à la caméra du joueur
+	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+	{
+		if (PC->PlayerCameraManager)
+		{
+			const FVector CamLoc = PC->PlayerCameraManager->GetCameraLocation();
+			FRotator Face = (CamLoc - NameTag->GetComponentLocation()).Rotation();
+			Face.Pitch = 0.f; Face.Roll = 0.f;
+			Face.Yaw += 180.f; // le texte se lit de face
+			NameTag->SetWorldRotation(Face);
+		}
+	}
 }
 
 void AWOTOLDemoUnit::BeginPlay()
@@ -58,9 +99,9 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 	FVector Scale(0.5f, 0.5f, 1.f);
 	switch (UnitRole)
 	{
-		case EUnitRole::Chef:        // cylindre haut (silhouette de commandant)
-			MeshPath = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
-			Scale = FVector(0.55f, 0.55f, HeightU / 100.f);
+		case EUnitRole::Chef:        // sphère = chef/commandant (silhouette unique)
+			MeshPath = TEXT("/Engine/BasicShapes/Sphere.Sphere");
+			Scale = FVector(0.9f, 0.9f, HeightU / 100.f);
 			break;
 		case EUnitRole::Infanterie:  // cylindre simple
 			MeshPath = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
