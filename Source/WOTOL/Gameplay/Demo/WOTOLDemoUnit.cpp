@@ -512,7 +512,7 @@ USceneComponent* AWOTOLDemoUnit::MakeJoint(USceneComponent* Parent, const FVecto
 {
 	USceneComponent* J = NewObject<USceneComponent>(this);
 	if (!J) return nullptr;
-	J->SetupAttachment(Parent ? Parent : RootComponent);
+	J->SetupAttachment(Parent ? Parent : RootComponent.Get());
 	J->RegisterComponent();
 	J->SetRelativeLocation(RelLoc);
 	return J;
@@ -524,7 +524,7 @@ UStaticMeshComponent* AWOTOLDemoUnit::MakeBone(USceneComponent* Joint, const TCH
 {
 	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
 	if (!C) return nullptr;
-	C->SetupAttachment(Joint ? Joint : RootComponent);
+	C->SetupAttachment(Joint ? Joint : RootComponent.Get());
 	C->RegisterComponent();
 	C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	if (UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, MeshPath))
