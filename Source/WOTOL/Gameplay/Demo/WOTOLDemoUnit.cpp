@@ -55,8 +55,8 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		? FString(TEXT("Kraken"))
 		: ((UnitData && !UnitData->DisplayName.IsEmpty()) ? UnitData->DisplayName.ToString() : GetName());
 
-	// VRAIES valeurs de PV (ex: "1700 / 2000")
-	const int32 MaxHP = UnitData ? UnitData->Stats.MaxHealth : 100;
+	// VRAIES valeurs de PV (ex: "1700 / 2000"), boss inclus (HealthScale)
+	const int32 MaxHP = GetEffectiveMaxHealth();
 	const int32 CurHP = FMath::Clamp(FMath::RoundToInt(CurrentHealth), 0, MaxHP);
 
 	NameTag->SetText(FText::FromString(
@@ -91,11 +91,24 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 
 void AWOTOLDemoUnit::BeginPlay()
 {
-	Super::BeginPlay();   // initialise UnitData -> stats, faction, rôle
+	Super::BeginPlay();   // initialise UnitData -> stats, faction, rôle, CurrentHealth
+
+	// Boss coriace : applique le multiplicateur de PV
+	if (HealthScale > 1.f && UnitData)
+	{
+		CurrentHealth = UnitData->Stats.MaxHealth * HealthScale;
+	}
+
 	BuildGreyboxShape();
 	OnUnitSelected.AddDynamic(this, &AWOTOLDemoUnit::HandleSelected);
 	OnHealthChanged.AddDynamic(this, &AWOTOLDemoUnit::HandleHealthChanged);
-	LastKnownHealth = UnitData ? static_cast<float>(UnitData->Stats.MaxHealth) : 100.f;
+	LastKnownHealth = CurrentHealth;
+}
+
+int32 AWOTOLDemoUnit::GetEffectiveMaxHealth() const
+{
+	const int32 BaseMax = UnitData ? UnitData->Stats.MaxHealth : 100;
+	return FMath::RoundToInt(BaseMax * FMath::Max(1.f, HealthScale));
 }
 
 void AWOTOLDemoUnit::HandleHealthChanged(float NewHealth, float MaxHealth)

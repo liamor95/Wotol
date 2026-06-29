@@ -52,7 +52,11 @@ public:
 	float UnitSpacing = 200.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
-	float ArmySeparation = 2500.f;
+	float ArmySeparation = 4500.f;
+
+	// Multiplicateur de PV de la créature/boss (boss coriace)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
+	float CreatureHealthScale = 6.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
 	float BattleStartDelay = 1.5f;
@@ -85,7 +89,8 @@ private:
 	void SpawnPlayerArmy(EFactionID Faction, const FVector& Origin, const FRotator& Facing);
 	void SpawnEnemyForCreature(EFactionID RivalFaction, const FVector& Origin, const FRotator& Facing);
 	void SpawnRivalSquad(EFactionID RivalFaction, const FVector& Origin, const FRotator& Facing);
-	AWOTOLDemoUnit* SpawnUnit(FName UnitID, const FVector& Loc, const FRotator& Facing, float ScaleBoost);
+	AWOTOLDemoUnit* SpawnUnit(FName UnitID, const FVector& Loc, const FRotator& Facing,
+		float ScaleBoost, float HealthScale = 1.f);
 
 	void LaunchBattle();
 	void CheckBattleEnd();

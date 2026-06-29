@@ -143,9 +143,17 @@ void AWOTOLDemoDirector::SpawnEnemyForCreature(EFactionID RivalFaction, const FV
 	const FName CreatureID = Demo
 		? Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Mythique)
 		: NAME_None;
-	if (AWOTOLDemoUnit* Creature = SpawnUnit(CreatureID, Origin + FVector(0.f, 0.f, 80.f), Facing, 1.5f))
+	if (AWOTOLDemoUnit* Creature = SpawnUnit(
+			CreatureID, Origin + FVector(0.f, 0.f, 80.f), Facing, 1.5f, CreatureHealthScale))
 	{
 		Creature->bCreatureBrain = true; // boss autonome (avance + attaque)
+		if (UGameInstance* GI = GetGameInstance())
+		{
+			if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
+			{
+				Demo->SetBoss(Creature);
+			}
+		}
 	}
 }
 
@@ -171,7 +179,8 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	}
 }
 
-AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, const FRotator& Facing, float ScaleBoost)
+AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, const FRotator& Facing,
+	float ScaleBoost, float HealthScale)
 {
 	if (!DemoUnitClass || UnitID.IsNone()) return nullptr;
 
@@ -189,7 +198,8 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
 	if (!Unit) return nullptr;
 
-	Unit->UnitData = Data;
+	Unit->UnitData    = Data;
+	Unit->HealthScale = HealthScale;   // appliqué dans BeginPlay (avant FinishSpawning)
 	UGameplayStatics::FinishSpawningActor(Unit, SpawnTM);
 
 	SpawnedUnits.Add(Unit);

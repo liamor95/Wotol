@@ -32,6 +32,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Greybox")
 	bool bCreatureBrain = false;
 
+	// Multiplicateur de PV (1 = stats normales ; >1 pour un boss coriace)
+	// À fixer AVANT BeginPlay (spawn différé).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Greybox")
+	float HealthScale = 1.f;
+
+	// PV max effectifs (en tenant compte de HealthScale)
+	UFUNCTION(BlueprintPure, Category = "Demo|Greybox")
+	int32 GetEffectiveMaxHealth() const;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
