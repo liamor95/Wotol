@@ -91,6 +91,13 @@
 - **Correction** : créer une `UFUNCTION() void Handler(...)` et faire `Delegate.AddDynamic(this, &Class::Handler)`.
   (Les lambdas ne marchent que sur les délégués NON-dynamiques : `DECLARE_MULTICAST_DELEGATE`.)
 
+### C7bis — Variable LOCALE qui masque un membre de classe (C4458)
+- **Symptôme** : `error C4458: declaration of 'X' hides class member` (bloquant : -WarningsAsErrors).
+- **Cause** : une variable locale porte le nom d'un membre hérité. Pièges classiques sur
+  AActor/ACharacter : **`Role`** (AActor::Role), **`Mesh`** (ACharacter::Mesh), `Owner`, `Children`.
+- **Correction** : renommer la locale (`UnitRole`, `LoadedMesh`…). Vrai même pour des
+  variables temporaires anodines (`UStaticMesh* Mesh`, `const EUnitRole Role`).
+
 ### C7 — Valeur d'enum inexistante
 - **Symptôme** : `error C2065: 'Ground': undeclared identifier` sur `EMonEnum::Ground`.
 - **Cause** : la valeur n'existe pas dans l'enum (ex. `EVerticalLayer` n'a pas `Ground`, mais `Epipelagique`).

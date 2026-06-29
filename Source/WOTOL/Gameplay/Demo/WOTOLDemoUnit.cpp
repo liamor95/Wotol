@@ -48,15 +48,15 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 {
 	if (!ShapeMesh) return;
 
-	const EUnitRole Role = UnitData ? UnitData->Role : EUnitRole::Infanterie;
-	const FName UnitID   = UnitData ? UnitData->GetFName() : NAME_None;
+	const EUnitRole UnitRole = UnitData ? UnitData->Role : EUnitRole::Infanterie;
+	const FName UnitID       = UnitData ? UnitData->GetFName() : NAME_None;
 	const float HeightM  = GetUnitHeightMeters(UnitID);
 	const float HeightU  = HeightM * 100.f; // mètres -> UE units (cm)
 
 	// Forme primitive selon la catégorie (rôle)
 	const TCHAR* MeshPath = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
 	FVector Scale(0.5f, 0.5f, 1.f);
-	switch (Role)
+	switch (UnitRole)
 	{
 		case EUnitRole::Chef:        // cylindre haut (silhouette de commandant)
 			MeshPath = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
@@ -84,9 +84,9 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 			break;
 	}
 
-	if (UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, MeshPath))
+	if (UStaticMesh* LoadedMesh = LoadObject<UStaticMesh>(nullptr, MeshPath))
 	{
-		ShapeMesh->SetStaticMesh(Mesh);
+		ShapeMesh->SetStaticMesh(LoadedMesh);
 	}
 	ShapeMesh->SetRelativeScale3D(Scale);
 	// Pose la base de la forme au niveau des pieds de la capsule
