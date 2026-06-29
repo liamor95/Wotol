@@ -231,42 +231,39 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 	{
 		FActorSpawnParameters FP; FP.Owner = this;
 
-		// Brouillard turquoise dense : noie le ciel/horizon, donne la profondeur d'eau
+		// Brouillard turquoise LÉGER : teinte l'horizon sans noyer la scène
 		if (AExponentialHeightFog* Fog = W->SpawnActor<AExponentialHeightFog>(
 				AExponentialHeightFog::StaticClass(), Center + FVector(0, 0, -200.f), NoRot, FP))
 		{
 			if (UExponentialHeightFogComponent* FC = Fog->GetComponent())
 			{
-				FC->SetFogDensity(0.045f);
-				FC->SetFogHeightFalloff(0.08f);
-				FC->SetFogInscatteringColor(FLinearColor(0.015f, 0.10f, 0.16f, 1.f));
-				FC->SetStartDistance(400.f);
+				FC->SetFogDensity(0.015f);
+				FC->SetFogHeightFalloff(0.10f);
+				FC->SetFogInscatteringColor(FLinearColor(0.03f, 0.14f, 0.20f, 1.f));
+				FC->SetStartDistance(1500.f);
 			}
 		}
 
-		// Volume post-process GLOBAL : teinte bleu-vert + assombrissement "nuit/abysse"
+		// Volume post-process GLOBAL : LÉGÈRE teinte bleu-vert (sans assombrir —
+		// surtout PAS d'exposition manuelle, qui rendait l'écran noir).
 		if (APostProcessVolume* PPV = W->SpawnActor<APostProcessVolume>(
 				APostProcessVolume::StaticClass(), Center, NoRot, FP))
 		{
 			PPV->bUnbound = true;
 			PPV->Priority = 100.f;
 			FPostProcessSettings& S = PPV->Settings;
-			// Teinte + assombrissement (valeurs <1 = plus sombre, dominante bleue)
-			S.bOverride_ColorGain = true;        S.ColorGain = FVector4(0.42f, 0.66f, 0.92f, 1.f);
-			S.bOverride_ColorSaturation = true;  S.ColorSaturation = FVector4(0.85f, 0.92f, 1.f, 1.f);
-			// Exposition manuelle pour empêcher l'auto-exposition de "rallumer" la scène
-			S.bOverride_AutoExposureMethod = true; S.AutoExposureMethod = AEM_Manual;
-			S.bOverride_AutoExposureBias   = true; S.AutoExposureBias = -1.2f;
-			// Profondeur : vignette + légère aberration chromatique
-			S.bOverride_VignetteIntensity  = true; S.VignetteIntensity = 0.55f;
-			S.bOverride_SceneFringeIntensity = true; S.SceneFringeIntensity = 1.5f;
+			// Gain proche de 1 (ne descend pas trop) avec dominante bleue douce
+			S.bOverride_ColorGain = true;        S.ColorGain = FVector4(0.85f, 0.97f, 1.10f, 1.f);
+			S.bOverride_ColorSaturation = true;  S.ColorSaturation = FVector4(0.92f, 0.97f, 1.05f, 1.f);
+			S.bOverride_VignetteIntensity  = true; S.VignetteIntensity = 0.35f;
+			S.bOverride_SceneFringeIntensity = true; S.SceneFringeIntensity = 0.8f;
 		}
 
-		// Masque les nuages volumétriques par défaut du niveau (ciel = sous l'eau)
+		// Masque UNIQUEMENT les nuages volumétriques (NE PAS toucher au SkyAtmosphere
+		// ni au SkyLight : les masquer supprimait tout l'éclairage → écran noir).
 		for (TActorIterator<AActor> It(W); It; ++It)
 		{
-			const FString Cls = It->GetClass()->GetName();
-			if (Cls.Contains(TEXT("VolumetricCloud")) || Cls.Contains(TEXT("SkyAtmosphere")))
+			if (It->GetClass()->GetName().Contains(TEXT("VolumetricCloud")))
 			{
 				It->SetActorHiddenInGame(true);
 			}
