@@ -147,12 +147,9 @@ void AWOTOLDemoDirector::SpawnEnemyForCreature(EFactionID RivalFaction, const FV
 			CreatureID, Origin + FVector(0.f, 0.f, 80.f), Facing, 1.5f, CreatureHealthScale))
 	{
 		Creature->bCreatureBrain = true; // boss autonome (avance + attaque)
-		if (UGameInstance* GI = GetGameInstance())
+		if (Demo)
 		{
-			if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
-			{
-				Demo->SetBoss(Creature);
-			}
+			Demo->SetBoss(Creature);
 		}
 	}
 }
