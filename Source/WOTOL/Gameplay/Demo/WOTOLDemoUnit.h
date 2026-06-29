@@ -41,6 +41,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Demo|Greybox")
 	int32 GetEffectiveMaxHealth() const;
 
+	// % de vie calculé sur les PV EFFECTIFS (boss inclus) — pour la barre du HUD.
+	// (GetHealthPercent() de base sature à 100% tant que PV > MaxHealth de base.)
+	UFUNCTION(BlueprintPure, Category = "Demo|Greybox")
+	float GetEffectiveHealthPercent() const;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;

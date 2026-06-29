@@ -392,13 +392,18 @@ void AWOTOLDemoDirector::EndDemo(bool bPlayerWon)
 	{
 		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
 		{
+			Demo->bDemoVictory = bPlayerWon;
 			Demo->SetPhase(EDemoPhase::DemoEnd);
 		}
 	}
 
 	if (bPlayerWon)
 	{
-		Say(TEXT("FIN DE DÉMO — Le conflit Aquiloris / Noxéens ne fait que commencer. La suite éveillera le mythique."));
+		Say(TEXT("VICTOIRE — Zone tenue. Le conflit Aquiloris / Noxéens ne fait que commencer."));
+	}
+	else
+	{
+		Say(TEXT("DÉFAITE — Vos forces sont anéanties. Relancez la bataille pour réessayer."));
 	}
 }
 

@@ -311,4 +311,31 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 		const FVector Pos(Rub.FRandRange(-7000.f, 7000.f), Rub.FRandRange(-7000.f, 7000.f), -40.f);
 		SpawnRock(Center + Pos, Rub.FRandRange(80.f, 180.f), RockColor, 1000 + i);
 	}
+
+	// ── CORAUX : touches de vie/couleur (orange, corail, teal) ───────────────
+	// Buissons coralliens = amas de petits cônes/sphères de couleurs chaudes.
+	const FLinearColor CoralWarm[4] = {
+		FLinearColor(0.85f, 0.35f, 0.10f, 1.f), // orange
+		FLinearColor(0.90f, 0.45f, 0.45f, 1.f), // corail rose
+		FLinearColor(0.95f, 0.65f, 0.15f, 1.f), // ambre
+		FLinearColor(0.10f, 0.55f, 0.50f, 1.f), // teal vif
+	};
+	FRandomStream Cor(909);
+	for (int32 i = 0; i < 34; ++i)
+	{
+		const FVector Base = Center + FVector(
+			Cor.FRandRange(-7000.f, 7000.f), Cor.FRandRange(-7000.f, 7000.f), -40.f);
+		const FLinearColor Col = CoralWarm[Cor.RandRange(0, 3)];
+		const int32 Branches = Cor.RandRange(3, 6);
+		for (int32 b = 0; b < Branches; ++b)
+		{
+			const float Hgt = Cor.FRandRange(60.f, 160.f);
+			const FVector Off(Cor.FRandRange(-40.f, 40.f), Cor.FRandRange(-40.f, 40.f), Hgt * 0.5f);
+			const bool bRound = Cor.FRand() < 0.3f;
+			SpawnBlock(bRound ? MESH_SPH : MESH_CONE, Base + Off,
+				FVector(0.18f, 0.18f, Hgt / 100.f), Col,
+				FRotator(Cor.FRandRange(-20.f, 20.f), Cor.FRandRange(0.f, 360.f), Cor.FRandRange(-20.f, 20.f)),
+				false);
+		}
+	}
 }

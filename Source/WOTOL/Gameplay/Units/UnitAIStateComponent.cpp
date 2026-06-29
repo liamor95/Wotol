@@ -330,9 +330,10 @@ bool UUnitAIStateComponent::IsInAttackRange(AUnitBase* Target) const
 
 	// AttackRange est en "cases hex" — 1 case ≈ 200 UE units
 	const float Range = Owner->GetUnitData()->Stats.AttackRange * 200.f;
-	// Distance BORD À BORD : on soustrait les rayons de collision des deux unités,
-	// sinon une cible énorme (kraken) n'est jamais "à portée" centre-à-centre.
-	const float CenterDist = FVector::Dist(Owner->GetActorLocation(), Target->GetActorLocation());
+	// Distance HORIZONTALE bord à bord : on ignore l'écart de hauteur (monde
+	// océanique — les créatures flottent) et on soustrait les rayons de collision,
+	// sinon une unité au sol sous un kraken en lévitation ne peut jamais le toucher.
+	const float CenterDist = FVector::Dist2D(Owner->GetActorLocation(), Target->GetActorLocation());
 	const float EdgeDist   = CenterDist - Owner->GetSimpleCollisionRadius()
 	                                    - Target->GetSimpleCollisionRadius();
 	return EdgeDist <= Range;

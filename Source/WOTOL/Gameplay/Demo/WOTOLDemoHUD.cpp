@@ -8,6 +8,21 @@
 #include "Gameplay/Units/UnitDataAsset.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
+#include "Kismet/GameplayStatics.h"
+
+FBox2D AWOTOLDemoHUD::PauseButtonRect(float W, float H)
+{
+	return FBox2D(FVector2D(W - 58.f, 14.f), FVector2D(W - 18.f, 50.f));
+}
+
+FBox2D AWOTOLDemoHUD::MenuButtonRect(int32 Index, float W, float H)
+{
+	const float BW = 280.f, BH = 54.f, Gap = 18.f;
+	const float X = (W - BW) * 0.5f;
+	const float Y0 = H * 0.42f;
+	const float Y = Y0 + Index * (BH + Gap);
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
 
 void AWOTOLDemoHUD::DrawHUD()
 {
@@ -62,7 +77,7 @@ void AWOTOLDemoHUD::DrawHUD()
 		{
 			if (Boss->IsAlive())
 			{
-				const float Pct = FMath::Clamp(Boss->GetHealthPercent(), 0.f, 1.f);
+				const float Pct = Boss->GetEffectiveHealthPercent(); // PV effectifs (boss)
 				const int32 MaxHP = Boss->GetEffectiveMaxHealth();
 				const int32 CurHP = FMath::RoundToInt(Pct * MaxHP);
 
@@ -87,10 +102,20 @@ void AWOTOLDemoHUD::DrawHUD()
 
 		if (Demo->GetPhase() == EDemoPhase::DemoEnd)
 		{
-			DrawCenteredText(TEXT("— FIN DE LA DEMO —"), H * 0.42f,
-				FLinearColor(1.f, 0.85f, 0.2f, 1.f), 2.2f);
-			DrawCenteredText(TEXT("Le conflit Aquiloris / Noxeens ne fait que commencer..."),
-				H * 0.50f, FLinearColor::White, 1.1f);
+			if (Demo->bDemoVictory)
+			{
+				DrawCenteredText(TEXT("— VICTOIRE —"), H * 0.40f,
+					FLinearColor(1.f, 0.85f, 0.2f, 1.f), 2.4f);
+				DrawCenteredText(TEXT("Zone tenue. Le conflit Aquiloris / Noxeens ne fait que commencer..."),
+					H * 0.48f, FLinearColor::White, 1.1f);
+			}
+			else
+			{
+				DrawCenteredText(TEXT("— DEFAITE —"), H * 0.40f,
+					FLinearColor(1.f, 0.25f, 0.2f, 1.f), 2.4f);
+				DrawCenteredText(TEXT("Vos forces sont tombees. Relancez pour reessayer."),
+					H * 0.48f, FLinearColor::White, 1.1f);
+			}
 		}
 	}
 
@@ -121,6 +146,44 @@ void AWOTOLDemoHUD::DrawHUD()
 				if (X > W - BoxW) break; // évite le débordement
 			}
 		}
+	}
+
+	// ─── 6) Bouton pause + voile du menu pause ───────────────────────────────
+	DrawPauseButton(W, H);
+	if (UGameplayStatics::IsGamePaused(World))
+	{
+		DrawPauseOverlay(W, H);
+	}
+}
+
+void AWOTOLDemoHUD::DrawPauseButton(float W, float H)
+{
+	const FBox2D R = PauseButtonRect(W, H);
+	const FVector2D Sz = R.Max - R.Min;
+	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.45f), R.Min.X, R.Min.Y, Sz.X, Sz.Y);
+	// deux barres ‖
+	const float BarW = 7.f, BarH = Sz.Y * 0.55f;
+	const float BarY = R.Min.Y + (Sz.Y - BarH) * 0.5f;
+	DrawRect(FLinearColor::White, R.Min.X + Sz.X * 0.30f - BarW * 0.5f, BarY, BarW, BarH);
+	DrawRect(FLinearColor::White, R.Min.X + Sz.X * 0.70f - BarW * 0.5f, BarY, BarW, BarH);
+}
+
+void AWOTOLDemoHUD::DrawPauseOverlay(float W, float H)
+{
+	// Voile sombre plein écran
+	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), 0.f, 0.f, W, H);
+	DrawCenteredText(TEXT("PAUSE"), H * 0.28f, FLinearColor::White, 2.6f);
+
+	const TCHAR* Labels[3] = { TEXT("Reprendre"), TEXT("Recommencer"), TEXT("Quitter") };
+	for (int32 i = 0; i < 3; ++i)
+	{
+		const FBox2D R = MenuButtonRect(i, W, H);
+		const FVector2D Sz = R.Max - R.Min;
+		DrawRect(FLinearColor(0.10f, 0.16f, 0.28f, 0.95f), R.Min.X, R.Min.Y, Sz.X, Sz.Y);
+		DrawRect(FLinearColor(0.3f, 0.6f, 1.f, 1.f), R.Min.X, R.Min.Y, Sz.X, 3.f); // liseré
+		float TW, TH; GetTextSize(Labels[i], TW, TH, GEngine->GetLargeFont(), 1.3f);
+		DrawText(Labels[i], FLinearColor::White, R.Min.X + (Sz.X - TW) * 0.5f,
+			R.Min.Y + (Sz.Y - TH) * 0.5f, GEngine->GetLargeFont(), 1.3f);
 	}
 }
 

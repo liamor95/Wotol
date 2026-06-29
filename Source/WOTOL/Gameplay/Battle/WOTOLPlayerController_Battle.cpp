@@ -3,7 +3,11 @@
 #include "WOTOLBattleCamera.h"
 #include "Gameplay/Units/UnitBase.h"
 #include "Gameplay/AI/AIAdaptiveController.h"
+#include "Gameplay/Demo/WOTOLDemoHUD.h"
 #include "Core/WOTOLGameInstance.h"
+#include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Engine/GameViewportClient.h"
 
 AWOTOLPlayerController_Battle::AWOTOLPlayerController_Battle()
 {
@@ -40,14 +44,86 @@ void AWOTOLPlayerController_Battle::SetupInputComponent()
 		&AWOTOLPlayerController_Battle::OnSelectAll);
 
 	// Bindings directs (fonctionnent SANS config Input du projet — démo jouable out-of-the-box)
-	InputComponent->BindKey(EKeys::LeftMouseButton,  IE_Pressed,  this,
-		&AWOTOLPlayerController_Battle::OnLeftMousePressed);
+	// Clic gauche : bExecuteWhenPaused pour pouvoir cliquer le menu pause.
+	{
+		FInputKeyBinding& BLM = InputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this,
+			&AWOTOLPlayerController_Battle::OnLeftMousePressed);
+		BLM.bExecuteWhenPaused = true;
+	}
 	InputComponent->BindKey(EKeys::LeftMouseButton,  IE_Released, this,
 		&AWOTOLPlayerController_Battle::OnLeftMouseReleased);
 	InputComponent->BindKey(EKeys::RightMouseButton, IE_Pressed,  this,
 		&AWOTOLPlayerController_Battle::OnRightMousePressed);
 	InputComponent->BindKey(EKeys::LeftControl,      IE_Pressed,  this,
 		&AWOTOLPlayerController_Battle::OnSelectAll);
+
+	// Pause : Échap ou P. bExecuteWhenPaused = ces bindings marchent même en pause.
+	{
+		FInputKeyBinding& B1 = InputComponent->BindKey(EKeys::Escape, IE_Pressed, this,
+			&AWOTOLPlayerController_Battle::TogglePause);
+		B1.bExecuteWhenPaused = true;
+		FInputKeyBinding& B2 = InputComponent->BindKey(EKeys::P, IE_Pressed, this,
+			&AWOTOLPlayerController_Battle::TogglePause);
+		B2.bExecuteWhenPaused = true;
+	}
+}
+
+bool AWOTOLPlayerController_Battle::GetViewportSizeSafe(FVector2D& Out) const
+{
+	if (UWorld* W = GetWorld())
+	{
+		if (UGameViewportClient* VP = W->GetGameViewport())
+		{
+			VP->GetViewportSize(Out);
+			return !Out.IsNearlyZero();
+		}
+	}
+	return false;
+}
+
+void AWOTOLPlayerController_Battle::TogglePause()
+{
+	const bool bNowPaused = !UGameplayStatics::IsGamePaused(GetWorld());
+	UGameplayStatics::SetGamePaused(GetWorld(), bNowPaused);
+}
+
+bool AWOTOLPlayerController_Battle::HandleUIClick()
+{
+	FVector2D VpSize;
+	if (!GetViewportSizeSafe(VpSize)) return false;
+
+	float MX, MY;
+	if (!GetMousePosition(MX, MY)) return false;
+	const FVector2D M(MX, MY);
+	const bool bPaused = UGameplayStatics::IsGamePaused(GetWorld());
+
+	// Bouton pause (toujours actif)
+	if (AWOTOLDemoHUD::PauseButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+	{
+		TogglePause();
+		return true;
+	}
+
+	if (!bPaused) return false;
+
+	// Boutons du menu pause
+	if (AWOTOLDemoHUD::MenuButtonRect(0, VpSize.X, VpSize.Y).IsInside(M)) // Reprendre
+	{
+		UGameplayStatics::SetGamePaused(GetWorld(), false);
+		return true;
+	}
+	if (AWOTOLDemoHUD::MenuButtonRect(1, VpSize.X, VpSize.Y).IsInside(M)) // Recommencer
+	{
+		UGameplayStatics::SetGamePaused(GetWorld(), false);
+		UGameplayStatics::OpenLevel(this, FName(*GetWorld()->GetName()));
+		return true;
+	}
+	if (AWOTOLDemoHUD::MenuButtonRect(2, VpSize.X, VpSize.Y).IsInside(M)) // Quitter
+	{
+		UKismetSystemLibrary::QuitGame(this, this, EQuitPreference::Quit, false);
+		return true;
+	}
+	return true; // en pause : tout clic est consommé par le menu
 }
 
 void AWOTOLPlayerController_Battle::Tick(float DeltaSeconds)
@@ -83,6 +159,9 @@ UUnitSelectionManager* AWOTOLPlayerController_Battle::GetSelectionManager() cons
 
 void AWOTOLPlayerController_Battle::OnLeftMousePressed()
 {
+	// Priorité à l'UI (bouton pause / menu). Si consommé, pas de sélection.
+	if (HandleUIClick()) return;
+
 	float X, Y;
 	GetMousePosition(X, Y);
 	BoxSelectStart   = FVector2D(X, Y);

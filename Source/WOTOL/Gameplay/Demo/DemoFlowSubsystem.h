@@ -138,6 +138,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Demo")
 	FString CurrentMessage;
 
+	// Issue de la démo (pour l'écran de fin : victoire ou défaite)
+	UPROPERTY(BlueprintReadOnly, Category = "Demo")
+	bool bDemoVictory = false;
+
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void SetMessage(const FString& Msg) { CurrentMessage = Msg; }
 

@@ -60,6 +60,12 @@ private:
 	void OnRightMousePressed();
 	void OnSelectAll();
 
+	// Pause (clavier + clics sur le menu)
+	void TogglePause();
+	// Traite un clic gauche sur l'UI (bouton pause / menu). Vrai = clic consommé.
+	bool HandleUIClick();
+	bool GetViewportSizeSafe(FVector2D& Out) const;
+
 	// Raycast helpers
 	AUnitBase* GetUnitUnderCursor() const;
 	bool       GetGroundLocationUnderCursor(FVector& OutLocation) const;

@@ -115,6 +115,12 @@ int32 AWOTOLDemoUnit::GetEffectiveMaxHealth() const
 	return FMath::RoundToInt(BaseMax * FMath::Max(1.f, HealthScale));
 }
 
+float AWOTOLDemoUnit::GetEffectiveHealthPercent() const
+{
+	const float Max = FMath::Max(1.f, (float)GetEffectiveMaxHealth());
+	return FMath::Clamp(CurrentHealth / Max, 0.f, 1.f);
+}
+
 void AWOTOLDemoUnit::HandleHealthChanged(float NewHealth, float MaxHealth)
 {
 	// Chiffre de dégâts flottant rouge (uniquement quand on PERD des PV)
