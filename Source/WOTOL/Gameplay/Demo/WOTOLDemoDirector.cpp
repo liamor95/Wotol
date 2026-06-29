@@ -5,6 +5,7 @@
 #include "Gameplay/Units/UnitBase.h"
 #include "Gameplay/Units/UnitDataAsset.h"
 #include "Gameplay/Battle/RTSBattleManager.h"
+#include "Gameplay/AI/AIAdaptiveController.h"
 #include "Core/FactionRegistrySubsystem.h"
 #include "Data/UnitDataRegistrySubsystem.h"
 #include "Core/WOTOLGameInstance.h"
@@ -197,6 +198,25 @@ void AWOTOLDemoDirector::LaunchBattle()
 	if (URTSBattleManager* RTS = GetWorld()->GetSubsystem<URTSBattleManager>())
 	{
 		RTS->StartBattlePhase(600.f);
+	}
+
+	// IMPORTANT : rendre la démo JOUABLE.
+	// StartBattlePhase active l'IA de TOUTES les factions. On désactive l'IA des
+	// unités du JOUEUR pour qu'elles obéissent à tes ordres (sélection + clic droit),
+	// pendant que l'ennemi reste piloté par l'IA.
+	if (UWorld* W = GetWorld())
+	{
+		if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
+		{
+			for (AUnitBase* U : Reg->GetUnitsForFaction(CachedPlayerFaction))
+			{
+				if (!U) continue;
+				if (AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(U->GetController()))
+				{
+					AIC->DeactivateRTSBehavior();
+				}
+			}
+		}
 	}
 
 	// Surveille la fin de bataille (un camp anéanti) toutes les 2 s

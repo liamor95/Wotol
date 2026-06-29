@@ -2,15 +2,15 @@
 #include "WOTOLDemoDirector.h"
 #include "WOTOLGreyboxEnvironment.h"
 #include "Gameplay/Battle/WOTOLBattleCamera.h"
+#include "Gameplay/Battle/WOTOLPlayerController_Battle.h"
 #include "Core/WOTOLGameInstance.h"
-#include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 
 AWOTOLGameMode_Demo::AWOTOLGameMode_Demo()
 {
-	// Pas de pawn par défaut : on possède manuellement la caméra de bataille
+	// PlayerController de bataille : sélection + ordres (clic droit) sur tes unités
 	DefaultPawnClass      = nullptr;
-	PlayerControllerClass = APlayerController::StaticClass();
+	PlayerControllerClass = AWOTOLPlayerController_Battle::StaticClass();
 }
 
 void AWOTOLGameMode_Demo::BeginPlay()
@@ -30,8 +30,7 @@ void AWOTOLGameMode_Demo::BeginPlay()
 		}
 	}
 
-	// 0) Décor greybox contextualisé (sol, arche centrale, zones de déploiement)
-	//    Spawn différé pour fixer la faction AVANT BeginPlay (couleurs correctes)
+	// 0) Décor greybox contextualisé (faction fixée avant BeginPlay)
 	const FTransform EnvTM(FRotator::ZeroRotator, FVector::ZeroVector);
 	if (AWOTOLGreyboxEnvironment* Env = W->SpawnActorDeferred<AWOTOLGreyboxEnvironment>(
 			AWOTOLGreyboxEnvironment::StaticClass(), EnvTM, this))
@@ -40,23 +39,30 @@ void AWOTOLGameMode_Demo::BeginPlay()
 		UGameplayStatics::FinishSpawningActor(Env, EnvTM);
 	}
 
-	// 1) Director : monte les armées greybox et lance la bataille RTS
-	FActorSpawnParameters DirParams;
-	DirParams.Owner = this;
-	Director = W->SpawnActor<AWOTOLDemoDirector>(
-		AWOTOLDemoDirector::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, DirParams);
+	// 1) Director : monte les armées et lance la bataille (différé = faction avant BeginPlay)
+	const FTransform DirTM(FRotator::ZeroRotator, FVector::ZeroVector);
+	Director = W->SpawnActorDeferred<AWOTOLDemoDirector>(
+		AWOTOLDemoDirector::StaticClass(), DirTM, this);
+	if (Director)
+	{
+		Director->DefaultPlayerFaction = PlayerFaction;
+		UGameplayStatics::FinishSpawningActor(Director, DirTM);
+	}
 
-	// 2) Caméra de bataille libre, possédée par le joueur pour voir la scène
+	// 2) Caméra de bataille libre
 	FActorSpawnParameters CamParams;
 	CamParams.Owner = this;
 	Camera = W->SpawnActor<AWOTOLBattleCamera>(
 		AWOTOLBattleCamera::StaticClass(), CameraSpawnLocation, FRotator::ZeroRotator, CamParams);
 
-	if (APlayerController* PC = W->GetFirstPlayerController())
+	// 3) Branche le PlayerController : faction + caméra (possession)
+	if (AWOTOLPlayerController_Battle* PC =
+			Cast<AWOTOLPlayerController_Battle>(W->GetFirstPlayerController()))
 	{
+		PC->SetPlayerFaction(PlayerFaction);
 		if (Camera)
 		{
-			PC->Possess(Camera);
+			PC->SetBattleCamera(Camera);
 		}
 		PC->bShowMouseCursor = true;
 	}

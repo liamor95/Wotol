@@ -120,8 +120,11 @@ private:
 
 	// ─── Bindings ─────────────────────────────────────────────────────────────
 	void InputPanForward(float V);
+	void InputPanBackward(float V);
 	void InputPanRight(float V);
+	void InputPanLeft(float V);
 	void InputVertical(float V);
+	void InputVerticalDown(float V);
 	void InputZoom(float V);
 	void InputMiddleMousePressed();
 	void InputMiddleMouseReleased();

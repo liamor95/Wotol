@@ -38,6 +38,16 @@ void AWOTOLPlayerController_Battle::SetupInputComponent()
 		&AWOTOLPlayerController_Battle::OnRightMousePressed);
 	InputComponent->BindAction("SelectAll", IE_Pressed, this,
 		&AWOTOLPlayerController_Battle::OnSelectAll);
+
+	// Bindings directs (fonctionnent SANS config Input du projet — démo jouable out-of-the-box)
+	InputComponent->BindKey(EKeys::LeftMouseButton,  IE_Pressed,  this,
+		&AWOTOLPlayerController_Battle::OnLeftMousePressed);
+	InputComponent->BindKey(EKeys::LeftMouseButton,  IE_Released, this,
+		&AWOTOLPlayerController_Battle::OnLeftMouseReleased);
+	InputComponent->BindKey(EKeys::RightMouseButton, IE_Pressed,  this,
+		&AWOTOLPlayerController_Battle::OnRightMousePressed);
+	InputComponent->BindKey(EKeys::LeftControl,      IE_Pressed,  this,
+		&AWOTOLPlayerController_Battle::OnSelectAll);
 }
 
 void AWOTOLPlayerController_Battle::Tick(float DeltaSeconds)

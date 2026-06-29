@@ -4,6 +4,8 @@
 #include "Components/SceneComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/GameViewportClient.h"
+#include "Components/InputComponent.h"
+#include "InputCoreTypes.h"
 
 AWOTOLBattleCamera::AWOTOLBattleCamera()
 {
@@ -48,6 +50,19 @@ void AWOTOLBattleCamera::SetupPlayerInputComponent(UInputComponent* Input)
 	// Middle mouse — yaw rotation
 	Input->BindAction("CameraRotateYaw",   IE_Pressed,  this, &AWOTOLBattleCamera::InputMiddleMousePressed);
 	Input->BindAction("CameraRotateYaw",   IE_Released, this, &AWOTOLBattleCamera::InputMiddleMouseReleased);
+
+	// Bindings DIRECTS sur les touches (fonctionnent SANS config Input du projet)
+	Input->BindAxisKey(EKeys::W,              this, &AWOTOLBattleCamera::InputPanForward);
+	Input->BindAxisKey(EKeys::S,              this, &AWOTOLBattleCamera::InputPanBackward);
+	Input->BindAxisKey(EKeys::D,              this, &AWOTOLBattleCamera::InputPanRight);
+	Input->BindAxisKey(EKeys::A,              this, &AWOTOLBattleCamera::InputPanLeft);
+	Input->BindAxisKey(EKeys::E,              this, &AWOTOLBattleCamera::InputVertical);
+	Input->BindAxisKey(EKeys::Q,              this, &AWOTOLBattleCamera::InputVerticalDown);
+	Input->BindAxisKey(EKeys::MouseWheelAxis, this, &AWOTOLBattleCamera::InputZoom);
+	Input->BindAxisKey(EKeys::MouseX,         this, &AWOTOLBattleCamera::InputMouseX);
+	Input->BindAxisKey(EKeys::MouseY,         this, &AWOTOLBattleCamera::InputMouseY);
+	Input->BindKey(EKeys::MiddleMouseButton, IE_Pressed,  this, &AWOTOLBattleCamera::InputMiddleMousePressed);
+	Input->BindKey(EKeys::MiddleMouseButton, IE_Released, this, &AWOTOLBattleCamera::InputMiddleMouseReleased);
 }
 
 void AWOTOLBattleCamera::Tick(float DT)
@@ -75,8 +90,11 @@ void AWOTOLBattleCamera::Tick(float DT)
 // ─── Input bindings ───────────────────────────────────────────────────────────
 
 void AWOTOLBattleCamera::InputPanForward(float V)  { PanInput.X += V; }
+void AWOTOLBattleCamera::InputPanBackward(float V) { PanInput.X -= V; }
 void AWOTOLBattleCamera::InputPanRight(float V)    { PanInput.Y += V; }
+void AWOTOLBattleCamera::InputPanLeft(float V)     { PanInput.Y -= V; }
 void AWOTOLBattleCamera::InputVertical(float V)    { VerticalInput += V; }
+void AWOTOLBattleCamera::InputVerticalDown(float V){ VerticalInput -= V; }
 void AWOTOLBattleCamera::InputZoom(float V)        { ZoomInput += V; }
 
 void AWOTOLBattleCamera::InputMiddleMousePressed()
