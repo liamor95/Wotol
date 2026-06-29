@@ -470,4 +470,35 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 	const float CapR = FMath::Max(24.f, HeightU * WidthFactor * 0.5f);
 	GetCapsuleComponent()->SetCapsuleSize(CapR, CapH);
 	if (NameTag) NameTag->SetRelativeLocation(FVector(0.f, 0.f, CapH + 50.f));
+
+	// Disque d'équipe au sol (bleu Aquiloris / vert Noxéen) — repère de camp.
+	AddTeamMarker(CapR, -CapH + 4.f, FFactionColors::Get(GetFaction()));
+}
+
+void AWOTOLDemoUnit::AddTeamMarker(float Radius, float ZFeet, const FLinearColor& Color)
+{
+	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
+	if (!C) return;
+	C->SetupAttachment(RootComponent);
+	C->RegisterComponent();
+	C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	if (UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, M_CYL))
+	{
+		C->SetStaticMesh(M);
+	}
+	// Cylindre TRÈS plat = disque ; rayon un peu plus large que la capsule.
+	const float RScale = (Radius * 1.3f) / 50.f;
+	C->SetRelativeLocation(FVector(0.f, 0.f, ZFeet));
+	C->SetRelativeScale3D(FVector(RScale, RScale, 0.04f));
+
+	if (UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
+			nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
+	{
+		if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, this))
+		{
+			MID->SetVectorParameterValue(TEXT("Color"), Color);
+			C->SetMaterial(0, MID);
+		}
+	}
+	TeamMarker = C;
 }

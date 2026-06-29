@@ -82,6 +82,11 @@ private:
 	TArray<TObjectPtr<UMaterialInstanceDynamic>> PartMIDs;
 	TArray<FLinearColor> PartBaseColors;
 
+	// Disque d'équipe sous les pieds (bleu/vert) — toujours visible, lisibilité RTS.
+	UPROPERTY()
+	TObjectPtr<UStaticMeshComponent> TeamMarker;
+	void AddTeamMarker(float Radius, float ZFeet, const FLinearColor& Color);
+
 	// Réagit à la sélection joueur : surligne l'unité
 	UFUNCTION()
 	void HandleSelected(bool bSel);

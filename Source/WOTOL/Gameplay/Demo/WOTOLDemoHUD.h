@@ -25,4 +25,12 @@ private:
 	void DrawCenteredText(const FString& Text, float Y, const FLinearColor& Color, float Scale);
 	void DrawPauseButton(float W, float H);
 	void DrawPauseOverlay(float W, float H);
+
+	// Éléments style Total War
+	void DrawTopBar(float W, float H, class UWorld* World, class UDemoFlowSubsystem* Demo);
+	void DrawBossBar(float W, float H, class AWOTOLDemoUnit* Boss);
+	void DrawCommandBar(float W, float H, class UWorld* World);
+	// Petite barre encadrée générique (fond + remplissage + cadre).
+	void DrawBar(float X, float Y, float BarW, float BarH, float Pct,
+		const FLinearColor& Fill, const FLinearColor& Back);
 };

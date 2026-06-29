@@ -9,6 +9,7 @@
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Kismet/GameplayStatics.h"
+#include "Data/WOTOLTypes.h"
 
 FBox2D AWOTOLDemoHUD::PauseButtonRect(float W, float H)
 {
@@ -55,98 +56,41 @@ void AWOTOLDemoHUD::DrawHUD()
 		}
 	}
 
-	// ─── 2) Timer de bataille (haut centre) ──────────────────────────────────
-	if (World)
-	{
-		if (URTSBattleManager* RTS = World->GetSubsystem<URTSBattleManager>())
-		{
-			const FString T = RTS->GetFormattedTime().ToString();
-			float TW, TH; GetTextSize(T, TW, TH, GEngine->GetLargeFont(), 1.4f);
-			DrawText(T, FLinearColor(0,0,0,0.7f), (W - TW)*0.5f + 2.f, 10.f, GEngine->GetLargeFont(), 1.4f);
-			DrawText(T, FLinearColor::White, (W - TW)*0.5f, 8.f, GEngine->GetLargeFont(), 1.4f);
-		}
-	}
-
 	UDemoFlowSubsystem* Demo = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 
-	// ─── 3) Barre de vie du BOSS (kraken), haut, sous le timer ──────────────
+	// ─── 2) Bandeau supérieur : timer (pilule) + objectif ────────────────────
+	DrawTopBar(W, H, World, Demo);
+
+	// ─── 3) Barre de vie du BOSS (style "boss fight") ────────────────────────
 	if (Demo)
 	{
 		if (AWOTOLDemoUnit* Boss = Cast<AWOTOLDemoUnit>(Demo->GetBoss()))
 		{
-			if (Boss->IsAlive())
-			{
-				const float Pct = Boss->GetEffectiveHealthPercent(); // PV effectifs (boss)
-				const int32 MaxHP = Boss->GetEffectiveMaxHealth();
-				const int32 CurHP = FMath::RoundToInt(Pct * MaxHP);
-
-				const float BarW = 420.f, BarH = 22.f;
-				const float BX = (W - BarW) * 0.5f;
-				const float BY = 50.f;
-				DrawRect(FLinearColor(0.05f, 0.05f, 0.05f, 0.85f), BX - 2, BY - 2, BarW + 4, BarH + 4);
-				DrawRect(FLinearColor(0.15f, 0.15f, 0.15f, 0.9f), BX, BY, BarW, BarH);
-				DrawRect(FLinearColor(0.7f, 0.1f, 0.85f, 1.f), BX, BY, BarW * Pct, BarH); // violet kraken
-
-				const FString Label = FString::Printf(TEXT("KRAKEN   %d / %d"), CurHP, MaxHP);
-				float LW, LH; GetTextSize(Label, LW, LH, GEngine->GetLargeFont(), 1.f);
-				DrawText(Label, FLinearColor::White, (W - LW)*0.5f, BY + 2.f, GEngine->GetLargeFont(), 1.f);
-			}
+			DrawBossBar(W, H, Boss);
 		}
 
-		// ─── 4) Message d'objectif + écran de fin ───────────────────────────
-		if (!Demo->CurrentMessage.IsEmpty())
-		{
-			DrawCenteredText(Demo->CurrentMessage, H * 0.14f, FLinearColor::White, 1.2f);
-		}
-
+		// Écran de fin
 		if (Demo->GetPhase() == EDemoPhase::DemoEnd)
 		{
+			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.45f), 0.f, H * 0.34f, W, H * 0.22f);
 			if (Demo->bDemoVictory)
 			{
-				DrawCenteredText(TEXT("— VICTOIRE —"), H * 0.40f,
-					FLinearColor(1.f, 0.85f, 0.2f, 1.f), 2.4f);
+				DrawCenteredText(TEXT("— VICTOIRE —"), H * 0.40f, FLinearColor(1.f, 0.85f, 0.2f, 1.f), 2.4f);
 				DrawCenteredText(TEXT("Zone tenue. Le conflit Aquiloris / Noxeens ne fait que commencer..."),
 					H * 0.48f, FLinearColor::White, 1.1f);
 			}
 			else
 			{
-				DrawCenteredText(TEXT("— DEFAITE —"), H * 0.40f,
-					FLinearColor(1.f, 0.25f, 0.2f, 1.f), 2.4f);
+				DrawCenteredText(TEXT("— DEFAITE —"), H * 0.40f, FLinearColor(1.f, 0.25f, 0.2f, 1.f), 2.4f);
 				DrawCenteredText(TEXT("Vos forces sont tombees. Relancez pour reessayer."),
 					H * 0.48f, FLinearColor::White, 1.1f);
 			}
 		}
 	}
 
-	// ─── 5) Unités sélectionnées (bas de l'écran), groupées par type ─────────
-	if (World)
-	{
-		if (UUnitSelectionManager* Sel = World->GetSubsystem<UUnitSelectionManager>())
-		{
-			TMap<FString, int32> Counts;
-			for (AUnitBase* U : Sel->GetSelectedUnits())
-			{
-				if (!U || !U->IsAlive()) continue;
-				const FString Name = (U->GetUnitData() && !U->GetUnitData()->DisplayName.IsEmpty())
-					? U->GetUnitData()->DisplayName.ToString() : U->GetName();
-				Counts.FindOrAdd(Name)++;
-			}
-
-			float X = 20.f;
-			const float Y = H - 78.f;
-			for (const TPair<FString, int32>& P : Counts)
-			{
-				const float BoxW = 150.f, BoxH = 58.f;
-				DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.55f), X, Y, BoxW, BoxH);
-				DrawRect(FLinearColor(0.3f, 0.6f, 1.f, 0.9f), X, Y, BoxW, 4.f); // liseré bleu
-				const FString Line = FString::Printf(TEXT("%dx %s"), P.Value, *P.Key);
-				DrawText(Line, FLinearColor::White, X + 8.f, Y + 20.f, GEngine->GetMediumFont(), 1.f);
-				X += BoxW + 10.f;
-				if (X > W - BoxW) break; // évite le débordement
-			}
-		}
-	}
+	// ─── 5) Barre de commandement (bas) : cartes d'unités sélectionnées ──────
+	DrawCommandBar(W, H, World);
 
 	// ─── 6) Bouton pause + voile du menu pause ───────────────────────────────
 	DrawPauseButton(W, H);
@@ -184,6 +128,127 @@ void AWOTOLDemoHUD::DrawPauseOverlay(float W, float H)
 		float TW, TH; GetTextSize(Labels[i], TW, TH, GEngine->GetLargeFont(), 1.3f);
 		DrawText(Labels[i], FLinearColor::White, R.Min.X + (Sz.X - TW) * 0.5f,
 			R.Min.Y + (Sz.Y - TH) * 0.5f, GEngine->GetLargeFont(), 1.3f);
+	}
+}
+
+void AWOTOLDemoHUD::DrawBar(float X, float Y, float BarW, float BarH, float Pct,
+	const FLinearColor& Fill, const FLinearColor& Back)
+{
+	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.85f), X - 2, Y - 2, BarW + 4, BarH + 4); // cadre
+	DrawRect(Back, X, Y, BarW, BarH);
+	DrawRect(Fill, X, Y, BarW * FMath::Clamp(Pct, 0.f, 1.f), BarH);
+}
+
+void AWOTOLDemoHUD::DrawTopBar(float W, float H, UWorld* World, UDemoFlowSubsystem* Demo)
+{
+	// Pilule de timer (haut centre)
+	if (World)
+	{
+		if (URTSBattleManager* RTS = World->GetSubsystem<URTSBattleManager>())
+		{
+			const FString T = RTS->GetFormattedTime().ToString();
+			float TW, TH; GetTextSize(T, TW, TH, GEngine->GetLargeFont(), 1.5f);
+			const float PadX = 26.f, PillW = TW + PadX * 2.f, PillH = TH + 12.f;
+			const float PX = (W - PillW) * 0.5f, PY = 6.f;
+			DrawRect(FLinearColor(0.03f, 0.06f, 0.10f, 0.92f), PX, PY, PillW, PillH);
+			DrawRect(FLinearColor(0.30f, 0.62f, 1.f, 1.f), PX, PY, PillW, 3.f);          // liseré haut
+			DrawRect(FLinearColor(0.30f, 0.62f, 1.f, 1.f), PX, PY + PillH - 3.f, PillW, 3.f);
+			DrawText(T, FLinearColor::White, (W - TW) * 0.5f, PY + 6.f, GEngine->GetLargeFont(), 1.5f);
+		}
+	}
+
+	// Bandeau d'objectif (sous le timer)
+	if (Demo && !Demo->CurrentMessage.IsEmpty())
+	{
+		const FString& Msg = Demo->CurrentMessage;
+		float MW, MH; GetTextSize(Msg, MW, MH, GEngine->GetLargeFont(), 1.15f);
+		const float BandW = FMath::Min(W - 40.f, MW + 60.f);
+		const float BX = (W - BandW) * 0.5f, BY = H * 0.12f;
+		DrawRect(FLinearColor(0.02f, 0.04f, 0.07f, 0.78f), BX, BY, BandW, MH + 14.f);
+		DrawRect(FLinearColor(0.95f, 0.78f, 0.25f, 0.9f), BX, BY, 4.f, MH + 14.f);       // liseré or gauche
+		DrawText(Msg, FLinearColor::White, BX + 30.f, BY + 7.f, GEngine->GetLargeFont(), 1.15f);
+	}
+}
+
+void AWOTOLDemoHUD::DrawBossBar(float W, float H, AWOTOLDemoUnit* Boss)
+{
+	if (!Boss || !Boss->IsAlive()) return;
+
+	const float Pct = Boss->GetEffectiveHealthPercent();
+	const int32 MaxHP = Boss->GetEffectiveMaxHealth();
+	const int32 CurHP = FMath::RoundToInt(Pct * MaxHP);
+
+	const float BarW = 520.f, BarH = 26.f;
+	const float BX = (W - BarW) * 0.5f, BY = 56.f;
+
+	// Liseré "boss" violet/cyan
+	DrawRect(FLinearColor(0.20f, 0.85f, 1.f, 0.9f), BX - 4, BY - 4, BarW + 8, 3.f);
+	DrawBar(BX, BY, BarW, BarH, Pct,
+		FLinearColor(0.62f, 0.12f, 0.85f, 1.f), FLinearColor(0.10f, 0.05f, 0.14f, 0.92f));
+
+	const FString Name = TEXT("KRAKEN");
+	float NW, NH; GetTextSize(Name, NW, NH, GEngine->GetLargeFont(), 1.2f);
+	DrawText(Name, FLinearColor(0.95f, 0.85f, 1.f, 1.f), (W - NW) * 0.5f, BY - 22.f, GEngine->GetLargeFont(), 1.2f);
+
+	const FString HP = FString::Printf(TEXT("%d / %d"), CurHP, MaxHP);
+	float HW, HH; GetTextSize(HP, HW, HH, GEngine->GetMediumFont(), 1.f);
+	DrawText(HP, FLinearColor::White, (W - HW) * 0.5f, BY + 4.f, GEngine->GetMediumFont(), 1.f);
+}
+
+void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
+{
+	if (!World) return;
+	UUnitSelectionManager* Sel = World->GetSubsystem<UUnitSelectionManager>();
+	if (!Sel) return;
+
+	// Agrège les unités sélectionnées par nom (groupe)
+	struct FGroup { FString Name; int32 Count = 0; float HpSum = 0.f; EFactionID Fac = EFactionID::None; };
+	TArray<FGroup> Groups;
+	TMap<FString, int32> Index;
+	for (AUnitBase* U : Sel->GetSelectedUnits())
+	{
+		if (!U || !U->IsAlive()) continue;
+		const FString Name = (U->GetUnitData() && !U->GetUnitData()->DisplayName.IsEmpty())
+			? U->GetUnitData()->DisplayName.ToString() : U->GetName();
+		int32* Found = Index.Find(Name);
+		FGroup& G = Found ? Groups[*Found]
+			: Groups[Index.Add(Name, Groups.Add(FGroup{ Name, 0, 0.f, U->GetFaction() }))];
+		G.Count++;
+		G.HpSum += U->GetHealthPercent();
+	}
+	if (Groups.Num() == 0) return;
+
+	// Bandeau de fond plein largeur
+	const float BandH = 96.f;
+	const float BandY = H - BandH;
+	DrawRect(FLinearColor(0.02f, 0.03f, 0.05f, 0.72f), 0.f, BandY, W, BandH);
+	DrawRect(FLinearColor(0.30f, 0.62f, 1.f, 0.7f), 0.f, BandY, W, 3.f); // liseré haut
+
+	// Cartes d'unités
+	const float CardW = 158.f, CardH = 76.f, Gap = 10.f;
+	float X = 16.f;
+	const float Y = BandY + (BandH - CardH) * 0.5f;
+	for (const FGroup& G : Groups)
+	{
+		const FLinearColor Fac = FFactionColors::Get(G.Fac);
+		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), X, Y, CardW, CardH);
+		DrawRect(Fac, X, Y, CardW, 4.f);                       // liseré couleur de faction
+		// Icône (carré teinté)
+		DrawRect(Fac * 0.7f, X + 8.f, Y + 12.f, 40.f, 40.f);
+		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.5f), X + 8.f, Y + 12.f, 40.f, 4.f);
+		// Nom + nombre
+		DrawText(G.Name, FLinearColor::White, X + 56.f, Y + 10.f, GEngine->GetMediumFont(), 1.f);
+		DrawText(FString::Printf(TEXT("x%d"), G.Count), FLinearColor(1.f, 0.9f, 0.5f, 1.f),
+			X + 56.f, Y + 30.f, GEngine->GetMediumFont(), 1.2f);
+		// Mini-barre de vie moyenne du groupe
+		const float AvgHp = (G.Count > 0) ? G.HpSum / G.Count : 0.f;
+		const FLinearColor HpCol = FMath::Lerp(FLinearColor(0.8f, 0.1f, 0.1f, 1.f),
+			FLinearColor(0.2f, 0.85f, 0.2f, 1.f), AvgHp);
+		DrawBar(X + 8.f, Y + CardH - 14.f, CardW - 16.f, 8.f, AvgHp, HpCol,
+			FLinearColor(0.12f, 0.12f, 0.12f, 0.9f));
+
+		X += CardW + Gap;
+		if (X > W - CardW - 70.f) break; // garde la place pour le bouton pause
 	}
 }
 
