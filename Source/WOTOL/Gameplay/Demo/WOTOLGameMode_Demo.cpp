@@ -51,11 +51,22 @@ void AWOTOLGameMode_Demo::BeginPlay()
 		UGameplayStatics::FinishSpawningActor(Director, DirTM);
 	}
 
-	// 2) Caméra de bataille libre
+	// 2) Caméra de bataille libre, cadrée d'emblée sur l'armée du joueur
+	//    (l'armée joueur est montée à gauche : X = -ArmySeparation/2 ; l'ennemi à droite).
+	const float Sep = Director ? Director->ArmySeparation : 4500.f;
+	const FVector PlayerOrigin(-Sep * 0.5f, 0.f, 0.f);
+	// Pivot un peu en avant de l'armée (vers l'ennemi) et légèrement surélevé
+	const FVector CamFocus = PlayerOrigin + FVector(700.f, 0.f, 150.f);
+
 	FActorSpawnParameters CamParams;
 	CamParams.Owner = this;
 	Camera = W->SpawnActor<AWOTOLBattleCamera>(
-		AWOTOLBattleCamera::StaticClass(), CameraSpawnLocation, FRotator::ZeroRotator, CamParams);
+		AWOTOLBattleCamera::StaticClass(), CamFocus, FRotator::ZeroRotator, CamParams);
+	if (Camera)
+	{
+		// Yaw 0 = regard vers +X (l'ennemi) ; pitch plongeant ; zoom proche de l'armée
+		Camera->SetInitialView(CamFocus, 0.f, -45.f, 2600.f);
+	}
 
 	// 3) Branche le PlayerController : faction + caméra (possession)
 	if (AWOTOLPlayerController_Battle* PC =

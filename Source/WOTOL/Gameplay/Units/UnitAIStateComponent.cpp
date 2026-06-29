@@ -100,6 +100,12 @@ void UUnitAIStateComponent::EvaluateIdle()
 		return;
 	}
 
+	// Tenir la position : rester strictement en formation (pas de patrouille/errance)
+	if (bHoldPosition)
+	{
+		return;
+	}
+
 	TransitionTo(EUnitAIState::Patrolling);
 }
 

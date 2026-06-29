@@ -236,6 +236,19 @@ void AWOTOLBattleCamera::FocusOn(FVector WorldLocation)
 	ClampPosition();
 }
 
+void AWOTOLBattleCamera::SetInitialView(FVector Focus, float Yaw, float Pitch, float ArmLength)
+{
+	SetActorLocation(Focus);
+	CurrentYaw   = Yaw;
+	CurrentPitch = FMath::Clamp(Pitch, MinPitch, MaxPitch);
+	if (SpringArm)
+	{
+		SpringArm->TargetArmLength = FMath::Clamp(ArmLength, MinArmLength, MaxArmLength);
+	}
+	ApplyArmRotation();
+	ClampPosition();
+}
+
 void AWOTOLBattleCamera::FocusOnLayer(float TargetZ)
 {
 	FVector Loc = GetActorLocation();

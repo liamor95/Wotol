@@ -84,6 +84,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Camera")
 	void FocusOn(FVector WorldLocation);
 
+	// Vue initiale : place le pivot sur Focus, oriente la caméra (yaw/pitch) et
+	// règle la distance de zoom. Utilisé au lancement pour cadrer l'armée du joueur.
+	UFUNCTION(BlueprintCallable, Category = "Camera")
+	void SetInitialView(FVector Focus, float Yaw, float Pitch, float ArmLength);
+
 	// Aller directement à une couche verticale (Épipélagique = 0, Hadal = -12000)
 	UFUNCTION(BlueprintCallable, Category = "Camera")
 	void FocusOnLayer(float TargetZ);

@@ -113,26 +113,54 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	if (!Demo) return;
 
-	int32 Row = 0;
-	auto PlaceLine = [&](FName UnitID, int32 Count)
+	// Formation d'armée STRUCTURÉE (vers +X = l'ennemi).
+	//   - "Avant" (vers l'ennemi) = +X ; les rangées arrière sont en -X.
+	//   - Chef devant, centré
+	//   - Infanterie : 2 paquets de 5 (gauche/droite) avec un espace central
+	//   - Montée : une rangée alignée derrière l'infanterie
+	//   - Distance : une rangée alignée tout à l'arrière (si débloquée)
+	const float Lat   = UnitSpacing;          // espacement latéral (Y)
+	const float Depth = UnitSpacing * 1.7f;   // espacement entre rangées (X)
+	const float GroundZ = 100.f;
+
+	auto Place = [&](FName UnitID, const FVector& Offset)
 	{
-		if (UnitID.IsNone() || Count <= 0) return;
-		for (int32 i = 0; i < Count; ++i)
-		{
-			const FVector Loc = Origin +
-				FVector(Row * -UnitSpacing, (i - Count * 0.5f) * UnitSpacing, 100.f);
-			SpawnUnit(UnitID, Loc, Facing, 1.f);
-		}
-		++Row;
+		if (UnitID.IsNone()) return;
+		SpawnUnit(UnitID, Origin + Offset + FVector(0.f, 0.f, GroundZ), Facing, 1.f);
 	};
 
-	PlaceLine(Demo->GetUnitID(Faction, EDemoUnitCategory::Chef), 1);
-	PlaceLine(Demo->GetUnitID(Faction, EDemoUnitCategory::Infanterie), InfantryCount);
-	PlaceLine(Demo->GetUnitID(Faction, EDemoUnitCategory::Montee), MountedCount);
+	// Chef en pointe
+	Place(Demo->GetUnitID(Faction, EDemoUnitCategory::Chef), FVector(Depth, 0.f, 0.f));
 
+	// Infanterie : deux paquets de 5 alignés, séparés au centre
+	const FName InfID = Demo->GetUnitID(Faction, EDemoUnitCategory::Infanterie);
+	const int32 Half  = FMath::Max(1, InfantryCount / 2);
+	for (int32 i = 0; i < InfantryCount; ++i)
+	{
+		const bool  bRight = (i >= Half);
+		const int32 k      = bRight ? (i - Half) : i;
+		const float Side   = bRight ? 1.f : -1.f;
+		const float Y      = Side * ((k + 0.5f) * Lat + Lat * 0.8f); // gap central
+		Place(InfID, FVector(0.f, Y, 0.f));
+	}
+
+	// Montée : rangée alignée derrière l'infanterie
+	const FName MntID = Demo->GetUnitID(Faction, EDemoUnitCategory::Montee);
+	for (int32 i = 0; i < MountedCount; ++i)
+	{
+		const float Y = (i - (MountedCount - 1) * 0.5f) * Lat * 1.4f;
+		Place(MntID, FVector(-Depth, Y, 0.f));
+	}
+
+	// Distance : rangée alignée tout à l'arrière (si débloquée)
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Distance))
 	{
-		PlaceLine(Demo->GetUnitID(Faction, EDemoUnitCategory::Distance), RangedCount);
+		const FName RngID = Demo->GetUnitID(Faction, EDemoUnitCategory::Distance);
+		for (int32 i = 0; i < RangedCount; ++i)
+		{
+			const float Y = (i - (RangedCount - 1) * 0.5f) * Lat * 1.4f;
+			Place(RngID, FVector(-Depth * 2.f, Y, 0.f));
+		}
 	}
 }
 
