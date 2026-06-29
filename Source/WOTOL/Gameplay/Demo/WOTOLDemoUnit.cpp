@@ -3,6 +3,7 @@
 #include "Gameplay/AI/AIAdaptiveController.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -130,8 +131,17 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 		ShapeMesh->SetStaticMesh(LoadedMesh);
 	}
 	ShapeMesh->SetRelativeScale3D(Scale);
-	// Pose la base de la forme au niveau des pieds de la capsule
-	ShapeMesh->SetRelativeLocation(FVector(0.f, 0.f, -88.f));
+	// Forme centrée sur la capsule
+	ShapeMesh->SetRelativeLocation(FVector::ZeroVector);
+
+	// COLLISION : la capsule épouse la taille réelle de la forme (les meshes
+	// primitifs font 100 UE -> demi-extent = Scale * 50). Les unités ne se
+	// rentrent plus dedans ni dans la créature géante.
+	const float CapR = FMath::Max(20.f, FMath::Max(Scale.X, Scale.Y) * 50.f);
+	const float CapH = FMath::Max(20.f, Scale.Z * 50.f);
+	GetCapsuleComponent()->SetCapsuleSize(CapR, CapH);
+	// Remonte l'étiquette au-dessus de la forme
+	if (NameTag) NameTag->SetRelativeLocation(FVector(0.f, 0.f, CapH + 40.f));
 
 	// Couleur officielle de la faction (FFactionColors = source de vérité)
 	if (UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(

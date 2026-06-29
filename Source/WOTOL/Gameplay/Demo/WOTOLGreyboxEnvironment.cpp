@@ -18,7 +18,8 @@ void AWOTOLGreyboxEnvironment::BeginPlay()
 }
 
 AStaticMeshActor* AWOTOLGreyboxEnvironment::SpawnBlock(
-	const TCHAR* MeshPath, const FVector& Loc, const FVector& Scale, const FLinearColor& Color)
+	const TCHAR* MeshPath, const FVector& Loc, const FVector& Scale, const FLinearColor& Color,
+	const FRotator& Rot)
 {
 	UWorld* W = GetWorld();
 	if (!W) return nullptr;
@@ -28,7 +29,7 @@ AStaticMeshActor* AWOTOLGreyboxEnvironment::SpawnBlock(
 	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 	AStaticMeshActor* SMA = W->SpawnActor<AStaticMeshActor>(
-		AStaticMeshActor::StaticClass(), Loc, FRotator::ZeroRotator, P);
+		AStaticMeshActor::StaticClass(), Loc, Rot, P);
 	if (!SMA) return nullptr;
 
 	UStaticMeshComponent* Comp = SMA->GetStaticMeshComponent();
@@ -78,11 +79,37 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 	SpawnBlock(TEXT("/Engine/BasicShapes/Cube.Cube"),
 		Center + FVector(0.f, 0.f, 820.f), FVector(1.5f, 9.f, 1.f), StoneColor);
 
-	// Quelques plateaux/reliefs (verticalité)
+	// ─── VERTICALITÉ : plateaux à différentes hauteurs + rampes pour monter ───
+
+	// Plateau central surélevé (niveau 2)
 	SpawnBlock(TEXT("/Engine/BasicShapes/Cube.Cube"),
-		Center + FVector(-900.f, -900.f, 150.f), FVector(6.f, 6.f, 3.f), StoneColor);
+		Center + FVector(0.f, 0.f, 150.f), FVector(9.f, 9.f, 0.6f), StoneColor);
+	// Rampe d'accès au plateau central (inclinée ~20°)
 	SpawnBlock(TEXT("/Engine/BasicShapes/Cube.Cube"),
-		Center + FVector(900.f, 900.f, 150.f), FVector(6.f, 6.f, 3.f), StoneColor);
+		Center + FVector(-700.f, 0.f, 80.f), FVector(9.f, 4.f, 0.3f), StoneColor,
+		FRotator(20.f, 0.f, 0.f));
+	SpawnBlock(TEXT("/Engine/BasicShapes/Cube.Cube"),
+		Center + FVector(700.f, 0.f, 80.f), FVector(9.f, 4.f, 0.3f), StoneColor,
+		FRotator(-20.f, 0.f, 0.f));
+
+	// Tours/plateaux latéraux hauts (niveau 3 — pour les unités montées en hauteur)
+	SpawnBlock(TEXT("/Engine/BasicShapes/Cube.Cube"),
+		Center + FVector(-1100.f, -1100.f, 300.f), FVector(5.f, 5.f, 1.2f), StoneColor);
+	SpawnBlock(TEXT("/Engine/BasicShapes/Cube.Cube"),
+		Center + FVector(1100.f, 1100.f, 300.f), FVector(5.f, 5.f, 1.2f), StoneColor);
+	// Rampes vers ces plateaux hauts
+	SpawnBlock(TEXT("/Engine/BasicShapes/Cube.Cube"),
+		Center + FVector(-1100.f, -650.f, 160.f), FVector(4.f, 5.f, 0.3f), StoneColor,
+		FRotator(25.f, 0.f, 0.f));
+	SpawnBlock(TEXT("/Engine/BasicShapes/Cube.Cube"),
+		Center + FVector(1100.f, 650.f, 160.f), FVector(4.f, 5.f, 0.3f), StoneColor,
+		FRotator(25.f, 0.f, 0.f));
+
+	// Petits reliefs / obstacles bas (couverture)
+	SpawnBlock(TEXT("/Engine/BasicShapes/Cube.Cube"),
+		Center + FVector(-450.f, 700.f, 60.f), FVector(3.f, 3.f, 1.2f), StoneColor);
+	SpawnBlock(TEXT("/Engine/BasicShapes/Cube.Cube"),
+		Center + FVector(450.f, -700.f, 60.f), FVector(3.f, 3.f, 1.2f), StoneColor);
 
 	// Zones de déploiement colorées (planes fins au sol)
 	SpawnBlock(TEXT("/Engine/BasicShapes/Plane.Plane"),
