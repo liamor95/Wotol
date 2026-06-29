@@ -52,9 +52,9 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		if (PC->PlayerCameraManager)
 		{
 			const FVector CamLoc = PC->PlayerCameraManager->GetCameraLocation();
-			FRotator Face = (CamLoc - NameTag->GetComponentLocation()).Rotation();
+			// Le texte regarde la caméra et se lit dans le bon sens (pas en miroir)
+			FRotator Face = (NameTag->GetComponentLocation() - CamLoc).Rotation();
 			Face.Pitch = 0.f; Face.Roll = 0.f;
-			Face.Yaw += 180.f; // le texte se lit de face
 			NameTag->SetWorldRotation(Face);
 		}
 	}
@@ -64,6 +64,16 @@ void AWOTOLDemoUnit::BeginPlay()
 {
 	Super::BeginPlay();   // initialise UnitData -> stats, faction, rôle
 	BuildGreyboxShape();
+	OnUnitSelected.AddDynamic(this, &AWOTOLDemoUnit::HandleSelected);
+}
+
+void AWOTOLDemoUnit::HandleSelected(bool bSel)
+{
+	if (!ShapeMID) return;
+	// Sélectionnée = blanc lumineux ; sinon couleur de faction
+	const FLinearColor C = bSel ? FLinearColor(1.f, 1.f, 1.f, 1.f)
+	                            : FFactionColors::Get(GetFaction());
+	ShapeMID->SetVectorParameterValue(TEXT("Color"), C);
 }
 
 // Tailles réelles approximatives (mètres) — valeurs du GDD/document de démo
@@ -108,9 +118,9 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 			MeshPath = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
 			Scale = FVector(0.5f, 0.5f, HeightU / 100.f);
 			break;
-		case EUnitRole::Montee:      // bloc massif et large (monture)
+		case EUnitRole::Montee:      // bloc compact (monture) — moins large qu'avant
 			MeshPath = TEXT("/Engine/BasicShapes/Cube.Cube");
-			Scale = FVector(1.8f, 1.0f, HeightU / 100.f);
+			Scale = FVector(0.9f, 0.6f, HeightU / 100.f);
 			break;
 		case EUnitRole::Distance:    // cône orienté (direction de tir visible)
 			MeshPath = TEXT("/Engine/BasicShapes/Cone.Cone");
@@ -151,6 +161,7 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 		{
 			MID->SetVectorParameterValue(TEXT("Color"), FFactionColors::Get(GetFaction()));
 			ShapeMesh->SetMaterial(0, MID);
+			ShapeMID = MID; // conservé pour le surlignage de sélection
 		}
 	}
 }

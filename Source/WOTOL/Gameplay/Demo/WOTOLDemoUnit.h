@@ -41,4 +41,13 @@ protected:
 
 	// Construit la forme greybox (mesh + échelle + couleur) selon rôle/faction/taille
 	void BuildGreyboxShape();
+
+private:
+	// Matériau dynamique de la forme (pour changer la couleur à la sélection)
+	UPROPERTY()
+	TObjectPtr<class UMaterialInstanceDynamic> ShapeMID;
+
+	// Réagit à la sélection joueur : surligne l'unité
+	UFUNCTION()
+	void HandleSelected(bool bSel);
 };

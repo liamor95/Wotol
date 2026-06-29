@@ -143,7 +143,7 @@ void AWOTOLDemoDirector::SpawnEnemyForCreature(EFactionID RivalFaction, const FV
 	const FName CreatureID = Demo
 		? Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Mythique)
 		: NAME_None;
-	SpawnUnit(CreatureID, Origin + FVector(0.f, 0.f, 150.f), Facing, 2.5f);
+	SpawnUnit(CreatureID, Origin + FVector(0.f, 0.f, 80.f), Facing, 1.5f);
 }
 
 void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector& Origin, const FRotator& Facing)

@@ -38,5 +38,5 @@ protected:
 private:
 	AStaticMeshActor* SpawnBlock(const TCHAR* MeshPath, const FVector& Loc,
 		const FVector& Scale, const FLinearColor& Color,
-		const FRotator& Rot = FRotator::ZeroRotator);
+		const FRotator& Rot = FRotator::ZeroRotator, bool bBlocking = true);
 };
