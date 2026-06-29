@@ -5,6 +5,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/SceneComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -54,6 +55,11 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	if (bCreatureBrain)
 	{
 		CreatureBrainTick(DeltaSeconds);
+	}
+
+	if (bArticulated)
+	{
+		AnimateArticulated(DeltaSeconds);
 	}
 
 	if (!NameTag) return;
@@ -310,11 +316,9 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		AddPart(M_CONE, FVector(0, 0, H * 0.50f), FVector(0.18f, 0.18f, h * 0.12f), NoRot, AqGold);                  // crête or
 		return;
 	}
-	if (Id == TEXT("Aquiloryons")) // Infanterie : épée + bouclier cristal
+	if (Id == TEXT("Aquiloryons")) // Infanterie : ARTICULÉ + animé (épée + bouclier)
 	{
-		BuildHumanoid(0.34f, AqArmor);
-		AddPart(M_CONE, FVector(18, 34, H * 0.20f), FVector(0.09f, 0.09f, h * 0.55f), FRotator(0, 0, 6.f), AqEnergy);   // épée
-		AddPart(M_CUBE, FVector(16, -38, H * 0.02f), FVector(0.08f, 0.45f, h * 0.4f), FRotator(0, 0, -10.f), AqEnergy); // bouclier cristal
+		BuildArticulatedAquiloryons(H, AqArmor, AqEnergy);
 		return;
 	}
 	if (Id == TEXT("Aquilances")) // Montée : cavalier sur monture + lance
@@ -501,4 +505,147 @@ void AWOTOLDemoUnit::AddTeamMarker(float Radius, float ZFeet, const FLinearColor
 		}
 	}
 	TeamMarker = C;
+}
+
+// ─── Articulation (pivot) ───────────────────────────────────────────────────
+USceneComponent* AWOTOLDemoUnit::MakeJoint(USceneComponent* Parent, const FVector& RelLoc)
+{
+	USceneComponent* J = NewObject<USceneComponent>(this);
+	if (!J) return nullptr;
+	J->SetupAttachment(Parent ? Parent : RootComponent);
+	J->RegisterComponent();
+	J->SetRelativeLocation(RelLoc);
+	return J;
+}
+
+// ─── "Os" suspendu à une articulation ───────────────────────────────────────
+UStaticMeshComponent* AWOTOLDemoUnit::MakeBone(USceneComponent* Joint, const TCHAR* MeshPath,
+	const FVector& Offset, const FVector& Scale, const FRotator& Rot, const FLinearColor& Color)
+{
+	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
+	if (!C) return nullptr;
+	C->SetupAttachment(Joint ? Joint : RootComponent);
+	C->RegisterComponent();
+	C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	if (UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, MeshPath))
+	{
+		C->SetStaticMesh(M);
+	}
+	C->SetRelativeLocationAndRotation(Offset, Rot);
+	C->SetRelativeScale3D(Scale);
+	if (UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
+			nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
+	{
+		if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, this))
+		{
+			MID->SetVectorParameterValue(TEXT("Color"), Color);
+			C->SetMaterial(0, MID);
+			PartMIDs.Add(MID);
+			PartBaseColors.Add(Color);
+		}
+	}
+	Parts.Add(C);
+	return C;
+}
+
+// ─── Aquiloryons articulé (torse + tête + 2 bras + 2 jambes + épée + bouclier) ──
+void AWOTOLDemoUnit::BuildArticulatedAquiloryons(float H, const FLinearColor& Armor, const FLinearColor& Energy)
+{
+	const float h = H / 100.f;
+	const FRotator NoRot = FRotator::ZeroRotator;
+
+	// Torse (corps principal) + tête
+	SetupMainPart(M_CYL, FVector(0, 0, H * 0.04f), FVector(0.34f, 0.22f, h * 0.40f), NoRot, Armor);
+	AddPart(M_SPH, FVector(0, 0, H * 0.32f), FVector(0.22f, 0.22f, 0.22f), NoRot, Armor);
+
+	// ── Bras DROIT (épée) : épaule → bras → coude → avant-bras → main → épée ──
+	JRShoulder = MakeJoint(RootComponent, FVector(6.f, H * 0.16f, H * 0.22f));
+	MakeBone(JRShoulder, M_CYL, FVector(0, 0, -H * 0.10f), FVector(0.09f, 0.09f, h * 0.22f), NoRot, Armor);
+	JRElbow = MakeJoint(JRShoulder, FVector(0, 0, -H * 0.21f));
+	MakeBone(JRElbow, M_CYL, FVector(0, 0, -H * 0.09f), FVector(0.08f, 0.08f, h * 0.20f), NoRot, Armor);
+	MakeBone(JRElbow, M_SPH, FVector(0, 0, -H * 0.18f), FVector(0.10f, 0.10f, 0.10f), NoRot, Armor);          // main
+	MakeBone(JRElbow, M_CONE, FVector(H * 0.05f, 0, -H * 0.20f), FVector(0.07f, 0.07f, h * 0.5f),
+		FRotator(-90.f, 0, 0), Energy);                                                                      // épée (pointe +X)
+
+	// ── Bras GAUCHE (bouclier) ──
+	JLShoulder = MakeJoint(RootComponent, FVector(6.f, -H * 0.16f, H * 0.22f));
+	MakeBone(JLShoulder, M_CYL, FVector(0, 0, -H * 0.10f), FVector(0.09f, 0.09f, h * 0.22f), NoRot, Armor);
+	JLElbow = MakeJoint(JLShoulder, FVector(0, 0, -H * 0.21f));
+	MakeBone(JLElbow, M_CYL, FVector(0, 0, -H * 0.09f), FVector(0.08f, 0.08f, h * 0.20f), NoRot, Armor);
+	MakeBone(JLElbow, M_CUBE, FVector(H * 0.10f, 0, -H * 0.10f), FVector(0.07f, 0.42f, h * 0.40f), NoRot, Energy); // bouclier
+
+	// ── Jambes (hanche → jambe complète) ──
+	JRHip = MakeJoint(RootComponent, FVector(0, H * 0.09f, -H * 0.06f));
+	MakeBone(JRHip, M_CYL, FVector(0, 0, -H * 0.14f), FVector(0.10f, 0.10f, h * 0.28f), NoRot, Armor);
+	JLHip = MakeJoint(RootComponent, FVector(0, -H * 0.09f, -H * 0.06f));
+	MakeBone(JLHip, M_CYL, FVector(0, 0, -H * 0.14f), FVector(0.10f, 0.10f, h * 0.28f), NoRot, Armor);
+
+	bArticulated = true;
+}
+
+// ─── Animation procédurale (pilotée par l'état IA + la vitesse) ─────────────
+void AWOTOLDemoUnit::AnimateArticulated(float Dt)
+{
+	if (!bArticulated) return;
+
+	EUnitAIState St = EUnitAIState::Idle;
+	if (UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>())
+	{
+		St = S->GetCurrentState();
+	}
+	const float Speed = GetVelocity().Size2D();
+	const bool bMoving = (Speed > 10.f) || St == EUnitAIState::Seeking
+		|| St == EUnitAIState::Patrolling || St == EUnitAIState::Retreating;
+	const bool bAttacking = (St == EUnitAIState::Attacking);
+	const bool bDead = !IsAlive();
+
+	AnimPhase += Dt * (bMoving ? 9.f : 2.5f);
+
+	float rSho = 0.f, rEl = 0.f, lShoRoll = 0.f, lSho = 0.f, lEl = 0.f, rHip = 0.f, lHip = 0.f, torsoRoll = 0.f;
+
+	if (bDead)
+	{
+		// s'affaisse (jambes pliées, bras tombants)
+		rSho = 70.f; lSho = 70.f; rHip = 60.f; lHip = 60.f; torsoRoll = 80.f;
+	}
+	else if (bAttacking)
+	{
+		SwingProgress += Dt * 2.4f;
+		if (SwingProgress > 1.f) SwingProgress -= 1.f;
+		const float Sw = FMath::Sin(SwingProgress * PI);       // 0→1→0 : armer puis frapper
+		rSho     = FMath::Lerp(45.f, -85.f, Sw);               // lève l'épée puis abat
+		rEl      = FMath::Lerp(-35.f, 5.f, Sw);
+		lShoRoll = -65.f;                                      // bouclier levé en travers
+		lEl      = -45.f;
+	}
+	else if (bMoving)
+	{
+		const float s = FMath::Sin(AnimPhase);
+		rHip =  s * 30.f;  lHip = -s * 30.f;                   // jambes alternées
+		rSho = -s * 22.f;  lSho =  s * 22.f;                   // bras opposés
+		torsoRoll = FMath::Sin(AnimPhase * 2.f) * 2.5f;
+	}
+	else // idle : léger flottement
+	{
+		const float s = FMath::Sin(AnimPhase);
+		rSho = 6.f + s * 4.f;  lSho = 6.f - s * 4.f;
+		torsoRoll = s * 1.5f;
+	}
+
+	auto Set = [&](USceneComponent* J, const FRotator& Target)
+	{
+		if (!J) return;
+		J->SetRelativeRotation(FMath::RInterpTo(J->GetRelativeRotation(), Target, Dt, 12.f));
+	};
+	Set(JRShoulder, FRotator(rSho, 0, 0));
+	Set(JRElbow,    FRotator(rEl, 0, 0));
+	Set(JLShoulder, FRotator(lSho, 0, lShoRoll));
+	Set(JLElbow,    FRotator(lEl, 0, 0));
+	Set(JRHip,      FRotator(rHip, 0, 0));
+	Set(JLHip,      FRotator(lHip, 0, 0));
+	if (ShapeMesh)
+	{
+		ShapeMesh->SetRelativeRotation(
+			FMath::RInterpTo(ShapeMesh->GetRelativeRotation(), FRotator(0, 0, torsoRoll), Dt, 8.f));
+	}
 }

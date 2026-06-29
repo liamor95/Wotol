@@ -6,6 +6,7 @@
 
 class UStaticMeshComponent;
 class UTextRenderComponent;
+class USceneComponent;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UNITÉ GREYBOX CONTEXTUALISÉE (sections 3-5 du cahier des charges).
@@ -86,6 +87,28 @@ private:
 	UPROPERTY()
 	TObjectPtr<UStaticMeshComponent> TeamMarker;
 	void AddTeamMarker(float Radius, float ZFeet, const FLinearColor& Color);
+
+	// ─── Membres articulés + animation procédurale (preuve : Aquiloryons) ─────
+	// Crée une articulation (pivot) enfant ; on la fait tourner pour animer.
+	class USceneComponent* MakeJoint(USceneComponent* Parent, const FVector& RelLoc);
+	// Crée un "os" (mesh) suspendu à une articulation (offset = pend depuis le pivot).
+	UStaticMeshComponent* MakeBone(USceneComponent* Joint, const TCHAR* MeshPath,
+		const FVector& Offset, const FVector& Scale, const FRotator& Rot, const FLinearColor& Color);
+	// Assemble un Aquiloryons articulé (torse + 2 bras + 2 jambes + épée + bouclier).
+	void BuildArticulatedAquiloryons(float HeightU, const FLinearColor& Armor, const FLinearColor& Energy);
+	// Anime les articulations selon l'état (idle / marche / attaque / bouclier).
+	void AnimateArticulated(float DeltaSeconds);
+
+	UPROPERTY() TObjectPtr<USceneComponent> JRShoulder;
+	UPROPERTY() TObjectPtr<USceneComponent> JRElbow;
+	UPROPERTY() TObjectPtr<USceneComponent> JLShoulder;
+	UPROPERTY() TObjectPtr<USceneComponent> JLElbow;
+	UPROPERTY() TObjectPtr<USceneComponent> JRHip;
+	UPROPERTY() TObjectPtr<USceneComponent> JLHip;
+
+	bool  bArticulated = false;
+	float AnimPhase    = 0.f;
+	float SwingProgress = 0.f; // 0..1 avancement d'un coup d'épée
 
 	// Réagit à la sélection joueur : surligne l'unité
 	UFUNCTION()
