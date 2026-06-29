@@ -39,4 +39,24 @@ private:
 	AStaticMeshActor* SpawnBlock(const TCHAR* MeshPath, const FVector& Loc,
 		const FVector& Scale, const FLinearColor& Color,
 		const FRotator& Rot = FRotator::ZeroRotator, bool bBlocking = true);
+
+	// ─── Kitbash : assemblage de primitives pour un rendu crédible ────────────
+	// Rocher = amas de cubes/sphères de tailles/rotations variées (graine = variété).
+	void SpawnRock(const FVector& Center, float Size, const FLinearColor& Color, int32 Seed);
+	// Chaîne de montagnes sous-marines = cônes chevauchants le long d'une ligne.
+	void SpawnRidge(const FVector& Start, const FVector& End, float Height,
+		float Width, const FLinearColor& Color, int32 Seed);
+	// Ziggourat à gradins (pyramide à étages) avec un escalier frontal.
+	void SpawnZiggurat(const FVector& Base, float BaseHalf, int32 Tiers,
+		float TierHeight, float YawDeg, const FLinearColor& Color);
+	// Escalier (volées de marches) orienté.
+	void SpawnStairs(const FVector& Base, float YawDeg, int32 Steps,
+		float Width, const FLinearColor& Color);
+	// Colonnade : rangée de colonnes (cylindres) éventuellement brisées.
+	void SpawnColonnade(const FVector& Start, const FVector& Step, int32 Count,
+		float Height, const FLinearColor& Color, int32 Seed);
+	// Arche de pierre (anneau de blocs) — repère central de l'arène.
+	void SpawnArch(const FVector& Base, float Radius, float YawDeg, const FLinearColor& Color);
+	// Dallage : plateau de pierre carrelé légèrement surélevé.
+	void SpawnPlaza(const FVector& Center, float HalfX, float HalfY, const FLinearColor& Color);
 };

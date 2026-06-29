@@ -6,7 +6,24 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/ExponentialHeightFog.h"
 #include "Components/ExponentialHeightFogComponent.h"
+#include "Math/RandomStream.h"
 #include "Data/WOTOLTypes.h"
+
+namespace
+{
+	const TCHAR* MESH_CUBE = TEXT("/Engine/BasicShapes/Cube.Cube");
+	const TCHAR* MESH_CONE = TEXT("/Engine/BasicShapes/Cone.Cone");
+	const TCHAR* MESH_CYL  = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
+	const TCHAR* MESH_SPH  = TEXT("/Engine/BasicShapes/Sphere.Sphere");
+
+	// Petite variation de teinte pour casser l'uniformité (kitbash plus crédible).
+	FLinearColor Vary(const FLinearColor& C, float D)
+	{
+		return FLinearColor(
+			FMath::Max(0.f, C.R + D), FMath::Max(0.f, C.G + D),
+			FMath::Max(0.f, C.B + D), 1.f);
+	}
+}
 
 AWOTOLGreyboxEnvironment::AWOTOLGreyboxEnvironment()
 {
@@ -65,109 +82,233 @@ AStaticMeshActor* AWOTOLGreyboxEnvironment::SpawnBlock(
 	return SMA;
 }
 
+// ─── Kitbash : rocher = amas de cubes/sphères ───────────────────────────────
+void AWOTOLGreyboxEnvironment::SpawnRock(const FVector& Center, float Size, const FLinearColor& Color, int32 Seed)
+{
+	FRandomStream R(Seed);
+
+	// Bloc central
+	const float CoreS = Size * R.FRandRange(0.7f, 0.9f);
+	SpawnBlock(MESH_CUBE, Center + FVector(0, 0, CoreS * 0.4f),
+		FVector(CoreS / 100.f), Vary(Color, R.FRandRange(-0.01f, 0.02f)),
+		FRotator(R.FRandRange(0.f, 40.f), R.FRandRange(0.f, 360.f), R.FRandRange(0.f, 40.f)), false);
+
+	// Éclats autour
+	const int32 Chunks = R.RandRange(5, 9);
+	for (int32 i = 0; i < Chunks; ++i)
+	{
+		const float ChunkS = Size * R.FRandRange(0.25f, 0.6f);
+		const FVector Off(
+			R.FRandRange(-Size, Size) * 0.5f,
+			R.FRandRange(-Size, Size) * 0.5f,
+			R.FRandRange(0.f, Size * 0.6f));
+		const bool bRound = R.FRand() < 0.35f;
+		SpawnBlock(bRound ? MESH_SPH : MESH_CUBE, Center + Off,
+			FVector(ChunkS / 100.f), Vary(Color, R.FRandRange(-0.02f, 0.02f)),
+			FRotator(R.FRandRange(0.f, 360.f), R.FRandRange(0.f, 360.f), R.FRandRange(0.f, 360.f)), false);
+	}
+}
+
+// ─── Kitbash : chaîne de montagnes = cônes chevauchants ─────────────────────
+void AWOTOLGreyboxEnvironment::SpawnRidge(const FVector& Start, const FVector& End, float Height,
+	float Width, const FLinearColor& Color, int32 Seed)
+{
+	FRandomStream R(Seed);
+	const int32 Peaks = R.RandRange(6, 10);
+	for (int32 i = 0; i <= Peaks; ++i)
+	{
+		const float T = (float)i / Peaks;
+		FVector Pos = FMath::Lerp(Start, End, T);
+		Pos += FVector(R.FRandRange(-Width, Width) * 0.4f, R.FRandRange(-Width, Width) * 0.4f, 0.f);
+		const float H = Height * R.FRandRange(0.6f, 1.2f);
+		const float Wd = Width * R.FRandRange(0.7f, 1.2f);
+		SpawnBlock(MESH_CONE, Pos + FVector(0, 0, H * 0.5f),
+			FVector(Wd / 50.f, Wd / 50.f, H / 100.f),
+			Vary(Color, R.FRandRange(-0.015f, 0.015f)),
+			FRotator(0.f, R.FRandRange(0.f, 360.f), 0.f), false);
+	}
+}
+
+// ─── Ziggourat à gradins + escalier frontal ─────────────────────────────────
+void AWOTOLGreyboxEnvironment::SpawnZiggurat(const FVector& Base, float BaseHalf, int32 Tiers,
+	float TierHeight, float YawDeg, const FLinearColor& Color)
+{
+	for (int32 i = 0; i < Tiers; ++i)
+	{
+		const float Half = BaseHalf * (1.f - (float)i / (Tiers + 1));
+		const float Z = i * TierHeight + TierHeight * 0.5f;
+		SpawnBlock(MESH_CUBE, Base + FVector(0, 0, Z),
+			FVector(Half * 2.f / 100.f, Half * 2.f / 100.f, TierHeight / 100.f),
+			Vary(Color, (i % 2) ? 0.015f : -0.01f),
+			FRotator(0.f, YawDeg, 0.f), false);
+	}
+	// Escalier frontal (vers -X local avant rotation)
+	const FVector Front = FRotator(0.f, YawDeg, 0.f).RotateVector(FVector(-BaseHalf, 0.f, 0.f));
+	SpawnStairs(Base + Front, YawDeg + 180.f, Tiers * 2, BaseHalf * 0.6f, Color);
+}
+
+// ─── Escalier orienté ───────────────────────────────────────────────────────
+void AWOTOLGreyboxEnvironment::SpawnStairs(const FVector& Base, float YawDeg, int32 Steps,
+	float Width, const FLinearColor& Color)
+{
+	const FRotator Yaw(0.f, YawDeg, 0.f);
+	const float Depth = 140.f, StepH = 90.f;
+	for (int32 i = 0; i < Steps; ++i)
+	{
+		const FVector Off = Yaw.RotateVector(FVector(-i * Depth, 0.f, i * StepH + StepH * 0.5f));
+		SpawnBlock(MESH_CUBE, Base + Off,
+			FVector(Depth / 100.f, Width * 2.f / 100.f, StepH / 100.f),
+			Vary(Color, (i % 2) ? 0.01f : -0.01f), Yaw, false);
+	}
+}
+
+// ─── Colonnade (cylindres, certaines brisées) ───────────────────────────────
+void AWOTOLGreyboxEnvironment::SpawnColonnade(const FVector& Start, const FVector& Step, int32 Count,
+	float Height, const FLinearColor& Color, int32 Seed)
+{
+	FRandomStream R(Seed);
+	for (int32 i = 0; i < Count; ++i)
+	{
+		const FVector Pos = Start + Step * (float)i;
+		const float H = Height * (R.FRand() < 0.3f ? R.FRandRange(0.3f, 0.6f) : 1.f); // colonne brisée
+		const float Rad = 90.f;
+		SpawnBlock(MESH_CYL, Pos + FVector(0, 0, H * 0.5f),
+			FVector(Rad / 100.f, Rad / 100.f, H / 100.f),
+			Vary(Color, R.FRandRange(-0.01f, 0.01f)), FRotator::ZeroRotator, false);
+		// Chapiteau
+		if (H > Height * 0.7f)
+		{
+			SpawnBlock(MESH_CUBE, Pos + FVector(0, 0, H),
+				FVector(Rad * 2.4f / 100.f, Rad * 2.4f / 100.f, 0.4f),
+				Vary(Color, 0.02f), FRotator::ZeroRotator, false);
+		}
+	}
+}
+
+// ─── Arche de pierre (anneau de blocs) ──────────────────────────────────────
+void AWOTOLGreyboxEnvironment::SpawnArch(const FVector& Base, float Radius, float YawDeg, const FLinearColor& Color)
+{
+	const FRotator Yaw(0.f, YawDeg, 0.f);
+	const int32 Segments = 11;
+	for (int32 i = 0; i <= Segments; ++i)
+	{
+		const float Ang = PI * (float)i / Segments; // 0..180°
+		const FVector Local(FMath::Cos(Ang) * Radius, 0.f, FMath::Sin(Ang) * Radius);
+		const FVector Pos = Base + Yaw.RotateVector(Local);
+		const float BlockPitch = -FMath::RadiansToDegrees(Ang) + 90.f;
+		SpawnBlock(MESH_CUBE, Pos,
+			FVector(2.6f, 1.4f, 1.0f), Vary(Color, (i % 2) ? 0.015f : -0.01f),
+			FRotator(BlockPitch, YawDeg, 0.f), false);
+	}
+}
+
+// ─── Dallage / plateau de pierre ────────────────────────────────────────────
+void AWOTOLGreyboxEnvironment::SpawnPlaza(const FVector& Center, float HalfX, float HalfY, const FLinearColor& Color)
+{
+	SpawnBlock(MESH_CUBE, Center + FVector(0, 0, 12.f),
+		FVector(HalfX * 2.f / 100.f, HalfY * 2.f / 100.f, 0.24f), Color, FRotator::ZeroRotator, false);
+}
+
 void AWOTOLGreyboxEnvironment::BuildArena()
 {
 	const FVector Center = GetActorLocation();
-	const EFactionID Rival = (PlayerFaction == EFactionID::Aquiloris)
-		? EFactionID::Noxeens : EFactionID::Aquiloris;
 
-	// Palette fond marin (sombre = ambiance sous-marine)
-	const FLinearColor FloorColor(0.10f, 0.11f, 0.13f, 1.f); // sol : gris ardoise (pas anthracite)
-	const FLinearColor RockColor (0.07f, 0.10f, 0.11f, 1.f); // roches du fond
-	const FLinearColor SandColor (0.18f, 0.16f, 0.11f, 1.f); // bancs de sable
-	const FLinearColor WallColor (0.05f, 0.07f, 0.08f, 1.f); // parois de la cuve
-	const FLinearColor FarColor  (0.04f, 0.06f, 0.07f, 1.f); // silhouettes du fond
+	// ── Palette inspirée de la référence (cité engloutie, eau turquoise) ──
+	const FLinearColor FloorColor(0.06f, 0.11f, 0.14f, 1.f); // fond marin bleu-vert sombre
+	const FLinearColor StoneColor(0.13f, 0.17f, 0.19f, 1.f); // pierre bleu-gris des ruines
+	const FLinearColor RockColor (0.09f, 0.13f, 0.14f, 1.f); // rochers / gravats
+	const FLinearColor SandColor (0.24f, 0.21f, 0.14f, 1.f); // sable beige (avant-plan)
+	const FLinearColor FarColor  (0.04f, 0.08f, 0.11f, 1.f); // silhouettes lointaines
+	const FLinearColor SurfColor (0.10f, 0.30f, 0.40f, 1.f); // surface éclairée au-dessus
 
 	const FRotator NoRot = FRotator::ZeroRotator;
-	const TCHAR* Cube  = TEXT("/Engine/BasicShapes/Cube.Cube");
-	const TCHAR* Plane = TEXT("/Engine/BasicShapes/Plane.Plane");
-	const TCHAR* Cone  = TEXT("/Engine/BasicShapes/Cone.Cone");
 
-	// ─── BROUILLARD SOUS-MARIN ───────────────────────────────────────────────
-	// Assombrit l'horizon, masque le ciel/nuages et donne la profondeur d'eau.
+	// ── Brouillard sous-marin turquoise : masque le ciel, donne la profondeur ──
 	if (UWorld* W = GetWorld())
 	{
 		FActorSpawnParameters FP; FP.Owner = this;
 		if (AExponentialHeightFog* Fog = W->SpawnActor<AExponentialHeightFog>(
-				AExponentialHeightFog::StaticClass(), Center + FVector(0,0,-200.f), NoRot, FP))
+				AExponentialHeightFog::StaticClass(), Center + FVector(0, 0, -200.f), NoRot, FP))
 		{
 			if (UExponentialHeightFogComponent* FC = Fog->GetComponent())
 			{
-				FC->SetFogDensity(0.022f);
-				FC->SetFogHeightFalloff(0.12f);
-				FC->SetFogInscatteringColor(FLinearColor(0.015f, 0.06f, 0.08f, 1.f));
-				FC->SetStartDistance(1200.f);
+				FC->SetFogDensity(0.025f);
+				FC->SetFogHeightFalloff(0.1f);
+				FC->SetFogInscatteringColor(FLinearColor(0.02f, 0.12f, 0.18f, 1.f));
+				FC->SetStartDistance(900.f);
 			}
 		}
 	}
 
-	// ─── SOL agrandi (260m) = seul élément BLOQUANT (les unités tiennent dessus)
-	SpawnBlock(Plane, Center, FVector(260.f, 260.f, 1.f), FloorColor, NoRot, true);
+	// ── Sol (seul élément BLOQUANT) + surface lumineuse au-dessus ──
+	SpawnBlock(MESH_CUBE, Center + FVector(0, 0, -50.f),
+		FVector(280.f, 280.f, 1.f), FloorColor, NoRot, true); // dalle de sol épaisse
+	// "Surface" turquoise éclairée tout en haut (lumière venant d'en haut, comme la réf)
+	SpawnBlock(TEXT("/Engine/BasicShapes/Plane.Plane"), Center + FVector(0, 0, 7000.f),
+		FVector(340.f, 340.f, 1.f), SurfColor, FRotator(180.f, 0.f, 0.f), false);
 
-	// Plafond sombre tout en haut : masque le ciel bleu quand on regarde vers le haut
-	SpawnBlock(Plane, Center + FVector(0.f, 0.f, 6000.f),
-		FVector(320.f, 320.f, 1.f), FLinearColor(0.02f, 0.03f, 0.04f, 1.f), FRotator(180.f, 0.f, 0.f), false);
+	// ── Avant-plan sablonneux (beige clair, comme le bas de l'image) ──
+	SpawnPlaza(Center + FVector(-3500.f, -2200.f, 0.f), 2600.f, 1800.f, SandColor);
+	SpawnPlaza(Center + FVector(-1200.f, -3800.f, 0.f), 2200.f, 1500.f, SandColor);
 
-	// ─── CUVE : 4 parois hautes autour de l'arène (contexte fermé d'arène) ────
-	const float WX = 9000.f;   // demi-largeur de la cuve
-	const float WZ = 2000.f;   // hauteur des parois
-	const float WT = 1.5f;     // épaisseur (en unités de cube *100)
-	const float WL = 190.f;    // longueur des parois
-	SpawnBlock(Cube, Center + FVector( WX, 0.f, WZ * 0.5f), FVector(WT, WL, WZ/100.f), WallColor, NoRot, false);
-	SpawnBlock(Cube, Center + FVector(-WX, 0.f, WZ * 0.5f), FVector(WT, WL, WZ/100.f), WallColor, NoRot, false);
-	SpawnBlock(Cube, Center + FVector(0.f,  WX, WZ * 0.5f), FVector(WL, WT, WZ/100.f), WallColor, NoRot, false);
-	SpawnBlock(Cube, Center + FVector(0.f, -WX, WZ * 0.5f), FVector(WL, WT, WZ/100.f), WallColor, NoRot, false);
+	// ── Dallages de pierre (places carrelées) ──
+	SpawnPlaza(Center + FVector(2200.f, 1200.f, 0.f), 2400.f, 1800.f, StoneColor);
+	SpawnPlaza(Center + FVector(-2600.f, 1600.f, 0.f), 2000.f, 1500.f, StoneColor);
 
-	// ─── SILHOUETTES DE FOND : grands triangles (cônes) au-delà des parois ────
-	// Donnent un horizon/relief de profondeur (récifs lointains).
-	const float FarRing[][3] = {
-		{ 11000.f,  2500.f, 22.f}, { 11000.f, -3500.f, 30.f},
-		{-11000.f,  3500.f, 28.f}, {-11000.f, -2500.f, 24.f},
-		{  2500.f, 11000.f, 26.f}, { -3500.f, 11000.f, 32.f},
-		{  3500.f,-11000.f, 30.f}, { -2500.f,-11000.f, 24.f},
-		{  8000.f,  8000.f, 20.f}, { -8000.f, -8000.f, 20.f},
-		{  8000.f, -8000.f, 18.f}, { -8000.f,  8000.f, 18.f},
+	// ── ARCHE centrale (repère focal, comme dans la référence) ──
+	SpawnArch(Center + FVector(200.f, -300.f, 0.f), 700.f, 25.f, StoneColor);
+
+	// ── Ruines à gradins (ziggourats + escaliers) de chaque côté ──
+	SpawnZiggurat(Center + FVector(-4200.f, 2600.f, 0.f), 1100.f, 5, 220.f, -20.f, StoneColor);
+	SpawnZiggurat(Center + FVector(4300.f, 2200.f, 0.f),  1300.f, 6, 230.f, 200.f, StoneColor);
+	SpawnZiggurat(Center + FVector(3600.f, -2600.f, 0.f), 900.f,  4, 210.f, 150.f, StoneColor);
+
+	// ── Escaliers indépendants (descentes vers la place) ──
+	SpawnStairs(Center + FVector(-1600.f, 700.f, 0.f), 0.f, 8, 700.f, StoneColor);
+	SpawnStairs(Center + FVector(1500.f, -1400.f, 0.f), 180.f, 7, 600.f, StoneColor);
+
+	// ── Colonnades (rangées de colonnes brisées) ──
+	SpawnColonnade(Center + FVector(-5400.f, -200.f, 0.f), FVector(0.f, 600.f, 0.f), 6, 850.f, StoneColor, 11);
+	SpawnColonnade(Center + FVector(5200.f, 400.f, 0.f),  FVector(0.f, -600.f, 0.f), 6, 850.f, StoneColor, 23);
+
+	// ── Grands pans de murs brisés qui encadrent l'arène (gauche/droite) ──
+	SpawnBlock(MESH_CUBE, Center + FVector(-7200.f, 0.f, 1300.f),
+		FVector(2.f, 90.f, 26.f), StoneColor, FRotator(0.f, 0.f, 8.f), false);
+	SpawnBlock(MESH_CUBE, Center + FVector(7200.f, 500.f, 1200.f),
+		FVector(2.f, 80.f, 24.f), StoneColor, FRotator(0.f, 0.f, -10.f), false);
+
+	// ── Chaînes de montagnes sous-marines en fond (cônes chevauchants) ──
+	SpawnRidge(Center + FVector(-9000.f, -9000.f, 0.f), Center + FVector(-9000.f, 9000.f, 0.f),
+		3000.f, 1400.f, FarColor, 101);
+	SpawnRidge(Center + FVector(9000.f, -9000.f, 0.f), Center + FVector(9000.f, 9000.f, 0.f),
+		3200.f, 1500.f, FarColor, 202);
+	SpawnRidge(Center + FVector(-9000.f, 9500.f, 0.f), Center + FVector(9000.f, 9500.f, 0.f),
+		2800.f, 1300.f, FarColor, 303);
+
+	// ── Rochers kitbashés répartis sur TOUTE la map ──
+	const float RockPos[][3] = {
+		{-2200.f, -1600.f, 380.f}, { 2200.f,  1600.f, 420.f},
+		{-2400.f,  1400.f, 300.f}, { 2400.f, -1400.f, 320.f},
+		{-1300.f, -2200.f, 280.f}, { 1300.f,  2200.f, 300.f},
+		{-3000.f,     0.f, 460.f}, { 3000.f,   200.f, 440.f},
+		{-5200.f,  3600.f, 520.f}, { 5200.f, -3600.f, 520.f},
+		{-5600.f, -2800.f, 360.f}, { 5600.f,  2800.f, 360.f},
+		{-3800.f,  5200.f, 420.f}, { 3800.f, -5200.f, 420.f},
+		{ -800.f,  5600.f, 300.f}, {  800.f, -5600.f, 300.f},
+		{-6800.f,   600.f, 560.f}, { 6800.f,  -600.f, 560.f},
+		{ 1600.f,  4200.f, 340.f}, {-1600.f, -4200.f, 340.f},
 	};
-	for (const float* C : FarRing)
+	int32 Seed = 1;
+	for (const float* Rk : RockPos)
 	{
-		const float S = C[2];
-		SpawnBlock(Cone, Center + FVector(C[0], C[1], S * 100.f * 0.5f),
-			FVector(S * 0.7f, S * 0.7f, S), FarColor, NoRot, false);
+		SpawnRock(Center + FVector(Rk[0], Rk[1], -40.f), Rk[2], RockColor, Seed++);
 	}
 
-	// ─── Bancs de sable (planes plats, décor) ────────────────────────────────
-	SpawnBlock(Plane, Center + FVector(-1600.f, 800.f, 3.f),  FVector(40.f, 30.f, 1.f), SandColor, NoRot, false);
-	SpawnBlock(Plane, Center + FVector(1700.f, -900.f, 3.f),  FVector(45.f, 28.f, 1.f), SandColor, NoRot, false);
-	SpawnBlock(Plane, Center + FVector(0.f, 1800.f, 3.f),     FVector(50.f, 25.f, 1.f), SandColor, NoRot, false);
-	SpawnBlock(Plane, Center + FVector(-4500.f, -3000.f, 3.f),FVector(60.f, 45.f, 1.f), SandColor, NoRot, false);
-	SpawnBlock(Plane, Center + FVector(4800.f, 3200.f, 3.f),  FVector(60.f, 45.f, 1.f), SandColor, NoRot, false);
-
-	// Arche centrale (repère), décalée hors du couloir de combat
-	SpawnBlock(Cube, Center + FVector(0.f, -900.f, 450.f), FVector(1.8f, 1.8f, 9.f), RockColor, NoRot, false);
-	SpawnBlock(Cube, Center + FVector(0.f, 900.f, 450.f),  FVector(1.8f, 1.8f, 9.f), RockColor, NoRot, false);
-	SpawnBlock(Cube, Center + FVector(0.f, 0.f, 920.f),    FVector(1.8f, 19.f, 1.f), RockColor, NoRot, false);
-
-	// ─── Reliefs rocheux répartis sur TOUTE la map (pas seulement au centre) ──
-	const float P[][4] = {
-		// proches du champ de bataille
-		{-2200.f, -1600.f, 300.f, 6.f}, { 2200.f,  1600.f, 300.f, 6.f},
-		{-2400.f,  1400.f, 180.f, 4.5f},{ 2400.f, -1400.f, 180.f, 4.5f},
-		{-1300.f, -2200.f, 220.f, 5.f}, { 1300.f,  2200.f, 220.f, 5.f},
-		{ -700.f,  1700.f, 130.f, 3.5f},{  700.f, -1700.f, 130.f, 3.5f},
-		{-3000.f,     0.f, 360.f, 7.f}, { 3000.f,     0.f, 360.f, 7.f},
-		// alentours (remplissent le vide autour de l'arène)
-		{-5200.f,  3600.f, 420.f, 9.f}, { 5200.f, -3600.f, 420.f, 9.f},
-		{-5600.f, -2800.f, 300.f, 6.f}, { 5600.f,  2800.f, 300.f, 6.f},
-		{-3800.f,  5200.f, 360.f, 7.f}, { 3800.f, -5200.f, 360.f, 7.f},
-		{ -800.f,  5600.f, 260.f, 5.f}, {  800.f, -5600.f, 260.f, 5.f},
-		{-6800.f,   600.f, 500.f,10.f}, { 6800.f,  -600.f, 500.f,10.f},
-		{ 4200.f,  5400.f, 320.f, 6.f}, {-4200.f, -5400.f, 320.f, 6.f},
-	};
-	for (const float* R : P)
+	// ── Gravats (petits rochers) éparpillés pour habiller le sol ──
+	FRandomStream Rub(777);
+	for (int32 i = 0; i < 40; ++i)
 	{
-		SpawnBlock(Cube, Center + FVector(R[0], R[1], R[2]),
-			FVector(R[3], R[3], R[2] / 100.f), RockColor, NoRot, false);
+		const FVector Pos(Rub.FRandRange(-7000.f, 7000.f), Rub.FRandRange(-7000.f, 7000.f), -40.f);
+		SpawnRock(Center + Pos, Rub.FRandRange(80.f, 180.f), RockColor, 1000 + i);
 	}
-
-	(void)Rival; // (les zones de déploiement colorées arriveront avec l'écran de déploiement)
 }
