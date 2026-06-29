@@ -58,6 +58,7 @@ private:
 	void OnLeftMousePressed();
 	void OnLeftMouseReleased();
 	void OnRightMousePressed();
+	void OnRightMouseReleased();
 	void OnSelectAll();
 
 	// Pause (clavier + clics sur le menu)
@@ -74,6 +75,10 @@ private:
 	bool       bIsBoxSelecting   = false;
 	FVector2D  BoxSelectStart;
 	FVector2D  BoxSelectCurrent;
+
+	// Clic droit : distingue tap (= ordre) de drag (= rotation caméra)
+	bool       bRightDown        = false;
+	FVector2D  RightPressPos;
 
 	// Commandes aux unités sélectionnées
 	void IssueCommandToSelection(AUnitBase* TargetUnit, FVector TargetLocation);

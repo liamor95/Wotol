@@ -54,6 +54,8 @@ void AWOTOLPlayerController_Battle::SetupInputComponent()
 		&AWOTOLPlayerController_Battle::OnLeftMouseReleased);
 	InputComponent->BindKey(EKeys::RightMouseButton, IE_Pressed,  this,
 		&AWOTOLPlayerController_Battle::OnRightMousePressed);
+	InputComponent->BindKey(EKeys::RightMouseButton, IE_Released, this,
+		&AWOTOLPlayerController_Battle::OnRightMouseReleased);
 	InputComponent->BindKey(EKeys::LeftControl,      IE_Pressed,  this,
 		&AWOTOLPlayerController_Battle::OnSelectAll);
 
@@ -207,17 +209,35 @@ void AWOTOLPlayerController_Battle::OnLeftMouseReleased()
 
 void AWOTOLPlayerController_Battle::OnRightMousePressed()
 {
+	// On NOTE seulement la position : on décidera au relâchement si c'était
+	// un ordre (clic bref) ou une rotation caméra (glisser). La rotation est
+	// gérée en parallèle par AWOTOLBattleCamera (clic droit maintenu).
+	float X, Y;
+	GetMousePosition(X, Y);
+	RightPressPos = FVector2D(X, Y);
+	bRightDown    = true;
+}
+
+void AWOTOLPlayerController_Battle::OnRightMouseReleased()
+{
+	if (!bRightDown) return;
+	bRightDown = false;
+
+	// Si la souris a bougé au-delà du seuil → c'était une rotation caméra : pas d'ordre.
+	float X, Y;
+	GetMousePosition(X, Y);
+	if (FVector2D::Distance(RightPressPos, FVector2D(X, Y)) >= BoxSelectDragThreshold) return;
+
+	// Clic droit BREF = ordre aux unités sélectionnées
 	UUnitSelectionManager* SelectionMgr = GetSelectionManager();
 	if (!SelectionMgr || !SelectionMgr->HasSelection()) return;
 
 	AUnitBase* TargetUnit = GetUnitUnderCursor();
 	FVector    TargetLocation = FVector::ZeroVector;
-
 	if (!TargetUnit)
 	{
 		GetGroundLocationUnderCursor(TargetLocation);
 	}
-
 	IssueCommandToSelection(TargetUnit, TargetLocation);
 }
 

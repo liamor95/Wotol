@@ -68,6 +68,11 @@ void AWOTOLBattleCamera::SetupPlayerInputComponent(UInputComponent* Input)
 	Input->BindAxisKey(EKeys::MouseY,         this, &AWOTOLBattleCamera::InputMouseY);
 	Input->BindKey(EKeys::MiddleMouseButton, IE_Pressed,  this, &AWOTOLBattleCamera::InputMiddleMousePressed);
 	Input->BindKey(EKeys::MiddleMouseButton, IE_Released, this, &AWOTOLBattleCamera::InputMiddleMouseReleased);
+	// CLIC DROIT maintenu + glisser = pivoter la caméra (yaw + pitch), comme dans
+	// l'éditeur Unreal et beaucoup de RTS. Le clic droit BREF reste un ordre (géré
+	// par le PlayerController, qui distingue tap vs drag).
+	Input->BindKey(EKeys::RightMouseButton, IE_Pressed,  this, &AWOTOLBattleCamera::InputMiddleMousePressed);
+	Input->BindKey(EKeys::RightMouseButton, IE_Released, this, &AWOTOLBattleCamera::InputMiddleMouseReleased);
 }
 
 void AWOTOLBattleCamera::Tick(float DT)

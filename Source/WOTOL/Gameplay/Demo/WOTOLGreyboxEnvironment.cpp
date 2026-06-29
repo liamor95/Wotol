@@ -6,6 +6,9 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/ExponentialHeightFog.h"
 #include "Components/ExponentialHeightFogComponent.h"
+#include "Engine/PostProcessVolume.h"
+#include "EngineUtils.h"
+#include "GameFramework/Actor.h"
 #include "Math/RandomStream.h"
 #include "Data/WOTOLTypes.h"
 
@@ -223,19 +226,49 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 
 	const FRotator NoRot = FRotator::ZeroRotator;
 
-	// ── Brouillard sous-marin turquoise : masque le ciel, donne la profondeur ──
+	// ── AMBIANCE SOUS-MARINE (sans plugin Water) : brouillard + post-process ──
 	if (UWorld* W = GetWorld())
 	{
 		FActorSpawnParameters FP; FP.Owner = this;
+
+		// Brouillard turquoise dense : noie le ciel/horizon, donne la profondeur d'eau
 		if (AExponentialHeightFog* Fog = W->SpawnActor<AExponentialHeightFog>(
 				AExponentialHeightFog::StaticClass(), Center + FVector(0, 0, -200.f), NoRot, FP))
 		{
 			if (UExponentialHeightFogComponent* FC = Fog->GetComponent())
 			{
-				FC->SetFogDensity(0.025f);
-				FC->SetFogHeightFalloff(0.1f);
-				FC->SetFogInscatteringColor(FLinearColor(0.02f, 0.12f, 0.18f, 1.f));
-				FC->SetStartDistance(900.f);
+				FC->SetFogDensity(0.045f);
+				FC->SetFogHeightFalloff(0.08f);
+				FC->SetFogInscatteringColor(FLinearColor(0.015f, 0.10f, 0.16f, 1.f));
+				FC->SetStartDistance(400.f);
+			}
+		}
+
+		// Volume post-process GLOBAL : teinte bleu-vert + assombrissement "nuit/abysse"
+		if (APostProcessVolume* PPV = W->SpawnActor<APostProcessVolume>(
+				APostProcessVolume::StaticClass(), Center, NoRot, FP))
+		{
+			PPV->bUnbound = true;
+			PPV->Priority = 100.f;
+			FPostProcessSettings& S = PPV->Settings;
+			// Teinte + assombrissement (valeurs <1 = plus sombre, dominante bleue)
+			S.bOverride_ColorGain = true;        S.ColorGain = FVector4(0.42f, 0.66f, 0.92f, 1.f);
+			S.bOverride_ColorSaturation = true;  S.ColorSaturation = FVector4(0.85f, 0.92f, 1.f, 1.f);
+			// Exposition manuelle pour empêcher l'auto-exposition de "rallumer" la scène
+			S.bOverride_AutoExposureMethod = true; S.AutoExposureMethod = AEM_Manual;
+			S.bOverride_AutoExposureBias   = true; S.AutoExposureBias = -1.2f;
+			// Profondeur : vignette + légère aberration chromatique
+			S.bOverride_VignetteIntensity  = true; S.VignetteIntensity = 0.55f;
+			S.bOverride_SceneFringeIntensity = true; S.SceneFringeIntensity = 1.5f;
+		}
+
+		// Masque les nuages volumétriques par défaut du niveau (ciel = sous l'eau)
+		for (TActorIterator<AActor> It(W); It; ++It)
+		{
+			const FString Cls = It->GetClass()->GetName();
+			if (Cls.Contains(TEXT("VolumetricCloud")) || Cls.Contains(TEXT("SkyAtmosphere")))
+			{
+				It->SetActorHiddenInGame(true);
 			}
 		}
 	}
