@@ -29,6 +29,16 @@ enum class EDemoPhase : uint8
 	DemoEnd               UMETA(DisplayName = "Fin de démo")
 };
 
+// Écran d'interface courant (menu → faction → préparation → jeu)
+UENUM(BlueprintType)
+enum class EDemoScreen : uint8
+{
+	MainMenu      UMETA(DisplayName = "Menu principal"),
+	FactionSelect UMETA(DisplayName = "Choix de faction"),
+	Prepare       UMETA(DisplayName = "Préparation (placement)"),
+	Playing       UMETA(DisplayName = "En jeu")
+};
+
 // Type de bataille (la même arène sert pour les deux)
 UENUM(BlueprintType)
 enum class EBattleType : uint8
@@ -141,6 +151,16 @@ public:
 	// Issue de la démo (pour l'écran de fin : victoire ou défaite)
 	UPROPERTY(BlueprintReadOnly, Category = "Demo")
 	bool bDemoVictory = false;
+
+	// Écran d'interface courant (menu / faction / préparation / jeu)
+	UPROPERTY(BlueprintReadOnly, Category = "Demo")
+	EDemoScreen Screen = EDemoScreen::MainMenu;
+
+	UFUNCTION(BlueprintCallable, Category = "Demo")
+	void SetScreen(EDemoScreen S) { Screen = S; }
+
+	UFUNCTION(BlueprintPure, Category = "Demo")
+	EDemoScreen GetScreen() const { return Screen; }
 
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void SetMessage(const FString& Msg) { CurrentMessage = Msg; }

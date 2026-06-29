@@ -25,6 +25,29 @@ FBox2D AWOTOLDemoHUD::MenuButtonRect(int32 Index, float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
+FBox2D AWOTOLDemoHUD::StartGameButtonRect(float W, float H)
+{
+	const float BW = 340.f, BH = 64.f;
+	const float X = (W - BW) * 0.5f, Y = H * 0.55f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
+FBox2D AWOTOLDemoHUD::FactionButtonRect(int32 Index, float W, float H)
+{
+	const float BW = 320.f, BH = 90.f, Gap = 40.f;
+	const float TotalW = BW * 2.f + Gap;
+	const float X = (W - TotalW) * 0.5f + Index * (BW + Gap);
+	const float Y = H * 0.48f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
+FBox2D AWOTOLDemoHUD::LaunchBattleButtonRect(float W, float H)
+{
+	const float BW = 360.f, BH = 62.f;
+	const float X = (W - BW) * 0.5f, Y = H - 150.f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
 void AWOTOLDemoHUD::DrawHUD()
 {
 	Super::DrawHUD();
@@ -33,6 +56,14 @@ void AWOTOLDemoHUD::DrawHUD()
 	const float W = Canvas->SizeX;
 	const float H = Canvas->SizeY;
 	UWorld* World = GetWorld();
+
+	UDemoFlowSubsystem* DemoFlow = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	const EDemoScreen Screen = DemoFlow ? DemoFlow->GetScreen() : EDemoScreen::Playing;
+
+	// ─── Écrans avant-jeu (menu / faction) : on dessine UNIQUEMENT l'écran ───
+	if (Screen == EDemoScreen::MainMenu)   { DrawMainMenu(W, H);      return; }
+	if (Screen == EDemoScreen::FactionSelect) { DrawFactionSelect(W, H); return; }
 
 	// ─── 1) Boîte de sélection (rectangle de drag) ───────────────────────────
 	if (AWOTOLPlayerController_Battle* PC =
@@ -92,12 +123,53 @@ void AWOTOLDemoHUD::DrawHUD()
 	// ─── 5) Barre de commandement (bas) : cartes d'unités sélectionnées ──────
 	DrawCommandBar(W, H, World);
 
+	// ─── Préparation : bandeau d'instructions + bouton "Lancer la bataille" ──
+	if (Screen == EDemoScreen::Prepare)
+	{
+		DrawPrepareBar(W, H);
+	}
+
 	// ─── 6) Bouton pause + voile du menu pause ───────────────────────────────
 	DrawPauseButton(W, H);
 	if (UGameplayStatics::IsGamePaused(World))
 	{
 		DrawPauseOverlay(W, H);
 	}
+}
+
+void AWOTOLDemoHUD::DrawButton(const FBox2D& R, const FString& Label, const FLinearColor& Tint, float TextScale)
+{
+	const FVector2D Sz = R.Max - R.Min;
+	DrawRect(FLinearColor(0.04f, 0.06f, 0.10f, 0.96f), R.Min.X, R.Min.Y, Sz.X, Sz.Y);
+	DrawRect(Tint, R.Min.X, R.Min.Y, Sz.X, 4.f);                          // liseré haut
+	DrawRect(Tint, R.Min.X, R.Max.Y - 4.f, Sz.X, 4.f);                    // liseré bas
+	float TW, TH; GetTextSize(Label, TW, TH, GEngine->GetLargeFont(), TextScale);
+	DrawText(Label, FLinearColor::White, R.Min.X + (Sz.X - TW) * 0.5f,
+		R.Min.Y + (Sz.Y - TH) * 0.5f, GEngine->GetLargeFont(), TextScale);
+}
+
+void AWOTOLDemoHUD::DrawMainMenu(float W, float H)
+{
+	DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, 1.f), 0.f, 0.f, W, H); // fond bleu nuit
+	DrawCenteredText(TEXT("W O T O L"), H * 0.26f, FLinearColor(0.5f, 0.85f, 1.f, 1.f), 3.4f);
+	DrawCenteredText(TEXT("War of the Ocean's Legacy"), H * 0.37f, FLinearColor(0.8f, 0.9f, 1.f, 1.f), 1.2f);
+	DrawButton(StartGameButtonRect(W, H), TEXT("Commencer la demo"), FLinearColor(0.3f, 0.7f, 1.f, 1.f), 1.5f);
+}
+
+void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
+{
+	DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, 1.f), 0.f, 0.f, W, H);
+	DrawCenteredText(TEXT("Choisissez votre faction"), H * 0.30f, FLinearColor::White, 2.0f);
+	DrawButton(FactionButtonRect(0, W, H), TEXT("AQUILORIS"), FLinearColor(0.25f, 0.55f, 1.f, 1.f), 1.6f);
+	DrawButton(FactionButtonRect(1, W, H), TEXT("NOXEENS"), FLinearColor(0.25f, 0.9f, 0.45f, 1.f), 1.6f);
+}
+
+void AWOTOLDemoHUD::DrawPrepareBar(float W, float H)
+{
+	DrawCenteredText(TEXT("PREPARATION — placez vos unites (clic gauche: selection, clic droit: deplacer)"),
+		H * 0.20f, FLinearColor(0.9f, 0.95f, 1.f, 1.f), 1.0f);
+	DrawButton(LaunchBattleButtonRect(W, H), TEXT("LANCER LA BATAILLE"),
+		FLinearColor(1.f, 0.7f, 0.2f, 1.f), 1.5f);
 }
 
 void AWOTOLDemoHUD::DrawPauseButton(float W, float H)

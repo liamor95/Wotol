@@ -28,17 +28,56 @@ void AWOTOLDemoDirector::BeginPlay()
 	CachedPlayerFaction = ResolvePlayerFaction();
 	CachedRivalFaction  = RivalOf(CachedPlayerFaction);
 
-	// Démarre la démo à la première bataille (créature)
+	// On NE lance plus la bataille tout de suite : on attend le flux d'écrans
+	// (menu principal → choix de faction → préparation → bataille).
 	if (UGameInstance* GI = GetGameInstance())
 	{
 		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
 		{
-			Demo->SetPhase(EDemoPhase::Battle_Creature);
+			Demo->SetScreen(EDemoScreen::MainMenu);
 		}
+	}
+}
+
+void AWOTOLDemoDirector::BeginPreparation()
+{
+	// La faction a pu être choisie à l'écran : on relit + recalcule le rival.
+	CachedPlayerFaction = ResolvePlayerFaction();
+	CachedRivalFaction  = RivalOf(CachedPlayerFaction);
+
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (Demo) Demo->SetPhase(EDemoPhase::Battle_Creature);
+
+	// Monte les armées SANS lancer le combat (placement libre par le joueur).
+	bBattleConcluded = false;
+	const FVector Center = GetActorLocation();
+	const FVector PlayerOrigin = Center + FVector(-ArmySeparation * 0.5f, 0.f, 0.f);
+	const FVector EnemyOrigin  = Center + FVector( ArmySeparation * 0.5f, 0.f, 0.f);
+	SpawnPlayerArmy(CachedPlayerFaction, PlayerOrigin, FRotator(0.f, 0.f, 0.f));
+	SpawnEnemyForCreature(CachedRivalFaction, EnemyOrigin, FRotator(0.f, 180.f, 0.f));
+
+	if (Demo) Demo->SetScreen(EDemoScreen::Prepare);
+	Say(TEXT("Préparez vos troupes : clic gauche = sélection, clic droit = déplacer. Puis lancez la bataille."));
+}
+
+void AWOTOLDemoDirector::StartBattleNow()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+
+	// Active le cerveau autonome du boss (il était en attente pendant la prépa)
+	if (Demo)
+	{
+		if (AWOTOLDemoUnit* Boss = Cast<AWOTOLDemoUnit>(Demo->GetBoss()))
+		{
+			Boss->bCreatureBrain = true;
+		}
+		Demo->SetScreen(EDemoScreen::Playing);
 	}
 
 	Say(TEXT("Phase 1 — Bataille contre la créature. Anéantissez-la !"));
-	StartCurrentBattle();
+	LaunchBattle();
 }
 
 EFactionID AWOTOLDemoDirector::ResolvePlayerFaction() const
@@ -174,7 +213,8 @@ void AWOTOLDemoDirector::SpawnEnemyForCreature(EFactionID RivalFaction, const FV
 	if (AWOTOLDemoUnit* Creature = SpawnUnit(
 			CreatureID, Origin + FVector(0.f, 0.f, 80.f), Facing, 1.5f, CreatureHealthScale))
 	{
-		Creature->bCreatureBrain = true; // boss autonome (avance + attaque)
+		// bCreatureBrain reste FAUX pendant la préparation : le boss attend.
+		// Il est activé par StartBattleNow() au lancement de la bataille.
 		if (Demo)
 		{
 			Demo->SetBoss(Creature);

@@ -78,6 +78,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void StartCurrentBattle();
 
+	// Flux d'écrans : monte les armées en PRÉPARATION (placement, sans combat).
+	UFUNCTION(BlueprintCallable, Category = "Demo")
+	void BeginPreparation();
+
+	// Lance réellement la bataille depuis la préparation (active l'IA + le boss).
+	UFUNCTION(BlueprintCallable, Category = "Demo")
+	void StartBattleNow();
+
 protected:
 	virtual void BeginPlay() override;
 

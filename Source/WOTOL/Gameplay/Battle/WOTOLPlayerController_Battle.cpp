@@ -4,10 +4,13 @@
 #include "Gameplay/Units/UnitBase.h"
 #include "Gameplay/AI/AIAdaptiveController.h"
 #include "Gameplay/Demo/WOTOLDemoHUD.h"
+#include "Gameplay/Demo/DemoFlowSubsystem.h"
+#include "Gameplay/Demo/WOTOLDemoDirector.h"
 #include "Core/WOTOLGameInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Engine/GameViewportClient.h"
+#include "EngineUtils.h"
 
 AWOTOLPlayerController_Battle::AWOTOLPlayerController_Battle()
 {
@@ -89,6 +92,28 @@ void AWOTOLPlayerController_Battle::TogglePause()
 	UGameplayStatics::SetGamePaused(GetWorld(), bNowPaused);
 }
 
+AWOTOLDemoDirector* AWOTOLPlayerController_Battle::GetDemoDirector() const
+{
+	for (TActorIterator<AWOTOLDemoDirector> It(GetWorld()); It; ++It)
+	{
+		return *It;
+	}
+	return nullptr;
+}
+
+void AWOTOLPlayerController_Battle::PickFactionAndPrepare(EFactionID Faction)
+{
+	if (UWOTOLGameInstance* GI = Cast<UWOTOLGameInstance>(GetGameInstance()))
+	{
+		GI->SessionConfig.SelectedFaction = Faction;
+	}
+	SetPlayerFaction(Faction);
+	if (AWOTOLDemoDirector* Dir = GetDemoDirector())
+	{
+		Dir->BeginPreparation();
+	}
+}
+
 bool AWOTOLPlayerController_Battle::HandleUIClick()
 {
 	FVector2D VpSize;
@@ -99,7 +124,46 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 	const FVector2D M(MX, MY);
 	const bool bPaused = UGameplayStatics::IsGamePaused(GetWorld());
 
-	// Bouton pause (toujours actif)
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	const EDemoScreen Screen = Demo ? Demo->GetScreen() : EDemoScreen::Playing;
+
+	// ── Menu principal ──
+	if (Screen == EDemoScreen::MainMenu)
+	{
+		if (Demo && AWOTOLDemoHUD::StartGameButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+		{
+			Demo->SetScreen(EDemoScreen::FactionSelect);
+		}
+		return true; // tout clic est consommé par le menu
+	}
+
+	// ── Choix de faction ──
+	if (Screen == EDemoScreen::FactionSelect)
+	{
+		if (AWOTOLDemoHUD::FactionButtonRect(0, VpSize.X, VpSize.Y).IsInside(M))
+		{
+			PickFactionAndPrepare(EFactionID::Aquiloris);
+		}
+		else if (AWOTOLDemoHUD::FactionButtonRect(1, VpSize.X, VpSize.Y).IsInside(M))
+		{
+			PickFactionAndPrepare(EFactionID::Noxeens);
+		}
+		return true;
+	}
+
+	// ── Préparation : bouton "Lancer la bataille" ──
+	if (Screen == EDemoScreen::Prepare
+		&& AWOTOLDemoHUD::LaunchBattleButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+	{
+		if (AWOTOLDemoDirector* Dir = GetDemoDirector())
+		{
+			Dir->StartBattleNow();
+		}
+		return true;
+	}
+
+	// Bouton pause (toujours actif en préparation / jeu)
 	if (AWOTOLDemoHUD::PauseButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 	{
 		TogglePause();

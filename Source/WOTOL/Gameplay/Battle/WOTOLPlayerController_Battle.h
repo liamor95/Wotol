@@ -63,9 +63,13 @@ private:
 
 	// Pause (clavier + clics sur le menu)
 	void TogglePause();
-	// Traite un clic gauche sur l'UI (bouton pause / menu). Vrai = clic consommé.
+	// Traite un clic gauche sur l'UI (bouton pause / menu / écrans). Vrai = consommé.
 	bool HandleUIClick();
 	bool GetViewportSizeSafe(FVector2D& Out) const;
+
+	// Flux d'écrans
+	class AWOTOLDemoDirector* GetDemoDirector() const;
+	void PickFactionAndPrepare(EFactionID Faction);
 
 	// Raycast helpers
 	AUnitBase* GetUnitUnderCursor() const;
