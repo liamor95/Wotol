@@ -69,11 +69,9 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 	const EFactionID Rival = (PlayerFaction == EFactionID::Aquiloris)
 		? EFactionID::Noxeens : EFactionID::Aquiloris;
 
-	const FLinearColor FloorColor(0.03f, 0.07f, 0.09f, 1.f); // fond marin sombre
-	const FLinearColor StoneColor(0.20f, 0.22f, 0.25f, 1.f); // ruines grises
-	// Zones de déploiement = teinte TRÈS sombre de la faction (les unités, vives, ressortent)
-	const FLinearColor PlayerColor = FFactionColors::Get(PlayerFaction) * 0.22f;
-	const FLinearColor RivalColor  = FFactionColors::Get(Rival) * 0.22f;
+	// Fond marin : sol ET obstacles dans la MÊME teinte (les unités, vives, ressortent)
+	const FLinearColor FloorColor(0.04f, 0.08f, 0.09f, 1.f); // fond marin sombre
+	const FLinearColor StoneColor(0.07f, 0.12f, 0.13f, 1.f); // roches du fond (même famille)
 
 	const FRotator NoRot = FRotator::ZeroRotator;
 
@@ -101,9 +99,5 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 	SpawnBlock(TEXT("/Engine/BasicShapes/Cube.Cube"),
 		Center + FVector(1100.f, -1100.f, 120.f), FVector(4.f, 4.f, 0.8f), StoneColor, NoRot, false);
 
-	// Zones de déploiement colorées (planes fins au sol, non bloquantes)
-	SpawnBlock(TEXT("/Engine/BasicShapes/Plane.Plane"),
-		Center + FVector(-ArmySeparation * 0.5f, 0.f, 5.f), FVector(35.f, 50.f, 1.f), PlayerColor, NoRot, false);
-	SpawnBlock(TEXT("/Engine/BasicShapes/Plane.Plane"),
-		Center + FVector(ArmySeparation * 0.5f, 0.f, 5.f), FVector(35.f, 50.f, 1.f), RivalColor, NoRot, false);
+	(void)Rival; // (les zones de déploiement colorées arriveront avec l'écran de déploiement)
 }

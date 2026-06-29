@@ -63,4 +63,5 @@ private:
 	void CreatureBrainTick(float DeltaSeconds);
 
 	float LastKnownHealth = -1.f;
+	bool  bCreatureStyled = false;
 };

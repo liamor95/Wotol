@@ -160,7 +160,10 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 		BaseDamage *= Bonus.DamageMultiplier;
 	}
 
-	if (UnitData->Stats.AttackType == EUnitAttackType::Ranged)
+	// À distance AVEC projectile défini -> tir ; sinon (mêlée OU distance sans
+	// projectile assigné) -> dégâts directs instantanés. Évite le "zéro dégât"
+	// quand aucune classe de projectile n'est configurée.
+	if (UnitData->Stats.AttackType == EUnitAttackType::Ranged && !UnitData->ProjectileClass.IsNull())
 	{
 		SpawnProjectileToward(Target, BaseDamage);
 	}

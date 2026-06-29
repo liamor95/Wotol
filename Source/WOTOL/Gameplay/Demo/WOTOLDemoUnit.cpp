@@ -1,5 +1,6 @@
 #include "WOTOLDemoUnit.h"
 #include "Gameplay/Units/UnitDataAsset.h"
+#include "Gameplay/Units/UnitAIStateComponent.h"
 #include "Gameplay/AI/AIAdaptiveController.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
@@ -16,6 +17,10 @@
 AWOTOLDemoUnit::AWOTOLDemoUnit()
 {
 	PrimaryActorTick.bCanEverTick = true;
+
+	// CRITIQUE : composant machine d'états IA (sinon les attaques ne se déclenchent
+	// jamais — il était ajouté côté Blueprint, absent des unités 100% C++).
+	CreateDefaultSubobject<UUnitAIStateComponent>(TEXT("AIState"));
 
 	ShapeMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShapeMesh"));
 	ShapeMesh->SetupAttachment(RootComponent);
@@ -45,16 +50,30 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 
 	if (!NameTag) return;
 
-	const FString DisplayName = (UnitData && !UnitData->DisplayName.IsEmpty())
-		? UnitData->DisplayName.ToString()
-		: GetName();
+	// Le boss s'appelle "Kraken" (créature neutre), pas le nom du mythique rival
+	const FString DisplayName = bCreatureBrain
+		? FString(TEXT("Kraken"))
+		: ((UnitData && !UnitData->DisplayName.IsEmpty()) ? UnitData->DisplayName.ToString() : GetName());
+
 	// VRAIES valeurs de PV (ex: "1700 / 2000")
 	const int32 MaxHP = UnitData ? UnitData->Stats.MaxHealth : 100;
 	const int32 CurHP = FMath::Clamp(FMath::RoundToInt(CurrentHealth), 0, MaxHP);
 
 	NameTag->SetText(FText::FromString(
 		FString::Printf(TEXT("%s\n%d / %d"), *DisplayName, CurHP, MaxHP)));
-	NameTag->SetTextRenderColor(FFactionColors::Get(GetFaction()).ToFColor(true));
+
+	// Couleur d'étiquette : violet "calamar" pour le kraken, sinon couleur de faction
+	const FLinearColor TagColor = bCreatureBrain
+		? FLinearColor(0.7f, 0.15f, 0.85f, 1.f)
+		: FFactionColors::Get(GetFaction());
+	NameTag->SetTextRenderColor(TagColor.ToFColor(true));
+
+	// Recolore la forme du kraken en violet une seule fois (sa couleur n'est pas verte/océan)
+	if (bCreatureBrain && ShapeMID && !bCreatureStyled)
+	{
+		ShapeMID->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.55f, 0.1f, 0.7f, 1.f));
+		bCreatureStyled = true;
+	}
 
 	// L'étiquette fait toujours face à la caméra du joueur
 	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
@@ -62,8 +81,8 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		if (PC->PlayerCameraManager)
 		{
 			const FVector CamLoc = PC->PlayerCameraManager->GetCameraLocation();
-			// Le texte regarde la caméra et se lit dans le bon sens (pas en miroir)
-			FRotator Face = (NameTag->GetComponentLocation() - CamLoc).Rotation();
+			// Le texte se lit dans le bon sens : son axe +X pointe VERS la caméra
+			FRotator Face = (CamLoc - NameTag->GetComponentLocation()).Rotation();
 			Face.Pitch = 0.f; Face.Roll = 0.f;
 			NameTag->SetWorldRotation(Face);
 		}
