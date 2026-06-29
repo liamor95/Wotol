@@ -143,7 +143,10 @@ void AWOTOLDemoDirector::SpawnEnemyForCreature(EFactionID RivalFaction, const FV
 	const FName CreatureID = Demo
 		? Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Mythique)
 		: NAME_None;
-	SpawnUnit(CreatureID, Origin + FVector(0.f, 0.f, 80.f), Facing, 1.5f);
+	if (AWOTOLDemoUnit* Creature = SpawnUnit(CreatureID, Origin + FVector(0.f, 0.f, 80.f), Facing, 1.5f))
+	{
+		Creature->bCreatureBrain = true; // boss autonome (avance + attaque)
+	}
 }
 
 void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector& Origin, const FRotator& Facing)
@@ -215,6 +218,19 @@ void AWOTOLDemoDirector::LaunchBattle()
 					AIC->ActivateRTSBehavior();   // IA active = les attaques fonctionnent
 					AIC->IssueOrder_HoldPosition(); // mais elles attendent tes ordres
 				}
+			}
+		}
+	}
+
+	// Les créatures/boss sont pilotées par leur propre cerveau (Tick) : on coupe
+	// leur IA RTS standard pour éviter tout conflit de mouvement.
+	for (AWOTOLDemoUnit* U : SpawnedUnits)
+	{
+		if (U && U->bCreatureBrain)
+		{
+			if (AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(U->GetController()))
+			{
+				AIC->DeactivateRTSBehavior();
 			}
 		}
 	}

@@ -28,6 +28,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Demo|Greybox")
 	static float GetUnitHeightMeters(FName UnitID);
 
+	// Si vrai : comportement de créature/boss autonome (cherche, avance, attaque)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Greybox")
+	bool bCreatureBrain = false;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
@@ -50,4 +54,13 @@ private:
 	// Réagit à la sélection joueur : surligne l'unité
 	UFUNCTION()
 	void HandleSelected(bool bSel);
+
+	// Affiche un chiffre de dégâts flottant quand l'unité perd des PV
+	UFUNCTION()
+	void HandleHealthChanged(float NewHealth, float MaxHealth);
+
+	// Cerveau autonome de créature/boss (cherche l'ennemi, avance, attaque)
+	void CreatureBrainTick(float DeltaSeconds);
+
+	float LastKnownHealth = -1.f;
 };

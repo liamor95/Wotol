@@ -10,6 +10,8 @@
 #include "Data/WOTOLTypes.h"
 #include "GameFramework/PlayerController.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Core/FactionRegistrySubsystem.h"
+#include "WOTOLDamageNumber.h"
 
 AWOTOLDemoUnit::AWOTOLDemoUnit()
 {
@@ -36,14 +38,22 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	if (bCreatureBrain)
+	{
+		CreatureBrainTick(DeltaSeconds);
+	}
+
 	if (!NameTag) return;
 
 	const FString DisplayName = (UnitData && !UnitData->DisplayName.IsEmpty())
 		? UnitData->DisplayName.ToString()
 		: GetName();
-	const int32 HpPct = FMath::RoundToInt(GetHealthPercent() * 100.f);
+	// VRAIES valeurs de PV (ex: "1700 / 2000")
+	const int32 MaxHP = UnitData ? UnitData->Stats.MaxHealth : 100;
+	const int32 CurHP = FMath::Clamp(FMath::RoundToInt(CurrentHealth), 0, MaxHP);
 
-	NameTag->SetText(FText::FromString(FString::Printf(TEXT("%s\n%d%%"), *DisplayName, HpPct)));
+	NameTag->SetText(FText::FromString(
+		FString::Printf(TEXT("%s\n%d / %d"), *DisplayName, CurHP, MaxHP)));
 	NameTag->SetTextRenderColor(FFactionColors::Get(GetFaction()).ToFColor(true));
 
 	// L'étiquette fait toujours face à la caméra du joueur
@@ -65,6 +75,20 @@ void AWOTOLDemoUnit::BeginPlay()
 	Super::BeginPlay();   // initialise UnitData -> stats, faction, rôle
 	BuildGreyboxShape();
 	OnUnitSelected.AddDynamic(this, &AWOTOLDemoUnit::HandleSelected);
+	OnHealthChanged.AddDynamic(this, &AWOTOLDemoUnit::HandleHealthChanged);
+	LastKnownHealth = UnitData ? static_cast<float>(UnitData->Stats.MaxHealth) : 100.f;
+}
+
+void AWOTOLDemoUnit::HandleHealthChanged(float NewHealth, float MaxHealth)
+{
+	// Chiffre de dégâts flottant rouge (uniquement quand on PERD des PV)
+	if (LastKnownHealth >= 0.f && NewHealth < LastKnownHealth)
+	{
+		const float Dmg = LastKnownHealth - NewHealth;
+		const FVector Loc = GetActorLocation() + FVector(0.f, 0.f, 60.f);
+		AWOTOLDamageNumber::Spawn(GetWorld(), Loc, Dmg, FLinearColor(1.f, 0.25f, 0.1f, 1.f));
+	}
+	LastKnownHealth = NewHealth;
 }
 
 void AWOTOLDemoUnit::HandleSelected(bool bSel)
@@ -74,6 +98,53 @@ void AWOTOLDemoUnit::HandleSelected(bool bSel)
 	const FLinearColor C = bSel ? FLinearColor(1.f, 1.f, 1.f, 1.f)
 	                            : FFactionColors::Get(GetFaction());
 	ShapeMID->SetVectorParameterValue(TEXT("Color"), C);
+}
+
+void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
+{
+	if (!IsAlive()) return;
+	UWorld* W = GetWorld();
+	if (!W) return;
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>();
+	if (!Reg) return;
+
+	// Cherche l'unité ennemie la plus proche
+	const EFactionID EnemyFac = (GetFaction() == EFactionID::Aquiloris)
+		? EFactionID::Noxeens : EFactionID::Aquiloris;
+
+	AUnitBase* Nearest = nullptr;
+	float Best = TNumericLimits<float>::Max();
+	for (AUnitBase* U : Reg->GetUnitsForFaction(EnemyFac))
+	{
+		if (!U || !U->IsAlive()) continue;
+		const float D = FVector::DistSquared(GetActorLocation(), U->GetActorLocation());
+		if (D < Best) { Best = D; Nearest = U; }
+	}
+	if (!Nearest) return;
+
+	FVector To = Nearest->GetActorLocation() - GetActorLocation();
+	To.Z = 0.f;
+	const float Dist = To.Size();
+
+	// Se tourne vers la cible
+	if (Dist > 1.f)
+	{
+		FRotator R = To.Rotation();
+		R.Pitch = 0.f; R.Roll = 0.f;
+		SetActorRotation(R);
+	}
+
+	const float Range = UnitData ? UnitData->Stats.AttackRange * 200.f : 200.f;
+	const float Edge  = Dist - GetSimpleCollisionRadius() - Nearest->GetSimpleCollisionRadius();
+
+	if (Edge <= Range)
+	{
+		PerformAttack(Nearest);   // throttlé par le cooldown interne de l'unité
+	}
+	else
+	{
+		AddMovementInput(To.GetSafeNormal(), 1.f); // avance vers la cible
+	}
 }
 
 // Tailles réelles approximatives (mètres) — valeurs du GDD/document de démo
