@@ -240,6 +240,16 @@ void AWOTOLDemoHUD::DrawTopBar(float W, float H, UWorld* World, UDemoFlowSubsyst
 		DrawRect(FLinearColor(0.95f, 0.78f, 0.25f, 0.9f), BX, BY, 4.f, MH + 14.f);       // liseré or gauche
 		DrawText(Msg, FLinearColor::White, BX + 30.f, BY + 7.f, GEngine->GetLargeFont(), 1.15f);
 	}
+
+	// Objectif courant (permanent, en haut à gauche)
+	if (Demo && !Demo->ObjectiveText.IsEmpty())
+	{
+		const FString Line = FString(TEXT("OBJECTIF : ")) + Demo->ObjectiveText;
+		float OW, OH; GetTextSize(Line, OW, OH, GEngine->GetMediumFont(), 1.f);
+		DrawRect(FLinearColor(0.02f, 0.04f, 0.07f, 0.72f), 14.f, 12.f, OW + 24.f, OH + 12.f);
+		DrawRect(FLinearColor(0.95f, 0.78f, 0.25f, 0.9f), 14.f, 12.f, 4.f, OH + 12.f);
+		DrawText(Line, FLinearColor(1.f, 0.92f, 0.6f, 1.f), 26.f, 18.f, GEngine->GetMediumFont(), 1.f);
+	}
 }
 
 void AWOTOLDemoHUD::DrawBossBar(float W, float H, AWOTOLDemoUnit* Boss)

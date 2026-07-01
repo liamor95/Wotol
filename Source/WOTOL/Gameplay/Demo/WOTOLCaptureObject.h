@@ -6,6 +6,7 @@
 #include "WOTOLCaptureObject.generated.h"
 
 class UStaticMeshComponent;
+class UTextRenderComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCaptureObjectHealthChanged,
 	float, NewHealth, float, MaxHealth);
@@ -34,12 +35,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Capture")
 	FName ZoneID = TEXT("NeutralZone_01");
 
-	// PV — PrototypeDefault (doc : 450/600)
+	// PV de BÂTIMENT (bien plus résistant qu'une unité : un objectif stratégique)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Capture")
-	float MaxHealth = 600.f;
+	float MaxHealth = 3500.f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Capture")
-	float CurrentHealth = 600.f;
+	float CurrentHealth = 3500.f;
 
 	// Nom affiché selon la faction (Cristalliseur / Abyssalyseur)
 	UFUNCTION(BlueprintPure, Category = "Capture")
@@ -66,9 +67,13 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaSeconds) override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UStaticMeshComponent> ShapeMesh;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TObjectPtr<UTextRenderComponent> NameTag;
 
 	void BuildVisual();
 };

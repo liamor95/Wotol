@@ -10,6 +10,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "Math/RandomStream.h"
+#include "WOTOLAmbientFish.h"
 #include "Data/WOTOLTypes.h"
 
 namespace
@@ -366,6 +367,39 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 				FVector(0.18f, 0.18f, Hgt / 100.f), Col,
 				FRotator(Cor.FRandRange(-20.f, 20.f), Cor.FRandRange(0.f, 360.f), Cor.FRandRange(-20.f, 20.f)),
 				false);
+		}
+	}
+
+	// ── FAUNE AMBIANTE : bancs de poissons qui nagent en boucle (décoratif) ──
+	if (UWorld* W = GetWorld())
+	{
+		FRandomStream Fs(1234);
+		const FLinearColor FishColors[3] = {
+			FLinearColor(0.55f, 0.65f, 0.75f, 1.f), // argenté
+			FLinearColor(0.30f, 0.60f, 0.85f, 1.f), // bleu
+			FLinearColor(0.70f, 0.75f, 0.55f, 1.f), // doré pâle
+		};
+		// 5 bancs, chacun de plusieurs poissons proches (même cercle, phases décalées)
+		for (int32 s = 0; s < 5; ++s)
+		{
+			const FVector SchoolCenter = Center + FVector(
+				Fs.FRandRange(-6000.f, 6000.f), Fs.FRandRange(-6000.f, 6000.f), 0.f);
+			const float Radius = Fs.FRandRange(900.f, 2200.f);
+			const float Speed  = Fs.FRandRange(0.25f, 0.6f) * (Fs.FRand() < 0.5f ? 1.f : -1.f);
+			const float BaseZ  = Fs.FRandRange(400.f, 1600.f);
+			const FLinearColor Col = FishColors[Fs.RandRange(0, 2)];
+			const int32 Count = Fs.RandRange(4, 8);
+			for (int32 f = 0; f < Count; ++f)
+			{
+				FActorSpawnParameters P; P.Owner = this;
+				if (AWOTOLAmbientFish* Fish = W->SpawnActor<AWOTOLAmbientFish>(
+						AWOTOLAmbientFish::StaticClass(), SchoolCenter, FRotator::ZeroRotator, P))
+				{
+					Fish->Configure(SchoolCenter, Radius + Fs.FRandRange(-120.f, 120.f), Speed,
+						(2.f * PI * f / Count) + Fs.FRandRange(-0.2f, 0.2f),
+						Fs.FRandRange(80.f, 220.f), BaseZ, Col, Fs.FRandRange(0.8f, 1.6f));
+				}
+			}
 		}
 	}
 }

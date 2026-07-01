@@ -60,7 +60,11 @@ void AWOTOLDemoDirector::BeginPreparation()
 	SpawnEnemyForCreature(CachedRivalFaction, EnemyOrigin, FRotator(0.f, 180.f, 0.f));
 
 	FocusCameraOnPlayer();
-	if (Demo) Demo->SetScreen(EDemoScreen::Prepare);
+	if (Demo)
+	{
+		Demo->SetScreen(EDemoScreen::Prepare);
+		Demo->SetObjective(TEXT("Vaincre la creature — le KRAKEN"));
+	}
 	Say(TEXT("Préparez vos troupes : clic gauche = sélection, clic droit = déplacer. Puis lancez la bataille."));
 }
 
@@ -376,14 +380,15 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 
 	if (Phase == EDemoPhase::Battle_Creature)
 	{
-		Say(TEXT("VICTOIRE ! Créature vaincue. Distance débloquée, mythique juvénile découvert."));
+		Say(TEXT("OBJECTIF REMPLI : le Kraken est vaincu ! Distance débloquée."));
 		if (Demo)
 		{
 			Demo->UnlockRangedUnit();
 			Demo->DiscoverMythic();
+			Demo->SetObjective(TEXT("Deployer le Cristalliseur et defendre la zone"));
 		}
 		SpawnCaptureObject(CachedPlayerFaction);
-		Say(TEXT("Zone capturée — Grade 1. Préparez la défense..."));
+		Say(TEXT("Cristalliseur deploye — Zone capturee (Grade 1). Preparez la defense..."));
 
 		GetWorldTimerManager().SetTimer(
 			PhaseHandle, this, &AWOTOLDemoDirector::StartRivalDefense,
@@ -448,6 +453,13 @@ void AWOTOLDemoDirector::StartRivalDefense()
 		}
 	}
 
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UDemoFlowSubsystem* D = GI->GetSubsystem<UDemoFlowSubsystem>())
+		{
+			D->SetObjective(TEXT("Defendre le Cristalliseur contre la faction rivale"));
+		}
+	}
 	Say(TEXT("Phase 2 — La faction rivale attaque votre zone ! Défendez-la !"));
 	StartCurrentBattle();
 	FocusCameraOnPlayer(); // recadre derrière l'armée pour la nouvelle phase

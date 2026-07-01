@@ -165,6 +165,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void SetMessage(const FString& Msg) { CurrentMessage = Msg; }
 
+	// Objectif courant affiché en permanence dans le HUD
+	UPROPERTY(BlueprintReadOnly, Category = "Demo")
+	FString ObjectiveText;
+
+	UFUNCTION(BlueprintCallable, Category = "Demo")
+	void SetObjective(const FString& Text) { ObjectiveText = Text; }
+
 	// Boss courant (créature) — pour la barre de vie du HUD
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void SetBoss(AActor* InBoss) { BossActor = InBoss; }

@@ -14,6 +14,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Core/FactionRegistrySubsystem.h"
 #include "WOTOLDamageNumber.h"
+#include "WOTOLBubbleBurst.h"
 
 namespace
 {
@@ -140,6 +141,8 @@ void AWOTOLDemoUnit::HandleHealthChanged(float NewHealth, float MaxHealth)
 		const float Dmg = LastKnownHealth - NewHealth;
 		const FVector Loc = GetActorLocation() + FVector(0.f, 0.f, 60.f);
 		AWOTOLDamageNumber::Spawn(GetWorld(), Loc, Dmg, FLinearColor(1.f, 0.f, 0.f, 1.f)); // rouge vif
+		// VFX d'impact : éclat de bulles (eau) à l'endroit du coup
+		AWOTOLBubbleBurst::Burst(GetWorld(), Loc, FLinearColor(0.65f, 0.88f, 1.f, 1.f), 6);
 	}
 	LastKnownHealth = NewHealth;
 }

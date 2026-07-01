@@ -2,17 +2,26 @@
 #include "DemoFlowSubsystem.h"
 #include "Gameplay/Battle/TerritoryStateManager.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/TextRenderComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/GameInstance.h"
+#include "GameFramework/PlayerController.h"
+#include "Camera/PlayerCameraManager.h"
 
 AWOTOLCaptureObject::AWOTOLCaptureObject()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 
 	ShapeMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShapeMesh"));
 	RootComponent = ShapeMesh;
+
+	NameTag = CreateDefaultSubobject<UTextRenderComponent>(TEXT("NameTag"));
+	NameTag->SetupAttachment(ShapeMesh);
+	NameTag->SetHorizontalAlignment(EHTA_Center);
+	NameTag->SetWorldSize(90.f);
+	NameTag->SetRelativeLocation(FVector(0.f, 0.f, 260.f));
 }
 
 void AWOTOLCaptureObject::BeginPlay()
@@ -20,6 +29,28 @@ void AWOTOLCaptureObject::BeginPlay()
 	Super::BeginPlay();
 	CurrentHealth = MaxHealth;
 	BuildVisual();
+	if (NameTag) NameTag->SetTextRenderColor(FFactionColors::Get(OwnerFaction).ToFColor(true));
+}
+
+void AWOTOLCaptureObject::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	if (!NameTag) return;
+
+	NameTag->SetText(FText::FromString(FString::Printf(TEXT("%s\n%d / %d"),
+		*GetDisplayName().ToString(), FMath::RoundToInt(CurrentHealth), FMath::RoundToInt(MaxHealth))));
+
+	// Fait face à la caméra
+	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+	{
+		if (PC->PlayerCameraManager)
+		{
+			FRotator Face = (PC->PlayerCameraManager->GetCameraLocation()
+				- NameTag->GetComponentLocation()).Rotation();
+			Face.Pitch = 0.f; Face.Roll = 0.f;
+			NameTag->SetWorldRotation(Face);
+		}
+	}
 }
 
 FText AWOTOLCaptureObject::GetDisplayName() const
