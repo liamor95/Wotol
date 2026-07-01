@@ -84,6 +84,10 @@ private:
 	bool       bRightDown        = false;
 	FVector2D  RightPressPos;
 
+	// Double-clic gauche (focus caméra sur une unité alliée)
+	float      LastLeftClickTime = -10.f;
+	FVector2D  LastLeftClickPos;
+
 	// Commandes aux unités sélectionnées
 	void IssueCommandToSelection(AUnitBase* TargetUnit, FVector TargetLocation);
 };

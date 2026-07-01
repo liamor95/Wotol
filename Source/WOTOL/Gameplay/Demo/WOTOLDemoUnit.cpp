@@ -298,7 +298,6 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 	const FLinearColor AqEnergy(0.45f, 0.88f, 1.00f, 1.f);
 	// Noxéens : corps sombre, lumens violets / bleus / verts selon l'unité
 	const FLinearColor NoxDark  (0.08f, 0.07f, 0.13f, 1.f);
-	const FLinearColor NoxViolet(0.62f, 0.20f, 0.98f, 1.f);
 	const FLinearColor NoxBlue  (0.25f, 0.60f, 1.00f, 1.f);
 	const FLinearColor NoxGreen (0.28f, 0.95f, 0.42f, 1.f);
 	const FLinearColor NoxBronze(0.10f, 0.09f, 0.07f, 1.f);
@@ -362,25 +361,26 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 	}
 
 	// ───────────────── NOXÉENS (corps sombre + lumens) ─────────────────
-	if (Id == TEXT("Noxar")) // Chef : humanoïde sombre tentaculé (lumens violets)
+	// NB : identité Noxéenne = VERT/abyssal bioluminescent (distinct du Kraken violet).
+	if (Id == TEXT("Noxar")) // Chef : humanoïde sombre tentaculé (lumens verts)
 	{
-		BuildHumanoid(0.34f, NoxDark);
-		AddPart(M_SPH, FVector(8, 0, H * 0.33f), FVector(0.12f, 0.12f, 0.12f), NoRot, NoxViolet); // yeux violets
+		BuildHumanoid(0.34f, FLinearColor(0.05f, 0.11f, 0.10f, 1.f)); // corps abyssal vert-sombre
+		AddPart(M_SPH, FVector(8, 0, H * 0.33f), FVector(0.12f, 0.12f, 0.12f), NoRot, NoxGreen); // yeux verts
 		for (int32 i = 0; i < 4; ++i)
 		{
 			const float Side = (i % 2 == 0) ? 1.f : -1.f;
 			const float Up   = (i < 2) ? 0.30f : 0.18f;
 			RegisterWiggle(AddPart(M_CONE, FVector(-8, Side * 26, H * Up),
-				FVector(0.07f, 0.07f, h * 0.4f), FRotator(0, 0, Side * 50.f), NoxViolet), i * 1.3f);
+				FVector(0.07f, 0.07f, h * 0.4f), FRotator(0, 0, Side * 50.f), NoxGreen), i * 1.3f);
 		}
 		return;
 	}
-	if (Id == TEXT("Noxeflare")) // Infanterie : corps violet sombre, amas d'yeux violets
+	if (Id == TEXT("Noxeflare")) // Infanterie : corps vert-abyssal, amas d'yeux verts
 	{
-		BuildHumanoid(0.32f, FLinearColor(0.12f, 0.06f, 0.18f, 1.f));
-		AddPart(M_SPH, FVector(8, 0, H * 0.33f), FVector(0.13f, 0.13f, 0.13f), NoRot, NoxViolet); // amas d'yeux
-		AddPart(M_CONE, FVector(0, 16, H * 0.42f), FVector(0.08f, 0.08f, h * 0.18f), FRotator(0, 0, 30.f), NoxViolet);
-		AddPart(M_CONE, FVector(0, -16, H * 0.42f), FVector(0.08f, 0.08f, h * 0.18f), FRotator(0, 0, -30.f), NoxViolet);
+		BuildHumanoid(0.32f, FLinearColor(0.06f, 0.13f, 0.11f, 1.f));
+		AddPart(M_SPH, FVector(8, 0, H * 0.33f), FVector(0.13f, 0.13f, 0.13f), NoRot, NoxGreen); // amas d'yeux
+		AddPart(M_CONE, FVector(0, 16, H * 0.42f), FVector(0.08f, 0.08f, h * 0.18f), FRotator(0, 0, 30.f), NoxGreen);
+		AddPart(M_CONE, FVector(0, -16, H * 0.42f), FVector(0.08f, 0.08f, h * 0.18f), FRotator(0, 0, -30.f), NoxGreen);
 		return;
 	}
 	if (Id == TEXT("Noxeblast")) // Distance : sombre, yeux + 2 tentacules dorsales BLEUES

@@ -230,7 +230,28 @@ void AWOTOLPlayerController_Battle::OnLeftMousePressed()
 
 	float X, Y;
 	GetMousePosition(X, Y);
-	BoxSelectStart   = FVector2D(X, Y);
+	const FVector2D Pos(X, Y);
+
+	// ── Double-clic gauche sur une unité ALLIÉE = focus caméra dessus ──
+	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	const bool bDouble = (Now - LastLeftClickTime < 0.30f)
+		&& FVector2D::Distance(Pos, LastLeftClickPos) < 14.f;
+	LastLeftClickTime = Now;
+	LastLeftClickPos  = Pos;
+
+	if (bDouble)
+	{
+		if (AUnitBase* U = GetUnitUnderCursor())
+		{
+			if (U->GetFaction() == PlayerFaction && BattleCamera.IsValid())
+			{
+				BattleCamera->FocusOn(U->GetActorLocation());
+				return; // pas de nouvelle sélection sur le double-clic
+			}
+		}
+	}
+
+	BoxSelectStart   = Pos;
 	bIsBoxSelecting  = true;
 }
 
