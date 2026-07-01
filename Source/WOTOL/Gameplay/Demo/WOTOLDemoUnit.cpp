@@ -31,8 +31,12 @@ AWOTOLDemoUnit::AWOTOLDemoUnit()
 	// jamais — il était ajouté côté Blueprint, absent des unités 100% C++).
 	CreateDefaultSubobject<UUnitAIStateComponent>(TEXT("AIState"));
 
+	// Conteneur visuel : toutes les pièces s'y attachent -> on l'anime (nage/inclinaison)
+	VisualRoot = CreateDefaultSubobject<USceneComponent>(TEXT("VisualRoot"));
+	VisualRoot->SetupAttachment(RootComponent);
+
 	ShapeMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShapeMesh"));
-	ShapeMesh->SetupAttachment(RootComponent);
+	ShapeMesh->SetupAttachment(VisualRoot);
 	ShapeMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	// Étiquette flottante nom + PV (au-dessus de la tête)
@@ -57,9 +61,10 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		CreatureBrainTick(DeltaSeconds);
 	}
 
+	AnimateBody(DeltaSeconds);          // flottement de nage + tentacules (toutes unités)
 	if (bArticulated)
 	{
-		AnimateArticulated(DeltaSeconds);
+		AnimateArticulated(DeltaSeconds); // rig détaillé (Aquiloryons)
 	}
 
 	if (!NameTag) return;
@@ -225,7 +230,7 @@ UStaticMeshComponent* AWOTOLDemoUnit::AddPart(const TCHAR* MeshPath, const FVect
 {
 	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
 	if (!C) return nullptr;
-	C->SetupAttachment(RootComponent);
+	C->SetupAttachment(VisualRoot ? VisualRoot.Get() : RootComponent.Get());
 	C->RegisterComponent();
 	C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	if (UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, MeshPath))
@@ -362,8 +367,8 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		{
 			const float Side = (i % 2 == 0) ? 1.f : -1.f;
 			const float Up   = (i < 2) ? 0.30f : 0.18f;
-			AddPart(M_CONE, FVector(-8, Side * 26, H * Up),
-				FVector(0.07f, 0.07f, h * 0.4f), FRotator(0, 0, Side * 50.f), NoxViolet);
+			RegisterWiggle(AddPart(M_CONE, FVector(-8, Side * 26, H * Up),
+				FVector(0.07f, 0.07f, h * 0.4f), FRotator(0, 0, Side * 50.f), NoxViolet), i * 1.3f);
 		}
 		return;
 	}
@@ -379,8 +384,8 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 	{
 		BuildHumanoid(0.32f, NoxDark);
 		AddPart(M_SPH, FVector(8, 0, H * 0.33f), FVector(0.10f, 0.10f, 0.10f), NoRot, NoxBlue); // yeux bleus
-		AddPart(M_CONE, FVector(-14, 18, H * 0.30f), FVector(0.06f, 0.06f, h * 0.6f), FRotator(-30.f, 0, 35.f), NoxBlue);
-		AddPart(M_CONE, FVector(-14, -18, H * 0.30f), FVector(0.06f, 0.06f, h * 0.6f), FRotator(-30.f, 0, -35.f), NoxBlue);
+		RegisterWiggle(AddPart(M_CONE, FVector(-14, 18, H * 0.30f), FVector(0.06f, 0.06f, h * 0.6f), FRotator(-30.f, 0, 35.f), NoxBlue), 0.f);
+		RegisterWiggle(AddPart(M_CONE, FVector(-14, -18, H * 0.30f), FVector(0.06f, 0.06f, h * 0.6f), FRotator(-30.f, 0, -35.f), NoxBlue), 3.14f);
 		return;
 	}
 	if (Id == TEXT("Noxebeast")) // Montée : quadrupède cuirassé bronze, yeux verts, défenses
@@ -408,8 +413,8 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		for (int32 i = 0; i < 5; ++i)
 		{
 			const float Ang = 2.f * PI * i / 5.f;
-			AddPart(M_CONE, FVector(FMath::Cos(Ang) * 20.f, FMath::Sin(Ang) * 20.f, -H * 0.3f),
-				FVector(0.07f, 0.07f, h * 0.3f), FRotator(0, FMath::RadiansToDegrees(Ang), 30.f), NoxGreen);
+			RegisterWiggle(AddPart(M_CONE, FVector(FMath::Cos(Ang) * 20.f, FMath::Sin(Ang) * 20.f, -H * 0.3f),
+				FVector(0.07f, 0.07f, h * 0.3f), FRotator(0, FMath::RadiansToDegrees(Ang), 30.f), NoxGreen), i * 1.2f);
 		}
 		return;
 	}
@@ -424,11 +429,11 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		for (int32 i = 0; i < 6; ++i)
 		{
 			const float Ang = PI * (i / 5.f) - PI * 0.5f; // -90°..+90°
-			AddPart(M_CONE, FVector(H * 0.25f + FMath::Cos(Ang) * 20.f, FMath::Sin(Ang) * 40.f, -H * 0.25f),
-				FVector(0.14f, 0.14f, h * 0.55f), FRotator(120.f, FMath::RadiansToDegrees(Ang), 0), KrakArmor);
+			RegisterWiggle(AddPart(M_CONE, FVector(H * 0.25f + FMath::Cos(Ang) * 20.f, FMath::Sin(Ang) * 40.f, -H * 0.25f),
+				FVector(0.14f, 0.14f, h * 0.55f), FRotator(120.f, FMath::RadiansToDegrees(Ang), 0), KrakArmor), i * 1.0f);
 		}
-		AddPart(M_CYL, FVector(H * 0.6f, 16, -H * 0.1f), FVector(0.06f, 0.06f, h * 0.9f), FRotator(80.f, 0, 0), KrakArmor); // fouet
-		AddPart(M_CYL, FVector(H * 0.6f, -16, -H * 0.1f), FVector(0.06f, 0.06f, h * 0.9f), FRotator(80.f, 0, 0), KrakArmor);
+		RegisterWiggle(AddPart(M_CYL, FVector(H * 0.6f, 16, -H * 0.1f), FVector(0.06f, 0.06f, h * 0.9f), FRotator(80.f, 0, 0), KrakArmor), 0.5f);  // fouet
+		RegisterWiggle(AddPart(M_CYL, FVector(H * 0.6f, -16, -H * 0.1f), FVector(0.06f, 0.06f, h * 0.9f), FRotator(80.f, 0, 0), KrakArmor), 2.5f);
 		return;
 	}
 
@@ -475,8 +480,16 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 	GetCapsuleComponent()->SetCapsuleSize(CapR, CapH);
 	if (NameTag) NameTag->SetRelativeLocation(FVector(0.f, 0.f, CapH + 50.f));
 
-	// Disque d'équipe au sol (bleu Aquiloris / vert Noxéen) — repère de camp.
-	AddTeamMarker(CapR, -CapH + 4.f, FFactionColors::Get(GetFaction()));
+	// Déphasage d'animation propre à chaque unité (désync le flottement)
+	BobSeed = FMath::Fmod(GetActorLocation().X * 0.021f + GetActorLocation().Y * 0.013f, 6.283f);
+
+	// Disque d'équipe au sol — SAUF pour le boss/mythique (son disque géant cachait
+	// les petites unités). Rayon plafonné pour ne jamais masquer le combat.
+	if (UnitRole != EUnitRole::Mythique && !bCreatureBrain)
+	{
+		const float MarkerR = FMath::Min(CapR, 70.f);
+		AddTeamMarker(MarkerR, -CapH + 2.f, FFactionColors::Get(GetFaction()));
+	}
 }
 
 void AWOTOLDemoUnit::AddTeamMarker(float Radius, float ZFeet, const FLinearColor& Color)
@@ -512,7 +525,7 @@ USceneComponent* AWOTOLDemoUnit::MakeJoint(USceneComponent* Parent, const FVecto
 {
 	USceneComponent* J = NewObject<USceneComponent>(this);
 	if (!J) return nullptr;
-	J->SetupAttachment(Parent ? Parent : RootComponent.Get());
+	J->SetupAttachment(Parent ? Parent : (VisualRoot ? VisualRoot.Get() : RootComponent.Get()));
 	J->RegisterComponent();
 	J->SetRelativeLocation(RelLoc);
 	return J;
@@ -647,5 +660,63 @@ void AWOTOLDemoUnit::AnimateArticulated(float Dt)
 	{
 		ShapeMesh->SetRelativeRotation(
 			FMath::RInterpTo(ShapeMesh->GetRelativeRotation(), FRotator(0, 0, torsoRoll), Dt, 8.f));
+	}
+}
+
+void AWOTOLDemoUnit::RegisterWiggle(USceneComponent* Comp, float Phase)
+{
+	if (!Comp) return;
+	WiggleComps.Add(Comp);
+	WiggleBase.Add(Comp->GetRelativeRotation());
+	WigglePhase.Add(Phase);
+}
+
+// Animation GÉNÉRIQUE (toutes unités) : flottement de nage + inclinaison + tentacules.
+void AWOTOLDemoUnit::AnimateBody(float Dt)
+{
+	AnimClock += Dt;
+	const bool bDead = !IsAlive();
+
+	EUnitAIState St = EUnitAIState::Idle;
+	if (UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>())
+	{
+		St = S->GetCurrentState();
+	}
+	const float Speed  = GetVelocity().Size2D();
+	const bool  bMoving = (Speed > 10.f) || St == EUnitAIState::Seeking
+		|| St == EUnitAIState::Patrolling || St == EUnitAIState::Retreating;
+	const bool  bAttacking = (St == EUnitAIState::Attacking);
+
+	// ── Flottement du conteneur visuel (nage) + inclinaison ──
+	if (VisualRoot)
+	{
+		const float Amp  = bDead ? 0.f : (bMoving ? 2.5f : 5.5f);
+		const float Bob  = FMath::Sin(AnimClock * 1.6f + BobSeed) * Amp;
+		const float Roll = FMath::Sin(AnimClock * 1.25f + BobSeed) * 2.0f;
+		float Pitch = 0.f, Lunge = 0.f;
+		// Attaque des unités NON articulées : petit à-coup vers l'avant
+		if (!bArticulated && bAttacking)
+		{
+			const float s = FMath::Sin(AnimClock * 7.f);
+			Pitch = -6.f - 5.f * FMath::Abs(s);
+			Lunge = 6.f * FMath::Max(0.f, s);
+		}
+		if (bDead) { Pitch = 70.f; }
+
+		VisualRoot->SetRelativeLocation(
+			FMath::VInterpTo(VisualRoot->GetRelativeLocation(), FVector(Lunge, 0.f, Bob), Dt, 10.f));
+		VisualRoot->SetRelativeRotation(
+			FMath::RInterpTo(VisualRoot->GetRelativeRotation(), FRotator(Pitch, 0.f, Roll), Dt, 8.f));
+	}
+
+	// ── Ondulation des appendices (tentacules) ──
+	for (int32 i = 0; i < WiggleComps.Num(); ++i)
+	{
+		if (!WiggleComps[i]) continue;
+		const float P = WigglePhase.IsValidIndex(i) ? WigglePhase[i] : 0.f;
+		const FRotator Base = WiggleBase.IsValidIndex(i) ? WiggleBase[i] : FRotator::ZeroRotator;
+		const FRotator Osc(FMath::Sin(AnimClock * 2.2f + P) * 16.f, 0.f,
+			FMath::Cos(AnimClock * 1.8f + P) * 12.f);
+		WiggleComps[i]->SetRelativeRotation(Base + Osc);
 	}
 }

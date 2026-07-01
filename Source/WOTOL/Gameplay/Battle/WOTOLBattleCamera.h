@@ -49,7 +49,7 @@ public:
 	float RotationSpeed = 120.f;   // degrés/s (clic milieu + drag)
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Speed")
-	float ZoomSpeed = 300.f;
+	float ZoomSpeed = 650.f;   // zoom molette réactif (par cran)
 
 	// ─── Zoom ─────────────────────────────────────────────────────────────────
 

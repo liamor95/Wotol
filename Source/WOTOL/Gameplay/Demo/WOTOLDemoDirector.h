@@ -109,6 +109,7 @@ private:
 	void StartRivalDefense();
 	void EndDemo(bool bPlayerWon);
 	void Say(const FString& Message);
+	void FocusCameraOnPlayer(); // recadre la caméra derrière l'armée, vers l'ennemi
 
 	EFactionID CachedPlayerFaction = EFactionID::None;
 	EFactionID CachedRivalFaction  = EFactionID::None;

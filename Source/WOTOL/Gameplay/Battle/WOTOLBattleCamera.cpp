@@ -157,8 +157,11 @@ void AWOTOLBattleCamera::TickZoom(float DT)
 {
 	if (FMath::IsNearlyZero(ZoomInput) || !SpringArm) return;
 
+	// Zoom par CRAN (pas d'échelle par DT) : chaque cran de molette rapproche
+	// d'un pas franc, proportionnel à la distance actuelle (accélère de loin).
+	const float Step = ZoomSpeed * (0.6f + SpringArm->TargetArmLength / MaxArmLength);
 	SpringArm->TargetArmLength = FMath::Clamp(
-		SpringArm->TargetArmLength - ZoomInput * ZoomSpeed * DT,
+		SpringArm->TargetArmLength - ZoomInput * Step,
 		MinArmLength, MaxArmLength);
 }
 

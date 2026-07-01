@@ -110,6 +110,18 @@ private:
 	float AnimPhase    = 0.f;
 	float SwingProgress = 0.f; // 0..1 avancement d'un coup d'épée
 
+	// ─── Animation générique (toutes unités) : nage + inclinaison + appendices ──
+	// Conteneur visuel : on le fait flotter/incliner pour animer TOUTE la silhouette.
+	UPROPERTY() TObjectPtr<USceneComponent> VisualRoot;
+	float AnimClock = 0.f;
+	float BobSeed   = 0.f;
+	void AnimateBody(float DeltaSeconds);
+	// Enregistre un appendice (tentacule) à faire onduler autour de sa base.
+	void RegisterWiggle(USceneComponent* Comp, float Phase);
+	UPROPERTY() TArray<TObjectPtr<USceneComponent>> WiggleComps;
+	TArray<FRotator> WiggleBase;
+	TArray<float>    WigglePhase;
+
 	// Réagit à la sélection joueur : surligne l'unité
 	UFUNCTION()
 	void HandleSelected(bool bSel);

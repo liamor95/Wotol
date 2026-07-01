@@ -6,7 +6,9 @@
 #include "Gameplay/Units/UnitDataAsset.h"
 #include "Gameplay/Battle/RTSBattleManager.h"
 #include "Gameplay/AI/AIAdaptiveController.h"
+#include "Gameplay/Battle/WOTOLBattleCamera.h"
 #include "Core/FactionRegistrySubsystem.h"
+#include "EngineUtils.h"
 #include "Data/UnitDataRegistrySubsystem.h"
 #include "Core/WOTOLGameInstance.h"
 #include "Engine/GameInstance.h"
@@ -57,6 +59,7 @@ void AWOTOLDemoDirector::BeginPreparation()
 	SpawnPlayerArmy(CachedPlayerFaction, PlayerOrigin, FRotator(0.f, 0.f, 0.f));
 	SpawnEnemyForCreature(CachedRivalFaction, EnemyOrigin, FRotator(0.f, 180.f, 0.f));
 
+	FocusCameraOnPlayer();
 	if (Demo) Demo->SetScreen(EDemoScreen::Prepare);
 	Say(TEXT("Préparez vos troupes : clic gauche = sélection, clic droit = déplacer. Puis lancez la bataille."));
 }
@@ -297,6 +300,27 @@ void AWOTOLDemoDirector::LaunchBattle()
 		}
 	}
 
+	// IA ENNEMIE : armée rivale STRUCTURÉE et OFFENSIVE — elle avance droit sur
+	// l'armée du joueur et engage (plus d'errance/patrouille passive au spawn).
+	if (UWorld* W = GetWorld())
+	{
+		const FVector PlayerCenter = GetActorLocation() + FVector(-ArmySeparation * 0.5f, 0.f, 0.f);
+		if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
+		{
+			for (AUnitBase* U : Reg->GetUnitsForFaction(CachedRivalFaction))
+			{
+				if (!U) continue;
+				AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U);
+				if (DU && DU->bCreatureBrain) continue; // le boss a son propre cerveau
+				if (AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(U->GetController()))
+				{
+					AIC->ActivateRTSBehavior();
+					AIC->IssueOrder_AttackMove(PlayerCenter); // marche + attaque en chemin
+				}
+			}
+		}
+	}
+
 	// Les créatures/boss sont pilotées par leur propre cerveau (Tick) : on coupe
 	// leur IA RTS standard pour éviter tout conflit de mouvement.
 	for (AWOTOLDemoUnit* U : SpawnedUnits)
@@ -309,6 +333,8 @@ void AWOTOLDemoDirector::LaunchBattle()
 			}
 		}
 	}
+
+	FocusCameraOnPlayer(); // recadrage au lancement du combat
 
 	// Surveille la fin de bataille (un camp anéanti) toutes les 2 s
 	GetWorldTimerManager().SetTimer(
@@ -424,6 +450,7 @@ void AWOTOLDemoDirector::StartRivalDefense()
 
 	Say(TEXT("Phase 2 — La faction rivale attaque votre zone ! Défendez-la !"));
 	StartCurrentBattle();
+	FocusCameraOnPlayer(); // recadre derrière l'armée pour la nouvelle phase
 }
 
 void AWOTOLDemoDirector::EndDemo(bool bPlayerWon)
@@ -444,6 +471,19 @@ void AWOTOLDemoDirector::EndDemo(bool bPlayerWon)
 	else
 	{
 		Say(TEXT("DÉFAITE — Vos forces sont anéanties. Relancez la bataille pour réessayer."));
+	}
+}
+
+void AWOTOLDemoDirector::FocusCameraOnPlayer()
+{
+	UWorld* W = GetWorld();
+	if (!W) return;
+	const FVector PlayerOrigin = GetActorLocation() + FVector(-ArmySeparation * 0.5f, 0.f, 0.f);
+	const FVector Focus = PlayerOrigin + FVector(700.f, 0.f, 150.f);
+	for (TActorIterator<AWOTOLBattleCamera> It(W); It; ++It)
+	{
+		It->SetInitialView(Focus, 0.f, -45.f, 2600.f); // yaw 0 = regard vers l'ennemi (+X)
+		break;
 	}
 }
 
