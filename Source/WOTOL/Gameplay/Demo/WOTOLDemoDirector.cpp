@@ -6,6 +6,7 @@
 #include "Gameplay/Units/UnitDataAsset.h"
 #include "Gameplay/Battle/RTSBattleManager.h"
 #include "Gameplay/AI/AIAdaptiveController.h"
+#include "Gameplay/Units/UnitAIStateComponent.h"
 #include "Gameplay/Battle/WOTOLBattleCamera.h"
 #include "Core/FactionRegistrySubsystem.h"
 #include "EngineUtils.h"
@@ -332,6 +333,13 @@ void AWOTOLDemoDirector::LaunchBattle()
 				{
 					AIC->ActivateRTSBehavior();
 					AIC->IssueOrder_AttackMove(PlayerCenter); // marche + attaque en chemin
+				}
+				// CHASSE PERSISTANTE : portée de vue immense -> l'ennemi voit et poursuit
+				// TOUTE unité du joueur sur la carte (il ne s'arrête jamais tant qu'il
+				// reste des cibles), et ne se disperse plus une fois les locaux abattus.
+				if (UUnitAIStateComponent* St = U->FindComponentByClass<UUnitAIStateComponent>())
+				{
+					St->SightRange = 60000.f;
 				}
 			}
 		}

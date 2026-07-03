@@ -63,9 +63,9 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		CreatureBrainTick(DeltaSeconds);
 	}
 
-	// (Pas d'auto-ajustement de couche pour les unités normales : le combat se résout
-	//  en distance HORIZONTALE, donc on frappe à travers les niveaux, et le joueur
-	//  garde le contrôle TOTAL de la couche via les boutons Monter/Descendre.)
+	// Sur ORDRE d'attaque (cible imposée), l'unité se cale sur la couche de sa cible.
+	// Sinon le joueur garde le contrôle TOTAL de la couche (boutons Monter/Descendre).
+	UpdateCombatLayer();
 
 	AnimateBody(DeltaSeconds);          // flottement de nage + couche visuelle + tentacules
 	if (bArticulated)
@@ -190,22 +190,20 @@ AUnitBase* AWOTOLDemoUnit::FindNearestEnemyUnit() const
 	return Nearest;
 }
 
-// Rejoint la couche verticale de la cible quand on la poursuit (combat 3D).
+// Quand une CIBLE d'attaque est imposée (clic droit sur un ennemi), l'unité se cale
+// sur la COUCHE de cette cible pour la frapper à son niveau (plus de coups dans le
+// vide). N'écrase PAS le contrôle manuel de couche (qui n'impose pas de cible).
 void AWOTOLDemoUnit::UpdateCombatLayer()
 {
 	if (bCreatureBrain) return; // le boss gère sa couche dans son cerveau
-	// Les unités À DISTANCE gardent leur couche et tirent en travers des niveaux ;
-	// seules les unités de mêlée plongent/remontent pour rejoindre la cible.
-	if (UnitData && UnitData->Role == EUnitRole::Distance) return;
 	UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>();
-	if (!S || S->bHoldPosition) return; // "Tenir position" = couche verrouillée
-	const EUnitAIState St = S->GetCurrentState();
-	if (St != EUnitAIState::Seeking && St != EUnitAIState::Attacking) return;
-
-	// Rejoint la COUCHE VISUELLE de la cible (décalage), pour attaquer à son niveau.
-	if (AWOTOLDemoUnit* T = Cast<AWOTOLDemoUnit>(FindNearestEnemyUnit()))
+	if (!S) return;
+	if (AWOTOLDemoUnit* T = Cast<AWOTOLDemoUnit>(S->ForceTarget.Get()))
 	{
-		DesiredZ = FMath::Clamp(T->GetDesiredZ(), 0.f, 2400.f);
+		if (T->IsAlive())
+		{
+			DesiredZ = FMath::Clamp(T->GetDesiredZ(), 0.f, 2400.f);
+		}
 	}
 }
 
