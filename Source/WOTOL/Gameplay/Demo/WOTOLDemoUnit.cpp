@@ -6,6 +6,7 @@
 #include "Components/TextRenderComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -60,6 +61,17 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	if (bCreatureBrain)
 	{
 		CreatureBrainTick(DeltaSeconds);
+	}
+
+	// Tenue de couche verticale : monte/descend doucement vers DesiredZ et la garde
+	// (le déplacement horizontal n'affecte pas la couche).
+	{
+		FVector L = GetActorLocation();
+		if (!FMath::IsNearlyEqual(L.Z, DesiredZ, 1.f))
+		{
+			L.Z = FMath::FInterpTo(L.Z, DesiredZ, DeltaSeconds, 2.5f);
+			SetActorLocation(L, false);
+		}
 	}
 
 	AnimateBody(DeltaSeconds);          // flottement de nage + tentacules (toutes unités)
@@ -119,6 +131,24 @@ void AWOTOLDemoUnit::BeginPlay()
 	OnUnitSelected.AddDynamic(this, &AWOTOLDemoUnit::HandleSelected);
 	OnHealthChanged.AddDynamic(this, &AWOTOLDemoUnit::HandleHealthChanged);
 	LastKnownHealth = CurrentHealth;
+
+	// NAGE : monde océanique -> pas de gravité, l'unité tient sa hauteur (couche).
+	// Le déplacement horizontal se fait normalement ; la couche verticale se change
+	// uniquement sur ordre (boutons HUD Monter/Descendre).
+	if (UCharacterMovementComponent* CM = GetCharacterMovement())
+	{
+		CM->SetMovementMode(MOVE_Flying);
+		CM->GravityScale = 0.f;
+		CM->MaxFlySpeed = FMath::Max(CM->MaxWalkSpeed, 350.f);
+		CM->BrakingDecelerationFlying = 2048.f;
+	}
+	// Sans gravité, l'unité doit se poser JUSTE au-dessus du fond (sinon les grosses
+	// créatures s'enfoncent). On ancre la couche de départ à la hauteur de la capsule.
+	const float HalfH = GetCapsuleComponent() ? GetCapsuleComponent()->GetScaledCapsuleHalfHeight() : 90.f;
+	DesiredZ = FMath::Max(GetActorLocation().Z, HalfH + 20.f);
+	{
+		FVector L = GetActorLocation(); L.Z = DesiredZ; SetActorLocation(L, false);
+	}
 }
 
 int32 AWOTOLDemoUnit::GetEffectiveMaxHealth() const
@@ -331,8 +361,15 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 	if (Id == TEXT("Aquilances")) // Montée : cavalier sur monture + lance
 	{
 		SetupMainPart(M_SPH, FVector(10, 0, -H * 0.22f),
-			FVector(h * 1.4f, h * 0.7f, h * 0.55f), NoRot, AqArmor);                                      // monture
+			FVector(h * 1.4f, h * 0.7f, h * 0.55f), NoRot, AqArmor);                                      // corps de la monture (poisson)
 		AddPart(M_CONE, FVector(70, 0, -H * 0.20f), FVector(0.5f, 0.5f, h * 0.3f), FRotator(70.f, 0, 0), AqArmor); // tête monture
+		// Nageoires latérales
+		AddPart(M_CONE, FVector(10, 55, -H * 0.22f), FVector(0.3f, 0.3f, h * 0.25f), FRotator(0, 0, 80.f), AqArmor);
+		AddPart(M_CONE, FVector(10, -55, -H * 0.22f), FVector(0.3f, 0.3f, h * 0.25f), FRotator(0, 0, -80.f), AqArmor);
+		// QUEUE (nageoire caudale) qui bat — registre wiggle
+		RegisterWiggle(AddPart(M_CONE, FVector(-70, 0, -H * 0.20f), FVector(0.45f, 0.10f, h * 0.5f),
+			FRotator(90.f, 0, 0), AqArmor), 0.f);
+		// Cavalier
 		AddPart(M_CYL, FVector(-10, 0, H * 0.10f), FVector(0.26f, 0.26f, h * 0.3f), NoRot, AqArmor);      // cavalier corps
 		AddPart(M_SPH, FVector(-10, 0, H * 0.34f), FVector(0.26f, 0.26f, 0.26f), NoRot, AqArmor);         // cavalier tête
 		AddPart(M_CYL, FVector(20, 22, H * 0.18f), FVector(0.05f, 0.05f, h * 0.9f), FRotator(20.f, 0, 60.f), AqEnergy); // lance
@@ -391,23 +428,33 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		RegisterWiggle(AddPart(M_CONE, FVector(-14, -18, H * 0.30f), FVector(0.06f, 0.06f, h * 0.6f), FRotator(-30.f, 0, -35.f), NoxBlue), 3.14f);
 		return;
 	}
-	if (Id == TEXT("Noxebeast")) // Montée : quadrupède cuirassé bronze, yeux verts, défenses
+	if (Id == TEXT("Noxebeast")) // Montée : QUADRUPÈDE cuirassé bronze (4 pattes + queue animées)
 	{
-		SetupMainPart(M_CUBE, FVector(0, 0, -H * 0.18f),
-			FVector(h * 1.3f, h * 0.85f, h * 0.55f), NoRot, NoxBronze); // corps massif
-		AddPart(M_CUBE, FVector(H * 0.55f, 0, -H * 0.10f), FVector(h * 0.45f, h * 0.6f, h * 0.4f), NoRot, NoxBronze); // tête
-		AddPart(M_SPH, FVector(H * 0.78f, 14, -H * 0.06f), FVector(0.07f, 0.07f, 0.07f), NoRot, NoxGreen);            // œil vert
-		AddPart(M_SPH, FVector(H * 0.78f, -14, -H * 0.06f), FVector(0.07f, 0.07f, 0.07f), NoRot, NoxGreen);
-		AddPart(M_CONE, FVector(H * 0.7f, 22, -H * 0.22f), FVector(0.08f, 0.08f, h * 0.25f), FRotator(120.f, 0, 0), Tusk); // défense
-		AddPart(M_CONE, FVector(H * 0.7f, -22, -H * 0.22f), FVector(0.08f, 0.08f, h * 0.25f), FRotator(120.f, 0, 0), Tusk);
-		const float LegZ = -H * 0.36f, LegX = H * 0.32f, LegY = H * 0.30f;
-		for (int32 i = 0; i < 4; ++i)
-		{
-			const float Sx = (i < 2) ? 1.f : -1.f;
-			const float Sy = (i % 2 == 0) ? 1.f : -1.f;
-			AddPart(M_CYL, FVector(Sx * LegX, Sy * LegY, LegZ), FVector(0.16f, 0.16f, h * 0.18f), NoRot, NoxBronze);
-		}
+		// Corps arrondi (sphère allongée = plus doux qu'un cube)
+		SetupMainPart(M_SPH, FVector(0, 0, -H * 0.16f),
+			FVector(h * 1.35f, h * 0.90f, h * 0.60f), NoRot, NoxBronze);
+		AddPart(M_SPH, FVector(H * 0.60f, 0, -H * 0.06f), FVector(h * 0.5f, h * 0.55f, h * 0.45f), NoRot, NoxBronze); // tête (arrondie)
+		AddPart(M_SPH, FVector(H * 0.80f, 14, -H * 0.02f), FVector(0.08f, 0.08f, 0.08f), NoRot, NoxGreen);            // œil vert
+		AddPart(M_SPH, FVector(H * 0.80f, -14, -H * 0.02f), FVector(0.08f, 0.08f, 0.08f), NoRot, NoxGreen);
+		AddPart(M_CONE, FVector(H * 0.72f, 22, -H * 0.20f), FVector(0.08f, 0.08f, h * 0.25f), FRotator(120.f, 0, 0), Tusk); // défenses
+		AddPart(M_CONE, FVector(H * 0.72f, -22, -H * 0.20f), FVector(0.08f, 0.08f, h * 0.25f), FRotator(120.f, 0, 0), Tusk);
+
+		// 4 PATTES articulées (hanches) — avant vs arrière, animées en marche
+		const float LegX = H * 0.34f, LegY = H * 0.34f;
+		JRShoulder = MakeJoint(VisualRoot, FVector(LegX, LegY, -H * 0.12f));   // avant droit
+		MakeBone(JRShoulder, M_CYL, FVector(0, 0, -H * 0.13f), FVector(0.18f, 0.18f, h * 0.26f), NoRot, NoxBronze);
+		JLShoulder = MakeJoint(VisualRoot, FVector(LegX, -LegY, -H * 0.12f));  // avant gauche
+		MakeBone(JLShoulder, M_CYL, FVector(0, 0, -H * 0.13f), FVector(0.18f, 0.18f, h * 0.26f), NoRot, NoxBronze);
+		JRHip = MakeJoint(VisualRoot, FVector(-LegX, LegY, -H * 0.12f));       // arrière droit
+		MakeBone(JRHip, M_CYL, FVector(0, 0, -H * 0.13f), FVector(0.18f, 0.18f, h * 0.26f), NoRot, NoxBronze);
+		JLHip = MakeJoint(VisualRoot, FVector(-LegX, -LegY, -H * 0.12f));      // arrière gauche
+		MakeBone(JLHip, M_CYL, FVector(0, 0, -H * 0.13f), FVector(0.18f, 0.18f, h * 0.26f), NoRot, NoxBronze);
+
+		// QUEUE qui remue (registre wiggle)
+		RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.75f, 0, -H * 0.10f),
+			FVector(0.14f, 0.14f, h * 0.4f), FRotator(-100.f, 0, 0), NoxBronze), 0.f);
 		AddPart(M_CONE, FVector(-H * 0.1f, 0, H * 0.06f), FVector(0.12f, 0.12f, h * 0.2f), NoRot, NoxBronze); // épine dorsale
+		bArticulated = true; // fait bouger les 4 pattes (démarche quadrupède)
 		return;
 	}
 	if (Id == TEXT("Noxeons")) // Spéciale : organisme bioluminescent vert
@@ -575,7 +622,7 @@ void AWOTOLDemoUnit::BuildArticulatedAquiloryons(float H, const FLinearColor& Ar
 	AddPart(M_SPH, FVector(0, 0, H * 0.32f), FVector(0.22f, 0.22f, 0.22f), NoRot, Armor);
 
 	// ── Bras DROIT (épée) : épaule → bras → coude → avant-bras → main → épée ──
-	JRShoulder = MakeJoint(RootComponent, FVector(6.f, H * 0.16f, H * 0.22f));
+	JRShoulder = MakeJoint(VisualRoot, FVector(6.f, H * 0.16f, H * 0.22f));
 	MakeBone(JRShoulder, M_CYL, FVector(0, 0, -H * 0.10f), FVector(0.09f, 0.09f, h * 0.22f), NoRot, Armor);
 	JRElbow = MakeJoint(JRShoulder, FVector(0, 0, -H * 0.21f));
 	MakeBone(JRElbow, M_CYL, FVector(0, 0, -H * 0.09f), FVector(0.08f, 0.08f, h * 0.20f), NoRot, Armor);
@@ -584,16 +631,16 @@ void AWOTOLDemoUnit::BuildArticulatedAquiloryons(float H, const FLinearColor& Ar
 		FRotator(-90.f, 0, 0), Energy);                                                                      // épée (pointe +X)
 
 	// ── Bras GAUCHE (bouclier) ──
-	JLShoulder = MakeJoint(RootComponent, FVector(6.f, -H * 0.16f, H * 0.22f));
+	JLShoulder = MakeJoint(VisualRoot, FVector(6.f, -H * 0.16f, H * 0.22f));
 	MakeBone(JLShoulder, M_CYL, FVector(0, 0, -H * 0.10f), FVector(0.09f, 0.09f, h * 0.22f), NoRot, Armor);
 	JLElbow = MakeJoint(JLShoulder, FVector(0, 0, -H * 0.21f));
 	MakeBone(JLElbow, M_CYL, FVector(0, 0, -H * 0.09f), FVector(0.08f, 0.08f, h * 0.20f), NoRot, Armor);
 	MakeBone(JLElbow, M_CUBE, FVector(H * 0.10f, 0, -H * 0.10f), FVector(0.07f, 0.42f, h * 0.40f), NoRot, Energy); // bouclier
 
 	// ── Jambes (hanche → jambe complète) ──
-	JRHip = MakeJoint(RootComponent, FVector(0, H * 0.09f, -H * 0.06f));
+	JRHip = MakeJoint(VisualRoot, FVector(0, H * 0.09f, -H * 0.06f));
 	MakeBone(JRHip, M_CYL, FVector(0, 0, -H * 0.14f), FVector(0.10f, 0.10f, h * 0.28f), NoRot, Armor);
-	JLHip = MakeJoint(RootComponent, FVector(0, -H * 0.09f, -H * 0.06f));
+	JLHip = MakeJoint(VisualRoot, FVector(0, -H * 0.09f, -H * 0.06f));
 	MakeBone(JLHip, M_CYL, FVector(0, 0, -H * 0.14f), FVector(0.10f, 0.10f, h * 0.28f), NoRot, Armor);
 
 	bArticulated = true;

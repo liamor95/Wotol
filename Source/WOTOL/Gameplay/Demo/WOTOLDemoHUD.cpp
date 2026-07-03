@@ -48,6 +48,20 @@ FBox2D AWOTOLDemoHUD::LaunchBattleButtonRect(float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
+FBox2D AWOTOLDemoHUD::LayerUpButtonRect(float W, float H)
+{
+	const float BW = 130.f, BH = 40.f;
+	const float X = W - BW - 16.f, Y = H - 150.f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
+FBox2D AWOTOLDemoHUD::LayerDownButtonRect(float W, float H)
+{
+	const float BW = 130.f, BH = 40.f;
+	const float X = W - BW - 16.f, Y = H - 104.f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
 void AWOTOLDemoHUD::DrawHUD()
 {
 	Super::DrawHUD();
@@ -128,6 +142,10 @@ void AWOTOLDemoHUD::DrawHUD()
 	{
 		DrawPrepareBar(W, H);
 	}
+
+	// ─── Boutons de couche verticale (nage) ─────────────────────────────────
+	DrawButton(LayerUpButtonRect(W, H),   TEXT("^ Monter"),    FLinearColor(0.3f, 0.7f, 1.f, 1.f), 1.f);
+	DrawButton(LayerDownButtonRect(W, H), TEXT("v Descendre"), FLinearColor(0.3f, 0.7f, 1.f, 1.f), 1.f);
 
 	// ─── 6) Bouton pause + voile du menu pause ───────────────────────────────
 	DrawPauseButton(W, H);

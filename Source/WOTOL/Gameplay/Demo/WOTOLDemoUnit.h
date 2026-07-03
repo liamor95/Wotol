@@ -42,6 +42,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Demo|Greybox")
 	int32 GetEffectiveMaxHealth() const;
 
+	// ─── Verticalité (nage) : l'unité tient une hauteur (couche) donnée ───────
+	// Règle la couche verticale cible ; l'unité y monte/descend en douceur et la tient.
+	UFUNCTION(BlueprintCallable, Category = "Demo|Greybox")
+	void SetDesiredZ(float NewZ) { DesiredZ = NewZ; }
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Greybox")
+	float GetDesiredZ() const { return DesiredZ; }
+
 	// % de vie calculé sur les PV EFFECTIFS (boss inclus) — pour la barre du HUD.
 	// (GetHealthPercent() de base sature à 100% tant que PV > MaxHealth de base.)
 	UFUNCTION(BlueprintPure, Category = "Demo|Greybox")
@@ -106,6 +114,7 @@ private:
 	UPROPERTY() TObjectPtr<USceneComponent> JRHip;
 	UPROPERTY() TObjectPtr<USceneComponent> JLHip;
 
+	float DesiredZ     = 100.f; // hauteur (couche verticale) que l'unité tient
 	bool  bArticulated = false;
 	float AnimPhase    = 0.f;
 	float SwingProgress = 0.f; // 0..1 avancement d'un coup d'épée

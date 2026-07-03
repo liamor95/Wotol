@@ -6,6 +6,7 @@
 #include "Gameplay/Demo/WOTOLDemoHUD.h"
 #include "Gameplay/Demo/DemoFlowSubsystem.h"
 #include "Gameplay/Demo/WOTOLDemoDirector.h"
+#include "Gameplay/Demo/WOTOLDemoUnit.h"
 #include "Core/WOTOLGameInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -101,6 +102,20 @@ AWOTOLDemoDirector* AWOTOLPlayerController_Battle::GetDemoDirector() const
 	return nullptr;
 }
 
+void AWOTOLPlayerController_Battle::ChangeLayerForSelection(float DeltaZ)
+{
+	UUnitSelectionManager* SelectionMgr = GetSelectionManager();
+	if (!SelectionMgr) return;
+	for (AUnitBase* U : SelectionMgr->GetSelectedUnits())
+	{
+		if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U))
+		{
+			const float NewZ = FMath::Clamp(DU->GetDesiredZ() + DeltaZ, 120.f, 3200.f);
+			DU->SetDesiredZ(NewZ);
+		}
+	}
+}
+
 void AWOTOLPlayerController_Battle::PickFactionAndPrepare(EFactionID Faction)
 {
 	if (UWOTOLGameInstance* GI = Cast<UWOTOLGameInstance>(GetGameInstance()))
@@ -160,6 +175,18 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		{
 			Dir->StartBattleNow();
 		}
+		return true;
+	}
+
+	// Boutons de couche verticale (nage) : montent/descendent la sélection
+	if (AWOTOLDemoHUD::LayerUpButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+	{
+		ChangeLayerForSelection(+600.f);
+		return true;
+	}
+	if (AWOTOLDemoHUD::LayerDownButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+	{
+		ChangeLayerForSelection(-600.f);
 		return true;
 	}
 
@@ -363,27 +390,45 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 	UUnitSelectionManager* SelectionMgr = GetSelectionManager();
 	if (!SelectionMgr) return;
 
-	for (AUnitBase* Unit : SelectionMgr->GetSelectedUnits())
+	const TArray<AUnitBase*>& Sel = SelectionMgr->GetSelectedUnits();
+
+	// Attaque : tout le monde cible l'ennemi
+	if (TargetUnit && TargetUnit->GetFaction() != PlayerFaction)
+	{
+		for (AUnitBase* Unit : Sel)
+		{
+			if (!Unit || !Unit->IsAlive()) continue;
+			if (AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(Unit->GetController()))
+				AIC->IssueOrder_AttackTarget(TargetUnit);
+		}
+		return;
+	}
+
+	// ── Déplacement en CONSERVANT LA FORMATION ──
+	// Chaque unité garde son décalage par rapport au centre du groupe ; la ligne
+	// entière se déplace au point cliqué sans se disperser ni se déformer.
+	FVector Centroid = FVector::ZeroVector;
+	int32 Count = 0;
+	for (AUnitBase* Unit : Sel)
 	{
 		if (!Unit || !Unit->IsAlive()) continue;
+		Centroid += Unit->GetActorLocation();
+		++Count;
+	}
+	if (Count == 0) return;
+	Centroid /= Count;
 
+	for (AUnitBase* Unit : Sel)
+	{
+		if (!Unit || !Unit->IsAlive()) continue;
 		AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(Unit->GetController());
 		if (!AIC) continue;
 
-		if (TargetUnit && TargetUnit->GetFaction() != PlayerFaction)
-		{
-			// Ordre d'attaque
-			AIC->IssueOrder_AttackTarget(TargetUnit);
-		}
-		else
-		{
-			// Ordre de déplacement avec décalage en formation
-			const int32 Idx   = SelectionMgr->GetSelectedUnits().Find(Unit);
-			const float Angle = (float)Idx * (2.f * PI / FMath::Max(1,
-				SelectionMgr->GetSelectionCount()));
-			const FVector Offset(FMath::Cos(Angle) * 150.f,
-			                     FMath::Sin(Angle) * 150.f, 0.f);
-			AIC->IssueOrder_Move(TargetLocation + Offset);
-		}
+		// Décalage horizontal conservé ; hauteur (couche verticale) inchangée.
+		FVector Offset = Unit->GetActorLocation() - Centroid;
+		Offset.Z = 0.f;
+		const FVector Dest(TargetLocation.X + Offset.X, TargetLocation.Y + Offset.Y,
+			Unit->GetActorLocation().Z);
+		AIC->IssueOrder_Move(Dest);
 	}
 }

@@ -9,6 +9,7 @@
 #include "Engine/PostProcessVolume.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
+#include "Components/LightComponent.h"
 #include "Math/RandomStream.h"
 #include "WOTOLAmbientFish.h"
 #include "Data/WOTOLTypes.h"
@@ -261,22 +262,32 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			S.bOverride_SceneFringeIntensity = true; S.SceneFringeIntensity = 0.6f;
 		}
 
-		// Masque UNIQUEMENT les nuages volumétriques (NE PAS toucher au SkyAtmosphere
-		// ni au SkyLight : les masquer supprimait tout l'éclairage → écran noir).
+		// Nuages masqués + SOLEIL adouci (lumière directionnelle atténuée et bleutée
+		// = fini l'impression de plein-air ensoleillé, on est sous l'eau).
 		for (TActorIterator<AActor> It(W); It; ++It)
 		{
-			if (It->GetClass()->GetName().Contains(TEXT("VolumetricCloud")))
+			const FString Cls = It->GetClass()->GetName();
+			if (Cls.Contains(TEXT("VolumetricCloud")))
 			{
 				It->SetActorHiddenInGame(true);
+			}
+			else if (Cls.Contains(TEXT("DirectionalLight")))
+			{
+				if (ULightComponent* LC = It->FindComponentByClass<ULightComponent>())
+				{
+					LC->SetIntensity(LC->Intensity * 0.45f);          // soleil atténué
+					LC->SetLightColor(FLinearColor(0.35f, 0.6f, 0.8f)); // teinte bleu-vert d'eau
+				}
 			}
 		}
 	}
 
-	// ── Sol sablonneux clair (seul élément BLOQUANT) + surface éclairée ──
+	// ── Sol sablonneux clair (seul élément BLOQUANT) ──
 	SpawnBlock(MESH_CUBE, Center + FVector(0, 0, -50.f),
 		FVector(300.f, 300.f, 1.f), FloorColor, NoRot, true);
-	SpawnBlock(TEXT("/Engine/BasicShapes/Plane.Plane"), Center + FVector(0, 0, 7000.f),
-		FVector(360.f, 360.f, 1.f), SurfColor, FRotator(180.f, 0.f, 0.f), false);
+	// (Plus de "plan de surface" lumineux : il donnait un plafond artificiel.
+	//  La lumière tamisée + la brume suffisent à l'ambiance sous-marine.)
+	(void)SurfColor;
 
 	// ── CANYON DE SABLE CENTRAL (couloir de combat dégagé le long de X) ──
 	SpawnPlaza(Center, 7500.f, 1350.f, SandBright);
@@ -362,10 +373,36 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 		SpawnKelp(Center + FVector(X, Y, -30.f), Kel.RandRange(1, 9999));
 	}
 
-	// ── SPIRES / PINACLES rocheux en fond (cônes) ──
-	SpawnRidge(Center + FVector(-2000.f, 5500.f, 0.f), Center + FVector(3000.f, 6500.f, 0.f), 1800.f, 900.f, RockColor, 55);
-	SpawnRidge(Center + FVector(-8000.f, -3000.f, 0.f), Center + FVector(-8000.f, 4000.f, 0.f), 2200.f, 1100.f, FarColor, 66);
-	SpawnRidge(Center + FVector(8000.f, -4000.f, 0.f), Center + FVector(8000.f, 3000.f, 0.f), 2400.f, 1100.f, FarColor, 77);
+	// ── Petits coraux/rochers BAS dispersés DANS le couloir central (vie, sans gêner) ──
+	FRandomStream Mid(151);
+	for (int32 i = 0; i < 16; ++i)
+	{
+		const FVector P = Center + FVector(Mid.FRandRange(-6500.f, 6500.f), Mid.FRandRange(-1100.f, 1100.f), -30.f);
+		if (Mid.FRand() < 0.5f)
+			SpawnCoral(P, Mid.RandRange(1, 9999)); // petits buissons colorés
+		else
+			SpawnRock(P, Mid.FRandRange(90.f, 200.f), RockColor, Mid.RandRange(1, 9999)); // galets
+	}
+
+	// ── HORIZON : chaînes de reliefs de TAILLES VARIÉES tout autour (pas un mur droit) ──
+	FRandomStream Hor(2024);
+	const int32 Rings = 14;
+	for (int32 i = 0; i < Rings; ++i)
+	{
+		const float Ang = 2.f * PI * i / Rings + Hor.FRandRange(-0.15f, 0.15f);
+		const float Dist = Hor.FRandRange(8500.f, 11500.f);
+		const FVector A = Center + FVector(FMath::Cos(Ang) * Dist, FMath::Sin(Ang) * Dist, 0.f);
+		const float Ang2 = Ang + (2.f * PI / Rings) * 0.7f;
+		const FVector B = Center + FVector(FMath::Cos(Ang2) * Dist, FMath::Sin(Ang2) * Dist, 0.f);
+		const float Height = Hor.FRandRange(1200.f, 3400.f);   // hauteurs variées
+		const float Width  = Hor.FRandRange(700.f, 1500.f);
+		SpawnRidge(A, B, Height, Width, FarColor, 400 + i);
+	}
+	// Quelques gros massifs isolés à mi-distance (brise la régularité)
+	SpawnRock(Center + FVector(-7000.f, -5500.f, -40.f), 900.f, RockColor, 811);
+	SpawnRock(Center + FVector(6800.f, 5200.f, -40.f), 1100.f, RockColor, 812);
+	SpawnRock(Center + FVector(-6000.f, 6500.f, -40.f), 700.f, RockColor, 813);
+	SpawnRock(Center + FVector(7200.f, -5800.f, -40.f), 800.f, RockColor, 814);
 
 	// ── FAUNE AMBIANTE : bancs de poissons qui nagent en boucle (décoratif) ──
 	if (UWorld* W = GetWorld())

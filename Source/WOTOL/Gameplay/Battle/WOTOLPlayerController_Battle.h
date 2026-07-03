@@ -71,6 +71,9 @@ private:
 	class AWOTOLDemoDirector* GetDemoDirector() const;
 	void PickFactionAndPrepare(EFactionID Faction);
 
+	// Verticalité : monte/descend la couche des unités sélectionnées
+	void ChangeLayerForSelection(float DeltaZ);
+
 	// Raycast helpers
 	AUnitBase* GetUnitUnderCursor() const;
 	bool       GetGroundLocationUnderCursor(FVector& OutLocation) const;

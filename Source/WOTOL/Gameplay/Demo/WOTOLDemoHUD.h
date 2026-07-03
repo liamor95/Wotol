@@ -26,6 +26,10 @@ public:
 	static FBox2D FactionButtonRect(int32 Index, float W, float H); // 0=Aquiloris 1=Noxeens
 	static FBox2D LaunchBattleButtonRect(float W, float H);   // préparation
 
+	// Boutons de couche verticale (nage) — montent/descendent la sélection
+	static FBox2D LayerUpButtonRect(float W, float H);
+	static FBox2D LayerDownButtonRect(float W, float H);
+
 private:
 	void DrawCenteredText(const FString& Text, float Y, const FLinearColor& Color, float Scale);
 	void DrawPauseButton(float W, float H);
