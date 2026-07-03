@@ -235,19 +235,31 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	if (!Demo) return;
 
-	SpawnUnit(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Chef),
-		Origin + FVector(0.f, 0.f, 100.f), Facing, 1.f);
+	// L'IA (Lia) déploie son armée RÉPARTIE SUR 3 COUCHES verticales : mêlée en bas,
+	// chef/montée au milieu, distance en haut (elle tire à travers les niveaux).
+	const float L0 = 200.f, L1 = 900.f, L2 = 1600.f;
+	auto SetLayer = [](AWOTOLDemoUnit* U, float Z) { if (U) U->SetDesiredZ(Z); };
+
+	SetLayer(SpawnUnit(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Chef),
+		Origin + FVector(0.f, 0.f, 100.f), Facing, 1.f), L1);
 
 	const FName InfID = Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Infanterie);
 	for (int32 i = 0; i < FMath::Max(1, InfantryCount / 2); ++i)
 	{
-		SpawnUnit(InfID, Origin + FVector(-UnitSpacing, (i - 2.5f) * UnitSpacing, 100.f), Facing, 1.f);
+		SetLayer(SpawnUnit(InfID, Origin + FVector(-UnitSpacing, (i - 2.5f) * UnitSpacing, 100.f), Facing, 1.f), L0);
 	}
 
 	const FName MntID = Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Montee);
 	for (int32 i = 0; i < FMath::Max(1, MountedCount / 2); ++i)
 	{
-		SpawnUnit(MntID, Origin + FVector(-UnitSpacing * 2.f, (i - 1.f) * UnitSpacing, 100.f), Facing, 1.f);
+		SetLayer(SpawnUnit(MntID, Origin + FVector(-UnitSpacing * 2.f, (i - 1.f) * UnitSpacing, 100.f), Facing, 1.f), L1);
+	}
+
+	// Unités à distance en HAUTEUR (tirent vers le bas à travers les couches)
+	const FName RngID = Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Distance);
+	for (int32 i = 0; i < FMath::Max(1, RangedCount / 2); ++i)
+	{
+		SetLayer(SpawnUnit(RngID, Origin + FVector(-UnitSpacing * 3.f, (i - 1.5f) * UnitSpacing, 100.f), Facing, 1.f), L2);
 	}
 }
 

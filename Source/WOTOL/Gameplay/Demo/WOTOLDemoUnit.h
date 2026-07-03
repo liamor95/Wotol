@@ -142,6 +142,12 @@ private:
 	// Cerveau autonome de créature/boss (cherche l'ennemi, avance, attaque)
 	void CreatureBrainTick(float DeltaSeconds);
 
+	// Combat vertical : quand l'unité poursuit/attaque, elle rejoint la couche
+	// (hauteur) de sa cible. Ne s'applique PAS aux unités qui tiennent leur position.
+	void UpdateCombatLayer();
+	// Unité ennemie la plus proche (partagée par le cerveau boss et le combat vertical)
+	class AUnitBase* FindNearestEnemyUnit() const;
+
 	float LastKnownHealth = -1.f;
 	bool  bCreatureStyled = false;
 };

@@ -63,6 +63,8 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		CreatureBrainTick(DeltaSeconds);
 	}
 
+	UpdateCombatLayer(); // combat 3D : rejoint la couche de la cible quand on la poursuit
+
 	// Tenue de couche verticale : monte/descend doucement vers DesiredZ et la garde
 	// (le déplacement horizontal n'affecte pas la couche).
 	{
@@ -190,15 +192,13 @@ void AWOTOLDemoUnit::HandleSelected(bool bSel)
 	}
 }
 
-void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
+AUnitBase* AWOTOLDemoUnit::FindNearestEnemyUnit() const
 {
-	if (!IsAlive()) return;
 	UWorld* W = GetWorld();
-	if (!W) return;
+	if (!W) return nullptr;
 	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>();
-	if (!Reg) return;
+	if (!Reg) return nullptr;
 
-	// Cherche l'unité ennemie la plus proche
 	const EFactionID EnemyFac = (GetFaction() == EFactionID::Aquiloris)
 		? EFactionID::Noxeens : EFactionID::Aquiloris;
 
@@ -210,7 +210,40 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 		const float D = FVector::DistSquared(GetActorLocation(), U->GetActorLocation());
 		if (D < Best) { Best = D; Nearest = U; }
 	}
+	return Nearest;
+}
+
+// Rejoint la couche verticale de la cible quand on la poursuit (combat 3D).
+void AWOTOLDemoUnit::UpdateCombatLayer()
+{
+	if (bCreatureBrain) return; // le boss gère sa couche dans son cerveau
+	// Les unités À DISTANCE gardent leur couche et tirent en travers des niveaux ;
+	// seules les unités de mêlée plongent/remontent pour rejoindre la cible.
+	if (UnitData && UnitData->Role == EUnitRole::Distance) return;
+	UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>();
+	if (!S || S->bHoldPosition) return; // "Tenir position" = couche verrouillée
+	const EUnitAIState St = S->GetCurrentState();
+	if (St != EUnitAIState::Seeking && St != EUnitAIState::Attacking) return;
+
+	if (AUnitBase* Target = FindNearestEnemyUnit())
+	{
+		// Se met à la hauteur de la cible (avec le socle de la capsule)
+		const float HalfH = GetCapsuleComponent() ? GetCapsuleComponent()->GetScaledCapsuleHalfHeight() : 90.f;
+		DesiredZ = FMath::Clamp(Target->GetActorLocation().Z, HalfH + 20.f, 3200.f);
+	}
+}
+
+void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
+{
+	if (!IsAlive()) return;
+	UWorld* W = GetWorld();
+	if (!W) return;
+
+	AUnitBase* Nearest = FindNearestEnemyUnit();
 	if (!Nearest) return;
+
+	// Le boss rejoint aussi la couche de sa cible (plonge / remonte)
+	DesiredZ = FMath::Clamp(Nearest->GetActorLocation().Z, 200.f, 3200.f);
 
 	FVector To = Nearest->GetActorLocation() - GetActorLocation();
 	To.Z = 0.f;
