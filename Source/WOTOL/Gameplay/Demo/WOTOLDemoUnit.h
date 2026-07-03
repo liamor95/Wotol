@@ -114,7 +114,10 @@ private:
 	UPROPERTY() TObjectPtr<USceneComponent> JRHip;
 	UPROPERTY() TObjectPtr<USceneComponent> JLHip;
 
-	float DesiredZ     = 100.f; // hauteur (couche verticale) que l'unité tient
+	// Couche verticale = décalage VISUEL (l'unité apparaît en hauteur) ; le corps
+	// physique reste au sol -> déplacement + attaques fonctionnent à toute hauteur.
+	float DesiredZ     = 0.f;   // décalage de couche cible (0 = fond)
+	float CurLayer     = 0.f;   // décalage courant (interpolé)
 	bool  bArticulated = false;
 	float AnimPhase    = 0.f;
 	float SwingProgress = 0.f; // 0..1 avancement d'un coup d'épée

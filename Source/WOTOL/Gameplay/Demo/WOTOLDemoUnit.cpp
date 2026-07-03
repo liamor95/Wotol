@@ -41,9 +41,9 @@ AWOTOLDemoUnit::AWOTOLDemoUnit()
 	ShapeMesh->SetupAttachment(VisualRoot);
 	ShapeMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-	// Étiquette flottante nom + PV (au-dessus de la tête)
+	// Étiquette flottante nom + PV (suit la couche visuelle -> attachée à VisualRoot)
 	NameTag = CreateDefaultSubobject<UTextRenderComponent>(TEXT("NameTag"));
-	NameTag->SetupAttachment(RootComponent);
+	NameTag->SetupAttachment(VisualRoot);
 	NameTag->SetRelativeLocation(FVector(0.f, 0.f, 140.f));
 	NameTag->SetHorizontalAlignment(EHTA_Center);
 	NameTag->SetWorldSize(40.f);
@@ -63,20 +63,11 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		CreatureBrainTick(DeltaSeconds);
 	}
 
-	UpdateCombatLayer(); // combat 3D : rejoint la couche de la cible quand on la poursuit
+	// (Pas d'auto-ajustement de couche pour les unités normales : le combat se résout
+	//  en distance HORIZONTALE, donc on frappe à travers les niveaux, et le joueur
+	//  garde le contrôle TOTAL de la couche via les boutons Monter/Descendre.)
 
-	// Tenue de couche verticale : monte/descend doucement vers DesiredZ et la garde
-	// (le déplacement horizontal n'affecte pas la couche).
-	{
-		FVector L = GetActorLocation();
-		if (!FMath::IsNearlyEqual(L.Z, DesiredZ, 1.f))
-		{
-			L.Z = FMath::FInterpTo(L.Z, DesiredZ, DeltaSeconds, 2.5f);
-			SetActorLocation(L, false);
-		}
-	}
-
-	AnimateBody(DeltaSeconds);          // flottement de nage + tentacules (toutes unités)
+	AnimateBody(DeltaSeconds);          // flottement de nage + couche visuelle + tentacules
 	if (bArticulated)
 	{
 		AnimateArticulated(DeltaSeconds); // rig détaillé (Aquiloryons)
@@ -134,23 +125,9 @@ void AWOTOLDemoUnit::BeginPlay()
 	OnHealthChanged.AddDynamic(this, &AWOTOLDemoUnit::HandleHealthChanged);
 	LastKnownHealth = CurrentHealth;
 
-	// NAGE : monde océanique -> pas de gravité, l'unité tient sa hauteur (couche).
-	// Le déplacement horizontal se fait normalement ; la couche verticale se change
-	// uniquement sur ordre (boutons HUD Monter/Descendre).
-	if (UCharacterMovementComponent* CM = GetCharacterMovement())
-	{
-		CM->SetMovementMode(MOVE_Flying);
-		CM->GravityScale = 0.f;
-		CM->MaxFlySpeed = FMath::Max(CM->MaxWalkSpeed, 350.f);
-		CM->BrakingDecelerationFlying = 2048.f;
-	}
-	// Sans gravité, l'unité doit se poser JUSTE au-dessus du fond (sinon les grosses
-	// créatures s'enfoncent). On ancre la couche de départ à la hauteur de la capsule.
-	const float HalfH = GetCapsuleComponent() ? GetCapsuleComponent()->GetScaledCapsuleHalfHeight() : 90.f;
-	DesiredZ = FMath::Max(GetActorLocation().Z, HalfH + 20.f);
-	{
-		FVector L = GetActorLocation(); L.Z = DesiredZ; SetActorLocation(L, false);
-	}
+	// La couche verticale démarre au fond (décalage visuel 0). Le corps physique
+	// reste un marcheur normal -> déplacement/attaques fiables à toute "hauteur".
+	CurLayer = DesiredZ;
 }
 
 int32 AWOTOLDemoUnit::GetEffectiveMaxHealth() const
@@ -225,11 +202,10 @@ void AWOTOLDemoUnit::UpdateCombatLayer()
 	const EUnitAIState St = S->GetCurrentState();
 	if (St != EUnitAIState::Seeking && St != EUnitAIState::Attacking) return;
 
-	if (AUnitBase* Target = FindNearestEnemyUnit())
+	// Rejoint la COUCHE VISUELLE de la cible (décalage), pour attaquer à son niveau.
+	if (AWOTOLDemoUnit* T = Cast<AWOTOLDemoUnit>(FindNearestEnemyUnit()))
 	{
-		// Se met à la hauteur de la cible (avec le socle de la capsule)
-		const float HalfH = GetCapsuleComponent() ? GetCapsuleComponent()->GetScaledCapsuleHalfHeight() : 90.f;
-		DesiredZ = FMath::Clamp(Target->GetActorLocation().Z, HalfH + 20.f, 3200.f);
+		DesiredZ = FMath::Clamp(T->GetDesiredZ(), 0.f, 2400.f);
 	}
 }
 
@@ -242,8 +218,11 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 	AUnitBase* Nearest = FindNearestEnemyUnit();
 	if (!Nearest) return;
 
-	// Le boss rejoint aussi la couche de sa cible (plonge / remonte)
-	DesiredZ = FMath::Clamp(Nearest->GetActorLocation().Z, 200.f, 3200.f);
+	// Le boss rejoint la couche visuelle de sa cible (plonge / remonte)
+	if (AWOTOLDemoUnit* T = Cast<AWOTOLDemoUnit>(Nearest))
+	{
+		DesiredZ = FMath::Clamp(T->GetDesiredZ(), 0.f, 2400.f);
+	}
 
 	FVector To = Nearest->GetActorLocation() - GetActorLocation();
 	To.Z = 0.f;
@@ -770,7 +749,10 @@ void AWOTOLDemoUnit::AnimateBody(float Dt)
 		|| St == EUnitAIState::Patrolling || St == EUnitAIState::Retreating;
 	const bool  bAttacking = (St == EUnitAIState::Attacking);
 
-	// ── Flottement du conteneur visuel (nage) + inclinaison ──
+	// Couche verticale VISUELLE : monte/descend en douceur vers DesiredZ
+	CurLayer = FMath::FInterpTo(CurLayer, DesiredZ, Dt, 2.5f);
+
+	// ── Flottement du conteneur visuel (nage) + inclinaison + couche ──
 	if (VisualRoot)
 	{
 		const float Amp  = bDead ? 0.f : (bMoving ? 2.5f : 5.5f);
@@ -787,7 +769,7 @@ void AWOTOLDemoUnit::AnimateBody(float Dt)
 		if (bDead) { Pitch = 70.f; }
 
 		VisualRoot->SetRelativeLocation(
-			FMath::VInterpTo(VisualRoot->GetRelativeLocation(), FVector(Lunge, 0.f, Bob), Dt, 10.f));
+			FMath::VInterpTo(VisualRoot->GetRelativeLocation(), FVector(Lunge, 0.f, Bob + CurLayer), Dt, 10.f));
 		VisualRoot->SetRelativeRotation(
 			FMath::RInterpTo(VisualRoot->GetRelativeRotation(), FRotator(Pitch, 0.f, Roll), Dt, 8.f));
 	}

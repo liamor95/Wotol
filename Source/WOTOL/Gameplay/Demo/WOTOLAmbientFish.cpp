@@ -25,16 +25,21 @@ void AWOTOLAmbientFish::Configure(const FVector& InCenter, float InRadius, float
 	Phase = InPhase; HeightAmp = InHeightAmp; BaseZ = InBaseZ;
 
 	const float S = SizeM;
-	if (UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cone.Cone")))
+	// Corps = sphère ALLONGÉE le long de X (sens de nage) -> poisson horizontal
+	if (UStaticMesh* MB = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere")))
 	{
-		Body->SetStaticMesh(M);
-		Tail->SetStaticMesh(M);
+		Body->SetStaticMesh(MB);
 	}
-	// Corps allongé (cône couché) + petite queue
-	Body->SetRelativeScale3D(FVector(S * 0.35f, S * 0.35f, S));
-	Body->SetRelativeRotation(FRotator(90.f, 0.f, 0.f)); // pointe vers l'avant (+X)
-	Tail->SetRelativeScale3D(FVector(0.6f, 0.6f, 0.5f));
-	Tail->SetRelativeLocation(FVector(0.f, 0.f, -S * 60.f)); // à l'arrière du corps
+	if (UStaticMesh* MT = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cone.Cone")))
+	{
+		Tail->SetStaticMesh(MT);
+	}
+	Body->SetRelativeScale3D(FVector(S * 1.10f, S * 0.45f, S * 0.42f));
+	Body->SetRelativeRotation(FRotator::ZeroRotator);
+	// Nageoire caudale (cône pointant vers l'arrière -X)
+	Tail->SetRelativeScale3D(FVector(0.26f, 0.26f, S * 0.5f));
+	Tail->SetRelativeLocation(FVector(-S * 48.f, 0.f, 0.f));
+	Tail->SetRelativeRotation(FRotator(-90.f, 0.f, 0.f));
 
 	UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
 		nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));

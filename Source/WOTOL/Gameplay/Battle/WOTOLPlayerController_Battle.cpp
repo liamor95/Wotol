@@ -56,10 +56,16 @@ void AWOTOLPlayerController_Battle::SetupInputComponent()
 	}
 	InputComponent->BindKey(EKeys::LeftMouseButton,  IE_Released, this,
 		&AWOTOLPlayerController_Battle::OnLeftMouseReleased);
-	InputComponent->BindKey(EKeys::RightMouseButton, IE_Pressed,  this,
-		&AWOTOLPlayerController_Battle::OnRightMousePressed);
-	InputComponent->BindKey(EKeys::RightMouseButton, IE_Released, this,
-		&AWOTOLPlayerController_Battle::OnRightMouseReleased);
+	// Clic droit : NE PAS consommer l'événement -> la caméra (pawn possédé) le reçoit
+	// aussi pour tourner (rotation au clic droit + glisser).
+	{
+		FInputKeyBinding& RP = InputComponent->BindKey(EKeys::RightMouseButton, IE_Pressed, this,
+			&AWOTOLPlayerController_Battle::OnRightMousePressed);
+		RP.bConsumeInput = false;
+		FInputKeyBinding& RR = InputComponent->BindKey(EKeys::RightMouseButton, IE_Released, this,
+			&AWOTOLPlayerController_Battle::OnRightMouseReleased);
+		RR.bConsumeInput = false;
+	}
 	InputComponent->BindKey(EKeys::LeftControl,      IE_Pressed,  this,
 		&AWOTOLPlayerController_Battle::OnSelectAll);
 
@@ -110,7 +116,8 @@ void AWOTOLPlayerController_Battle::ChangeLayerForSelection(float DeltaZ)
 	{
 		if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U))
 		{
-			const float NewZ = FMath::Clamp(DU->GetDesiredZ() + DeltaZ, 120.f, 3200.f);
+			// Couche visuelle : décalage 0 (fond) .. 2400 (haut)
+			const float NewZ = FMath::Clamp(DU->GetDesiredZ() + DeltaZ, 0.f, 2400.f);
 			DU->SetDesiredZ(NewZ);
 		}
 	}
