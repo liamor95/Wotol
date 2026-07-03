@@ -357,15 +357,15 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 	const FString Id = UnitID.ToString();
 
 	// ───────────────── AQUILORIS (bleu acier + or + énergie cyan) ─────────────
-	if (Id == TEXT("Aquis")) // Chef : épée photonique + cape
+	if (Id == TEXT("Aquis")) // Chef : ARTICULÉ + épée + cape + crête
 	{
-		BuildHumanoid(0.34f, AqArmor);
-		AddPart(M_CONE, FVector(20, 36, H * 0.20f), FVector(0.10f, 0.10f, h * 0.7f), FRotator(0, 0, 8.f), AqEnergy); // épée
-		AddPart(M_CUBE, FVector(-22, 0, H * 0.05f), FVector(0.05f, 0.55f, h * 0.45f), FRotator(8.f, 0, 0), AqArmor); // cape
-		AddPart(M_CONE, FVector(0, 0, H * 0.50f), FVector(0.18f, 0.18f, h * 0.12f), NoRot, AqGold);                  // crête or
+		BuildArticulatedHumanoid(H, AqArmor, 0.36f);
+		MakeBone(JRElbow, M_CONE, FVector(0, 0, -H * 0.34f), FVector(0.06f, 0.06f, h * 0.55f), FRotator(180.f, 0, 0), AqEnergy); // épée
+		AddPart(M_CUBE, FVector(-16, 0, H * 0.05f), FVector(0.05f, 0.55f, h * 0.45f), FRotator(8.f, 0, 0), AqArmor); // cape
+		AddPart(M_CONE, FVector(0, 0, H * 0.46f), FVector(0.18f, 0.18f, h * 0.12f), NoRot, AqGold);                  // crête or
 		return;
 	}
-	if (Id == TEXT("Aquiloryons")) // Infanterie : ARTICULÉ + animé (épée + bouclier)
+	if (Id == TEXT("Aquiloryons")) // Infanterie : ARTICULÉ (épée + bouclier)
 	{
 		BuildArticulatedAquiloryons(H, AqArmor, AqEnergy);
 		return;
@@ -387,17 +387,18 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		AddPart(M_CYL, FVector(20, 22, H * 0.18f), FVector(0.05f, 0.05f, h * 0.9f), FRotator(20.f, 0, 60.f), AqEnergy); // lance
 		return;
 	}
-	if (Id == TEXT("Aquipheres") || Id == TEXT("Aquispheres")) // Distance : canon à sphère
+	if (Id == TEXT("Aquipheres") || Id == TEXT("Aquispheres")) // Distance : ARTICULÉ + canon
 	{
-		BuildHumanoid(0.32f, AqArmor);
-		AddPart(M_CYL, FVector(42, 10, H * 0.04f), FVector(0.16f, 0.16f, h * 0.5f), FRotator(90.f, 0, 0), AqGold); // canon (liseré or)
-		AddPart(M_SPH, FVector(42 + H * 0.28f, 10, H * 0.04f), FVector(0.22f, 0.22f, 0.22f), NoRot, AqEnergy);     // sphère d'énergie
+		BuildArticulatedHumanoid(H, AqArmor, 0.32f);
+		// Canon tenu par la main droite (prolonge l'avant-bras vers l'avant)
+		MakeBone(JRElbow, M_CYL, FVector(H * 0.22f, 0, -H * 0.15f), FVector(0.15f, 0.15f, h * 0.34f), FRotator(90.f, 0, 0), AqGold);
+		MakeBone(JRElbow, M_SPH, FVector(H * 0.40f, 0, -H * 0.15f), FVector(0.20f, 0.20f, 0.20f), NoRot, AqEnergy); // sphère d'énergie
 		return;
 	}
-	if (Id == TEXT("Aquilombres")) // Spéciale : assassin furtif (bleu nuit) + dague
+	if (Id == TEXT("Aquilombres")) // Spéciale : ARTICULÉ furtif (bleu nuit) + dague
 	{
-		BuildHumanoid(0.26f, FLinearColor(0.05f, 0.07f, 0.20f, 1.f));
-		AddPart(M_CONE, FVector(16, 24, H * 0.10f), FVector(0.07f, 0.07f, h * 0.35f), FRotator(0, 0, 20.f), AqEnergy);
+		BuildArticulatedHumanoid(H, FLinearColor(0.05f, 0.07f, 0.20f, 1.f), 0.26f);
+		MakeBone(JRElbow, M_CONE, FVector(0, 0, -H * 0.26f), FVector(0.05f, 0.05f, h * 0.28f), FRotator(180.f, 0, 0), AqEnergy); // dague
 		return;
 	}
 	if (Id == TEXT("Leviaphenix")) // Mythique Aquiloris : grand corps + ailes or
@@ -411,33 +412,34 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 
 	// ───────────────── NOXÉENS (corps sombre + lumens) ─────────────────
 	// NB : identité Noxéenne = VERT/abyssal bioluminescent (distinct du Kraken violet).
-	if (Id == TEXT("Noxar")) // Chef : humanoïde sombre tentaculé (lumens verts)
+	if (Id == TEXT("Noxar")) // Chef : ARTICULÉ vert-abyssal + tentacules dorsales
 	{
-		BuildHumanoid(0.34f, FLinearColor(0.05f, 0.11f, 0.10f, 1.f)); // corps abyssal vert-sombre
-		AddPart(M_SPH, FVector(8, 0, H * 0.33f), FVector(0.12f, 0.12f, 0.12f), NoRot, NoxGreen); // yeux verts
+		BuildArticulatedHumanoid(H, FLinearColor(0.05f, 0.11f, 0.10f, 1.f), 0.34f);
+		AddPart(M_SPH, FVector(10, 0, H * 0.33f), FVector(0.13f, 0.10f, 0.10f), NoRot, NoxGreen); // yeux verts
+		// Tentacules dorsales (attachées au torse via VisualRoot) qui ondulent
 		for (int32 i = 0; i < 4; ++i)
 		{
 			const float Side = (i % 2 == 0) ? 1.f : -1.f;
-			const float Up   = (i < 2) ? 0.30f : 0.18f;
-			RegisterWiggle(AddPart(M_CONE, FVector(-8, Side * 26, H * Up),
-				FVector(0.07f, 0.07f, h * 0.4f), FRotator(0, 0, Side * 50.f), NoxGreen), i * 1.3f);
+			const float Up   = (i < 2) ? 0.28f : 0.16f;
+			RegisterWiggle(AddPart(M_CONE, FVector(-12, Side * 22, H * Up),
+				FVector(0.06f, 0.06f, h * 0.42f), FRotator(0, 0, Side * 50.f), NoxGreen), i * 1.3f);
 		}
 		return;
 	}
-	if (Id == TEXT("Noxeflare")) // Infanterie : corps vert-abyssal, amas d'yeux verts
+	if (Id == TEXT("Noxeflare")) // Infanterie : ARTICULÉ vert-abyssal, amas d'yeux verts
 	{
-		BuildHumanoid(0.32f, FLinearColor(0.06f, 0.13f, 0.11f, 1.f));
-		AddPart(M_SPH, FVector(8, 0, H * 0.33f), FVector(0.13f, 0.13f, 0.13f), NoRot, NoxGreen); // amas d'yeux
-		AddPart(M_CONE, FVector(0, 16, H * 0.42f), FVector(0.08f, 0.08f, h * 0.18f), FRotator(0, 0, 30.f), NoxGreen);
-		AddPart(M_CONE, FVector(0, -16, H * 0.42f), FVector(0.08f, 0.08f, h * 0.18f), FRotator(0, 0, -30.f), NoxGreen);
+		BuildArticulatedHumanoid(H, FLinearColor(0.06f, 0.13f, 0.11f, 1.f), 0.32f);
+		AddPart(M_SPH, FVector(10, 0, H * 0.33f), FVector(0.14f, 0.11f, 0.11f), NoRot, NoxGreen); // amas d'yeux
+		AddPart(M_CONE, FVector(2, 14, H * 0.42f), FVector(0.07f, 0.07f, h * 0.16f), FRotator(0, 0, 30.f), NoxGreen);
+		AddPart(M_CONE, FVector(2, -14, H * 0.42f), FVector(0.07f, 0.07f, h * 0.16f), FRotator(0, 0, -30.f), NoxGreen);
 		return;
 	}
-	if (Id == TEXT("Noxeblast")) // Distance : sombre, yeux + 2 tentacules dorsales BLEUES
+	if (Id == TEXT("Noxeblast")) // Distance : ARTICULÉ sombre + 2 tentacules dorsales BLEUES
 	{
-		BuildHumanoid(0.32f, NoxDark);
-		AddPart(M_SPH, FVector(8, 0, H * 0.33f), FVector(0.10f, 0.10f, 0.10f), NoRot, NoxBlue); // yeux bleus
-		RegisterWiggle(AddPart(M_CONE, FVector(-14, 18, H * 0.30f), FVector(0.06f, 0.06f, h * 0.6f), FRotator(-30.f, 0, 35.f), NoxBlue), 0.f);
-		RegisterWiggle(AddPart(M_CONE, FVector(-14, -18, H * 0.30f), FVector(0.06f, 0.06f, h * 0.6f), FRotator(-30.f, 0, -35.f), NoxBlue), 3.14f);
+		BuildArticulatedHumanoid(H, NoxDark, 0.32f);
+		AddPart(M_SPH, FVector(10, 0, H * 0.33f), FVector(0.11f, 0.09f, 0.09f), NoRot, NoxBlue); // yeux bleus
+		RegisterWiggle(AddPart(M_CONE, FVector(-16, 16, H * 0.28f), FVector(0.055f, 0.055f, h * 0.6f), FRotator(-30.f, 0, 35.f), NoxBlue), 0.f);
+		RegisterWiggle(AddPart(M_CONE, FVector(-16, -16, H * 0.28f), FVector(0.055f, 0.055f, h * 0.6f), FRotator(-30.f, 0, -35.f), NoxBlue), 3.14f);
 		return;
 	}
 	if (Id == TEXT("Noxebeast")) // Montée : QUADRUPÈDE cuirassé bronze (4 pattes + queue animées)
@@ -480,22 +482,40 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		}
 		return;
 	}
-	if (Id == TEXT("Noxedrake")) // Mythique / boss "Kraken" : armure bleu-violet + craquelures cyan
+	if (Id == TEXT("Noxedrake")) // Mythique / boss "KRAKEN" : céphalopode géant
 	{
-		const FLinearColor KrakArmor(0.14f, 0.11f, 0.26f, 1.f);
-		const FLinearColor KrakGlow (0.20f, 0.85f, 1.00f, 1.f);
-		SetupMainPart(M_SPH, FVector(0, 0, H * 0.05f), FVector(h * 0.55f, h * 0.55f, h * 0.5f), NoRot, KrakArmor); // tête bulbeuse
-		AddPart(M_CONE, FVector(-10, 0, H * 0.35f), FVector(h * 0.6f, h * 0.6f, h * 0.5f), NoRot, KrakArmor);      // manteau pointu
-		AddPart(M_SPH, FVector(H * 0.4f, 18, H * 0.08f), FVector(0.12f, 0.12f, 0.12f), NoRot, KrakGlow);           // œil
-		AddPart(M_SPH, FVector(H * 0.4f, -18, H * 0.08f), FVector(0.12f, 0.12f, 0.12f), NoRot, KrakGlow);
-		for (int32 i = 0; i < 6; ++i)
+		const FLinearColor KrakArmor(0.16f, 0.12f, 0.30f, 1.f); // manteau bleu-violet
+		const FLinearColor KrakSkin (0.24f, 0.16f, 0.34f, 1.f); // chair un peu plus claire
+		const FLinearColor KrakGlow (0.20f, 0.85f, 1.00f, 1.f); // yeux/craquelures cyan
+		const FLinearColor Beak     (0.05f, 0.05f, 0.06f, 1.f);
+
+		// MANTEAU : grand cône lisse pointant vers le haut/arrière (capuchon du calamar)
+		AddPart(M_CONE, FVector(-H * 0.15f, 0, H * 0.30f), FVector(h * 0.55f, h * 0.55f, h * 0.85f),
+			FRotator(-18.f, 0, 0), KrakArmor);
+		// TÊTE bulbeuse (grosse sphère) au centre
+		SetupMainPart(M_SPH, FVector(0, 0, H * 0.02f), FVector(h * 0.60f, h * 0.60f, h * 0.55f), NoRot, KrakSkin);
+		// Bourrelet frontal (là où partent les bras) — adoucit la jonction
+		AddPart(M_SPH, FVector(H * 0.30f, 0, -H * 0.10f), FVector(h * 0.45f, h * 0.50f, h * 0.35f), NoRot, KrakSkin);
+		// GROS YEUX cyan de chaque côté
+		AddPart(M_SPH, FVector(H * 0.30f, H * 0.28f, H * 0.05f), FVector(h * 0.14f, h * 0.14f, h * 0.14f), NoRot, KrakGlow);
+		AddPart(M_SPH, FVector(H * 0.30f, -H * 0.28f, H * 0.05f), FVector(h * 0.14f, h * 0.14f, h * 0.14f), NoRot, KrakGlow);
+		// BEC sombre au centre-avant
+		AddPart(M_CONE, FVector(H * 0.42f, 0, -H * 0.16f), FVector(h * 0.12f, h * 0.12f, h * 0.18f), FRotator(60.f, 0, 0), Beak);
+
+		// 8 TENTACULES organisés en éventail vers l'avant/bas, ondulant en séquence
+		for (int32 i = 0; i < 8; ++i)
 		{
-			const float Ang = PI * (i / 5.f) - PI * 0.5f; // -90°..+90°
-			RegisterWiggle(AddPart(M_CONE, FVector(H * 0.25f + FMath::Cos(Ang) * 20.f, FMath::Sin(Ang) * 40.f, -H * 0.25f),
-				FVector(0.14f, 0.14f, h * 0.55f), FRotator(120.f, FMath::RadiansToDegrees(Ang), 0), KrakArmor), i * 1.0f);
+			const float t = (i / 7.f) - 0.5f;              // -0.5..0.5
+			const float Yaw = t * 150.f;                   // éventail net (pas d'amas)
+			const FVector Root(H * 0.30f, t * H * 0.55f, -H * 0.20f);
+			RegisterWiggle(AddPart(M_CONE, Root,
+				FVector(0.16f, 0.16f, h * 0.7f), FRotator(120.f, Yaw, 0), KrakArmor), (float)i * 0.6f);
 		}
-		RegisterWiggle(AddPart(M_CYL, FVector(H * 0.6f, 16, -H * 0.1f), FVector(0.06f, 0.06f, h * 0.9f), FRotator(80.f, 0, 0), KrakArmor), 0.5f);  // fouet
-		RegisterWiggle(AddPart(M_CYL, FVector(H * 0.6f, -16, -H * 0.1f), FVector(0.06f, 0.06f, h * 0.9f), FRotator(80.f, 0, 0), KrakArmor), 2.5f);
+		// 2 longs FOUETS barbelés vers l'avant
+		RegisterWiggle(AddPart(M_CYL, FVector(H * 0.5f, H * 0.12f, -H * 0.05f),
+			FVector(0.06f, 0.06f, h * 1.1f), FRotator(85.f, 0, 0), KrakArmor), 0.5f);
+		RegisterWiggle(AddPart(M_CYL, FVector(H * 0.5f, -H * 0.12f, -H * 0.05f),
+			FVector(0.06f, 0.06f, h * 1.1f), FRotator(85.f, 0, 0), KrakArmor), 2.5f);
 		return;
 	}
 
@@ -623,39 +643,63 @@ UStaticMeshComponent* AWOTOLDemoUnit::MakeBone(USceneComponent* Joint, const TCH
 	return C;
 }
 
-// ─── Aquiloryons articulé (torse + tête + 2 bras + 2 jambes + épée + bouclier) ──
-void AWOTOLDemoUnit::BuildArticulatedAquiloryons(float H, const FLinearColor& Armor, const FLinearColor& Energy)
+// ─── Squelette humanoïde générique (coudes + genoux) — réutilisé par tous ──────
+void AWOTOLDemoUnit::BuildArticulatedHumanoid(float H, const FLinearColor& Col, float BodyW)
 {
 	const float h = H / 100.f;
 	const FRotator NoRot = FRotator::ZeroRotator;
 
-	// Torse (corps principal) + tête
-	SetupMainPart(M_CYL, FVector(0, 0, H * 0.04f), FVector(0.34f, 0.22f, h * 0.40f), NoRot, Armor);
-	AddPart(M_SPH, FVector(0, 0, H * 0.32f), FVector(0.22f, 0.22f, 0.22f), NoRot, Armor);
+	// Torse + cou + tête
+	SetupMainPart(M_CYL, FVector(0, 0, H * 0.04f), FVector(BodyW, BodyW * 0.85f, h * 0.36f), NoRot, Col);
+	AddPart(M_CYL, FVector(0, 0, H * 0.25f), FVector(BodyW * 0.42f, BodyW * 0.42f, h * 0.06f), NoRot, Col); // cou
+	AddPart(M_SPH, FVector(0, 0, H * 0.33f), FVector(BodyW * 0.82f, BodyW * 0.82f, BodyW * 0.9f), NoRot, Col); // tête
+	// Épaulières (rondeurs qui adoucissent la silhouette)
+	AddPart(M_SPH, FVector(4, H * 0.15f, H * 0.21f), FVector(BodyW * 0.55f, BodyW * 0.55f, BodyW * 0.5f), NoRot, Col);
+	AddPart(M_SPH, FVector(4, -H * 0.15f, H * 0.21f), FVector(BodyW * 0.55f, BodyW * 0.55f, BodyW * 0.5f), NoRot, Col);
 
-	// ── Bras DROIT (épée) : épaule → bras → coude → avant-bras → main → épée ──
-	JRShoulder = MakeJoint(VisualRoot, FVector(6.f, H * 0.16f, H * 0.22f));
-	MakeBone(JRShoulder, M_CYL, FVector(0, 0, -H * 0.10f), FVector(0.09f, 0.09f, h * 0.22f), NoRot, Armor);
-	JRElbow = MakeJoint(JRShoulder, FVector(0, 0, -H * 0.21f));
-	MakeBone(JRElbow, M_CYL, FVector(0, 0, -H * 0.09f), FVector(0.08f, 0.08f, h * 0.20f), NoRot, Armor);
-	MakeBone(JRElbow, M_SPH, FVector(0, 0, -H * 0.18f), FVector(0.10f, 0.10f, 0.10f), NoRot, Armor);          // main
-	MakeBone(JRElbow, M_CONE, FVector(H * 0.05f, 0, -H * 0.20f), FVector(0.07f, 0.07f, h * 0.5f),
-		FRotator(-90.f, 0, 0), Energy);                                                                      // épée (pointe +X)
+	const float ArmW = FMath::Max(0.07f, BodyW * 0.26f);
 
-	// ── Bras GAUCHE (bouclier) ──
-	JLShoulder = MakeJoint(VisualRoot, FVector(6.f, -H * 0.16f, H * 0.22f));
-	MakeBone(JLShoulder, M_CYL, FVector(0, 0, -H * 0.10f), FVector(0.09f, 0.09f, h * 0.22f), NoRot, Armor);
-	JLElbow = MakeJoint(JLShoulder, FVector(0, 0, -H * 0.21f));
-	MakeBone(JLElbow, M_CYL, FVector(0, 0, -H * 0.09f), FVector(0.08f, 0.08f, h * 0.20f), NoRot, Armor);
-	MakeBone(JLElbow, M_CUBE, FVector(H * 0.10f, 0, -H * 0.10f), FVector(0.07f, 0.42f, h * 0.40f), NoRot, Energy); // bouclier
+	// Bras DROIT : épaule → bras → coude → avant-bras → main
+	JRShoulder = MakeJoint(VisualRoot, FVector(4.f, H * 0.15f, H * 0.21f));
+	MakeBone(JRShoulder, M_CYL, FVector(0, 0, -H * 0.09f), FVector(ArmW, ArmW, h * 0.18f), NoRot, Col);
+	JRElbow = MakeJoint(JRShoulder, FVector(0, 0, -H * 0.18f));
+	MakeBone(JRElbow, M_CYL, FVector(0, 0, -H * 0.08f), FVector(ArmW * 0.9f, ArmW * 0.9f, h * 0.16f), NoRot, Col);
+	MakeBone(JRElbow, M_SPH, FVector(0, 0, -H * 0.15f), FVector(ArmW * 1.1f, ArmW * 1.1f, ArmW * 1.1f), NoRot, Col); // main
 
-	// ── Jambes (hanche → jambe complète) ──
-	JRHip = MakeJoint(VisualRoot, FVector(0, H * 0.09f, -H * 0.06f));
-	MakeBone(JRHip, M_CYL, FVector(0, 0, -H * 0.14f), FVector(0.10f, 0.10f, h * 0.28f), NoRot, Armor);
-	JLHip = MakeJoint(VisualRoot, FVector(0, -H * 0.09f, -H * 0.06f));
-	MakeBone(JLHip, M_CYL, FVector(0, 0, -H * 0.14f), FVector(0.10f, 0.10f, h * 0.28f), NoRot, Armor);
+	// Bras GAUCHE
+	JLShoulder = MakeJoint(VisualRoot, FVector(4.f, -H * 0.15f, H * 0.21f));
+	MakeBone(JLShoulder, M_CYL, FVector(0, 0, -H * 0.09f), FVector(ArmW, ArmW, h * 0.18f), NoRot, Col);
+	JLElbow = MakeJoint(JLShoulder, FVector(0, 0, -H * 0.18f));
+	MakeBone(JLElbow, M_CYL, FVector(0, 0, -H * 0.08f), FVector(ArmW * 0.9f, ArmW * 0.9f, h * 0.16f), NoRot, Col);
+	MakeBone(JLElbow, M_SPH, FVector(0, 0, -H * 0.15f), FVector(ArmW * 1.1f, ArmW * 1.1f, ArmW * 1.1f), NoRot, Col);
+
+	// Jambe DROITE : hanche → cuisse → genou → tibia → pied
+	const float LegW = FMath::Max(0.09f, BodyW * 0.30f);
+	JRHip = MakeJoint(VisualRoot, FVector(0, H * 0.08f, -H * 0.05f));
+	MakeBone(JRHip, M_CYL, FVector(0, 0, -H * 0.10f), FVector(LegW, LegW, h * 0.20f), NoRot, Col);
+	JRKnee = MakeJoint(JRHip, FVector(0, 0, -H * 0.20f));
+	MakeBone(JRKnee, M_CYL, FVector(0, 0, -H * 0.10f), FVector(LegW * 0.9f, LegW * 0.9f, h * 0.20f), NoRot, Col);
+	MakeBone(JRKnee, M_CUBE, FVector(H * 0.03f, 0, -H * 0.20f), FVector(0.14f, LegW, 0.05f), NoRot, Col); // pied
+
+	// Jambe GAUCHE
+	JLHip = MakeJoint(VisualRoot, FVector(0, -H * 0.08f, -H * 0.05f));
+	MakeBone(JLHip, M_CYL, FVector(0, 0, -H * 0.10f), FVector(LegW, LegW, h * 0.20f), NoRot, Col);
+	JLKnee = MakeJoint(JLHip, FVector(0, 0, -H * 0.20f));
+	MakeBone(JLKnee, M_CYL, FVector(0, 0, -H * 0.10f), FVector(LegW * 0.9f, LegW * 0.9f, h * 0.20f), NoRot, Col);
+	MakeBone(JLKnee, M_CUBE, FVector(H * 0.03f, 0, -H * 0.20f), FVector(0.14f, LegW, 0.05f), NoRot, Col);
 
 	bArticulated = true;
+}
+
+// Aquiloryons = humanoïde + épée (main droite) + bouclier cristal (main gauche)
+void AWOTOLDemoUnit::BuildArticulatedAquiloryons(float H, const FLinearColor& Armor, const FLinearColor& Energy)
+{
+	const float h = H / 100.f;
+	BuildArticulatedHumanoid(H, Armor, 0.34f);
+	// Épée dans la main droite (prolonge l'avant-bras)
+	MakeBone(JRElbow, M_CONE, FVector(0, 0, -H * 0.30f), FVector(0.06f, 0.06f, h * 0.42f), FRotator(180.f, 0, 0), Energy);
+	// Bouclier au bras gauche
+	MakeBone(JLElbow, M_CUBE, FVector(H * 0.10f, 0, -H * 0.10f), FVector(0.07f, 0.42f, h * 0.40f), FRotator::ZeroRotator, Energy);
 }
 
 // ─── Animation procédurale (pilotée par l'état IA + la vitesse) ─────────────
@@ -676,34 +720,43 @@ void AWOTOLDemoUnit::AnimateArticulated(float Dt)
 
 	AnimPhase += Dt * (bMoving ? 9.f : 2.5f);
 
-	float rSho = 0.f, rEl = 0.f, lShoRoll = 0.f, lSho = 0.f, lEl = 0.f, rHip = 0.f, lHip = 0.f, torsoRoll = 0.f;
+	float rSho = 0.f, rEl = 0.f, lShoRoll = 0.f, lSho = 0.f, lEl = 0.f;
+	float rHip = 0.f, lHip = 0.f, rKnee = 12.f, lKnee = 12.f, torsoRoll = 0.f, torsoPitch = 0.f;
 
 	if (bDead)
 	{
 		// s'affaisse (jambes pliées, bras tombants)
-		rSho = 70.f; lSho = 70.f; rHip = 60.f; lHip = 60.f; torsoRoll = 80.f;
+		rSho = 70.f; lSho = 70.f; rHip = 40.f; lHip = 40.f; rKnee = 70.f; lKnee = 70.f; torsoRoll = 80.f;
 	}
 	else if (bAttacking)
 	{
 		SwingProgress += Dt * 2.4f;
 		if (SwingProgress > 1.f) SwingProgress -= 1.f;
 		const float Sw = FMath::Sin(SwingProgress * PI);       // 0→1→0 : armer puis frapper
-		rSho     = FMath::Lerp(45.f, -85.f, Sw);               // lève l'épée puis abat
-		rEl      = FMath::Lerp(-35.f, 5.f, Sw);
-		lShoRoll = -65.f;                                      // bouclier levé en travers
-		lEl      = -45.f;
+		rSho     = FMath::Lerp(45.f, -85.f, Sw);               // épaule : arme puis abat
+		rEl      = FMath::Lerp(-70.f, 10.f, Sw);               // coude : replie puis déploie
+		lShoRoll = -55.f;                                      // bras gauche levé en travers
+		lEl      = -55.f;
+		torsoPitch = -6.f - 8.f * Sw;                          // le buste accompagne le coup
+		rKnee = 25.f; lKnee = 18.f;                            // appui/transfert de poids
 	}
 	else if (bMoving)
 	{
 		const float s = FMath::Sin(AnimPhase);
 		rHip =  s * 30.f;  lHip = -s * 30.f;                   // jambes alternées
-		rSho = -s * 22.f;  lSho =  s * 22.f;                   // bras opposés
+		rKnee = 15.f + FMath::Max(0.f, -s) * 45.f;             // genou plie en fin de foulée
+		lKnee = 15.f + FMath::Max(0.f,  s) * 45.f;
+		rSho = -s * 24.f;  lSho =  s * 24.f;                   // bras opposés
+		rEl  = -20.f - FMath::Max(0.f, -s) * 25.f;             // coudes fléchis à la marche
+		lEl  = -20.f - FMath::Max(0.f,  s) * 25.f;
 		torsoRoll = FMath::Sin(AnimPhase * 2.f) * 2.5f;
+		torsoPitch = 4.f;                                      // légèrement penché en avant
 	}
 	else // idle : léger flottement
 	{
 		const float s = FMath::Sin(AnimPhase);
 		rSho = 6.f + s * 4.f;  lSho = 6.f - s * 4.f;
+		rEl = -12.f; lEl = -12.f;
 		torsoRoll = s * 1.5f;
 	}
 
@@ -718,10 +771,12 @@ void AWOTOLDemoUnit::AnimateArticulated(float Dt)
 	Set(JLElbow,    FRotator(lEl, 0, 0));
 	Set(JRHip,      FRotator(rHip, 0, 0));
 	Set(JLHip,      FRotator(lHip, 0, 0));
+	Set(JRKnee,     FRotator(rKnee, 0, 0));
+	Set(JLKnee,     FRotator(lKnee, 0, 0));
 	if (ShapeMesh)
 	{
 		ShapeMesh->SetRelativeRotation(
-			FMath::RInterpTo(ShapeMesh->GetRelativeRotation(), FRotator(0, 0, torsoRoll), Dt, 8.f));
+			FMath::RInterpTo(ShapeMesh->GetRelativeRotation(), FRotator(torsoPitch, 0, torsoRoll), Dt, 8.f));
 	}
 }
 

@@ -102,8 +102,10 @@ private:
 	// Crée un "os" (mesh) suspendu à une articulation (offset = pend depuis le pivot).
 	UStaticMeshComponent* MakeBone(USceneComponent* Joint, const TCHAR* MeshPath,
 		const FVector& Offset, const FVector& Scale, const FRotator& Rot, const FLinearColor& Color);
-	// Assemble un Aquiloryons articulé (torse + 2 bras + 2 jambes + épée + bouclier).
-	void BuildArticulatedAquiloryons(float HeightU, const FLinearColor& Armor, const FLinearColor& Energy);
+	// Squelette humanoïde générique : torse + cou + tête + 2 bras (épaule/coude/main)
+	// + 2 jambes (hanche/genou/pied). Renseigne les articulations pour l'animation ;
+	// le mains sont accessibles via JRElbow / JLElbow pour y accrocher les armes.
+	void BuildArticulatedHumanoid(float HeightU, const FLinearColor& Body, float BodyW);
 	// Anime les articulations selon l'état (idle / marche / attaque / bouclier).
 	void AnimateArticulated(float DeltaSeconds);
 
@@ -113,6 +115,8 @@ private:
 	UPROPERTY() TObjectPtr<USceneComponent> JLElbow;
 	UPROPERTY() TObjectPtr<USceneComponent> JRHip;
 	UPROPERTY() TObjectPtr<USceneComponent> JLHip;
+	UPROPERTY() TObjectPtr<USceneComponent> JRKnee;
+	UPROPERTY() TObjectPtr<USceneComponent> JLKnee;
 
 	// Couche verticale = décalage VISUEL (l'unité apparaît en hauteur) ; le corps
 	// physique reste au sol -> déplacement + attaques fonctionnent à toute hauteur.
