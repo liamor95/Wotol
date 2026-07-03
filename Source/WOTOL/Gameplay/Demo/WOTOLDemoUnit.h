@@ -106,6 +106,8 @@ private:
 	// + 2 jambes (hanche/genou/pied). Renseigne les articulations pour l'animation ;
 	// le mains sont accessibles via JRElbow / JLElbow pour y accrocher les armes.
 	void BuildArticulatedHumanoid(float HeightU, const FLinearColor& Body, float BodyW);
+	// Aquiloryons = humanoïde + épée + bouclier
+	void BuildArticulatedAquiloryons(float HeightU, const FLinearColor& Armor, const FLinearColor& Energy);
 	// Anime les articulations selon l'état (idle / marche / attaque / bouclier).
 	void AnimateArticulated(float DeltaSeconds);
 
