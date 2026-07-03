@@ -217,13 +217,13 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 {
 	const FVector Center = GetActorLocation();
 
-	// ── Palette inspirée de la référence (cité engloutie, eau turquoise) ──
-	const FLinearColor FloorColor(0.06f, 0.11f, 0.14f, 1.f); // fond marin bleu-vert sombre
-	const FLinearColor StoneColor(0.13f, 0.17f, 0.19f, 1.f); // pierre bleu-gris des ruines
-	const FLinearColor RockColor (0.09f, 0.13f, 0.14f, 1.f); // rochers / gravats
-	const FLinearColor SandColor (0.24f, 0.21f, 0.14f, 1.f); // sable beige (avant-plan)
-	const FLinearColor FarColor  (0.04f, 0.08f, 0.11f, 1.f); // silhouettes lointaines
-	const FLinearColor SurfColor (0.10f, 0.30f, 0.40f, 1.f); // surface éclairée au-dessus
+	// ── Palette RÉCIF CORALLIEN LUMINEUX (nouvelle référence) ──
+	const FLinearColor FloorColor(0.42f, 0.40f, 0.30f, 1.f); // sable clair du fond
+	const FLinearColor SandBright(0.58f, 0.55f, 0.42f, 1.f); // canyon de sable (couloir de combat)
+	const FLinearColor RockColor (0.28f, 0.31f, 0.25f, 1.f); // roche récifale tan-verdâtre
+	const FLinearColor FarColor  (0.12f, 0.22f, 0.30f, 1.f); // spires/silhouettes lointaines
+	const FLinearColor SurfColor (0.28f, 0.58f, 0.72f, 1.f); // surface éclairée (rayons)
+	const FLinearColor KelpColor (0.45f, 0.55f, 0.18f, 1.f); // algues jaune-vert
 
 	const FRotator NoRot = FRotator::ZeroRotator;
 
@@ -238,10 +238,11 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 		{
 			if (UExponentialHeightFogComponent* FC = Fog->GetComponent())
 			{
-				FC->SetFogDensity(0.015f);
-				FC->SetFogHeightFalloff(0.10f);
-				FC->SetFogInscatteringColor(FLinearColor(0.03f, 0.14f, 0.20f, 1.f));
-				FC->SetStartDistance(1500.f);
+				// Brume bleu CLAIR de récif : de la profondeur, mais lumineux
+				FC->SetFogDensity(0.012f);
+				FC->SetFogHeightFalloff(0.09f);
+				FC->SetFogInscatteringColor(FLinearColor(0.10f, 0.32f, 0.45f, 1.f));
+				FC->SetStartDistance(1800.f);
 			}
 		}
 
@@ -253,11 +254,11 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			PPV->bUnbound = true;
 			PPV->Priority = 100.f;
 			FPostProcessSettings& S = PPV->Settings;
-			// Gain proche de 1 (ne descend pas trop) avec dominante bleue douce
-			S.bOverride_ColorGain = true;        S.ColorGain = FVector4(0.85f, 0.97f, 1.10f, 1.f);
-			S.bOverride_ColorSaturation = true;  S.ColorSaturation = FVector4(0.92f, 0.97f, 1.05f, 1.f);
-			S.bOverride_VignetteIntensity  = true; S.VignetteIntensity = 0.35f;
-			S.bOverride_SceneFringeIntensity = true; S.SceneFringeIntensity = 0.8f;
+			// Récif LUMINEUX : dominante bleue douce mais scène claire, coraux qui ressortent
+			S.bOverride_ColorGain = true;        S.ColorGain = FVector4(0.92f, 1.02f, 1.15f, 1.f);
+			S.bOverride_ColorSaturation = true;  S.ColorSaturation = FVector4(1.08f, 1.06f, 1.05f, 1.f);
+			S.bOverride_VignetteIntensity  = true; S.VignetteIntensity = 0.25f;
+			S.bOverride_SceneFringeIntensity = true; S.SceneFringeIntensity = 0.6f;
 		}
 
 		// Masque UNIQUEMENT les nuages volumétriques (NE PAS toucher au SkyAtmosphere
@@ -271,113 +272,111 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 		}
 	}
 
-	// ── Sol (seul élément BLOQUANT) + surface lumineuse au-dessus ──
+	// ── Sol sablonneux clair (seul élément BLOQUANT) + surface éclairée ──
 	SpawnBlock(MESH_CUBE, Center + FVector(0, 0, -50.f),
-		FVector(280.f, 280.f, 1.f), FloorColor, NoRot, true); // dalle de sol épaisse
-	// "Surface" turquoise éclairée tout en haut (lumière venant d'en haut, comme la réf)
+		FVector(300.f, 300.f, 1.f), FloorColor, NoRot, true);
 	SpawnBlock(TEXT("/Engine/BasicShapes/Plane.Plane"), Center + FVector(0, 0, 7000.f),
-		FVector(340.f, 340.f, 1.f), SurfColor, FRotator(180.f, 0.f, 0.f), false);
+		FVector(360.f, 360.f, 1.f), SurfColor, FRotator(180.f, 0.f, 0.f), false);
 
-	// ── Avant-plan sablonneux (beige clair, comme le bas de l'image) ──
-	SpawnPlaza(Center + FVector(-3500.f, -2200.f, 0.f), 2600.f, 1800.f, SandColor);
-	SpawnPlaza(Center + FVector(-1200.f, -3800.f, 0.f), 2200.f, 1500.f, SandColor);
+	// ── CANYON DE SABLE CENTRAL (couloir de combat dégagé le long de X) ──
+	SpawnPlaza(Center, 7500.f, 1350.f, SandBright);
+	SpawnPlaza(Center + FVector(0.f, 0.f, 0.f), 3200.f, 900.f, FLinearColor(0.64f, 0.60f, 0.47f, 1.f));
 
-	// ── Dallages de pierre (places carrelées) ──
-	SpawnPlaza(Center + FVector(2200.f, 1200.f, 0.f), 2400.f, 1800.f, StoneColor);
-	SpawnPlaza(Center + FVector(-2600.f, 1600.f, 0.f), 2000.f, 1500.f, StoneColor);
-
-	// ── ARCHE centrale (repère focal, comme dans la référence) ──
-	SpawnArch(Center + FVector(200.f, -300.f, 0.f), 700.f, 25.f, StoneColor);
-
-	// ── Ruines à gradins (ziggourats + escaliers) de chaque côté ──
-	SpawnZiggurat(Center + FVector(-4200.f, 2600.f, 0.f), 1100.f, 5, 220.f, -20.f, StoneColor);
-	SpawnZiggurat(Center + FVector(4300.f, 2200.f, 0.f),  1300.f, 6, 230.f, 200.f, StoneColor);
-	SpawnZiggurat(Center + FVector(3600.f, -2600.f, 0.f), 900.f,  4, 210.f, 150.f, StoneColor);
-
-	// ── Escaliers indépendants (descentes vers la place) ──
-	SpawnStairs(Center + FVector(-1600.f, 700.f, 0.f), 0.f, 8, 700.f, StoneColor);
-	SpawnStairs(Center + FVector(1500.f, -1400.f, 0.f), 180.f, 7, 600.f, StoneColor);
-
-	// ── Colonnades (rangées de colonnes brisées) ──
-	SpawnColonnade(Center + FVector(-5400.f, -200.f, 0.f), FVector(0.f, 600.f, 0.f), 6, 850.f, StoneColor, 11);
-	SpawnColonnade(Center + FVector(5200.f, 400.f, 0.f),  FVector(0.f, -600.f, 0.f), 6, 850.f, StoneColor, 23);
-
-	// ── Grands pans de murs brisés qui encadrent l'arène (gauche/droite) ──
-	SpawnBlock(MESH_CUBE, Center + FVector(-7200.f, 0.f, 1300.f),
-		FVector(2.f, 90.f, 26.f), StoneColor, FRotator(0.f, 0.f, 8.f), false);
-	SpawnBlock(MESH_CUBE, Center + FVector(7200.f, 500.f, 1200.f),
-		FVector(2.f, 80.f, 24.f), StoneColor, FRotator(0.f, 0.f, -10.f), false);
-
-	// ── Chaînes de montagnes sous-marines en fond (cônes chevauchants) ──
-	SpawnRidge(Center + FVector(-9000.f, -9000.f, 0.f), Center + FVector(-9000.f, 9000.f, 0.f),
-		3000.f, 1400.f, FarColor, 101);
-	SpawnRidge(Center + FVector(9000.f, -9000.f, 0.f), Center + FVector(9000.f, 9000.f, 0.f),
-		3200.f, 1500.f, FarColor, 202);
-	SpawnRidge(Center + FVector(-9000.f, 9500.f, 0.f), Center + FVector(9000.f, 9500.f, 0.f),
-		2800.f, 1300.f, FarColor, 303);
-
-	// ── Rochers kitbashés répartis sur TOUTE la map ──
-	const float RockPos[][3] = {
-		{-2200.f, -1600.f, 380.f}, { 2200.f,  1600.f, 420.f},
-		{-2400.f,  1400.f, 300.f}, { 2400.f, -1400.f, 320.f},
-		{-1300.f, -2200.f, 280.f}, { 1300.f,  2200.f, 300.f},
-		{-3000.f,     0.f, 460.f}, { 3000.f,   200.f, 440.f},
-		{-5200.f,  3600.f, 520.f}, { 5200.f, -3600.f, 520.f},
-		{-5600.f, -2800.f, 360.f}, { 5600.f,  2800.f, 360.f},
-		{-3800.f,  5200.f, 420.f}, { 3800.f, -5200.f, 420.f},
-		{ -800.f,  5600.f, 300.f}, {  800.f, -5600.f, 300.f},
-		{-6800.f,   600.f, 560.f}, { 6800.f,  -600.f, 560.f},
-		{ 1600.f,  4200.f, 340.f}, {-1600.f, -4200.f, 340.f},
+	// ── Palette de coraux VIFS ──
+	const FLinearColor Coral[6] = {
+		FLinearColor(0.95f, 0.45f, 0.12f, 1.f), // orange
+		FLinearColor(0.62f, 0.35f, 0.80f, 1.f), // violet
+		FLinearColor(0.92f, 0.55f, 0.68f, 1.f), // rose
+		FLinearColor(0.90f, 0.80f, 0.28f, 1.f), // jaune
+		FLinearColor(0.15f, 0.62f, 0.58f, 1.f), // teal
+		FLinearColor(0.85f, 0.28f, 0.28f, 1.f), // rouge
 	};
-	int32 Seed = 1;
-	for (const float* Rk : RockPos)
-	{
-		SpawnRock(Center + FVector(Rk[0], Rk[1], -40.f), Rk[2], RockColor, Seed++);
-	}
 
-	// ── Gravats (petits rochers) éparpillés pour habiller le sol ──
-	FRandomStream Rub(777);
-	for (int32 i = 0; i < 40; ++i)
+	// Buisson de corail = coraux-tubes (cylindres) + branches (cônes) + cerveau (sphère)
+	auto SpawnCoral = [&](const FVector& Pos, int32 InSeed)
 	{
-		const FVector Pos(Rub.FRandRange(-7000.f, 7000.f), Rub.FRandRange(-7000.f, 7000.f), -40.f);
-		SpawnRock(Center + Pos, Rub.FRandRange(80.f, 180.f), RockColor, 1000 + i);
-	}
-
-	// ── CORAUX : touches de vie/couleur (orange, corail, teal) ───────────────
-	// Buissons coralliens = amas de petits cônes/sphères de couleurs chaudes.
-	const FLinearColor CoralWarm[4] = {
-		FLinearColor(0.85f, 0.35f, 0.10f, 1.f), // orange
-		FLinearColor(0.90f, 0.45f, 0.45f, 1.f), // corail rose
-		FLinearColor(0.95f, 0.65f, 0.15f, 1.f), // ambre
-		FLinearColor(0.10f, 0.55f, 0.50f, 1.f), // teal vif
-	};
-	FRandomStream Cor(909);
-	for (int32 i = 0; i < 34; ++i)
-	{
-		const FVector Base = Center + FVector(
-			Cor.FRandRange(-7000.f, 7000.f), Cor.FRandRange(-7000.f, 7000.f), -40.f);
-		const FLinearColor Col = CoralWarm[Cor.RandRange(0, 3)];
-		const int32 Branches = Cor.RandRange(3, 6);
-		for (int32 b = 0; b < Branches; ++b)
+		FRandomStream R(InSeed);
+		const FLinearColor Col = Coral[R.RandRange(0, 5)];
+		const int32 N = R.RandRange(4, 8);
+		for (int32 k = 0; k < N; ++k)
 		{
-			const float Hgt = Cor.FRandRange(60.f, 160.f);
-			const FVector Off(Cor.FRandRange(-40.f, 40.f), Cor.FRandRange(-40.f, 40.f), Hgt * 0.5f);
-			const bool bRound = Cor.FRand() < 0.3f;
-			SpawnBlock(bRound ? MESH_SPH : MESH_CONE, Base + Off,
-				FVector(0.18f, 0.18f, Hgt / 100.f), Col,
-				FRotator(Cor.FRandRange(-20.f, 20.f), Cor.FRandRange(0.f, 360.f), Cor.FRandRange(-20.f, 20.f)),
-				false);
+			const float Hgt = R.FRandRange(70.f, 220.f);
+			const FVector Off(R.FRandRange(-70.f, 70.f), R.FRandRange(-70.f, 70.f), Hgt * 0.5f);
+			const int32 Kind = R.RandRange(0, 2);
+			const TCHAR* M = (Kind == 0) ? MESH_CYL : (Kind == 1) ? MESH_CONE : MESH_SPH;
+			const FLinearColor C = (R.FRand() < 0.4f) ? Coral[R.RandRange(0, 5)] : Col; // variété
+			SpawnBlock(M, Pos + Off, FVector(0.16f, 0.16f, Hgt / 100.f), C,
+				FRotator(R.FRandRange(-14.f, 14.f), R.FRandRange(0.f, 360.f), R.FRandRange(-14.f, 14.f)), false);
+		}
+	};
+
+	// Touffe d'algues = grands brins fins jaune-vert qui montent
+	auto SpawnKelp = [&](const FVector& Pos, int32 InSeed)
+	{
+		FRandomStream R(InSeed);
+		const int32 N = R.RandRange(5, 9);
+		for (int32 k = 0; k < N; ++k)
+		{
+			const float Hgt = R.FRandRange(300.f, 700.f);
+			const FVector Off(R.FRandRange(-90.f, 90.f), R.FRandRange(-90.f, 90.f), Hgt * 0.5f);
+			SpawnBlock(MESH_CYL, Pos + Off, FVector(0.07f, 0.07f, Hgt / 100.f),
+				Vary(KelpColor, R.FRandRange(-0.05f, 0.05f)),
+				FRotator(R.FRandRange(-10.f, 10.f), R.FRandRange(0.f, 360.f), R.FRandRange(-10.f, 10.f)), false);
+		}
+	};
+
+	// ── DEUX RÉCIFS ROCHEUX bordant le canyon (côtés +Y et -Y), couverts de coraux ──
+	FRandomStream Reef(4242);
+	for (float X = -6500.f; X <= 6500.f; X += 1300.f)
+	{
+		for (int32 side = 0; side < 2; ++side)
+		{
+			const float Y = (side == 0 ? 1.f : -1.f) * Reef.FRandRange(2100.f, 2900.f);
+			// masse rocheuse récifale (kitbash)
+			SpawnRock(Center + FVector(X + Reef.FRandRange(-200.f, 200.f), Y, -40.f),
+				Reef.FRandRange(360.f, 620.f), RockColor, Reef.RandRange(1, 9999));
+			// coraux accrochés sur le récif
+			SpawnCoral(Center + FVector(X + Reef.FRandRange(-300.f, 300.f), Y + Reef.FRandRange(-250.f, 250.f), -20.f),
+				Reef.RandRange(1, 9999));
 		}
 	}
+
+	// ── Coraux + rochers plus loin (remplissent les flancs, hors du couloir) ──
+	FRandomStream Side(707);
+	for (int32 i = 0; i < 30; ++i)
+	{
+		const float Y = (Side.FRand() < 0.5f ? 1.f : -1.f) * Side.FRandRange(3400.f, 6500.f);
+		const float X = Side.FRandRange(-6500.f, 6500.f);
+		if (Side.FRand() < 0.6f)
+			SpawnCoral(Center + FVector(X, Y, -20.f), Side.RandRange(1, 9999));
+		else
+			SpawnRock(Center + FVector(X, Y, -40.f), Side.FRandRange(160.f, 420.f), RockColor, Side.RandRange(1, 9999));
+	}
+
+	// ── ALGUES (côté droit surtout, comme la réf) ──
+	FRandomStream Kel(313);
+	for (int32 i = 0; i < 10; ++i)
+	{
+		const float X = Kel.FRandRange(1500.f, 6500.f);
+		const float Y = Kel.FRandRange(2200.f, 5200.f) * (Kel.FRand() < 0.7f ? 1.f : -1.f);
+		SpawnKelp(Center + FVector(X, Y, -30.f), Kel.RandRange(1, 9999));
+	}
+
+	// ── SPIRES / PINACLES rocheux en fond (cônes) ──
+	SpawnRidge(Center + FVector(-2000.f, 5500.f, 0.f), Center + FVector(3000.f, 6500.f, 0.f), 1800.f, 900.f, RockColor, 55);
+	SpawnRidge(Center + FVector(-8000.f, -3000.f, 0.f), Center + FVector(-8000.f, 4000.f, 0.f), 2200.f, 1100.f, FarColor, 66);
+	SpawnRidge(Center + FVector(8000.f, -4000.f, 0.f), Center + FVector(8000.f, 3000.f, 0.f), 2400.f, 1100.f, FarColor, 77);
 
 	// ── FAUNE AMBIANTE : bancs de poissons qui nagent en boucle (décoratif) ──
 	if (UWorld* W = GetWorld())
 	{
 		FRandomStream Fs(1234);
-		const FLinearColor FishColors[3] = {
-			FLinearColor(0.55f, 0.65f, 0.75f, 1.f), // argenté
-			FLinearColor(0.30f, 0.60f, 0.85f, 1.f), // bleu
-			FLinearColor(0.70f, 0.75f, 0.55f, 1.f), // doré pâle
+		const FLinearColor FishColors[5] = {
+			FLinearColor(0.95f, 0.65f, 0.20f, 1.f), // jaune-orange (récif)
+			FLinearColor(0.30f, 0.60f, 0.90f, 1.f), // bleu vif
+			FLinearColor(0.85f, 0.85f, 0.90f, 1.f), // argenté
+			FLinearColor(0.20f, 0.75f, 0.60f, 1.f), // vert d'eau
+			FLinearColor(0.90f, 0.40f, 0.45f, 1.f), // corail
 		};
 		// 5 bancs, chacun de plusieurs poissons proches (même cercle, phases décalées)
 		for (int32 s = 0; s < 5; ++s)
@@ -387,8 +386,8 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			const float Radius = Fs.FRandRange(900.f, 2200.f);
 			const float Speed  = Fs.FRandRange(0.25f, 0.6f) * (Fs.FRand() < 0.5f ? 1.f : -1.f);
 			const float BaseZ  = Fs.FRandRange(400.f, 1600.f);
-			const FLinearColor Col = FishColors[Fs.RandRange(0, 2)];
-			const int32 Count = Fs.RandRange(4, 8);
+			const FLinearColor Col = FishColors[Fs.RandRange(0, 4)];
+			const int32 Count = Fs.RandRange(5, 9);
 			for (int32 f = 0; f < Count; ++f)
 			{
 				FActorSpawnParameters P; P.Owner = this;
@@ -399,6 +398,21 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 						(2.f * PI * f / Count) + Fs.FRandRange(-0.2f, 0.2f),
 						Fs.FRandRange(80.f, 220.f), BaseZ, Col, Fs.FRandRange(0.8f, 1.6f));
 				}
+			}
+		}
+
+		// ── SILHOUETTES DE REQUINS : grandes, sombres, lentes, en hauteur (fond) ──
+		const FLinearColor SharkCol(0.10f, 0.14f, 0.18f, 1.f);
+		for (int32 s = 0; s < 3; ++s)
+		{
+			FActorSpawnParameters P; P.Owner = this;
+			if (AWOTOLAmbientFish* Shark = W->SpawnActor<AWOTOLAmbientFish>(
+					AWOTOLAmbientFish::StaticClass(), Center, FRotator::ZeroRotator, P))
+			{
+				Shark->Configure(Center + FVector(Fs.FRandRange(-2000.f, 2000.f), Fs.FRandRange(-2000.f, 2000.f), 0.f),
+					Fs.FRandRange(5000.f, 7500.f), Fs.FRandRange(0.08f, 0.16f) * (s % 2 ? 1.f : -1.f),
+					Fs.FRandRange(0.f, 6.f), Fs.FRandRange(120.f, 300.f),
+					Fs.FRandRange(2600.f, 3600.f), SharkCol, Fs.FRandRange(5.f, 8.f));
 			}
 		}
 	}
