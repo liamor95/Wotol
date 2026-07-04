@@ -108,6 +108,57 @@
   plutôt qu'une photo : le texte montre TOUTES les erreurs d'un coup → correction groupée en 1 passe
   au lieu d'itérer une erreur à la fois (chaque recompilation coûtant plusieurs minutes).
 
+### C8 — Propriété pilotant `BeginPlay` posée trop tard (spawn différé)
+- **Symptôme** : la construction visuelle/logique faite dans `BeginPlay` ignore un flag qu'on
+  pensait avoir réglé (ex. le boss se construit avec la mauvaise silhouette).
+- **Cause** : avec un spawn normal, `BeginPlay` s'exécute AVANT qu'on ait réglé la propriété
+  depuis l'appelant. Ex. `Unit = Spawn(...); Unit->bIsBoss = true;` → trop tard.
+- **Correction** : utiliser `SpawnActorDeferred<>()` → régler les propriétés → `FinishSpawningActor()`.
+  `BeginPlay` se déclenche à `FinishSpawningActor`, donc toutes les propriétés posées avant sont vues.
+- **Prévention** : toute propriété lue par `BeginPlay`/`OnConstruction` doit être posée entre le
+  `SpawnActorDeferred` et le `FinishSpawningActor`.
+
+---
+
+## F. Greybox procédural (kitbash de primitives, animation par code)
+
+### F1 — Texte (`UTextRenderComponent`) attaché à un mesh mis à l'échelle
+- **Symptôme** : l'étiquette de nom/PV est **démesurée** et **projetée très haut** ; si elle
+  pivote vers la caméra elle apparaît **cisaillée/déformée**.
+- **Cause** : le texte hérite de l'échelle du parent. Une échelle **non-uniforme** (ex. `(3,3,4)`)
+  multiplie la taille ET le décalage Z, et introduit du **shear** dès qu'on applique une rotation
+  monde (le scale non-uniforme et la rotation ne commutent pas).
+- **Correction** : donner à l'acteur une **racine `USceneComponent` NON mise à l'échelle**, puis
+  attacher le mesh (agrandi) ET les textes **séparément** à cette racine. Le texte garde alors sa
+  vraie taille et son vrai offset, sans déformation.
+- **Prévention** : ne jamais attacher un `UTextRenderComponent` directement sous un mesh scalé.
+
+### F2 — Verticalité = décalage VISUEL, pas physique
+- **Contexte** : forcer la position Z réelle (capsule) d'un `ACharacter` en hauteur **casse** le
+  suivi de chemin navmesh (l'unité devient passive) et la portée d'attaque.
+- **Solution retenue** : un conteneur `VisualRoot` (`USceneComponent`) porte tout le visuel ; on
+  interpole son offset Z (`CurLayer`). Le **corps physique reste au sol** → déplacement + attaque 2D
+  fiables à toute « hauteur ».
+- **Corollaires** :
+  - **Clic sur une unité en hauteur** : mettre un `USphereComponent` « ClickProxy » sur `VisualRoot`
+    (QueryOnly, bloque `ECC_Pawn`) ; la capsule au sol peut ignorer `ECC_Pawn`.
+  - **Marqueur d'équipe au sol** : l'attacher à `VisualRoot` pour qu'il **monte avec la couche**
+    (sinon il reste collé au sol et empêche de superposer les unités).
+  - **Ne pas se bloquer entre couches** : `Capsule->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore)`
+    → une unité montée n'est plus bloquée par un obstacle au sol.
+
+### F3 — Animation procédurale sans squelette
+- Articulations = `USceneComponent` pivots enfants ; « os » = `UStaticMeshComponent` suspendus.
+  On anime en faisant tourner les pivots au Tick (`RInterpTo`). Chaîne (épaule→coude→main,
+  ou fouet à 3 segments) = pivots imbriqués. Le déroulé « coup de fouet » = rotation propagée
+  avec retard croissant par segment.
+
+### F4 — Muter un `UPrimaryDataAsset` partagé
+- **Symptôme potentiel** : booster les stats d'une unité modifie TOUTES les unités du même type.
+- **Cause** : `Registry->GetUnitData(Id)` renvoie l'**instance partagée** de l'asset.
+- **Règle** : n'accepter la mutation directe que pour une unité **unique** (ex. le boss Kraken,
+  seul de son type dans la démo). Sinon, prévoir un override par-instance.
+
 ---
 
 ## D. Process de travail recommandé (récupération du code)

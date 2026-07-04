@@ -81,6 +81,61 @@ Fichiers ajoutés : `WOTOLGreyboxEnvironment.h/.cpp`. Director enrichi (détecti
 
 ---
 
+## 5ter. ⭐⭐ MISE À JOUR — Boucle jouable complète (Stages 3-7)
+
+La démo est maintenant une **vraie boucle jouable** (plus seulement une projection auto) :
+
+### Flux d'écrans (HUD 100 % C++ Canvas, aucun UMG)
+`Menu principal` → `Choix de faction` → `Préparation (placement)` → `Bataille` →
+`Résumé de bataille` → (boucle) `Rejouer / Changer de faction / Quitter`.
+
+- **Faction réellement jouable** : choisir Noxéens fait jouer les Noxéens (mêmes mécaniques),
+  l'IA pilote les Aquiloris en face — et inversement. Source fiable = `DemoFlowSubsystem::SelectedFaction`.
+- **Préparation (2 phases)** : on place ses unités dans **son premier tiers** (barrière colorée
+  + clamp), puis bouton **« Lancer la bataille »**. Boutons **Monter / Descendre** (couche verticale).
+- **Écran de résumé** : à la fin de chaque bataille, **pertes détaillées par type d'unité** des
+  **deux camps** (perdus / total / survivants). Phase 1 → bouton *Continuer*; fin de démo →
+  *Rejouer / Changer de faction / Quitter*, avec **remise à zéro propre** du HUD.
+
+### Combat & ressenti
+- **Auto-combat** : les unités engagent d'office l'ennemi le plus proche (comme l'IA) ; clic droit
+  = ordre (déplacer en **conservant la formation** / attaquer, calage sur la **couche** de la cible).
+- **Parade / Esquive** (matrice v3) → « Pare » / « Esquive » flottants, combats plus longs.
+- **Projectiles visibles** (boules) pour la distance ; **chiffres de dégâts** + éclats de bulles.
+- **Sélection** : boîte de drag, `Ctrl` = tout sélectionner, **double-clic** = zoom rapproché
+  sur l'unité. Barre de commandement = cartes de groupe avec **PV total / restant**.
+
+### Boss « Kraken »
+- **Design unique** (céphalopode + 2 grands fouets **articulés**), **identique quelle que soit la
+  faction** jouée (avant : on affrontait le mythique adverse). Silhouette forcée via `bIsBoss`
+  posé **avant** `FinishSpawningActor`.
+- **Coup de fouet** périodique (~2 s) : **repousse + blesse** les unités devant lui.
+- **Coriace** : PV ×11, **défense 55 % / parade 45 %** → vrai pilier de la démo.
+
+### Caméra & contrôles
+- Clavier **AZERTY** : **Z** avancer, **S** reculer, **Q** gauche, **D** droite, **E** monter,
+  **Espace** descendre (+ flèches et WASD conservés). Clic droit maintenu = rotation ; molette = zoom.
+
+### Rendu / lisibilité
+- Décor sous-marin (brouillard, lumière tamisée, récif, poissons/requins/algues).
+- **Contraste** sur tous les noms (ombre noire) : alliés, ennemis, bâtiments.
+- **Objet de capture** (Cristalliseur / Abyssalyseur) : étiquette **petite, posée au socle**
+  (racine non-scalée) — plus de texte géant flottant.
+- **Objectifs** dans une **fenêtre fixe en haut à gauche**, jamais cachée par la barre du Kraken.
+
+### Performance
+- Phase 2 dimensionnée **~26 vs 26** unités entièrement riggées (stabilité portable).
+
+Fichiers ajoutés depuis : `WOTOLDemoHUD.*`, `WOTOLPlayerController_Battle.*`, `WOTOLBattleCamera.*`,
+`WOTOLProjectileTracer.*`, `WOTOLDamageNumber.*`, `WOTOLBubbleBurst.*`, `WOTOLAmbientFish.*`,
+`UnitSelectionManager` + rig articulé procédural dans `WOTOLDemoUnit`.
+
+### Reste hors-scope (assets fournis par Liamor)
+- **Audio** : je câble les sons si Liamor fournit les fichiers (je ne génère pas d'audio).
+- Remplacement des greybox par les meshes Meshy + Blueprints/UMG visuels (côté éditeur).
+
+---
+
 ## 6. Garanties
 
 - Base figée `claude/base-jouable-v1` **non touchée**.
