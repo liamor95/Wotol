@@ -343,26 +343,40 @@ void AWOTOLDemoHUD::DrawTopBar(float W, float H, UWorld* World, UDemoFlowSubsyst
 		}
 	}
 
-	// Bandeau d'objectif (sous le timer)
-	if (Demo && !Demo->CurrentMessage.IsEmpty())
+	// ── Fenêtre d'OBJECTIFS (toujours en HAUT À GAUCHE, jamais cachée par la barre du
+	//    Kraken qui est centrée). Empile l'objectif permanent + le dernier message. ──
+	if (Demo && (!Demo->ObjectiveText.IsEmpty() || !Demo->CurrentMessage.IsEmpty()))
 	{
-		const FString& Msg = Demo->CurrentMessage;
-		float MW, MH; GetTextSize(Msg, MW, MH, GEngine->GetLargeFont(), 1.15f);
-		const float BandW = FMath::Min(W - 40.f, MW + 60.f);
-		const float BX = (W - BandW) * 0.5f, BY = H * 0.12f;
-		DrawRect(FLinearColor(0.02f, 0.04f, 0.07f, 0.78f), BX, BY, BandW, MH + 14.f);
-		DrawRect(FLinearColor(0.95f, 0.78f, 0.25f, 0.9f), BX, BY, 4.f, MH + 14.f);       // liseré or gauche
-		DrawText(Msg, FLinearColor::White, BX + 30.f, BY + 7.f, GEngine->GetLargeFont(), 1.15f);
-	}
+		const float PanelX = 14.f, PanelY = 12.f, PadX = 12.f, PadY = 10.f;
+		// Mesure la largeur nécessaire (la plus longue des deux lignes)
+		const FString ObjLine = Demo->ObjectiveText.IsEmpty()
+			? FString() : (FString(TEXT("OBJECTIF : ")) + Demo->ObjectiveText);
+		float OW = 0.f, OH = 0.f, MW = 0.f, MH = 0.f;
+		if (!ObjLine.IsEmpty())            GetTextSize(ObjLine, OW, OH, GEngine->GetMediumFont(), 1.f);
+		if (!Demo->CurrentMessage.IsEmpty()) GetTextSize(Demo->CurrentMessage, MW, MH, GEngine->GetMediumFont(), 0.95f);
 
-	// Objectif courant (permanent, en haut à gauche)
-	if (Demo && !Demo->ObjectiveText.IsEmpty())
-	{
-		const FString Line = FString(TEXT("OBJECTIF : ")) + Demo->ObjectiveText;
-		float OW, OH; GetTextSize(Line, OW, OH, GEngine->GetMediumFont(), 1.f);
-		DrawRect(FLinearColor(0.02f, 0.04f, 0.07f, 0.72f), 14.f, 12.f, OW + 24.f, OH + 12.f);
-		DrawRect(FLinearColor(0.95f, 0.78f, 0.25f, 0.9f), 14.f, 12.f, 4.f, OH + 12.f);
-		DrawText(Line, FLinearColor(1.f, 0.92f, 0.6f, 1.f), 26.f, 18.f, GEngine->GetMediumFont(), 1.f);
+		const float MaxLineW = FMath::Max(OW, MW);
+		const float PanelW = FMath::Min(W * 0.5f, MaxLineW + PadX * 2.f);
+		float LineH = 0.f;
+		if (!ObjLine.IsEmpty())            LineH += OH + 4.f;
+		if (!Demo->CurrentMessage.IsEmpty()) LineH += MH + 4.f;
+		const float PanelH = LineH + PadY * 2.f;
+
+		DrawRect(FLinearColor(0.02f, 0.04f, 0.07f, 0.82f), PanelX, PanelY, PanelW, PanelH);
+		DrawRect(FLinearColor(0.95f, 0.78f, 0.25f, 0.95f), PanelX, PanelY, 4.f, PanelH); // liseré or
+
+		float TextY = PanelY + PadY;
+		if (!ObjLine.IsEmpty())
+		{
+			DrawText(ObjLine, FLinearColor(1.f, 0.92f, 0.6f, 1.f), PanelX + PadX, TextY,
+				GEngine->GetMediumFont(), 1.f);
+			TextY += OH + 4.f;
+		}
+		if (!Demo->CurrentMessage.IsEmpty())
+		{
+			DrawText(Demo->CurrentMessage, FLinearColor(0.9f, 0.95f, 1.f, 1.f), PanelX + PadX, TextY,
+				GEngine->GetMediumFont(), 0.95f);
+		}
 	}
 }
 
@@ -375,7 +389,7 @@ void AWOTOLDemoHUD::DrawBossBar(float W, float H, AWOTOLDemoUnit* Boss)
 	const int32 CurHP = FMath::RoundToInt(Pct * MaxHP);
 
 	const float BarW = 520.f, BarH = 26.f;
-	const float BX = (W - BarW) * 0.5f, BY = 56.f;
+	const float BX = (W - BarW) * 0.5f, BY = 96.f; // sous la pilule de timer (pas de chevauchement)
 
 	// Liseré "boss" violet/cyan
 	DrawRect(FLinearColor(0.20f, 0.85f, 1.f, 0.9f), BX - 4, BY - 4, BarW + 8, 3.f);

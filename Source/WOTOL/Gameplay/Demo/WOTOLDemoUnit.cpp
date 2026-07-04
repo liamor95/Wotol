@@ -525,36 +525,7 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 	}
 	if (Id == TEXT("Noxedrake")) // Mythique / boss "KRAKEN" : céphalopode géant
 	{
-		const FLinearColor KrakArmor(0.16f, 0.12f, 0.30f, 1.f); // manteau bleu-violet
-		const FLinearColor KrakSkin (0.24f, 0.16f, 0.34f, 1.f); // chair un peu plus claire
-		const FLinearColor KrakGlow (0.20f, 0.85f, 1.00f, 1.f); // yeux/craquelures cyan
-		const FLinearColor Beak     (0.05f, 0.05f, 0.06f, 1.f);
-
-		// MANTEAU : grand cône lisse pointant vers le haut/arrière (capuchon du calamar)
-		AddPart(M_CONE, FVector(-H * 0.15f, 0, H * 0.30f), FVector(h * 0.55f, h * 0.55f, h * 0.85f),
-			FRotator(-18.f, 0, 0), KrakArmor);
-		// TÊTE bulbeuse (grosse sphère) au centre
-		SetupMainPart(M_SPH, FVector(0, 0, H * 0.02f), FVector(h * 0.60f, h * 0.60f, h * 0.55f), NoRot, KrakSkin);
-		// Bourrelet frontal (là où partent les bras) — adoucit la jonction
-		AddPart(M_SPH, FVector(H * 0.30f, 0, -H * 0.10f), FVector(h * 0.45f, h * 0.50f, h * 0.35f), NoRot, KrakSkin);
-		// GROS YEUX cyan de chaque côté
-		AddPart(M_SPH, FVector(H * 0.30f, H * 0.28f, H * 0.05f), FVector(h * 0.14f, h * 0.14f, h * 0.14f), NoRot, KrakGlow);
-		AddPart(M_SPH, FVector(H * 0.30f, -H * 0.28f, H * 0.05f), FVector(h * 0.14f, h * 0.14f, h * 0.14f), NoRot, KrakGlow);
-		// BEC sombre au centre-avant
-		AddPart(M_CONE, FVector(H * 0.42f, 0, -H * 0.16f), FVector(h * 0.12f, h * 0.12f, h * 0.18f), FRotator(60.f, 0, 0), Beak);
-
-		// 8 TENTACULES organisés en éventail vers l'avant/bas, ondulant en séquence
-		for (int32 i = 0; i < 8; ++i)
-		{
-			const float t = (i / 7.f) - 0.5f;              // -0.5..0.5
-			const float Yaw = t * 150.f;                   // éventail net (pas d'amas)
-			const FVector Root(H * 0.30f, t * H * 0.55f, -H * 0.20f);
-			RegisterWiggle(AddPart(M_CONE, Root,
-				FVector(0.16f, 0.16f, h * 0.7f), FRotator(120.f, Yaw, 0), KrakArmor), (float)i * 0.6f);
-		}
-		// 2 longs FOUETS ARTICULÉS vers l'avant (3 segments chacun) — coup de fouet
-		BuildWhipTentacle(FVector(H * 0.42f, H * 0.14f, -H * 0.05f),  1.f, KrakArmor, H);
-		BuildWhipTentacle(FVector(H * 0.42f, -H * 0.14f, -H * 0.05f), -1.f, KrakArmor, H);
+		BuildKrakenCephalopod(H);
 		return;
 	}
 
@@ -576,6 +547,23 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 
 	const EUnitRole UnitRole = UnitData ? UnitData->Role : EUnitRole::Infanterie;
 	const FName UnitID       = UnitData ? UnitData->GetFName() : NAME_None;
+
+	// Le BOSS "Kraken" est une créature NEUTRE : toujours le MÊME céphalopode, quelle
+	// que soit la faction rivale (sinon on affronte le mythique adverse — phénix, etc.).
+	if (bIsBoss || bCreatureBrain)
+	{
+		const float KrakH = 6.5f * 100.f; // taille fixe du Kraken (indépendante du mythique)
+		BuildKrakenCephalopod(KrakH);
+		GetCapsuleComponent()->SetCapsuleSize(FMath::Max(24.f, KrakH * 1.6f * 0.5f),
+			FMath::Max(40.f, KrakH * 0.5f));
+		GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+		if (NameTag)       NameTag->SetRelativeLocation(FVector(0.f, 0.f, KrakH * 0.5f + 50.f));
+		if (NameTagShadow) NameTagShadow->SetRelativeLocation(FVector(0.f, 0.f, KrakH * 0.5f + 50.f));
+		if (ClickProxy)    ClickProxy->SetSphereRadius(KrakH * 0.6f);
+		BobSeed = FMath::Fmod(GetActorLocation().X * 0.021f + GetActorLocation().Y * 0.013f, 6.283f);
+		return; // pas de disque d'équipe ni de silhouette d'unité pour le boss
+	}
+
 	const float HeightU      = GetUnitHeightMeters(UnitID) * 100.f; // mètres -> UE units
 
 	// Couleur d'ÉQUIPE en base (lisibilité RTS) + accent caractéristique de faction.
@@ -887,6 +875,43 @@ void AWOTOLDemoUnit::AnimateBody(float Dt)
 			FMath::Cos(AnimClock * 1.8f + P) * 12.f);
 		WiggleComps[i]->SetRelativeRotation(Base + Osc);
 	}
+}
+
+// ─── KRAKEN : céphalopode géant + 2 fouets — design UNIQUE (indépendant de la faction)
+void AWOTOLDemoUnit::BuildKrakenCephalopod(float H)
+{
+	const FRotator NoRot = FRotator::ZeroRotator;
+	const float h = H / 100.f;
+	const FLinearColor KrakArmor(0.16f, 0.12f, 0.30f, 1.f); // manteau bleu-violet
+	const FLinearColor KrakSkin (0.24f, 0.16f, 0.34f, 1.f); // chair un peu plus claire
+	const FLinearColor KrakGlow (0.20f, 0.85f, 1.00f, 1.f); // yeux/craquelures cyan
+	const FLinearColor Beak     (0.05f, 0.05f, 0.06f, 1.f);
+
+	// MANTEAU : grand cône lisse pointant vers le haut/arrière (capuchon du calamar)
+	AddPart(M_CONE, FVector(-H * 0.15f, 0, H * 0.30f), FVector(h * 0.55f, h * 0.55f, h * 0.85f),
+		FRotator(-18.f, 0, 0), KrakArmor);
+	// TÊTE bulbeuse (grosse sphère) au centre
+	SetupMainPart(M_SPH, FVector(0, 0, H * 0.02f), FVector(h * 0.60f, h * 0.60f, h * 0.55f), NoRot, KrakSkin);
+	// Bourrelet frontal (là où partent les bras) — adoucit la jonction
+	AddPart(M_SPH, FVector(H * 0.30f, 0, -H * 0.10f), FVector(h * 0.45f, h * 0.50f, h * 0.35f), NoRot, KrakSkin);
+	// GROS YEUX cyan de chaque côté
+	AddPart(M_SPH, FVector(H * 0.30f, H * 0.28f, H * 0.05f), FVector(h * 0.14f, h * 0.14f, h * 0.14f), NoRot, KrakGlow);
+	AddPart(M_SPH, FVector(H * 0.30f, -H * 0.28f, H * 0.05f), FVector(h * 0.14f, h * 0.14f, h * 0.14f), NoRot, KrakGlow);
+	// BEC sombre au centre-avant
+	AddPart(M_CONE, FVector(H * 0.42f, 0, -H * 0.16f), FVector(h * 0.12f, h * 0.12f, h * 0.18f), FRotator(60.f, 0, 0), Beak);
+
+	// 8 TENTACULES organisés en éventail vers l'avant/bas, ondulant en séquence
+	for (int32 i = 0; i < 8; ++i)
+	{
+		const float t = (i / 7.f) - 0.5f;              // -0.5..0.5
+		const float Yaw = t * 150.f;                   // éventail net (pas d'amas)
+		const FVector Root(H * 0.30f, t * H * 0.55f, -H * 0.20f);
+		RegisterWiggle(AddPart(M_CONE, Root,
+			FVector(0.16f, 0.16f, h * 0.7f), FRotator(120.f, Yaw, 0), KrakArmor), (float)i * 0.6f);
+	}
+	// 2 longs FOUETS ARTICULÉS vers l'avant (3 segments chacun) — coup de fouet
+	BuildWhipTentacle(FVector(H * 0.42f, H * 0.14f, -H * 0.05f),  1.f, KrakArmor, H);
+	BuildWhipTentacle(FVector(H * 0.42f, -H * 0.14f, -H * 0.05f), -1.f, KrakArmor, H);
 }
 
 // ─── Fouets du Kraken : tentacule articulé (chaîne de pivots) ────────────────

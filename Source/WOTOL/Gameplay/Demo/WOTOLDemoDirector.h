@@ -117,7 +117,7 @@ private:
 	void SpawnEnemyForCreature(EFactionID RivalFaction, const FVector& Origin, const FRotator& Facing);
 	void SpawnRivalSquad(EFactionID RivalFaction, const FVector& Origin, const FRotator& Facing);
 	AWOTOLDemoUnit* SpawnUnit(FName UnitID, const FVector& Loc, const FRotator& Facing,
-		float ScaleBoost, float HealthScale = 2.2f); // armées plus résistantes = bataille plus longue
+		float ScaleBoost, float HealthScale = 2.2f, bool bAsBoss = false); // armées plus résistantes = bataille plus longue
 
 	void LaunchBattle();
 	void CheckBattleEnd();

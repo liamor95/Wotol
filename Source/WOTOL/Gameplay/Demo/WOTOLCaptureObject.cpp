@@ -1,6 +1,7 @@
 #include "WOTOLCaptureObject.h"
 #include "DemoFlowSubsystem.h"
 #include "Gameplay/Battle/TerritoryStateManager.h"
+#include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Engine/StaticMesh.h"
@@ -14,21 +15,27 @@ AWOTOLCaptureObject::AWOTOLCaptureObject()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	ShapeMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShapeMesh"));
-	RootComponent = ShapeMesh;
+	// Racine NON mise à l'échelle : le mesh est agrandi, mais PAS les étiquettes.
+	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
+	RootComponent = SceneRoot;
 
+	ShapeMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShapeMesh"));
+	ShapeMesh->SetupAttachment(SceneRoot);
+
+	// Petit label posé juste au-dessus du socle (le mesh fait ~400 de haut) — plus de
+	// texte démesuré flottant très haut, qui gâchait la lisibilité de l'action.
 	NameTagShadow = CreateDefaultSubobject<UTextRenderComponent>(TEXT("NameTagShadow"));
-	NameTagShadow->SetupAttachment(ShapeMesh);
+	NameTagShadow->SetupAttachment(SceneRoot);
 	NameTagShadow->SetHorizontalAlignment(EHTA_Center);
-	NameTagShadow->SetWorldSize(104.f);
-	NameTagShadow->SetRelativeLocation(FVector(0.f, 0.f, 260.f));
+	NameTagShadow->SetWorldSize(46.f);
+	NameTagShadow->SetRelativeLocation(FVector(0.f, 0.f, 250.f));
 	NameTagShadow->SetTextRenderColor(FColor(0, 0, 0, 255));
 
 	NameTag = CreateDefaultSubobject<UTextRenderComponent>(TEXT("NameTag"));
-	NameTag->SetupAttachment(ShapeMesh);
+	NameTag->SetupAttachment(SceneRoot);
 	NameTag->SetHorizontalAlignment(EHTA_Center);
-	NameTag->SetWorldSize(90.f);
-	NameTag->SetRelativeLocation(FVector(0.f, 0.f, 260.f));
+	NameTag->SetWorldSize(40.f);
+	NameTag->SetRelativeLocation(FVector(0.f, 0.f, 250.f));
 }
 
 void AWOTOLCaptureObject::BeginPlay()

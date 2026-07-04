@@ -63,10 +63,12 @@ void AWOTOLDemoDirector::BeginPreparation()
 	}
 	const EBattleType BT = Demo ? Demo->GetCurrentBattleType() : EBattleType::CreatureEncounter;
 
-	// Phase 2 (défense rivale) : GRANDE bataille — beaucoup plus d'unités des deux côtés.
+	// Phase 2 (défense rivale) : GRANDE bataille — plus d'unités des deux côtés.
+	// Valeurs volontairement mesurées : ~26 vs 26 unités entièrement riggées, pour
+	// rester fluide/stable sur un portable (évite les surcharges mémoire/GPU).
 	if (BT == EBattleType::RivalDefense)
 	{
-		InfantryCount = 20; MountedCount = 10; RangedCount = 15;
+		InfantryCount = 12; MountedCount = 6; RangedCount = 8;
 	}
 
 	CleanupUnits(); // repart d'une armée propre (utile en phase 2)
@@ -243,7 +245,7 @@ void AWOTOLDemoDirector::SpawnEnemyForCreature(EFactionID RivalFaction, const FV
 		? Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Mythique)
 		: NAME_None;
 	if (AWOTOLDemoUnit* Creature = SpawnUnit(
-			CreatureID, Origin + FVector(0.f, 0.f, 80.f), Facing, 1.5f, CreatureHealthScale))
+			CreatureID, Origin + FVector(0.f, 0.f, 80.f), Facing, 1.5f, CreatureHealthScale, /*bAsBoss=*/true))
 	{
 		// bCreatureBrain reste FAUX pendant la préparation : le boss attend.
 		// Il est activé par StartBattleNow() au lancement de la bataille.
@@ -299,7 +301,7 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 }
 
 AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, const FRotator& Facing,
-	float ScaleBoost, float HealthScale)
+	float ScaleBoost, float HealthScale, bool bAsBoss)
 {
 	if (!DemoUnitClass || UnitID.IsNone()) return nullptr;
 
@@ -319,6 +321,7 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 
 	Unit->UnitData    = Data;
 	Unit->HealthScale = HealthScale;   // appliqué dans BeginPlay (avant FinishSpawning)
+	Unit->bIsBoss     = bAsBoss;       // AVANT FinishSpawning -> silhouette Kraken forcée
 	UGameplayStatics::FinishSpawningActor(Unit, SpawnTM);
 
 	SpawnedUnits.Add(Unit);

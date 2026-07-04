@@ -5,6 +5,7 @@
 #include "Data/WOTOLTypes.h"
 #include "WOTOLCaptureObject.generated.h"
 
+class USceneComponent;
 class UStaticMeshComponent;
 class UTextRenderComponent;
 
@@ -68,6 +69,11 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
+
+	// Racine NON mise à l'échelle : le mesh (agrandi) et les étiquettes s'y attachent
+	// séparément -> le texte n'hérite pas de l'échelle (3,3,4) du mesh (sinon démesuré).
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TObjectPtr<USceneComponent> SceneRoot;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UStaticMeshComponent> ShapeMesh;

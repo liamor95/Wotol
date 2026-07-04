@@ -92,6 +92,9 @@ private:
 	// Assemble la silhouette selon l'unité (corps + tête + accessoires).
 	void AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float HeightU,
 		const FLinearColor& Base, const FLinearColor& Accent);
+	// Construit le KRAKEN (céphalopode + 2 fouets) — TOUJOURS le même design, quelle
+	// que soit la faction rivale (le boss est une créature neutre, pas un mythique).
+	void BuildKrakenCephalopod(float HeightU);
 
 	UPROPERTY()
 	TArray<TObjectPtr<UStaticMeshComponent>> Parts;
