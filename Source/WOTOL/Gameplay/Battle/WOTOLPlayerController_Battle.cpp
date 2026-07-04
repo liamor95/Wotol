@@ -114,9 +114,13 @@ void AWOTOLPlayerController_Battle::ChangeLayerForSelection(float DeltaZ)
 	if (!SelectionMgr) return;
 	for (AUnitBase* U : SelectionMgr->GetSelectedUnits())
 	{
+		if (!U) continue;
+		// SÉCURITÉ : on ne change JAMAIS la hauteur d'une unité ennemie, même si elle a
+		// été prise par erreur dans la boîte de sélection. Le joueur ne pilote que SES unités.
+		if (U->GetFaction() != PlayerFaction) continue;
 		if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U))
 		{
-			// Couche visuelle : décalage 0 (fond) .. 2400 (haut)
+			// Couche visuelle : décalage 0 (fond) .. 2400 (haut). Contrôle joueur = INSTANTANÉ.
 			const float NewZ = FMath::Clamp(DU->GetDesiredZ() + DeltaZ, 0.f, 2400.f);
 			DU->SetDesiredZ(NewZ);
 		}

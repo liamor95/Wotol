@@ -187,8 +187,13 @@ private:
 	float WhipStrike   = -1.f;  // <0 = repos ; 0..1 = déroulé du coup en cours
 
 	// Combat vertical : quand l'unité poursuit/attaque, elle rejoint la couche
-	// (hauteur) de sa cible. Ne s'applique PAS aux unités qui tiennent leur position.
-	void UpdateCombatLayer();
+	// (hauteur) de sa cible — mais avec un TEMPS D'ADAPTATION (pas instantané), pour que
+	// l'ennemi ne "colle" pas la hauteur du joueur en même temps que lui.
+	void UpdateCombatLayer(float DeltaSeconds);
+	// Fait tendre DesiredZ vers GoalZ après un délai de réaction (temps d'adaptation).
+	void AdaptLayerTo(float GoalZ, float DeltaSeconds);
+	float LayerAdaptGoal  = -1.f;  // dernière hauteur de cible observée
+	float LayerReactTimer = 0.f;   // compte à rebours avant de s'adapter
 	// Unité ennemie la plus proche (partagée par le cerveau boss et le combat vertical)
 	class AUnitBase* FindNearestEnemyUnit() const;
 

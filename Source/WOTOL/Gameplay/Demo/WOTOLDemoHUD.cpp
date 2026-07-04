@@ -345,6 +345,33 @@ void AWOTOLDemoHUD::DrawPrepareBar(float W, float H)
 {
 	DrawCenteredText(TEXT("PREPARATION — placez vos unites (clic gauche: selection, clic droit: deplacer)"),
 		H * 0.20f, FLinearColor(0.9f, 0.95f, 1.f, 1.f), 1.0f);
+	DrawCenteredText(TEXT("La ligne coloree au sol = LIMITE DE PLACEMENT (vous ne pouvez pas depasser votre premier tiers)"),
+		H * 0.20f + 30.f, FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 0.85f);
+
+	// ── Fenêtre d'INFO / mini-tuto sur la VERTICALITÉ (au-dessus des boutons Monter/Descendre) ──
+	{
+		const float PW = 380.f, PH = 150.f;
+		const float PX = W - PW - 16.f, PY = H - 340.f;
+		DrawRect(FLinearColor(0.02f, 0.05f, 0.09f, 0.9f), PX, PY, PW, PH);
+		DrawRect(FLinearColor(0.30f, 0.7f, 1.f, 1.f), PX, PY, PW, 4.f); // liseré haut
+
+		DrawText(TEXT("HAUTEUR / VERTICALITE"), FLinearColor(0.6f, 0.9f, 1.f, 1.f),
+			PX + 14.f, PY + 12.f, GEngine->GetMediumFont(), 1.1f);
+		const TCHAR* Lines[5] = {
+			TEXT("Vos unites peuvent combattre sur"),
+			TEXT("plusieurs HAUTEURS (4 couches)."),
+			TEXT("Selectionnez un groupe, puis les"),
+			TEXT("boutons MONTER / DESCENDRE (a droite)."),
+			TEXT("Valable au placement ET en bataille.")
+		};
+		float Y = PY + 40.f;
+		for (const TCHAR* L : Lines)
+		{
+			DrawText(L, FLinearColor(0.9f, 0.95f, 1.f, 1.f), PX + 14.f, Y, GEngine->GetSmallFont(), 1.05f);
+			Y += 21.f;
+		}
+	}
+
 	DrawButton(LaunchBattleButtonRect(W, H), TEXT("LANCER LA BATAILLE"),
 		FLinearColor(1.f, 0.7f, 0.2f, 1.f), 1.5f);
 }

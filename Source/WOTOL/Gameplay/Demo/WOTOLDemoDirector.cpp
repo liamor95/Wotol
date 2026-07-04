@@ -774,35 +774,33 @@ void AWOTOLDemoDirector::SpawnPlacementBoundary()
 	UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
 		nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 
-	// Ligne de petits cubes le long de la limite (en Y), à 3 hauteurs (verticalité).
-	const float Heights[3] = { 60.f, 900.f, 1600.f };
-	for (float Y = -3200.f; Y <= 3200.f; Y += 380.f)
+	// UNE SEULE bande lumineuse AU SOL le long de la limite (en Y). Pas de cubes, pas de
+	// marqueurs verticaux : juste une ligne. Le "mur invisible" est le clamp de déplacement
+	// (IssueCommandToSelection) qui empêche de placer/déplacer au-delà du premier tiers.
+	FActorSpawnParameters P; P.Owner = this;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AStaticMeshActor* Line = W->SpawnActor<AStaticMeshActor>(
+		AStaticMeshActor::StaticClass(), FVector(BX, GetActorLocation().Y, 12.f), FRotator::ZeroRotator, P);
+	if (Line)
 	{
-		for (float Z : Heights)
+		if (UStaticMeshComponent* C = Line->GetStaticMeshComponent())
 		{
-			FActorSpawnParameters P; P.Owner = this;
-			P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-			AStaticMeshActor* M = W->SpawnActor<AStaticMeshActor>(
-				AStaticMeshActor::StaticClass(), FVector(BX, GetActorLocation().Y + Y, Z), FRotator::ZeroRotator, P);
-			if (!M) continue;
-			if (UStaticMeshComponent* C = M->GetStaticMeshComponent())
+			C->SetMobility(EComponentMobility::Movable);
+			C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			C->SetCanEverAffectNavigation(false);
+			if (Cube) C->SetStaticMesh(Cube);
+			// Fine (X), très longue (Y), plate (Z) = trait lumineux posé au sol.
+			Line->SetActorScale3D(FVector(0.15f, 66.f, 0.06f));
+			if (BaseMat)
 			{
-				C->SetMobility(EComponentMobility::Movable);
-				C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-				C->SetCanEverAffectNavigation(false);
-				if (Cube) C->SetStaticMesh(Cube);
-				M->SetActorScale3D(FVector(0.4f, 1.4f, 1.4f));
-				if (BaseMat)
+				if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, Line))
 				{
-					if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, M))
-					{
-						MID->SetVectorParameterValue(TEXT("Color"), Col);
-						C->SetMaterial(0, MID);
-					}
+					MID->SetVectorParameterValue(TEXT("Color"), Col);
+					C->SetMaterial(0, MID);
 				}
 			}
-			PlacementMarkers.Add(M);
 		}
+		PlacementMarkers.Add(Line);
 	}
 }
 

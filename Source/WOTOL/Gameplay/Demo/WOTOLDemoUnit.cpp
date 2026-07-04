@@ -86,7 +86,7 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 
 	// Sur ORDRE d'attaque (cible imposée), l'unité se cale sur la couche de sa cible.
 	// Sinon le joueur garde le contrôle TOTAL de la couche (boutons Monter/Descendre).
-	UpdateCombatLayer();
+	UpdateCombatLayer(DeltaSeconds);
 
 	AnimateBody(DeltaSeconds);          // flottement de nage + couche visuelle + tentacules
 	if (bArticulated)
@@ -240,7 +240,29 @@ AUnitBase* AWOTOLDemoUnit::FindNearestEnemyUnit() const
 // Quand une CIBLE d'attaque est imposée (clic droit sur un ennemi), l'unité se cale
 // sur la COUCHE de cette cible pour la frapper à son niveau (plus de coups dans le
 // vide). N'écrase PAS le contrôle manuel de couche (qui n'impose pas de cible).
-void AWOTOLDemoUnit::UpdateCombatLayer()
+// Fait tendre DesiredZ vers GoalZ, mais seulement APRÈS un délai de réaction : quand la
+// cible change de hauteur, on note la nouvelle hauteur et on attend ~1,8 s avant de la
+// suivre -> l'ennemi met un temps à s'adapter, il ne monte/descend plus en même temps que
+// le joueur. (Le contrôle MANUEL du joueur, lui, reste instantané : voir ChangeLayerForSelection.)
+void AWOTOLDemoUnit::AdaptLayerTo(float GoalZ, float Dt)
+{
+	const float Clamped = FMath::Clamp(GoalZ, 0.f, 2400.f);
+	if (!FMath::IsNearlyEqual(Clamped, LayerAdaptGoal, 1.f))
+	{
+		LayerAdaptGoal  = Clamped;       // nouvelle hauteur de cible détectée
+		LayerReactTimer = 1.8f;          // temps d'adaptation avant de la suivre
+	}
+	if (LayerReactTimer > 0.f)
+	{
+		LayerReactTimer -= Dt;
+		if (LayerReactTimer <= 0.f)
+		{
+			DesiredZ = LayerAdaptGoal;   // l'unité commence enfin à changer de couche
+		}
+	}
+}
+
+void AWOTOLDemoUnit::UpdateCombatLayer(float Dt)
 {
 	if (bCreatureBrain) return; // le boss gère sa couche dans son cerveau
 	UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>();
@@ -249,7 +271,7 @@ void AWOTOLDemoUnit::UpdateCombatLayer()
 	{
 		if (T->IsAlive())
 		{
-			DesiredZ = FMath::Clamp(T->GetDesiredZ(), 0.f, 2400.f);
+			AdaptLayerTo(T->GetDesiredZ(), Dt);
 		}
 	}
 }
@@ -273,10 +295,11 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 	AUnitBase* Nearest = FindNearestEnemyUnit();
 	if (!Nearest) return;
 
-	// Le boss rejoint la couche visuelle de sa cible (plonge / remonte)
+	// Le boss rejoint la couche visuelle de sa cible (plonge / remonte) — mais avec un
+	// temps d'adaptation, pas instantanément (il ne colle pas la hauteur du joueur en direct).
 	if (AWOTOLDemoUnit* T = Cast<AWOTOLDemoUnit>(Nearest))
 	{
-		DesiredZ = FMath::Clamp(T->GetDesiredZ(), 0.f, 2400.f);
+		AdaptLayerTo(T->GetDesiredZ(), DeltaSeconds);
 	}
 
 	FVector To = Nearest->GetActorLocation() - GetActorLocation();
