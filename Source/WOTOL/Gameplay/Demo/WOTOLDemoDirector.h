@@ -56,7 +56,7 @@ public:
 
 	// Multiplicateur de PV de la créature/boss (boss coriace)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
-	float CreatureHealthScale = 6.f;
+	float CreatureHealthScale = 11.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
 	float BattleStartDelay = 1.5f;
@@ -85,6 +85,16 @@ public:
 	// Lance réellement la bataille depuis la préparation (active l'IA + le boss).
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void StartBattleNow();
+
+	// Depuis l'écran de RÉSUMÉ phase 1 : enchaîne sur la préparation de la phase 2.
+	UFUNCTION(BlueprintCallable, Category = "Demo")
+	void ContinueToPhase2();
+
+	// Depuis l'écran de RÉSUMÉ final : relance la démo (même faction ou choix).
+	//   bKeepFaction=true  -> rejoue directement avec la faction actuelle
+	//   bKeepFaction=false -> retourne à l'écran de choix de faction
+	UFUNCTION(BlueprintCallable, Category = "Demo")
+	void RestartDemo(bool bKeepFaction);
 
 	// Décalage (depuis le centre) de la limite de placement du joueur (côté gauche -X).
 	// Le joueur ne peut PAS placer/déplacer ses unités au-delà (vers le centre).
@@ -117,6 +127,8 @@ private:
 	void SpawnCaptureObject(EFactionID Faction);
 	void StartRivalDefense();
 	void EndDemo(bool bPlayerWon);
+	// Calcule les pertes par type d'unité (à partir de SpawnedUnits, morts inclus).
+	void BuildBattleSummary(bool bVictory, bool bFinal, const FString& Title);
 	void Say(const FString& Message);
 	void FocusCameraOnPlayer(); // recadre la caméra derrière l'armée, vers l'ennemi
 	void SpawnPlacementBoundary(); // marqueurs colorés de la zone de placement

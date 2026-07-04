@@ -48,6 +48,29 @@ FBox2D AWOTOLDemoHUD::LaunchBattleButtonRect(float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
+FBox2D AWOTOLDemoHUD::SummaryContinueButtonRect(float W, float H)
+{
+	const float BW = 420.f, BH = 62.f;
+	const float X = (W - BW) * 0.5f, Y = H - 120.f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
+FBox2D AWOTOLDemoHUD::SummaryReplayButtonRect(float W, float H)
+{
+	const float BW = 320.f, BH = 62.f, Gap = 40.f;
+	const float TotalW = BW * 2.f + Gap;
+	const float X = (W - TotalW) * 0.5f, Y = H - 120.f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
+FBox2D AWOTOLDemoHUD::SummaryChangeFactionButtonRect(float W, float H)
+{
+	const float BW = 320.f, BH = 62.f, Gap = 40.f;
+	const float TotalW = BW * 2.f + Gap;
+	const float X = (W - TotalW) * 0.5f + BW + Gap, Y = H - 120.f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
 FBox2D AWOTOLDemoHUD::LayerUpButtonRect(float W, float H)
 {
 	const float BW = 130.f, BH = 40.f;
@@ -78,6 +101,7 @@ void AWOTOLDemoHUD::DrawHUD()
 	// ─── Écrans avant-jeu (menu / faction) : on dessine UNIQUEMENT l'écran ───
 	if (Screen == EDemoScreen::MainMenu)   { DrawMainMenu(W, H);      return; }
 	if (Screen == EDemoScreen::FactionSelect) { DrawFactionSelect(W, H); return; }
+	if (Screen == EDemoScreen::Summary)    { DrawSummary(W, H, DemoFlow); return; }
 
 	// ─── 1) Boîte de sélection (rectangle de drag) ───────────────────────────
 	if (AWOTOLPlayerController_Battle* PC =
@@ -180,6 +204,79 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 	DrawCenteredText(TEXT("Choisissez votre faction"), H * 0.30f, FLinearColor::White, 2.0f);
 	DrawButton(FactionButtonRect(0, W, H), TEXT("AQUILORIS"), FLinearColor(0.25f, 0.55f, 1.f, 1.f), 1.6f);
 	DrawButton(FactionButtonRect(1, W, H), TEXT("NOXEENS"), FLinearColor(0.25f, 0.9f, 0.45f, 1.f), 1.6f);
+}
+
+void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
+{
+	DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, 1.f), 0.f, 0.f, W, H); // fond bleu nuit
+	if (!Demo) return;
+
+	// Titre (or si victoire, rouge si défaite)
+	const bool bWin = Demo->bSummaryVictory;
+	const FLinearColor TitleCol = bWin ? FLinearColor(1.f, 0.85f, 0.2f, 1.f)
+		: FLinearColor(1.f, 0.3f, 0.25f, 1.f);
+	const FString Title = Demo->SummaryTitle.IsEmpty()
+		? (bWin ? TEXT("VICTOIRE") : TEXT("DEFAITE")) : Demo->SummaryTitle;
+	DrawCenteredText(FString::Printf(TEXT("— %s —"), *Title), H * 0.08f, TitleCol, 2.6f);
+	DrawCenteredText(TEXT("Resume de la bataille"), H * 0.16f, FLinearColor(0.8f, 0.9f, 1.f, 1.f), 1.1f);
+
+	// Deux colonnes : pertes de TON armée (gauche) / pertes de l'ennemi (droite)
+	auto DrawColumn = [&](float X, float ColW, const FString& Header,
+		const TArray<FUnitLossEntry>& Entries, const FLinearColor& Accent)
+	{
+		const float Top = H * 0.24f;
+		DrawRect(FLinearColor(0.02f, 0.04f, 0.08f, 0.9f), X, Top, ColW, H * 0.5f);
+		DrawRect(Accent, X, Top, ColW, 4.f);
+		DrawText(Header, Accent, X + 18.f, Top + 12.f, GEngine->GetLargeFont(), 1.2f);
+
+		float Y = Top + 52.f;
+		int32 TotalLost = 0, Total = 0;
+		if (Entries.Num() == 0)
+		{
+			DrawText(TEXT("(aucune unite)"), FLinearColor(0.7f, 0.7f, 0.7f, 1.f),
+				X + 18.f, Y, GEngine->GetMediumFont(), 1.f);
+		}
+		for (const FUnitLossEntry& E : Entries)
+		{
+			TotalLost += E.Lost; Total += E.Total;
+			const int32 Survived = E.Total - E.Lost;
+			const FLinearColor LineCol = (E.Lost >= E.Total)
+				? FLinearColor(1.f, 0.4f, 0.35f, 1.f)   // anéanti
+				: FLinearColor(0.88f, 0.94f, 1.f, 1.f);
+			const FString Line = FString::Printf(TEXT("%s"), *E.UnitName);
+			const FString Stat = FString::Printf(TEXT("perdus %d / %d  (survivants %d)"),
+				E.Lost, E.Total, Survived);
+			DrawText(Line, LineCol, X + 18.f, Y, GEngine->GetMediumFont(), 1.1f);
+			DrawText(Stat, FLinearColor(0.75f, 0.82f, 0.92f, 1.f), X + 18.f, Y + 20.f,
+				GEngine->GetSmallFont(), 1.f);
+			Y += 46.f;
+		}
+		// Total en bas de colonne
+		const FString TotLine = FString::Printf(TEXT("TOTAL : %d pertes / %d"), TotalLost, Total);
+		DrawText(TotLine, FLinearColor(1.f, 0.9f, 0.6f, 1.f), X + 18.f, Top + H * 0.5f - 34.f,
+			GEngine->GetMediumFont(), 1.1f);
+	};
+
+	const float ColW = FMath::Min(460.f, (W - 120.f) * 0.5f);
+	const float GapC = 40.f;
+	const float LeftX = (W - (ColW * 2.f + GapC)) * 0.5f;
+	DrawColumn(LeftX, ColW, TEXT("VOS PERTES"), Demo->PlayerLosses, FLinearColor(0.3f, 0.7f, 1.f, 1.f));
+	DrawColumn(LeftX + ColW + GapC, ColW, TEXT("PERTES ENNEMIES"), Demo->EnemyLosses,
+		FLinearColor(0.9f, 0.35f, 0.9f, 1.f));
+
+	// Boutons selon le contexte
+	if (Demo->bSummaryIsFinal)
+	{
+		DrawButton(SummaryReplayButtonRect(W, H), TEXT("REJOUER (meme faction)"),
+			FLinearColor(0.3f, 0.7f, 1.f, 1.f), 1.3f);
+		DrawButton(SummaryChangeFactionButtonRect(W, H), TEXT("CHANGER DE FACTION"),
+			FLinearColor(0.3f, 0.9f, 0.5f, 1.f), 1.3f);
+	}
+	else
+	{
+		DrawButton(SummaryContinueButtonRect(W, H), TEXT("CONTINUER — Defense de la zone"),
+			FLinearColor(1.f, 0.7f, 0.2f, 1.f), 1.4f);
+	}
 }
 
 void AWOTOLDemoHUD::DrawPrepareBar(float W, float H)

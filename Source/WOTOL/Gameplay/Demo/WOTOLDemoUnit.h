@@ -165,6 +165,20 @@ private:
 	// Cerveau autonome de créature/boss (cherche l'ennemi, avance, attaque)
 	void CreatureBrainTick(float DeltaSeconds);
 
+	// ─── Fouets du Kraken (2 grands tentacules articulés) ─────────────────────
+	// Chaîne de pivots (base → pointe) formant un tentacule capable de "claquer".
+	void BuildWhipTentacle(const FVector& RootLoc, float SideSign,
+		const FLinearColor& Color, float H);
+	// Anime les deux fouets : ondulation au repos, déroulé rapide pendant un coup.
+	void AnimateWhips(float DeltaSeconds);
+	// Déclenche un coup de fouet : repousse et blesse les unités devant le Kraken.
+	void DoWhipStrike();
+
+	UPROPERTY() TArray<TObjectPtr<USceneComponent>> WhipJointsL;
+	UPROPERTY() TArray<TObjectPtr<USceneComponent>> WhipJointsR;
+	float WhipCooldown = 2.f;   // temps avant le prochain coup
+	float WhipStrike   = -1.f;  // <0 = repos ; 0..1 = déroulé du coup en cours
+
 	// Combat vertical : quand l'unité poursuit/attaque, elle rejoint la couche
 	// (hauteur) de sa cible. Ne s'applique PAS aux unités qui tiennent leur position.
 	void UpdateCombatLayer();

@@ -30,6 +30,11 @@ public:
 	static FBox2D LayerUpButtonRect(float W, float H);
 	static FBox2D LayerDownButtonRect(float W, float H);
 
+	// Écran de RÉSUMÉ de bataille
+	static FBox2D SummaryContinueButtonRect(float W, float H);      // phase 1 -> phase 2
+	static FBox2D SummaryReplayButtonRect(float W, float H);        // final : rejouer
+	static FBox2D SummaryChangeFactionButtonRect(float W, float H); // final : changer de faction
+
 private:
 	void DrawCenteredText(const FString& Text, float Y, const FLinearColor& Color, float Scale);
 	void DrawPauseButton(float W, float H);
@@ -39,6 +44,7 @@ private:
 	void DrawMainMenu(float W, float H);
 	void DrawFactionSelect(float W, float H);
 	void DrawPrepareBar(float W, float H);
+	void DrawSummary(float W, float H, class UDemoFlowSubsystem* Demo);
 	void DrawButton(const FBox2D& R, const FString& Label, const FLinearColor& Tint, float TextScale = 1.3f);
 
 	// Éléments style Total War

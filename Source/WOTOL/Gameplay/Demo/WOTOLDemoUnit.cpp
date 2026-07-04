@@ -93,6 +93,7 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	{
 		AnimateArticulated(DeltaSeconds); // rig détaillé (Aquiloryons)
 	}
+	AnimateWhips(DeltaSeconds);          // fouets du Kraken (no-op si l'unité n'en a pas)
 
 	if (!NameTag) return;
 
@@ -244,6 +245,16 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 	if (!IsAlive()) return;
 	UWorld* W = GetWorld();
 	if (!W) return;
+
+	// COUP DE FOUET périodique : toutes les ~2 s, le Kraken balaie ses grands
+	// tentacules -> repousse et blesse les unités devant lui (il tient plus longtemps
+	// et représente un vrai défi). L'animation de déroulé est jouée par AnimateWhips.
+	WhipCooldown -= DeltaSeconds;
+	if (WhipCooldown <= 0.f)
+	{
+		DoWhipStrike();
+		WhipCooldown = 2.f;
+	}
 
 	AUnitBase* Nearest = FindNearestEnemyUnit();
 	if (!Nearest) return;
@@ -541,11 +552,9 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 			RegisterWiggle(AddPart(M_CONE, Root,
 				FVector(0.16f, 0.16f, h * 0.7f), FRotator(120.f, Yaw, 0), KrakArmor), (float)i * 0.6f);
 		}
-		// 2 longs FOUETS barbelés vers l'avant
-		RegisterWiggle(AddPart(M_CYL, FVector(H * 0.5f, H * 0.12f, -H * 0.05f),
-			FVector(0.06f, 0.06f, h * 1.1f), FRotator(85.f, 0, 0), KrakArmor), 0.5f);
-		RegisterWiggle(AddPart(M_CYL, FVector(H * 0.5f, -H * 0.12f, -H * 0.05f),
-			FVector(0.06f, 0.06f, h * 1.1f), FRotator(85.f, 0, 0), KrakArmor), 2.5f);
+		// 2 longs FOUETS ARTICULÉS vers l'avant (3 segments chacun) — coup de fouet
+		BuildWhipTentacle(FVector(H * 0.42f, H * 0.14f, -H * 0.05f),  1.f, KrakArmor, H);
+		BuildWhipTentacle(FVector(H * 0.42f, -H * 0.14f, -H * 0.05f), -1.f, KrakArmor, H);
 		return;
 	}
 
@@ -590,6 +599,11 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 	const float CapH = FMath::Max(40.f, HeightU * 0.5f);
 	const float CapR = FMath::Max(24.f, HeightU * WidthFactor * 0.5f);
 	GetCapsuleComponent()->SetCapsuleSize(CapR, CapH);
+	// La verticalité est VISUELLE : le corps physique reste au sol. Pour ne pas bloquer
+	// une unité montée en hauteur derrière un obstacle au sol, les unités ne se bloquent
+	// PLUS entre elles (elles se croisent). Elles bloquent toujours le décor (sol/murs).
+	// La sélection/ciblage passe par le ClickProxy (canal Pawn), pas la capsule.
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	if (NameTag)       NameTag->SetRelativeLocation(FVector(0.f, 0.f, CapH + 50.f));
 	if (NameTagShadow) NameTagShadow->SetRelativeLocation(FVector(0.f, 0.f, CapH + 50.f));
 	if (ClickProxy) ClickProxy->SetSphereRadius(FMath::Max(CapR, CapH * 0.8f));
@@ -610,7 +624,9 @@ void AWOTOLDemoUnit::AddTeamMarker(float Radius, float ZFeet, const FLinearColor
 {
 	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
 	if (!C) return;
-	C->SetupAttachment(RootComponent);
+	// Attaché à VisualRoot : le disque SUIT la couche verticale (l'unité montée en
+	// hauteur emmène son marqueur avec elle -> on peut superposer les unités).
+	C->SetupAttachment(VisualRoot ? VisualRoot.Get() : RootComponent.Get());
 	C->RegisterComponent();
 	C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	if (UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, M_CYL))
@@ -870,5 +886,104 @@ void AWOTOLDemoUnit::AnimateBody(float Dt)
 		const FRotator Osc(FMath::Sin(AnimClock * 2.2f + P) * 16.f, 0.f,
 			FMath::Cos(AnimClock * 1.8f + P) * 12.f);
 		WiggleComps[i]->SetRelativeRotation(Base + Osc);
+	}
+}
+
+// ─── Fouets du Kraken : tentacule articulé (chaîne de pivots) ────────────────
+void AWOTOLDemoUnit::BuildWhipTentacle(const FVector& RootLoc, float SideSign,
+	const FLinearColor& Color, float H)
+{
+	const float h = H / 100.f;
+	const int32 Segs = 3;
+	const float SegLen = H * 0.42f;
+	TArray<TObjectPtr<USceneComponent>>& Chain = (SideSign >= 0.f) ? WhipJointsR : WhipJointsL;
+
+	USceneComponent* Parent = VisualRoot;
+	for (int32 i = 0; i < Segs; ++i)
+	{
+		// 1er pivot à la racine (sur le corps) ; les suivants au bout du segment précédent (+X local).
+		const FVector Off = (i == 0) ? RootLoc : FVector(SegLen, 0.f, 0.f);
+		USceneComponent* J = MakeJoint(Parent, Off);
+		if (!J) break;
+		// Segment couché le long de +X (cylindre pivoté), effilé vers la pointe.
+		const float w = FMath::Lerp(0.11f, 0.05f, (Segs > 1) ? (float)i / (Segs - 1) : 0.f);
+		MakeBone(J, M_CYL, FVector(SegLen * 0.5f, 0.f, 0.f),
+			FVector(w, w, SegLen / 100.f), FRotator(90.f, 0.f, 0.f), Color);
+		Chain.Add(J);
+		Parent = J;
+	}
+	// Pointe barbelée au bout de la chaîne
+	if (Parent && Parent != VisualRoot)
+	{
+		MakeBone(Parent, M_CONE, FVector(SegLen * 0.5f, 0.f, 0.f),
+			FVector(0.07f, 0.07f, h * 0.16f), FRotator(90.f, 0.f, 0.f), Color);
+	}
+}
+
+void AWOTOLDemoUnit::AnimateWhips(float Dt)
+{
+	if (WhipJointsL.Num() == 0 && WhipJointsR.Num() == 0) return;
+
+	// Avance le déroulé du coup en cours (fin -> retour au repos)
+	if (WhipStrike >= 0.f)
+	{
+		WhipStrike += Dt * 2.0f;
+		if (WhipStrike > 1.f) WhipStrike = -1.f;
+	}
+
+	auto AnimateChain = [&](TArray<TObjectPtr<USceneComponent>>& Chain, float PhaseOff)
+	{
+		for (int32 i = 0; i < Chain.Num(); ++i)
+		{
+			if (!Chain[i]) continue;
+			float Pitch;
+			if (WhipStrike >= 0.f)
+			{
+				// Déroulé PROPAGÉ : chaque segment claque avec un léger retard (effet fouet).
+				const float Local = FMath::Clamp(WhipStrike * 1.7f - i * 0.30f, 0.f, 1.f);
+				Pitch = FMath::Lerp(60.f, -75.f, Local); // armé vers le haut -> fouette vers l'avant/bas
+			}
+			else
+			{
+				// Repos : léger ondoiement + courbure douce.
+				Pitch = 16.f + FMath::Sin(AnimClock * 2.f + PhaseOff + i * 0.7f) * 10.f;
+			}
+			const float Speed = (WhipStrike >= 0.f) ? 20.f : 4.f;
+			Chain[i]->SetRelativeRotation(
+				FMath::RInterpTo(Chain[i]->GetRelativeRotation(), FRotator(Pitch, 0.f, 0.f), Dt, Speed));
+		}
+	};
+	AnimateChain(WhipJointsR, 0.f);
+	AnimateChain(WhipJointsL, 1.5f);
+}
+
+void AWOTOLDemoUnit::DoWhipStrike()
+{
+	WhipStrike = 0.f; // lance l'animation de déroulé
+
+	UWorld* W = GetWorld();
+	if (!W) return;
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>();
+	if (!Reg) return;
+
+	const EFactionID Enemy = (GetFaction() == EFactionID::Aquiloris)
+		? EFactionID::Noxeens : EFactionID::Aquiloris;
+	const FVector Origin = GetActorLocation();
+	const FVector Fwd    = GetActorForwardVector();
+	const float   Reach  = 1000.f;
+
+	for (AUnitBase* U : Reg->GetUnitsForFaction(Enemy))
+	{
+		if (!U || !U->IsAlive()) continue;
+		FVector To = U->GetActorLocation() - Origin;
+		To.Z = 0.f;
+		const float D = To.Size();
+		if (D > Reach) continue;
+		if (FVector::DotProduct(To.GetSafeNormal(), Fwd) < 0.15f) continue; // seulement ce qui est DEVANT
+
+		// Balaie / repousse les unités (coup de fouet) + petits dégâts
+		const FVector Push = To.GetSafeNormal() * 1300.f + FVector(0.f, 0.f, 400.f);
+		U->LaunchCharacter(Push, true, true);
+		U->TakeDamageFromUnit(35.f, this);
 	}
 }

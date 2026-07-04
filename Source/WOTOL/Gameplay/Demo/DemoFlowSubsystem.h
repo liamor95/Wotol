@@ -29,14 +29,27 @@ enum class EDemoPhase : uint8
 	DemoEnd               UMETA(DisplayName = "Fin de démo")
 };
 
-// Écran d'interface courant (menu → faction → préparation → jeu)
+// Écran d'interface courant (menu → faction → préparation → jeu → résumé)
 UENUM(BlueprintType)
 enum class EDemoScreen : uint8
 {
 	MainMenu      UMETA(DisplayName = "Menu principal"),
 	FactionSelect UMETA(DisplayName = "Choix de faction"),
 	Prepare       UMETA(DisplayName = "Préparation (placement)"),
-	Playing       UMETA(DisplayName = "En jeu")
+	Playing       UMETA(DisplayName = "En jeu"),
+	Summary       UMETA(DisplayName = "Résumé de bataille")
+};
+
+// Ligne de résumé : pertes d'un type d'unité (nom + perdus / total) pour une faction.
+USTRUCT(BlueprintType)
+struct FUnitLossEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly) FString UnitName;
+	UPROPERTY(BlueprintReadOnly) int32   Lost  = 0;
+	UPROPERTY(BlueprintReadOnly) int32   Total = 0;
+	UPROPERTY(BlueprintReadOnly) EFactionID Faction = EFactionID::None;
 };
 
 // Type de bataille (la même arène sert pour les deux)
@@ -158,6 +171,30 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void SetSelectedFaction(EFactionID F) { SelectedFaction = F; }
+
+	// ─── Résumé de bataille (fin de phase) ─────────────────────────────────────
+	// Pertes détaillées, remplies par le Director à la fin de chaque bataille.
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
+	TArray<FUnitLossEntry> PlayerLosses;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
+	TArray<FUnitLossEntry> EnemyLosses;
+
+	// Titre du résumé (ex: "KRAKEN VAINCU", "VICTOIRE", "DEFAITE").
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
+	FString SummaryTitle;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
+	bool bSummaryVictory = true;
+
+	// Vrai = résumé FINAL de démo (boutons Rejouer / Changer de faction) ;
+	// Faux = résumé intermédiaire phase 1 (bouton Continuer vers la phase 2).
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
+	bool bSummaryIsFinal = false;
+
+	// Réinitialise la progression (déblocages) pour rejouer la démo depuis le début.
+	UFUNCTION(BlueprintCallable, Category = "Demo")
+	void ResetProgress() { Progress = FDemoProgress(); CurrentPhase = EDemoPhase::None; }
 
 	// Écran d'interface courant (menu / faction / préparation / jeu)
 	UPROPERTY(BlueprintReadOnly, Category = "Demo")

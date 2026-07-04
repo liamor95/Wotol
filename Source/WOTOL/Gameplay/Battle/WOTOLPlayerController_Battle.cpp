@@ -180,6 +180,30 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		return true;
 	}
 
+	// ── Écran de RÉSUMÉ de bataille ──
+	if (Screen == EDemoScreen::Summary)
+	{
+		if (Demo && Demo->bSummaryIsFinal)
+		{
+			if (AWOTOLDemoHUD::SummaryReplayButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+			{
+				if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->RestartDemo(true);
+			}
+			else if (AWOTOLDemoHUD::SummaryChangeFactionButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+			{
+				if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->RestartDemo(false);
+			}
+		}
+		else
+		{
+			if (AWOTOLDemoHUD::SummaryContinueButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+			{
+				if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->ContinueToPhase2();
+			}
+		}
+		return true; // tout clic est consommé par l'écran de résumé
+	}
+
 	// ── Préparation : bouton "Lancer la bataille" ──
 	if (Screen == EDemoScreen::Prepare
 		&& AWOTOLDemoHUD::LaunchBattleButtonRect(VpSize.X, VpSize.Y).IsInside(M))

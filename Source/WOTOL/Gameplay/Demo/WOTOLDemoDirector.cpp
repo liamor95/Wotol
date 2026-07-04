@@ -248,6 +248,15 @@ void AWOTOLDemoDirector::SpawnEnemyForCreature(EFactionID RivalFaction, const FV
 		// bCreatureBrain reste FAUX pendant la préparation : le boss attend.
 		// Il est activé par StartBattleNow() au lancement de la bataille.
 		Creature->bIsBoss = true; // étiquette "Kraken" dès la préparation
+		// KRAKEN CORIACE : c'est un pilier de la démo, il doit tenir bien plus longtemps.
+		// On renforce défense + parade de son asset de données (seul le Kraken l'utilise
+		// dans la démo — aucun Noxedrake allié n'est déployé).
+		if (UUnitDataAsset* Data = Creature->GetUnitData())
+		{
+			Data->Stats.DefensePercent = FMath::Max(Data->Stats.DefensePercent, 55.f); // encaisse
+			Data->Stats.BlockChance    = FMath::Max(Data->Stats.BlockChance, 45.f);     // pare souvent
+			Data->Stats.DodgeChance    = FMath::Max(Data->Stats.DodgeChance, 10.f);
+		}
 		if (Demo)
 		{
 			Demo->SetBoss(Creature);
@@ -431,29 +440,28 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 
 	if (Phase == EDemoPhase::Battle_Creature)
 	{
-		Say(TEXT("OBJECTIF REMPLI : le Kraken est vaincu ! Distance débloquée."));
-		if (Demo)
-		{
-			Demo->UnlockRangedUnit();
-			Demo->DiscoverMythic();
-			Demo->SetObjective(TEXT("Deployer le Cristalliseur et defendre la zone"));
-		}
-		SpawnCaptureObject(CachedPlayerFaction);
-		Say(TEXT("Cristalliseur deploye — Zone capturee (Grade 1). Preparez la defense..."));
-
-		GetWorldTimerManager().SetTimer(
-			PhaseHandle, this, &AWOTOLDemoDirector::StartRivalDefense,
-			FMath::Max(0.5f, PhaseTransitionDelay), false);
+		// Résumé INTERMÉDIAIRE (pertes de la bataille du Kraken), puis bouton "Continuer".
+		GetWorldTimerManager().ClearTimer(BattleCheckHandle);
+		BuildBattleSummary(true, /*bFinal=*/false, TEXT("KRAKEN VAINCU"));
+		if (Demo) Demo->SetScreen(EDemoScreen::Summary);
+		Say(TEXT("Le Kraken est vaincu ! Consultez le resume, puis lancez la defense."));
 	}
 	else if (Phase == EDemoPhase::Battle_Rival)
 	{
-		Say(TEXT("Objectif atteint ! Zone défendue. Réparation de l'objet de capture..."));
 		if (CaptureObject)
 		{
 			CaptureObject->ApplyDamage(CaptureObject->MaxHealth * 0.4f); // endommagé
 			CaptureObject->Repair(CaptureObject->MaxHealth);             // puis réparé
 		}
-		EndDemo(true);
+		// Résumé FINAL de démo (victoire) : boutons Rejouer / Changer de faction.
+		GetWorldTimerManager().ClearTimer(BattleCheckHandle);
+		BuildBattleSummary(true, /*bFinal=*/true, TEXT("VICTOIRE"));
+		if (Demo)
+		{
+			Demo->bDemoVictory = true;
+			Demo->SetPhase(EDemoPhase::DemoEnd);
+			Demo->SetScreen(EDemoScreen::Summary);
+		}
 	}
 }
 
@@ -463,8 +471,104 @@ void AWOTOLDemoDirector::OnPlayerDefeat()
 	{
 		RTS->EndBattle(CachedRivalFaction, EBattleResult::Defeat);
 	}
-	Say(TEXT("Défaite... La démo se relance bientôt."));
-	EndDemo(false);
+	GetWorldTimerManager().ClearTimer(BattleCheckHandle);
+	BuildBattleSummary(false, /*bFinal=*/true, TEXT("DEFAITE"));
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
+		{
+			Demo->bDemoVictory = false;
+			Demo->SetPhase(EDemoPhase::DemoEnd);
+			Demo->SetScreen(EDemoScreen::Summary);
+		}
+	}
+}
+
+// Agrège SpawnedUnits (morts INCLUS — les unités C++ ne sont pas détruites à la mort)
+// par faction + nom d'unité pour produire le détail des pertes des deux camps.
+void AWOTOLDemoDirector::BuildBattleSummary(bool bVictory, bool bFinal, const FString& Title)
+{
+	UGameInstance* GI = GetGameInstance();
+	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+
+	auto Accumulate = [](TArray<FUnitLossEntry>& Out, const FString& Name, EFactionID Fac, bool bDead)
+	{
+		FUnitLossEntry* E = Out.FindByPredicate([&](const FUnitLossEntry& X){ return X.UnitName == Name; });
+		if (!E)
+		{
+			FUnitLossEntry New; New.UnitName = Name; New.Faction = Fac;
+			E = &Out[Out.Add(New)];
+		}
+		E->Total++;
+		if (bDead) E->Lost++;
+	};
+
+	Demo->PlayerLosses.Reset();
+	Demo->EnemyLosses.Reset();
+
+	for (const TObjectPtr<AWOTOLDemoUnit>& U : SpawnedUnits)
+	{
+		if (!U) continue;
+		const bool bBoss = U->bCreatureBrain || U->bIsBoss;
+		const FString Name = bBoss ? FString(TEXT("Kraken"))
+			: ((U->GetUnitData() && !U->GetUnitData()->DisplayName.IsEmpty())
+				? U->GetUnitData()->DisplayName.ToString() : U->GetName());
+		const bool bPlayer = (U->GetFaction() == CachedPlayerFaction);
+		Accumulate(bPlayer ? Demo->PlayerLosses : Demo->EnemyLosses,
+			Name, U->GetFaction(), !U->IsAlive());
+	}
+
+	Demo->SummaryTitle    = Title;
+	Demo->bSummaryVictory = bVictory;
+	Demo->bSummaryIsFinal = bFinal;
+}
+
+void AWOTOLDemoDirector::ContinueToPhase2()
+{
+	UGameInstance* GI = GetGameInstance();
+	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (Demo)
+	{
+		Demo->UnlockRangedUnit();  // distance débloquée pour la phase 2
+		Demo->DiscoverMythic();
+		Demo->SetObjective(TEXT("Defendre le Cristalliseur contre la faction rivale"));
+	}
+	SpawnCaptureObject(CachedPlayerFaction); // objet à défendre (visible en phase 2)
+	StartRivalDefense();                     // -> phase 2 en PRÉPARATION
+}
+
+void AWOTOLDemoDirector::RestartDemo(bool bKeepFaction)
+{
+	// Repart d'un état propre : plus d'armées, plus d'objet de capture, progression RAZ.
+	GetWorldTimerManager().ClearTimer(BattleCheckHandle);
+	GetWorldTimerManager().ClearTimer(PhaseHandle);
+	GetWorldTimerManager().ClearTimer(BattleStartHandle);
+	CleanupUnits();
+	ClearPlacementBoundary();
+	if (CaptureObject) { CaptureObject->Destroy(); CaptureObject = nullptr; }
+	bBattleConcluded = false;
+	// Roster de phase 1 (les valeurs phase 2 sont réappliquées par BeginPreparation)
+	InfantryCount = 10; MountedCount = 5; RangedCount = 5;
+
+	UGameInstance* GI = GetGameInstance();
+	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (Demo)
+	{
+		Demo->ResetProgress();          // phase None + déblocages remis à zéro
+		Demo->PlayerLosses.Reset();
+		Demo->EnemyLosses.Reset();
+	}
+
+	if (bKeepFaction)
+	{
+		BeginPreparation(); // rejoue la phase 1 avec la faction déjà choisie
+	}
+	else if (Demo)
+	{
+		Demo->SelectedFaction = EFactionID::None;
+		Demo->SetScreen(EDemoScreen::FactionSelect); // re-choix de faction
+	}
 }
 
 void AWOTOLDemoDirector::CleanupUnits()
