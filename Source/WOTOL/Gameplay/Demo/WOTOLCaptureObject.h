@@ -36,12 +36,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Capture")
 	FName ZoneID = TEXT("NeutralZone_01");
 
-	// PV de BÂTIMENT (bien plus résistant qu'une unité : un objectif stratégique)
+	// PV de BÂTIMENT (bien plus résistant qu'une unité : un objectif stratégique).
+	// Dimensionné pour tenir face au siège le temps que le joueur écarte les assaillants.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Capture")
-	float MaxHealth = 3500.f;
+	float MaxHealth = 6000.f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Capture")
-	float CurrentHealth = 3500.f;
+	float CurrentHealth = 6000.f;
 
 	// Nom affiché selon la faction (Cristalliseur / Abyssalyseur)
 	UFUNCTION(BlueprintPure, Category = "Capture")

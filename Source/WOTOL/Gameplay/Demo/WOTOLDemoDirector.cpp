@@ -687,19 +687,22 @@ void AWOTOLDemoDirector::SiegeTick()
 	if (!Reg) return;
 
 	const FVector BuildingLoc = CaptureObject->GetActorLocation();
-	const float   SiegeRange  = 700.f;
-	float TotalDamage = 0.f;
+	const float   SiegeRange  = 500.f;  // seulement les unités VRAIMENT au contact
+	int32 Attackers = 0;
 	for (AUnitBase* U : Reg->GetUnitsForFaction(CachedRivalFaction))
 	{
 		if (!U || !U->IsAlive()) continue;
 		if (FVector::Dist2D(U->GetActorLocation(), BuildingLoc) <= SiegeRange)
 		{
-			TotalDamage += 10.f; // 10 PV/s par assiégeant proche
+			++Attackers;
 		}
 	}
-	if (TotalDamage > 0.f)
+	if (Attackers > 0)
 	{
-		CaptureObject->ApplyDamage(TotalDamage);
+		// 4 PV/s par assiégeant au contact, mais PLAFONNÉ (sinon la foule entière au
+		// centre écroule le bâtiment en quelques secondes = phase 2 impossible).
+		const float Damage = FMath::Min(Attackers * 4.f, 30.f);
+		CaptureObject->ApplyDamage(Damage);
 	}
 }
 
