@@ -33,7 +33,7 @@ public:
 
 	// Démarre le combat temps réel — active toutes les IA ennemies simultanément
 	UFUNCTION(BlueprintCallable, Category = "Battle|RTS")
-	void StartBattlePhase(float BattleDurationSeconds = 3600.f);
+	void StartBattlePhase(float BattleDurationSeconds = 600.f);
 
 	// Fin de bataille (victoire / défaite / temps écoulé)
 	UFUNCTION(BlueprintCallable, Category = "Battle|RTS")
@@ -66,7 +66,7 @@ public:
 
 private:
 	EBattlePhase CurrentPhase   = EBattlePhase::Preparation;
-	float        TimeRemaining  = 3600.f;
+	float        TimeRemaining  = 600.f;
 	bool         bBattleEnded   = false;
 
 	// Un seul timer pour tout le batch RTS (1s interval)

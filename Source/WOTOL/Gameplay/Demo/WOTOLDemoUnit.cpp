@@ -53,19 +53,19 @@ AWOTOLDemoUnit::AWOTOLDemoUnit()
 	ClickProxy->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
 	ClickProxy->SetCanEverAffectNavigation(false);
 
-	// Ombre noire (dessinée derrière) — améliore le contraste avec le fond
+	// Ombre noire (dessinée légèrement décalée derrière) — fort contraste avec le décor
 	NameTagShadow = CreateDefaultSubobject<UTextRenderComponent>(TEXT("NameTagShadow"));
 	NameTagShadow->SetupAttachment(VisualRoot);
 	NameTagShadow->SetRelativeLocation(FVector(0.f, 0.f, 140.f));
 	NameTagShadow->SetHorizontalAlignment(EHTA_Center);
-	NameTagShadow->SetWorldSize(42.f); // légèrement plus gros = contour sombre
+	NameTagShadow->SetWorldSize(46.f); // plus gros = liseré noir autour
 	NameTagShadow->SetTextRenderColor(FColor(0, 0, 0, 255));
 	NameTagShadow->SetText(FText::GetEmpty());
 
-	// Étiquette flottante nom + PV (suit la couche visuelle -> attachée à VisualRoot)
+	// Étiquette flottante nom + PV (sœur de l'ombre, positionnée devant chaque frame)
 	NameTag = CreateDefaultSubobject<UTextRenderComponent>(TEXT("NameTag"));
-	NameTag->SetupAttachment(NameTagShadow); // devant l'ombre
-	NameTag->SetRelativeLocation(FVector(2.f, 0.f, 1.f)); // légèrement devant (vers la caméra)
+	NameTag->SetupAttachment(VisualRoot);
+	NameTag->SetRelativeLocation(FVector(0.f, 0.f, 140.f));
 	NameTag->SetHorizontalAlignment(EHTA_Center);
 	NameTag->SetWorldSize(40.f);
 	NameTag->SetText(FText::GetEmpty());
@@ -119,15 +119,25 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		FMath::Min(1.f, TagColor.G + 0.35f), FMath::Min(1.f, TagColor.B + 0.35f), 1.f);
 	NameTag->SetTextRenderColor(TagColor.ToFColor(true));
 
-	// L'étiquette (et son ombre) font toujours face à la caméra du joueur.
+	// L'étiquette + son ombre font face à la caméra ; l'ombre est décalée derrière et
+	// en bas-droite (en espace écran) pour créer un fort contraste (liseré noir).
 	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
 	{
-		if (PC->PlayerCameraManager && NameTagShadow)
+		if (PC->PlayerCameraManager)
 		{
 			const FVector CamLoc = PC->PlayerCameraManager->GetCameraLocation();
-			FRotator Face = (CamLoc - NameTagShadow->GetComponentLocation()).Rotation();
+			const FVector NameLoc = NameTag->GetComponentLocation();
+			FRotator Face = (CamLoc - NameLoc).Rotation();
 			Face.Pitch = 0.f; Face.Roll = 0.f;
-			NameTagShadow->SetWorldRotation(Face); // NameTag (enfant) suit + reste devant
+			NameTag->SetWorldRotation(Face);
+			if (NameTagShadow)
+			{
+				NameTagShadow->SetWorldRotation(Face);
+				const FVector Fwd   = Face.Vector();                                   // vers la caméra
+				const FVector Right = FRotationMatrix(Face).GetScaledAxis(EAxis::Y);
+				NameTagShadow->SetWorldLocation(
+					NameLoc - Fwd * 2.f + Right * 3.f + FVector(0.f, 0.f, -4.f));       // derrière + bas-droite
+			}
 		}
 	}
 }
@@ -580,7 +590,8 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 	const float CapH = FMath::Max(40.f, HeightU * 0.5f);
 	const float CapR = FMath::Max(24.f, HeightU * WidthFactor * 0.5f);
 	GetCapsuleComponent()->SetCapsuleSize(CapR, CapH);
-	if (NameTagShadow) NameTagShadow->SetRelativeLocation(FVector(0.f, 0.f, CapH + 50.f)); // porte l'étiquette + son ombre
+	if (NameTag)       NameTag->SetRelativeLocation(FVector(0.f, 0.f, CapH + 50.f));
+	if (NameTagShadow) NameTagShadow->SetRelativeLocation(FVector(0.f, 0.f, CapH + 50.f));
 	if (ClickProxy) ClickProxy->SetSphereRadius(FMath::Max(CapR, CapH * 0.8f));
 
 	// Déphasage d'animation propre à chaque unité (désync le flottement)

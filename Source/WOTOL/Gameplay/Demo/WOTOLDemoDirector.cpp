@@ -10,6 +10,11 @@
 #include "Gameplay/Battle/WOTOLBattleCamera.h"
 #include "Core/FactionRegistrySubsystem.h"
 #include "EngineUtils.h"
+#include "Engine/StaticMeshActor.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Materials/MaterialInterface.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Data/UnitDataRegistrySubsystem.h"
 #include "Core/WOTOLGameInstance.h"
 #include "Engine/GameInstance.h"
@@ -58,6 +63,12 @@ void AWOTOLDemoDirector::BeginPreparation()
 	}
 	const EBattleType BT = Demo ? Demo->GetCurrentBattleType() : EBattleType::CreatureEncounter;
 
+	// Phase 2 (défense rivale) : GRANDE bataille — beaucoup plus d'unités des deux côtés.
+	if (BT == EBattleType::RivalDefense)
+	{
+		InfantryCount = 20; MountedCount = 10; RangedCount = 15;
+	}
+
 	CleanupUnits(); // repart d'une armée propre (utile en phase 2)
 	bBattleConcluded = false;
 	const FVector Center = GetActorLocation();
@@ -73,6 +84,7 @@ void AWOTOLDemoDirector::BeginPreparation()
 		SpawnEnemyForCreature(CachedRivalFaction, EnemyOrigin, FRotator(0.f, 180.f, 0.f));
 	}
 
+	SpawnPlacementBoundary(); // barrière visuelle : zone de placement = ton premier tiers
 	FocusCameraOnPlayer();
 	if (Demo)
 	{
@@ -81,7 +93,7 @@ void AWOTOLDemoDirector::BeginPreparation()
 			? TEXT("Defendre le Cristalliseur contre la faction rivale")
 			: TEXT("Vaincre la creature — le KRAKEN"));
 	}
-	Say(TEXT("PREPARATION : placez vos unites (clic gauche = selection, clic droit = deplacer), puis lancez."));
+	Say(TEXT("PREPARATION : placez vos unites dans VOTRE zone (barriere coloree), puis lancez."));
 }
 
 void AWOTOLDemoDirector::StartBattleNow()
@@ -99,6 +111,8 @@ void AWOTOLDemoDirector::StartBattleNow()
 		}
 		Demo->SetScreen(EDemoScreen::Playing);
 	}
+
+	ClearPlacementBoundary(); // la barrière disparaît quand la bataille commence
 
 	Say(BT == EBattleType::RivalDefense
 		? TEXT("Phase 2 — La faction rivale attaque ! Defendez la zone !")
@@ -185,47 +199,30 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	//   - Montée : une rangée alignée derrière l'infanterie
 	//   - Distance : une rangée alignée tout à l'arrière (si débloquée)
 	const float Lat   = UnitSpacing;          // espacement latéral (Y)
-	const float Depth = UnitSpacing * 1.7f;   // espacement entre rangées (X)
+	const float Depth = UnitSpacing * 1.5f;   // espacement entre rangées (X)
 	const float GroundZ = 100.f;
 
-	auto Place = [&](FName UnitID, const FVector& Offset)
+	// Place un groupe en rangées (se replie sur plusieurs lignes vers l'arrière -X).
+	auto PlaceRows = [&](FName Id, int32 Count, float BackStart, int32 PerRow)
 	{
-		if (UnitID.IsNone()) return;
-		SpawnUnit(UnitID, Origin + Offset + FVector(0.f, 0.f, GroundZ), Facing, 1.f);
+		if (Id.IsNone()) return;
+		for (int32 i = 0; i < Count; ++i)
+		{
+			const int32 Row = i / PerRow, Col = i % PerRow;
+			const float Y = (Col - (PerRow - 1) * 0.5f) * Lat;
+			SpawnUnit(Id, Origin + FVector(-BackStart - Row * Depth, Y, GroundZ), Facing, 1.f);
+		}
 	};
 
 	// Chef en pointe
-	Place(Demo->GetUnitID(Faction, EDemoUnitCategory::Chef), FVector(Depth, 0.f, 0.f));
+	SpawnUnit(Demo->GetUnitID(Faction, EDemoUnitCategory::Chef),
+		Origin + FVector(Depth, 0.f, GroundZ), Facing, 1.f);
 
-	// Infanterie : deux paquets de 5 alignés, séparés au centre
-	const FName InfID = Demo->GetUnitID(Faction, EDemoUnitCategory::Infanterie);
-	const int32 Half  = FMath::Max(1, InfantryCount / 2);
-	for (int32 i = 0; i < InfantryCount; ++i)
-	{
-		const bool  bRight = (i >= Half);
-		const int32 k      = bRight ? (i - Half) : i;
-		const float Side   = bRight ? 1.f : -1.f;
-		const float Y      = Side * ((k + 0.5f) * Lat + Lat * 0.8f); // gap central
-		Place(InfID, FVector(0.f, Y, 0.f));
-	}
-
-	// Montée : rangée alignée derrière l'infanterie
-	const FName MntID = Demo->GetUnitID(Faction, EDemoUnitCategory::Montee);
-	for (int32 i = 0; i < MountedCount; ++i)
-	{
-		const float Y = (i - (MountedCount - 1) * 0.5f) * Lat * 1.4f;
-		Place(MntID, FVector(-Depth, Y, 0.f));
-	}
-
-	// Distance : rangée alignée tout à l'arrière (si débloquée)
+	PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Infanterie), InfantryCount, 0.f, 8);
+	PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Montee), MountedCount, Depth * 3.f, 6);
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Distance))
 	{
-		const FName RngID = Demo->GetUnitID(Faction, EDemoUnitCategory::Distance);
-		for (int32 i = 0; i < RangedCount; ++i)
-		{
-			const float Y = (i - (RangedCount - 1) * 0.5f) * Lat * 1.4f;
-			Place(RngID, FVector(-Depth * 2.f, Y, 0.f));
-		}
+		PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Distance), RangedCount, Depth * 5.f, 8);
 	}
 }
 
@@ -255,32 +252,32 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	if (!Demo) return;
 
-	// L'IA (Lia) déploie son armée RÉPARTIE SUR 3 COUCHES verticales : mêlée en bas,
-	// chef/montée au milieu, distance en haut (elle tire à travers les niveaux).
+	// L'IA (Lia) déploie une armée ÉQUIVALENTE à celle du joueur, RÉPARTIE SUR 3
+	// COUCHES : mêlée en bas, chef/montée au milieu, distance en haut (tire à travers).
 	const float L0 = 200.f, L1 = 900.f, L2 = 1600.f;
+	const float Lat = UnitSpacing, Depth = UnitSpacing * 1.4f;
 	auto SetLayer = [](AWOTOLDemoUnit* U, float Z) { if (U) U->SetDesiredZ(Z); };
+
+	// Rangée compacte (colonnes de PerRow, se replie sur plusieurs lignes)
+	auto PlaceRows = [&](FName Id, int32 Count, float BackStart, float Layer, int32 PerRow)
+	{
+		if (Id.IsNone()) return;
+		for (int32 i = 0; i < Count; ++i)
+		{
+			const int32 Row = i / PerRow;
+			const int32 Col = i % PerRow;
+			const float Y = (Col - (PerRow - 1) * 0.5f) * Lat;
+			const FVector Loc = Origin + FVector(-BackStart - Row * Depth, Y, 100.f);
+			SetLayer(SpawnUnit(Id, Loc, Facing, 1.f), Layer);
+		}
+	};
 
 	SetLayer(SpawnUnit(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Chef),
 		Origin + FVector(0.f, 0.f, 100.f), Facing, 1.f), L1);
 
-	const FName InfID = Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Infanterie);
-	for (int32 i = 0; i < FMath::Max(1, InfantryCount / 2); ++i)
-	{
-		SetLayer(SpawnUnit(InfID, Origin + FVector(-UnitSpacing, (i - 2.5f) * UnitSpacing, 100.f), Facing, 1.f), L0);
-	}
-
-	const FName MntID = Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Montee);
-	for (int32 i = 0; i < FMath::Max(1, MountedCount / 2); ++i)
-	{
-		SetLayer(SpawnUnit(MntID, Origin + FVector(-UnitSpacing * 2.f, (i - 1.f) * UnitSpacing, 100.f), Facing, 1.f), L1);
-	}
-
-	// Unités à distance en HAUTEUR (tirent vers le bas à travers les couches)
-	const FName RngID = Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Distance);
-	for (int32 i = 0; i < FMath::Max(1, RangedCount / 2); ++i)
-	{
-		SetLayer(SpawnUnit(RngID, Origin + FVector(-UnitSpacing * 3.f, (i - 1.5f) * UnitSpacing, 100.f), Facing, 1.f), L2);
-	}
+	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Infanterie), InfantryCount, Depth, L0, 8);
+	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Montee), MountedCount, Depth * 3.f, L1, 6);
+	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Distance), RangedCount, Depth * 5.f, L2, 8);
 }
 
 AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, const FRotator& Facing,
@@ -532,6 +529,59 @@ void AWOTOLDemoDirector::FocusCameraOnPlayer()
 		It->SetInitialView(Focus, 0.f, -45.f, 2600.f); // yaw 0 = regard vers l'ennemi (+X)
 		break;
 	}
+}
+
+void AWOTOLDemoDirector::SpawnPlacementBoundary()
+{
+	ClearPlacementBoundary();
+	UWorld* W = GetWorld();
+	if (!W) return;
+
+	const FLinearColor Col = FFactionColors::Get(CachedPlayerFaction); // bleu / vert selon faction
+	const float BX = GetPlacementBoundaryWorldX();
+	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+	UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
+		nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+
+	// Ligne de petits cubes le long de la limite (en Y), à 3 hauteurs (verticalité).
+	const float Heights[3] = { 60.f, 900.f, 1600.f };
+	for (float Y = -3200.f; Y <= 3200.f; Y += 380.f)
+	{
+		for (float Z : Heights)
+		{
+			FActorSpawnParameters P; P.Owner = this;
+			P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			AStaticMeshActor* M = W->SpawnActor<AStaticMeshActor>(
+				AStaticMeshActor::StaticClass(), FVector(BX, GetActorLocation().Y + Y, Z), FRotator::ZeroRotator, P);
+			if (!M) continue;
+			if (UStaticMeshComponent* C = M->GetStaticMeshComponent())
+			{
+				C->SetMobility(EComponentMobility::Movable);
+				C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+				C->SetCanEverAffectNavigation(false);
+				if (Cube) C->SetStaticMesh(Cube);
+				M->SetActorScale3D(FVector(0.4f, 1.4f, 1.4f));
+				if (BaseMat)
+				{
+					if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, M))
+					{
+						MID->SetVectorParameterValue(TEXT("Color"), Col);
+						C->SetMaterial(0, MID);
+					}
+				}
+			}
+			PlacementMarkers.Add(M);
+		}
+	}
+}
+
+void AWOTOLDemoDirector::ClearPlacementBoundary()
+{
+	for (TObjectPtr<AActor>& M : PlacementMarkers)
+	{
+		if (M) M->Destroy();
+	}
+	PlacementMarkers.Empty();
 }
 
 void AWOTOLDemoDirector::Say(const FString& Message)

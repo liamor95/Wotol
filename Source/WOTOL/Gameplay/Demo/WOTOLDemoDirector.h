@@ -86,6 +86,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void StartBattleNow();
 
+	// Décalage (depuis le centre) de la limite de placement du joueur (côté gauche -X).
+	// Le joueur ne peut PAS placer/déplacer ses unités au-delà (vers le centre).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
+	float PlacementBoundaryOffsetX = -1200.f;
+
+	// Limite de placement en X monde (lue par le PlayerController pour clamper).
+	UFUNCTION(BlueprintPure, Category = "Demo")
+	float GetPlacementBoundaryWorldX() const { return GetActorLocation().X + PlacementBoundaryOffsetX; }
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -110,6 +119,11 @@ private:
 	void EndDemo(bool bPlayerWon);
 	void Say(const FString& Message);
 	void FocusCameraOnPlayer(); // recadre la caméra derrière l'armée, vers l'ennemi
+	void SpawnPlacementBoundary(); // marqueurs colorés de la zone de placement
+	void ClearPlacementBoundary();
+
+	UPROPERTY()
+	TArray<TObjectPtr<AActor>> PlacementMarkers;
 
 	EFactionID CachedPlayerFaction = EFactionID::None;
 	EFactionID CachedRivalFaction  = EFactionID::None;

@@ -426,6 +426,22 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 	if (Count == 0) return;
 	Centroid /= Count;
 
+	// En PRÉPARATION : on ne peut pas placer au-delà de sa zone (premier tiers).
+	bool bClamp = false;
+	float BoundaryX = 0.f;
+	if (UDemoFlowSubsystem* Demo = GetGameInstance()
+			? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr)
+	{
+		if (Demo->GetScreen() == EDemoScreen::Prepare)
+		{
+			if (AWOTOLDemoDirector* Dir = GetDemoDirector())
+			{
+				bClamp = true;
+				BoundaryX = Dir->GetPlacementBoundaryWorldX();
+			}
+		}
+	}
+
 	for (AUnitBase* Unit : Sel)
 	{
 		if (!Unit || !Unit->IsAlive()) continue;
@@ -435,8 +451,9 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 		// Décalage horizontal conservé ; hauteur (couche verticale) inchangée.
 		FVector Offset = Unit->GetActorLocation() - Centroid;
 		Offset.Z = 0.f;
-		const FVector Dest(TargetLocation.X + Offset.X, TargetLocation.Y + Offset.Y,
+		FVector Dest(TargetLocation.X + Offset.X, TargetLocation.Y + Offset.Y,
 			Unit->GetActorLocation().Z);
+		if (bClamp) Dest.X = FMath::Min(Dest.X, BoundaryX); // pas au-delà de sa zone
 		AIC->IssueOrder_Move(Dest);
 	}
 }
