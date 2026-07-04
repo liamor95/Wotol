@@ -34,6 +34,7 @@ public:
 	static FBox2D SummaryContinueButtonRect(float W, float H);      // phase 1 -> phase 2
 	static FBox2D SummaryReplayButtonRect(float W, float H);        // final : rejouer
 	static FBox2D SummaryChangeFactionButtonRect(float W, float H); // final : changer de faction
+	static FBox2D SummaryQuitButtonRect(float W, float H);          // final : quitter
 
 private:
 	void DrawCenteredText(const FString& Text, float Y, const FLinearColor& Color, float Scale);

@@ -55,21 +55,18 @@ FBox2D AWOTOLDemoHUD::SummaryContinueButtonRect(float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
-FBox2D AWOTOLDemoHUD::SummaryReplayButtonRect(float W, float H)
+// 3 boutons finaux alignés (Rejouer / Changer de faction / Quitter).
+static FBox2D SummaryTripleRect(int32 Index, float W, float H)
 {
-	const float BW = 320.f, BH = 62.f, Gap = 40.f;
-	const float TotalW = BW * 2.f + Gap;
-	const float X = (W - TotalW) * 0.5f, Y = H - 120.f;
+	const float BW = 300.f, BH = 62.f, Gap = 30.f;
+	const float TotalW = BW * 3.f + Gap * 2.f;
+	const float X = (W - TotalW) * 0.5f + Index * (BW + Gap), Y = H - 120.f;
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
-FBox2D AWOTOLDemoHUD::SummaryChangeFactionButtonRect(float W, float H)
-{
-	const float BW = 320.f, BH = 62.f, Gap = 40.f;
-	const float TotalW = BW * 2.f + Gap;
-	const float X = (W - TotalW) * 0.5f + BW + Gap, Y = H - 120.f;
-	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
-}
+FBox2D AWOTOLDemoHUD::SummaryReplayButtonRect(float W, float H)        { return SummaryTripleRect(0, W, H); }
+FBox2D AWOTOLDemoHUD::SummaryChangeFactionButtonRect(float W, float H) { return SummaryTripleRect(1, W, H); }
+FBox2D AWOTOLDemoHUD::SummaryQuitButtonRect(float W, float H)          { return SummaryTripleRect(2, W, H); }
 
 FBox2D AWOTOLDemoHUD::LayerUpButtonRect(float W, float H)
 {
@@ -267,10 +264,12 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 	// Boutons selon le contexte
 	if (Demo->bSummaryIsFinal)
 	{
-		DrawButton(SummaryReplayButtonRect(W, H), TEXT("REJOUER (meme faction)"),
+		DrawButton(SummaryReplayButtonRect(W, H), TEXT("REJOUER"),
 			FLinearColor(0.3f, 0.7f, 1.f, 1.f), 1.3f);
 		DrawButton(SummaryChangeFactionButtonRect(W, H), TEXT("CHANGER DE FACTION"),
-			FLinearColor(0.3f, 0.9f, 0.5f, 1.f), 1.3f);
+			FLinearColor(0.3f, 0.9f, 0.5f, 1.f), 1.2f);
+		DrawButton(SummaryQuitButtonRect(W, H), TEXT("QUITTER"),
+			FLinearColor(1.f, 0.45f, 0.35f, 1.f), 1.3f);
 	}
 	else
 	{

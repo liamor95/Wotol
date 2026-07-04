@@ -193,6 +193,10 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 			{
 				if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->RestartDemo(false);
 			}
+			else if (AWOTOLDemoHUD::SummaryQuitButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+			{
+				UKismetSystemLibrary::QuitGame(this, this, EQuitPreference::Quit, false);
+			}
 		}
 		else
 		{

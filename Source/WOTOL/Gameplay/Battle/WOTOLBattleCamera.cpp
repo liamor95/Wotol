@@ -51,18 +51,23 @@ void AWOTOLBattleCamera::SetupPlayerInputComponent(UInputComponent* Input)
 	Input->BindAction("CameraRotateYaw",   IE_Pressed,  this, &AWOTOLBattleCamera::InputMiddleMousePressed);
 	Input->BindAction("CameraRotateYaw",   IE_Released, this, &AWOTOLBattleCamera::InputMiddleMouseReleased);
 
-	// Bindings DIRECTS sur les touches (fonctionnent SANS config Input du projet)
+	// Bindings DIRECTS sur les touches (fonctionnent SANS config Input du projet).
+	// Schéma demandé (AZERTY) : Z=avancer, S=reculer, Q=gauche, D=droite,
+	//                           E=monter, Espace=descendre.
+	Input->BindAxisKey(EKeys::Z,              this, &AWOTOLBattleCamera::InputPanForward);   // avancer
+	Input->BindAxisKey(EKeys::S,              this, &AWOTOLBattleCamera::InputPanBackward);  // reculer
+	Input->BindAxisKey(EKeys::Q,              this, &AWOTOLBattleCamera::InputPanLeft);      // gauche
+	Input->BindAxisKey(EKeys::D,              this, &AWOTOLBattleCamera::InputPanRight);     // droite
+	Input->BindAxisKey(EKeys::E,              this, &AWOTOLBattleCamera::InputVertical);     // monter
+	Input->BindAxisKey(EKeys::SpaceBar,       this, &AWOTOLBattleCamera::InputVerticalDown); // descendre
+	// On conserve aussi WASD (QWERTY) pour compat : W=avancer, A=gauche.
 	Input->BindAxisKey(EKeys::W,              this, &AWOTOLBattleCamera::InputPanForward);
-	Input->BindAxisKey(EKeys::S,              this, &AWOTOLBattleCamera::InputPanBackward);
-	Input->BindAxisKey(EKeys::D,              this, &AWOTOLBattleCamera::InputPanRight);
 	Input->BindAxisKey(EKeys::A,              this, &AWOTOLBattleCamera::InputPanLeft);
-	// Flèches directionnelles = même chose que WASD
+	// Flèches directionnelles = même chose (avancer / reculer / gauche / droite)
 	Input->BindAxisKey(EKeys::Up,             this, &AWOTOLBattleCamera::InputPanForward);
 	Input->BindAxisKey(EKeys::Down,           this, &AWOTOLBattleCamera::InputPanBackward);
 	Input->BindAxisKey(EKeys::Right,          this, &AWOTOLBattleCamera::InputPanRight);
 	Input->BindAxisKey(EKeys::Left,           this, &AWOTOLBattleCamera::InputPanLeft);
-	Input->BindAxisKey(EKeys::E,              this, &AWOTOLBattleCamera::InputVertical);
-	Input->BindAxisKey(EKeys::Q,              this, &AWOTOLBattleCamera::InputVerticalDown);
 	Input->BindAxisKey(EKeys::MouseWheelAxis, this, &AWOTOLBattleCamera::InputZoom);
 	Input->BindAxisKey(EKeys::MouseX,         this, &AWOTOLBattleCamera::InputMouseX);
 	Input->BindAxisKey(EKeys::MouseY,         this, &AWOTOLBattleCamera::InputMouseY);

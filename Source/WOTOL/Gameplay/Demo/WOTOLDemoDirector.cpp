@@ -558,6 +558,13 @@ void AWOTOLDemoDirector::RestartDemo(bool bKeepFaction)
 		Demo->ResetProgress();          // phase None + déblocages remis à zéro
 		Demo->PlayerLosses.Reset();
 		Demo->EnemyLosses.Reset();
+		// Efface TOUT résidu de l'écran de fin : bandeau victoire/défaite, objectif,
+		// résumé, drapeau de fin -> on repart sur un HUD propre (aucune fenêtre restante).
+		Demo->CurrentMessage.Empty();
+		Demo->ObjectiveText.Empty();
+		Demo->SummaryTitle.Empty();
+		Demo->bDemoVictory = false;
+		Demo->bSummaryIsFinal = false;
 	}
 
 	if (bKeepFaction)
