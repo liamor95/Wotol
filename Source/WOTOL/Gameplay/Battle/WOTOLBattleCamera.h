@@ -84,6 +84,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Camera")
 	void FocusOn(FVector WorldLocation);
 
+	// Centre ET zoome de près sur une unité (double-clic) — pivot sur l'unité,
+	// distance de bras réduite pour la voir à ~quelques mètres.
+	UFUNCTION(BlueprintCallable, Category = "Camera")
+	void FocusOnUnitClose(FVector WorldLocation, float ArmLength);
+
 	// Vue initiale : place le pivot sur Focus, oriente la caméra (yaw/pitch) et
 	// règle la distance de zoom. Utilisé au lancement pour cadrer l'armée du joueur.
 	UFUNCTION(BlueprintCallable, Category = "Camera")

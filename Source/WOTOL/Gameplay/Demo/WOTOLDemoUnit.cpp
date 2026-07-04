@@ -53,10 +53,19 @@ AWOTOLDemoUnit::AWOTOLDemoUnit()
 	ClickProxy->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
 	ClickProxy->SetCanEverAffectNavigation(false);
 
+	// Ombre noire (dessinée derrière) — améliore le contraste avec le fond
+	NameTagShadow = CreateDefaultSubobject<UTextRenderComponent>(TEXT("NameTagShadow"));
+	NameTagShadow->SetupAttachment(VisualRoot);
+	NameTagShadow->SetRelativeLocation(FVector(0.f, 0.f, 140.f));
+	NameTagShadow->SetHorizontalAlignment(EHTA_Center);
+	NameTagShadow->SetWorldSize(42.f); // légèrement plus gros = contour sombre
+	NameTagShadow->SetTextRenderColor(FColor(0, 0, 0, 255));
+	NameTagShadow->SetText(FText::GetEmpty());
+
 	// Étiquette flottante nom + PV (suit la couche visuelle -> attachée à VisualRoot)
 	NameTag = CreateDefaultSubobject<UTextRenderComponent>(TEXT("NameTag"));
-	NameTag->SetupAttachment(VisualRoot);
-	NameTag->SetRelativeLocation(FVector(0.f, 0.f, 140.f));
+	NameTag->SetupAttachment(NameTagShadow); // devant l'ombre
+	NameTag->SetRelativeLocation(FVector(2.f, 0.f, 1.f)); // légèrement devant (vers la caméra)
 	NameTag->SetHorizontalAlignment(EHTA_Center);
 	NameTag->SetWorldSize(40.f);
 	NameTag->SetText(FText::GetEmpty());
@@ -96,28 +105,29 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	const int32 MaxHP = GetEffectiveMaxHealth();
 	const int32 CurHP = FMath::Clamp(FMath::RoundToInt(CurrentHealth), 0, MaxHP);
 
-	NameTag->SetText(FText::FromString(
-		FString::Printf(TEXT("%s\n%d / %d"), *DisplayName, CurHP, MaxHP)));
+	const FText TagText = FText::FromString(
+		FString::Printf(TEXT("%s\n%d / %d"), *DisplayName, CurHP, MaxHP));
+	NameTag->SetText(TagText);
+	if (NameTagShadow) NameTagShadow->SetText(TagText); // même texte, en noir, derrière
 
 	// Couleur d'étiquette : violet "calamar" pour le kraken, sinon couleur de faction
-	const FLinearColor TagColor = (bCreatureBrain || bIsBoss)
-		? FLinearColor(0.7f, 0.15f, 0.85f, 1.f)
+	// (éclaircie pour ressortir sur l'ombre noire = fort contraste).
+	FLinearColor TagColor = (bCreatureBrain || bIsBoss)
+		? FLinearColor(0.9f, 0.5f, 1.f, 1.f)
 		: FFactionColors::Get(GetFaction());
+	TagColor = FLinearColor(FMath::Min(1.f, TagColor.R + 0.35f),
+		FMath::Min(1.f, TagColor.G + 0.35f), FMath::Min(1.f, TagColor.B + 0.35f), 1.f);
 	NameTag->SetTextRenderColor(TagColor.ToFColor(true));
 
-	// (Le kraken/Noxedrake a déjà ses couleurs fidèles — armure bleu-violet +
-	//  craquelures cyan — construites dans AssembleSilhouette. Pas de surcharge.)
-
-	// L'étiquette fait toujours face à la caméra du joueur
+	// L'étiquette (et son ombre) font toujours face à la caméra du joueur.
 	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
 	{
-		if (PC->PlayerCameraManager)
+		if (PC->PlayerCameraManager && NameTagShadow)
 		{
 			const FVector CamLoc = PC->PlayerCameraManager->GetCameraLocation();
-			// Le texte se lit dans le bon sens : son axe +X pointe VERS la caméra
-			FRotator Face = (CamLoc - NameTag->GetComponentLocation()).Rotation();
+			FRotator Face = (CamLoc - NameTagShadow->GetComponentLocation()).Rotation();
 			Face.Pitch = 0.f; Face.Roll = 0.f;
-			NameTag->SetWorldRotation(Face);
+			NameTagShadow->SetWorldRotation(Face); // NameTag (enfant) suit + reste devant
 		}
 	}
 }
@@ -570,7 +580,7 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 	const float CapH = FMath::Max(40.f, HeightU * 0.5f);
 	const float CapR = FMath::Max(24.f, HeightU * WidthFactor * 0.5f);
 	GetCapsuleComponent()->SetCapsuleSize(CapR, CapH);
-	if (NameTag) NameTag->SetRelativeLocation(FVector(0.f, 0.f, CapH + 50.f));
+	if (NameTagShadow) NameTagShadow->SetRelativeLocation(FVector(0.f, 0.f, CapH + 50.f)); // porte l'étiquette + son ombre
 	if (ClickProxy) ClickProxy->SetSphereRadius(FMath::Max(CapR, CapH * 0.8f));
 
 	// Déphasage d'animation propre à chaque unité (désync le flottement)

@@ -301,8 +301,9 @@ void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
 	UUnitSelectionManager* Sel = World->GetSubsystem<UUnitSelectionManager>();
 	if (!Sel) return;
 
-	// Agrège les unités sélectionnées par nom (groupe)
-	struct FGroup { FString Name; int32 Count = 0; float HpSum = 0.f; EFactionID Fac = EFactionID::None; };
+	// Agrège les unités sélectionnées par nom (groupe) + PV totaux du groupe
+	struct FGroup { FString Name; int32 Count = 0; float HpSum = 0.f;
+		int32 HpCur = 0; int32 HpMax = 0; EFactionID Fac = EFactionID::None; };
 	TArray<FGroup> Groups;
 	TMap<FString, int32> Index;
 	for (AUnitBase* U : Sel->GetSelectedUnits())
@@ -312,9 +313,12 @@ void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
 			? U->GetUnitData()->DisplayName.ToString() : U->GetName();
 		int32* Found = Index.Find(Name);
 		FGroup& G = Found ? Groups[*Found]
-			: Groups[Index.Add(Name, Groups.Add(FGroup{ Name, 0, 0.f, U->GetFaction() }))];
+			: Groups[Index.Add(Name, Groups.Add(FGroup{ Name, 0, 0.f, 0, 0, U->GetFaction() }))];
 		G.Count++;
 		G.HpSum += U->GetHealthPercent();
+		const int32 UMax = (U->GetUnitData()) ? U->GetUnitData()->Stats.MaxHealth : 100;
+		G.HpMax += UMax;
+		G.HpCur += FMath::RoundToInt(U->GetHealthPercent() * UMax);
 	}
 	if (Groups.Num() == 0) return;
 
@@ -325,7 +329,7 @@ void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
 	DrawRect(FLinearColor(0.30f, 0.62f, 1.f, 0.7f), 0.f, BandY, W, 3.f); // liseré haut
 
 	// Cartes d'unités
-	const float CardW = 158.f, CardH = 76.f, Gap = 10.f;
+	const float CardW = 172.f, CardH = 90.f, Gap = 10.f;
 	float X = 16.f;
 	const float Y = BandY + (BandH - CardH) * 0.5f;
 	for (const FGroup& G : Groups)
@@ -340,6 +344,10 @@ void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
 		DrawText(G.Name, FLinearColor::White, X + 56.f, Y + 10.f, GEngine->GetMediumFont(), 1.f);
 		DrawText(FString::Printf(TEXT("x%d"), G.Count), FLinearColor(1.f, 0.9f, 0.5f, 1.f),
 			X + 56.f, Y + 30.f, GEngine->GetMediumFont(), 1.2f);
+		// PV TOTAUX du groupe (restant / total), au-dessus de la barre
+		const FString HpTxt = FString::Printf(TEXT("PV %d / %d"), G.HpCur, G.HpMax);
+		DrawText(HpTxt, FLinearColor(0.85f, 0.95f, 0.85f, 1.f), X + 8.f, Y + CardH - 30.f,
+			GEngine->GetSmallFont(), 1.f);
 		// Mini-barre de vie moyenne du groupe
 		const float AvgHp = (G.Count > 0) ? G.HpSum / G.Count : 0.f;
 		const FLinearColor HpCol = FMath::Lerp(FLinearColor(0.8f, 0.1f, 0.1f, 1.f),

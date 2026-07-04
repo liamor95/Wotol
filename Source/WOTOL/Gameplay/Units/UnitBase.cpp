@@ -6,6 +6,7 @@
 #include "AbilityComponent.h"
 #include "AbilityBase.h"
 #include "WOTOLProjectileBase.h"
+#include "Gameplay/Demo/WOTOLProjectileTracer.h"
 #include "Core/FactionRegistrySubsystem.h"
 #include "Gameplay/Factions/FactionSynergySubsystem.h"
 
@@ -170,6 +171,18 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 	else
 	{
 		Target->TakeDamageFromUnit(BaseDamage, this);
+
+		// À distance sans classe de projectile : on tire une boule VISUELLE (greybox)
+		// pour voir le tir (Aquisphères, Noxeblast). Cosmétique uniquement.
+		if (UnitData->Stats.AttackType == EUnitAttackType::Ranged)
+		{
+			const FLinearColor Col = (GetFaction() == EFactionID::Aquiloris)
+				? FLinearColor(0.45f, 0.88f, 1.f, 1.f)   // cyan Aquiloris
+				: FLinearColor(0.35f, 0.75f, 1.f, 1.f);  // bleu Noxéen (Noxeblast)
+			AWOTOLProjectileTracer::Fire(GetWorld(),
+				GetActorLocation() + FVector(0, 0, 40.f),
+				Target->GetActorLocation() + FVector(0, 0, 40.f), Col, 1.f);
+		}
 	}
 
 	OnAttackPerformed(Target);

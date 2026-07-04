@@ -70,6 +70,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Demo|Greybox")
 	TObjectPtr<UTextRenderComponent> NameTag;
 
+	// Ombre noire derrière l'étiquette (contraste avec le décor)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Demo|Greybox")
+	TObjectPtr<UTextRenderComponent> NameTagShadow;
+
 	// Construit la forme greybox (mesh + échelle + couleur) selon rôle/faction/taille
 	void BuildGreyboxShape();
 

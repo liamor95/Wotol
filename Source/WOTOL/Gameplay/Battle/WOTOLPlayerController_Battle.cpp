@@ -279,7 +279,8 @@ void AWOTOLPlayerController_Battle::OnLeftMousePressed()
 		{
 			if (U->GetFaction() == PlayerFaction && BattleCamera.IsValid())
 			{
-				BattleCamera->FocusOn(U->GetActorLocation());
+				// Zoom rapproché (~quelques mètres) centré sur l'unité
+				BattleCamera->FocusOnUnitClose(U->GetActorLocation(), 800.f);
 				return; // pas de nouvelle sélection sur le double-clic
 			}
 		}

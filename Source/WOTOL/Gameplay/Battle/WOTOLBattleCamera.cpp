@@ -244,6 +244,16 @@ void AWOTOLBattleCamera::FocusOn(FVector WorldLocation)
 	ClampPosition();
 }
 
+void AWOTOLBattleCamera::FocusOnUnitClose(FVector WorldLocation, float ArmLength)
+{
+	SetActorLocation(WorldLocation);           // pivot exactement sur l'unité
+	if (SpringArm)
+	{
+		SpringArm->TargetArmLength = FMath::Clamp(ArmLength, MinArmLength, MaxArmLength);
+	}
+	ClampPosition();
+}
+
 void AWOTOLBattleCamera::SetInitialView(FVector Focus, float Yaw, float Pitch, float ArmLength)
 {
 	SetActorLocation(Focus);
