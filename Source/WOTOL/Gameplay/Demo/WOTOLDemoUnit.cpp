@@ -6,6 +6,7 @@
 #include "Components/TextRenderComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/SphereComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
@@ -40,6 +41,17 @@ AWOTOLDemoUnit::AWOTOLDemoUnit()
 	ShapeMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShapeMesh"));
 	ShapeMesh->SetupAttachment(VisualRoot);
 	ShapeMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// Proxy de clic : suit VisualRoot (la couche visuelle) et bloque le tracé Pawn
+	// (clic gauche/droit) -> on peut sélectionner/cibler une unité affichée en hauteur.
+	ClickProxy = CreateDefaultSubobject<USphereComponent>(TEXT("ClickProxy"));
+	ClickProxy->SetupAttachment(VisualRoot);
+	ClickProxy->SetSphereRadius(70.f);
+	ClickProxy->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	ClickProxy->SetCollisionObjectType(ECC_Pawn);
+	ClickProxy->SetCollisionResponseToAllChannels(ECR_Ignore);
+	ClickProxy->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
+	ClickProxy->SetCanEverAffectNavigation(false);
 
 	// Étiquette flottante nom + PV (suit la couche visuelle -> attachée à VisualRoot)
 	NameTag = CreateDefaultSubobject<UTextRenderComponent>(TEXT("NameTag"));
@@ -76,7 +88,7 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	if (!NameTag) return;
 
 	// Le boss s'appelle "Kraken" (créature neutre), pas le nom du mythique rival
-	const FString DisplayName = bCreatureBrain
+	const FString DisplayName = (bCreatureBrain || bIsBoss)
 		? FString(TEXT("Kraken"))
 		: ((UnitData && !UnitData->DisplayName.IsEmpty()) ? UnitData->DisplayName.ToString() : GetName());
 
@@ -88,7 +100,7 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		FString::Printf(TEXT("%s\n%d / %d"), *DisplayName, CurHP, MaxHP)));
 
 	// Couleur d'étiquette : violet "calamar" pour le kraken, sinon couleur de faction
-	const FLinearColor TagColor = bCreatureBrain
+	const FLinearColor TagColor = (bCreatureBrain || bIsBoss)
 		? FLinearColor(0.7f, 0.15f, 0.85f, 1.f)
 		: FFactionColors::Get(GetFaction());
 	NameTag->SetTextRenderColor(TagColor.ToFColor(true));
@@ -559,6 +571,7 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 	const float CapR = FMath::Max(24.f, HeightU * WidthFactor * 0.5f);
 	GetCapsuleComponent()->SetCapsuleSize(CapR, CapH);
 	if (NameTag) NameTag->SetRelativeLocation(FVector(0.f, 0.f, CapH + 50.f));
+	if (ClickProxy) ClickProxy->SetSphereRadius(FMath::Max(CapR, CapH * 0.8f));
 
 	// Déphasage d'animation propre à chaque unité (désync le flottement)
 	BobSeed = FMath::Fmod(GetActorLocation().X * 0.021f + GetActorLocation().Y * 0.013f, 6.283f);

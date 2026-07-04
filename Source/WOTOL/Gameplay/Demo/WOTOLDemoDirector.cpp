@@ -42,39 +42,55 @@ void AWOTOLDemoDirector::BeginPlay()
 	}
 }
 
+// Monte les armées en PRÉPARATION (placement libre), SANS lancer le combat.
+// Fonctionne pour LES DEUX phases (créature ou défense rivale) selon la phase courante.
 void AWOTOLDemoDirector::BeginPreparation()
 {
-	// La faction a pu être choisie à l'écran : on relit + recalcule le rival.
 	CachedPlayerFaction = ResolvePlayerFaction();
 	CachedRivalFaction  = RivalOf(CachedPlayerFaction);
 
 	UDemoFlowSubsystem* Demo = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
-	if (Demo) Demo->SetPhase(EDemoPhase::Battle_Creature);
+	// Première prépa (menu) : on est sur la phase créature.
+	if (Demo && Demo->GetPhase() == EDemoPhase::None)
+	{
+		Demo->SetPhase(EDemoPhase::Battle_Creature);
+	}
+	const EBattleType BT = Demo ? Demo->GetCurrentBattleType() : EBattleType::CreatureEncounter;
 
-	// Monte les armées SANS lancer le combat (placement libre par le joueur).
+	CleanupUnits(); // repart d'une armée propre (utile en phase 2)
 	bBattleConcluded = false;
 	const FVector Center = GetActorLocation();
 	const FVector PlayerOrigin = Center + FVector(-ArmySeparation * 0.5f, 0.f, 0.f);
 	const FVector EnemyOrigin  = Center + FVector( ArmySeparation * 0.5f, 0.f, 0.f);
 	SpawnPlayerArmy(CachedPlayerFaction, PlayerOrigin, FRotator(0.f, 0.f, 0.f));
-	SpawnEnemyForCreature(CachedRivalFaction, EnemyOrigin, FRotator(0.f, 180.f, 0.f));
+	if (BT == EBattleType::RivalDefense)
+	{
+		SpawnRivalSquad(CachedRivalFaction, EnemyOrigin, FRotator(0.f, 180.f, 0.f));
+	}
+	else
+	{
+		SpawnEnemyForCreature(CachedRivalFaction, EnemyOrigin, FRotator(0.f, 180.f, 0.f));
+	}
 
 	FocusCameraOnPlayer();
 	if (Demo)
 	{
 		Demo->SetScreen(EDemoScreen::Prepare);
-		Demo->SetObjective(TEXT("Vaincre la creature — le KRAKEN"));
+		Demo->SetObjective(BT == EBattleType::RivalDefense
+			? TEXT("Defendre le Cristalliseur contre la faction rivale")
+			: TEXT("Vaincre la creature — le KRAKEN"));
 	}
-	Say(TEXT("Préparez vos troupes : clic gauche = sélection, clic droit = déplacer. Puis lancez la bataille."));
+	Say(TEXT("PREPARATION : placez vos unites (clic gauche = selection, clic droit = deplacer), puis lancez."));
 }
 
 void AWOTOLDemoDirector::StartBattleNow()
 {
 	UDemoFlowSubsystem* Demo = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	const EBattleType BT = Demo ? Demo->GetCurrentBattleType() : EBattleType::CreatureEncounter;
 
-	// Active le cerveau autonome du boss (il était en attente pendant la prépa)
+	// Active le cerveau autonome du boss (il attendait pendant la prépa)
 	if (Demo)
 	{
 		if (AWOTOLDemoUnit* Boss = Cast<AWOTOLDemoUnit>(Demo->GetBoss()))
@@ -84,7 +100,9 @@ void AWOTOLDemoDirector::StartBattleNow()
 		Demo->SetScreen(EDemoScreen::Playing);
 	}
 
-	Say(TEXT("Phase 1 — Bataille contre la créature. Anéantissez-la !"));
+	Say(BT == EBattleType::RivalDefense
+		? TEXT("Phase 2 — La faction rivale attaque ! Defendez la zone !")
+		: TEXT("Phase 1 — Bataille contre le Kraken. Aneantissez-le !"));
 	LaunchBattle();
 }
 
@@ -223,6 +241,7 @@ void AWOTOLDemoDirector::SpawnEnemyForCreature(EFactionID RivalFaction, const FV
 	{
 		// bCreatureBrain reste FAUX pendant la préparation : le boss attend.
 		// Il est activé par StartBattleNow() au lancement de la bataille.
+		Creature->bIsBoss = true; // étiquette "Kraken" dès la préparation
 		if (Demo)
 		{
 			Demo->SetBoss(Creature);
@@ -298,11 +317,13 @@ void AWOTOLDemoDirector::LaunchBattle()
 		RTS->StartBattlePhase(600.f);
 	}
 
-	// JOUABILITÉ : tes unités gardent leur IA ACTIVE (donc elles attaquent), mais on
-	// les met en "Tenir la position" -> elles n'avancent pas toutes seules et attendent
-	// tes ordres (clic droit = bouger/attaquer). L'ennemi reste en attaque automatique.
+	// TES unités attaquent D'OFFICE l'ennemi le plus proche tant que tu ne leur donnes
+	// pas d'ordre (clic droit = déplacer/attaquer, qui prend le dessus). Comportement
+	// symétrique avec l'IA : elles cherchent et engagent jusqu'à ce qu'il n'y ait plus
+	// personne (portée de vue immense = elles voient tout le champ de bataille).
 	if (UWorld* W = GetWorld())
 	{
+		const FVector EnemyCenter = GetActorLocation() + FVector(ArmySeparation * 0.5f, 0.f, 0.f);
 		if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
 		{
 			for (AUnitBase* U : Reg->GetUnitsForFaction(CachedPlayerFaction))
@@ -310,8 +331,12 @@ void AWOTOLDemoDirector::LaunchBattle()
 				if (!U) continue;
 				if (AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(U->GetController()))
 				{
-					AIC->ActivateRTSBehavior();   // IA active = les attaques fonctionnent
-					AIC->IssueOrder_HoldPosition(); // mais elles attendent tes ordres
+					AIC->ActivateRTSBehavior();
+					AIC->IssueOrder_AttackMove(EnemyCenter); // cherche + attaque en avançant
+				}
+				if (UUnitAIStateComponent* St = U->FindComponentByClass<UUnitAIStateComponent>())
+				{
+					St->SightRange = 60000.f;
 				}
 			}
 		}
@@ -463,8 +488,8 @@ void AWOTOLDemoDirector::SpawnCaptureObject(EFactionID Faction)
 
 void AWOTOLDemoDirector::StartRivalDefense()
 {
-	CleanupUnits();
-
+	// Passe en phase 2 puis REPART EN PRÉPARATION : le joueur replace ses unités et
+	// clique lui-même "Lancer la bataille" (comme la phase 1). Pas de lancement d'office.
 	if (UGameInstance* GI = GetGameInstance())
 	{
 		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
@@ -472,17 +497,7 @@ void AWOTOLDemoDirector::StartRivalDefense()
 			Demo->SetPhase(EDemoPhase::Battle_Rival);
 		}
 	}
-
-	if (UGameInstance* GI = GetGameInstance())
-	{
-		if (UDemoFlowSubsystem* D = GI->GetSubsystem<UDemoFlowSubsystem>())
-		{
-			D->SetObjective(TEXT("Defendre le Cristalliseur contre la faction rivale"));
-		}
-	}
-	Say(TEXT("Phase 2 — La faction rivale attaque votre zone ! Défendez-la !"));
-	StartCurrentBattle();
-	FocusCameraOnPlayer(); // recadre derrière l'armée pour la nouvelle phase
+	BeginPreparation();
 }
 
 void AWOTOLDemoDirector::EndDemo(bool bPlayerWon)

@@ -44,7 +44,8 @@ void AWOTOLDamageNumber::Tick(float DeltaSeconds)
 	{
 		if (PC->PlayerCameraManager && Text)
 		{
-			FRotator F = (GetActorLocation() - PC->PlayerCameraManager->GetCameraLocation()).Rotation();
+			// +X du texte VERS la caméra -> lu à l'endroit (pas en miroir)
+			FRotator F = (PC->PlayerCameraManager->GetCameraLocation() - GetActorLocation()).Rotation();
 			F.Pitch = 0.f; F.Roll = 0.f;
 			SetActorRotation(F);
 		}

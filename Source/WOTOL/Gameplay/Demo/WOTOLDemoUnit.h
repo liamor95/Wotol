@@ -33,6 +33,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Greybox")
 	bool bCreatureBrain = false;
 
+	// Si vrai : c'est le boss "Kraken" (étiquette + couleur), même avant le combat.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Greybox")
+	bool bIsBoss = false;
+
 	// Multiplicateur de PV (1 = stats normales ; >1 pour un boss coriace)
 	// À fixer AVANT BeginPlay (spawn différé).
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Greybox")
@@ -90,6 +94,12 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UMaterialInstanceDynamic>> PartMIDs;
 	TArray<FLinearColor> PartBaseColors;
+
+	// Proxy de clic : sphère de collision qui SUIT la couche visuelle (VisualRoot),
+	// pour pouvoir sélectionner/cibler une unité affichée en hauteur (le corps
+	// physique, lui, reste au sol pour la navigation).
+	UPROPERTY()
+	TObjectPtr<class USphereComponent> ClickProxy;
 
 	// Disque d'équipe sous les pieds (bleu/vert) — toujours visible, lisibilité RTS.
 	UPROPERTY()
