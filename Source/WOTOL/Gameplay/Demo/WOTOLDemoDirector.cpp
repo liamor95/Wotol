@@ -92,8 +92,9 @@ void AWOTOLDemoDirector::BeginPreparation()
 	{
 		Demo->SetScreen(EDemoScreen::Prepare);
 		Demo->SetObjective(BT == EBattleType::RivalDefense
-			? TEXT("Defendre le Cristalliseur contre la faction rivale")
-			: TEXT("Vaincre la creature — le KRAKEN"));
+			? FString::Printf(TEXT("Proteger le %s — ne le laissez pas tomber a 0"),
+				*BuildingDisplayName(CachedPlayerFaction))
+			: FString(TEXT("Vaincre la creature — le KRAKEN")));
 	}
 	Say(TEXT("PREPARATION : placez vos unites dans VOTRE zone (barriere coloree), puis lancez."));
 }
@@ -144,6 +145,16 @@ EFactionID AWOTOLDemoDirector::ResolvePlayerFaction() const
 EFactionID AWOTOLDemoDirector::RivalOf(EFactionID Faction) const
 {
 	return (Faction == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
+}
+
+FString AWOTOLDemoDirector::BuildingDisplayName(EFactionID Faction) const
+{
+	return (Faction == EFactionID::Noxeens) ? TEXT("Abyssalyseur") : TEXT("Cristalliseur");
+}
+
+FString AWOTOLDemoDirector::RangedUnitDisplayName(EFactionID Faction) const
+{
+	return (Faction == EFactionID::Noxeens) ? TEXT("Noxeblast") : TEXT("Aquispheres");
 }
 
 int32 AWOTOLDemoDirector::CountAlive(EFactionID Faction) const
@@ -365,6 +376,11 @@ void AWOTOLDemoDirector::LaunchBattle()
 	if (UWorld* W = GetWorld())
 	{
 		const FVector PlayerCenter = GetActorLocation() + FVector(-ArmySeparation * 0.5f, 0.f, 0.f);
+		// En phase 2, ~40% des rivaux FONCENT sur le bâtiment (siège), le reste engage
+		// l'armée du joueur -> il faut à la fois défendre le bâtiment ET tenir la ligne.
+		const bool bSiege = CaptureObject != nullptr;
+		const FVector BuildingLoc = bSiege ? CaptureObject->GetActorLocation() : PlayerCenter;
+		int32 RivalIndex = 0;
 		if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
 		{
 			for (AUnitBase* U : Reg->GetUnitsForFaction(CachedRivalFaction))
@@ -372,10 +388,11 @@ void AWOTOLDemoDirector::LaunchBattle()
 				if (!U) continue;
 				AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U);
 				if (DU && DU->bCreatureBrain) continue; // le boss a son propre cerveau
+				const bool bSieger = bSiege && (RivalIndex++ % 5 < 2); // ~40% assiégeurs
 				if (AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(U->GetController()))
 				{
 					AIC->ActivateRTSBehavior();
-					AIC->IssueOrder_AttackMove(PlayerCenter); // marche + attaque en chemin
+					AIC->IssueOrder_AttackMove(bSieger ? BuildingLoc : PlayerCenter);
 				}
 				// CHASSE PERSISTANTE : portée de vue immense -> l'ennemi voit et poursuit
 				// TOUTE unité du joueur sur la carte (il ne s'arrête jamais tant qu'il
@@ -406,6 +423,13 @@ void AWOTOLDemoDirector::LaunchBattle()
 	// Surveille la fin de bataille (un camp anéanti) toutes les 2 s
 	GetWorldTimerManager().SetTimer(
 		BattleCheckHandle, this, &AWOTOLDemoDirector::CheckBattleEnd, 2.f, true);
+
+	// Siège du bâtiment (phase 2) : dégâts en continu selon les assiégeants proches.
+	if (CaptureObject)
+	{
+		GetWorldTimerManager().SetTimer(
+			SiegeHandle, this, &AWOTOLDemoDirector::SiegeTick, 1.f, true);
+	}
 }
 
 void AWOTOLDemoDirector::CheckBattleEnd()
@@ -431,6 +455,7 @@ void AWOTOLDemoDirector::CheckBattleEnd()
 
 void AWOTOLDemoDirector::OnPlayerVictory()
 {
+	GetWorldTimerManager().ClearTimer(SiegeHandle);
 	UGameInstance* GI = GetGameInstance();
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 
@@ -451,10 +476,10 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 	}
 	else if (Phase == EDemoPhase::Battle_Rival)
 	{
+		// Le bâtiment a tenu : on le remet à neuf (réparation post-bataille).
 		if (CaptureObject)
 		{
-			CaptureObject->ApplyDamage(CaptureObject->MaxHealth * 0.4f); // endommagé
-			CaptureObject->Repair(CaptureObject->MaxHealth);             // puis réparé
+			CaptureObject->Repair(CaptureObject->MaxHealth);
 		}
 		// Résumé FINAL de démo (victoire) : boutons Rejouer / Changer de faction.
 		GetWorldTimerManager().ClearTimer(BattleCheckHandle);
@@ -470,6 +495,7 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 
 void AWOTOLDemoDirector::OnPlayerDefeat()
 {
+	GetWorldTimerManager().ClearTimer(SiegeHandle);
 	if (URTSBattleManager* RTS = GetWorld()->GetSubsystem<URTSBattleManager>())
 	{
 		RTS->EndBattle(CachedRivalFaction, EBattleResult::Defeat);
@@ -527,6 +553,31 @@ void AWOTOLDemoDirector::BuildBattleSummary(bool bVictory, bool bFinal, const FS
 	Demo->bSummaryIsFinal = bFinal;
 }
 
+// Écran de TRANSITION narrative (hors-champ) — appelé depuis le bouton du résumé phase 1.
+// Raconte ce qui s'est passé entre les deux batailles et le déblocage de la distance,
+// avec les NOMS propres à la faction jouée (œuf du Cœur-Éclat -> cité -> nouveau bâtiment).
+void AWOTOLDemoDirector::ShowInterlude()
+{
+	UGameInstance* GI = GetGameInstance();
+	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+
+	const FString Building = BuildingDisplayName(CachedPlayerFaction);
+	const FString Ranged   = RangedUnitDisplayName(CachedPlayerFaction);
+
+	const FString Lore = FString::Printf(TEXT(
+		"Apres votre victoire sur le Kraken, un oeuf a emerge du Coeur-Eclat du %s que vous\n"
+		"avez depose pour capturer la zone. Vous l'avez ramene jusqu'a votre cite.\n\n"
+		"Cette decouverte vous a apporte l'experience necessaire pour eriger un NOUVEAU\n"
+		"batiment et former une nouvelle categorie d'unites : les %s (unites a distance).\n\n"
+		"Mais la faction rivale a repere votre %s et lance l'assaut pour s'emparer de la zone.\n"
+		"Deployez vos forces — distance comprise — et PROTEGEZ le batiment a tout prix."),
+		*Building, *Ranged, *Building);
+
+	Demo->SetInterludeText(Lore);
+	Demo->SetScreen(EDemoScreen::Interlude);
+}
+
 void AWOTOLDemoDirector::ContinueToPhase2()
 {
 	UGameInstance* GI = GetGameInstance();
@@ -535,7 +586,6 @@ void AWOTOLDemoDirector::ContinueToPhase2()
 	{
 		Demo->UnlockRangedUnit();  // distance débloquée pour la phase 2
 		Demo->DiscoverMythic();
-		Demo->SetObjective(TEXT("Defendre le Cristalliseur contre la faction rivale"));
 	}
 	SpawnCaptureObject(CachedPlayerFaction); // objet à défendre (visible en phase 2)
 	StartRivalDefense();                     // -> phase 2 en PRÉPARATION
@@ -547,6 +597,7 @@ void AWOTOLDemoDirector::RestartDemo(bool bKeepFaction)
 	GetWorldTimerManager().ClearTimer(BattleCheckHandle);
 	GetWorldTimerManager().ClearTimer(PhaseHandle);
 	GetWorldTimerManager().ClearTimer(BattleStartHandle);
+	GetWorldTimerManager().ClearTimer(SiegeHandle);
 	CleanupUnits();
 	ClearPlacementBoundary();
 	if (CaptureObject) { CaptureObject->Destroy(); CaptureObject = nullptr; }
@@ -604,6 +655,55 @@ void AWOTOLDemoDirector::SpawnCaptureObject(EFactionID Faction)
 	UGameplayStatics::FinishSpawningActor(Obj, TM);
 	Obj->ClaimZone();
 	CaptureObject = Obj;
+
+	// Barre de vie du bâtiment au HUD + fin d'objectif si détruit.
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
+		{
+			Demo->SetCaptureObject(Obj);
+		}
+	}
+	Obj->OnCaptureDestroyed.AddDynamic(this, &AWOTOLDemoDirector::HandleCaptureDestroyed);
+}
+
+// SIÈGE : périodiquement, chaque unité rivale proche du bâtiment lui inflige des dégâts
+// -> la barre de vie du bâtiment descend en temps réel. Le joueur doit tuer/écarter les
+// assiégeants avant qu'il ne tombe à 0.
+void AWOTOLDemoDirector::SiegeTick()
+{
+	if (bBattleConcluded || !CaptureObject) return;
+	UWorld* W = GetWorld();
+	if (!W) return;
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>();
+	if (!Reg) return;
+
+	const FVector BuildingLoc = CaptureObject->GetActorLocation();
+	const float   SiegeRange  = 700.f;
+	float TotalDamage = 0.f;
+	for (AUnitBase* U : Reg->GetUnitsForFaction(CachedRivalFaction))
+	{
+		if (!U || !U->IsAlive()) continue;
+		if (FVector::Dist2D(U->GetActorLocation(), BuildingLoc) <= SiegeRange)
+		{
+			TotalDamage += 10.f; // 10 PV/s par assiégeant proche
+		}
+	}
+	if (TotalDamage > 0.f)
+	{
+		CaptureObject->ApplyDamage(TotalDamage);
+	}
+}
+
+void AWOTOLDemoDirector::HandleCaptureDestroyed()
+{
+	if (bBattleConcluded) return;
+	Say(FString::Printf(TEXT("Le %s est detruit — objectif perdu !"),
+		*BuildingDisplayName(CachedPlayerFaction)));
+	bBattleConcluded = true;
+	GetWorldTimerManager().ClearTimer(BattleCheckHandle);
+	GetWorldTimerManager().ClearTimer(SiegeHandle);
+	OnPlayerDefeat();
 }
 
 void AWOTOLDemoDirector::StartRivalDefense()

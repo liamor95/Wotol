@@ -1,6 +1,7 @@
 #include "WOTOLDemoHUD.h"
 #include "DemoFlowSubsystem.h"
 #include "WOTOLDemoUnit.h"
+#include "WOTOLCaptureObject.h"
 #include "Gameplay/Battle/WOTOLPlayerController_Battle.h"
 #include "Gameplay/Battle/RTSBattleManager.h"
 #include "Gameplay/Battle/UnitSelectionManager.h"
@@ -68,6 +69,13 @@ FBox2D AWOTOLDemoHUD::SummaryReplayButtonRect(float W, float H)        { return 
 FBox2D AWOTOLDemoHUD::SummaryChangeFactionButtonRect(float W, float H) { return SummaryTripleRect(1, W, H); }
 FBox2D AWOTOLDemoHUD::SummaryQuitButtonRect(float W, float H)          { return SummaryTripleRect(2, W, H); }
 
+FBox2D AWOTOLDemoHUD::InterludeContinueButtonRect(float W, float H)
+{
+	const float BW = 460.f, BH = 64.f;
+	const float X = (W - BW) * 0.5f, Y = H - 120.f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
 FBox2D AWOTOLDemoHUD::LayerUpButtonRect(float W, float H)
 {
 	const float BW = 130.f, BH = 40.f;
@@ -99,6 +107,7 @@ void AWOTOLDemoHUD::DrawHUD()
 	if (Screen == EDemoScreen::MainMenu)   { DrawMainMenu(W, H);      return; }
 	if (Screen == EDemoScreen::FactionSelect) { DrawFactionSelect(W, H); return; }
 	if (Screen == EDemoScreen::Summary)    { DrawSummary(W, H, DemoFlow); return; }
+	if (Screen == EDemoScreen::Interlude)  { DrawInterlude(W, H, DemoFlow); return; }
 
 	// ─── 1) Boîte de sélection (rectangle de drag) ───────────────────────────
 	if (AWOTOLPlayerController_Battle* PC =
@@ -134,6 +143,12 @@ void AWOTOLDemoHUD::DrawHUD()
 		if (AWOTOLDemoUnit* Boss = Cast<AWOTOLDemoUnit>(Demo->GetBoss()))
 		{
 			DrawBossBar(W, H, Boss);
+		}
+
+		// Barre de vie du BÂTIMENT à défendre (phase 2) — descend en temps réel.
+		if (AWOTOLCaptureObject* Building = Cast<AWOTOLCaptureObject>(Demo->GetCaptureObject()))
+		{
+			DrawBuildingBar(W, H, Building);
 		}
 
 		// Écran de fin
@@ -276,6 +291,54 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 		DrawButton(SummaryContinueButtonRect(W, H), TEXT("CONTINUER — Defense de la zone"),
 			FLinearColor(1.f, 0.7f, 0.2f, 1.f), 1.4f);
 	}
+}
+
+void AWOTOLDemoHUD::DrawInterlude(float W, float H, UDemoFlowSubsystem* Demo)
+{
+	DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, 1.f), 0.f, 0.f, W, H);
+	DrawCenteredText(TEXT("— ENTRE DEUX BATAILLES —"), H * 0.12f,
+		FLinearColor(0.6f, 0.9f, 1.f, 1.f), 2.0f);
+
+	// Texte narratif (multi-lignes) centré
+	if (Demo && !Demo->InterludeText.IsEmpty())
+	{
+		TArray<FString> Lines;
+		Demo->InterludeText.ParseIntoArray(Lines, TEXT("\n"), false);
+		float Y = H * 0.26f;
+		for (const FString& Line : Lines)
+		{
+			DrawCenteredText(Line, Y, FLinearColor(0.92f, 0.96f, 1.f, 1.f), 1.05f);
+			Y += 34.f;
+		}
+	}
+
+	DrawButton(InterludeContinueButtonRect(W, H), TEXT("CONTINUER — Preparer la defense"),
+		FLinearColor(1.f, 0.7f, 0.2f, 1.f), 1.4f);
+}
+
+void AWOTOLDemoHUD::DrawBuildingBar(float W, float H, AWOTOLCaptureObject* Building)
+{
+	if (!Building) return;
+	const float Pct = Building->GetHealthPercent();
+	const int32 MaxHP = FMath::RoundToInt(Building->MaxHealth);
+	const int32 CurHP = FMath::RoundToInt(Pct * MaxHP);
+
+	// Sous la zone du timer, à droite du centre pour ne pas gêner (barre "objectif").
+	const float BarW = 420.f, BarH = 22.f;
+	const float BX = (W - BarW) * 0.5f, BY = 132.f;
+
+	const FLinearColor Fac = FFactionColors::Get(Building->OwnerFaction);
+	DrawRect(Fac, BX - 4, BY - 4, BarW + 8, 3.f); // liseré faction
+	// Rouge quand la vie est basse (alerte : bâtiment en danger)
+	const FLinearColor Fill = FMath::Lerp(FLinearColor(0.85f, 0.15f, 0.12f, 1.f),
+		FLinearColor(0.25f, 0.8f, 0.35f, 1.f), Pct);
+	DrawBar(BX, BY, BarW, BarH, Pct, Fill, FLinearColor(0.08f, 0.08f, 0.10f, 0.92f));
+
+	const FString Name = Building->GetDisplayName().ToString();
+	DrawText(Name, FLinearColor::White, BX, BY - 22.f, GEngine->GetMediumFont(), 1.f);
+	const FString HP = FString::Printf(TEXT("%d / %d"), CurHP, MaxHP);
+	float HW, HH; GetTextSize(HP, HW, HH, GEngine->GetSmallFont(), 1.f);
+	DrawText(HP, FLinearColor::White, BX + BarW - HW, BY - 20.f, GEngine->GetSmallFont(), 1.f);
 }
 
 void AWOTOLDemoHUD::DrawPrepareBar(float W, float H)

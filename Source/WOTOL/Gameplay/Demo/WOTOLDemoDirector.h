@@ -86,7 +86,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void StartBattleNow();
 
-	// Depuis l'écran de RÉSUMÉ phase 1 : enchaîne sur la préparation de la phase 2.
+	// Depuis l'écran de RÉSUMÉ phase 1 : affiche l'écran de transition narrative
+	// (déblocages hors-champ : œuf mythique -> cité -> nouveau bâtiment distance).
+	UFUNCTION(BlueprintCallable, Category = "Demo")
+	void ShowInterlude();
+
+	// Depuis l'écran de TRANSITION : enchaîne sur la préparation de la phase 2.
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void ContinueToPhase2();
 
@@ -112,6 +117,16 @@ private:
 	EFactionID ResolvePlayerFaction() const;
 	EFactionID RivalOf(EFactionID Faction) const;
 	int32 CountAlive(EFactionID Faction) const;
+
+	// Noms propres à chaque faction (respect strict Aquiloris / Noxéens)
+	FString BuildingDisplayName(EFactionID Faction) const;   // Cristalliseur / Abyssalyseur
+	FString RangedUnitDisplayName(EFactionID Faction) const; // Aquispheres / Noxeblast
+
+	// ── Siège du bâtiment (phase 2) : une partie de l'IA attaque l'objet de capture ──
+	void SiegeTick();  // applique des dégâts au bâtiment selon les assiégeants proches
+	UFUNCTION()
+	void HandleCaptureDestroyed(); // bâtiment tombé à 0 -> objectif perdu -> défaite
+	FTimerHandle SiegeHandle;
 
 	void SpawnPlayerArmy(EFactionID Faction, const FVector& Origin, const FRotator& Facing);
 	void SpawnEnemyForCreature(EFactionID RivalFaction, const FVector& Origin, const FRotator& Facing);

@@ -202,10 +202,20 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		{
 			if (AWOTOLDemoHUD::SummaryContinueButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 			{
-				if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->ContinueToPhase2();
+				if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->ShowInterlude();
 			}
 		}
 		return true; // tout clic est consommé par l'écran de résumé
+	}
+
+	// ── Écran de TRANSITION narrative (hors-champ) ──
+	if (Screen == EDemoScreen::Interlude)
+	{
+		if (AWOTOLDemoHUD::InterludeContinueButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+		{
+			if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->ContinueToPhase2();
+		}
+		return true;
 	}
 
 	// ── Préparation : bouton "Lancer la bataille" ──

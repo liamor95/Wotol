@@ -37,7 +37,8 @@ enum class EDemoScreen : uint8
 	FactionSelect UMETA(DisplayName = "Choix de faction"),
 	Prepare       UMETA(DisplayName = "Préparation (placement)"),
 	Playing       UMETA(DisplayName = "En jeu"),
-	Summary       UMETA(DisplayName = "Résumé de bataille")
+	Summary       UMETA(DisplayName = "Résumé de bataille"),
+	Interlude     UMETA(DisplayName = "Transition narrative (hors-champ)")
 };
 
 // Ligne de résumé : pertes d'un type d'unité (nom + perdus / total) pour une faction.
@@ -223,8 +224,23 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Demo")
 	AActor* GetBoss() const { return BossActor.Get(); }
 
+	// Objet de capture à défendre en phase 2 (pour la barre de vie du bâtiment au HUD)
+	UFUNCTION(BlueprintCallable, Category = "Demo")
+	void SetCaptureObject(AActor* InObj) { CaptureObjectActor = InObj; }
+
+	UFUNCTION(BlueprintPure, Category = "Demo")
+	AActor* GetCaptureObject() const { return CaptureObjectActor.Get(); }
+
+	// Texte narratif de l'écran de transition (déblocages hors-champ entre phase 1 et 2)
+	UPROPERTY(BlueprintReadOnly, Category = "Demo")
+	FString InterludeText;
+
+	UFUNCTION(BlueprintCallable, Category = "Demo")
+	void SetInterludeText(const FString& Text) { InterludeText = Text; }
+
 private:
 	TWeakObjectPtr<AActor> BossActor;
+	TWeakObjectPtr<AActor> CaptureObjectActor;
 
 	EDemoPhase    CurrentPhase = EDemoPhase::None;
 	FDemoProgress Progress;
