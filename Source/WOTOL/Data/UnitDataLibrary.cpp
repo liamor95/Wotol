@@ -428,6 +428,34 @@ static void FillNoxebeast(UUnitDataAsset* A)
 
 // ─── Dispatch ─────────────────────────────────────────────────────────────────
 
+// Parade (bouclier/lourd) & Esquive (rapide/agile) — dérivées du profil de chaque
+// unité (la matrice n'a pas de colonne dédiée). Font durer les combats et évitent
+// que tous les coups portent. Valeurs en % (tunables).
+static void ApplyBlockDodge(const FName& UnitID, FUnitStats& S)
+{
+	struct FBD { const TCHAR* Id; float Block; float Dodge; };
+	static const FBD Table[] = {
+		// Aquiloris
+		{ TEXT("Aquis"),        20.f, 10.f },
+		{ TEXT("Aquiloryons"),  40.f,  5.f }, // Mur de Cristal = grosse parade
+		{ TEXT("Aquilances"),   10.f, 20.f },
+		{ TEXT("Aquipheres"),    5.f, 10.f },
+		{ TEXT("Aquilombres"),   5.f, 35.f }, // assassin agile = grosse esquive
+		{ TEXT("Leviaphenix"),  15.f, 10.f },
+		// Noxéens
+		{ TEXT("Noxar"),        15.f, 15.f },
+		{ TEXT("Noxeflare"),     8.f, 20.f },
+		{ TEXT("Noxeblast"),     5.f, 12.f },
+		{ TEXT("Noxeons"),       8.f,  5.f },
+		{ TEXT("Noxebeast"),    30.f,  8.f }, // carapace pressurisée = grosse parade
+		{ TEXT("Noxedrake"),    10.f,  5.f }, // boss : peu d'esquive (restant battable)
+	};
+	for (const FBD& E : Table)
+	{
+		if (UnitID == E.Id) { S.BlockChance = E.Block; S.DodgeChance = E.Dodge; return; }
+	}
+}
+
 UUnitDataAsset* UUnitDataLibrary::CreateUnitDataAsset(const FName& UnitID, UObject* Outer)
 {
 	UUnitDataAsset* Asset = NewObject<UUnitDataAsset>(Outer, UnitID);
@@ -445,6 +473,7 @@ UUnitDataAsset* UUnitDataLibrary::CreateUnitDataAsset(const FName& UnitID, UObje
 	else if (UnitID == "Noxeons")       FillNoxeons(Asset);
 	else if (UnitID == "Noxebeast")     FillNoxebeast(Asset);
 
+	ApplyBlockDodge(UnitID, Asset->Stats);
 	return Asset;
 }
 

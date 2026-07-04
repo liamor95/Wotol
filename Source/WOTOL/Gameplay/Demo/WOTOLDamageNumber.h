@@ -22,6 +22,10 @@ public:
 	static AWOTOLDamageNumber* Spawn(UWorld* World, const FVector& Loc,
 		float Amount, const FLinearColor& Color);
 
+	// Crée un texte flottant libre (ex: "Esquive", "Paré")
+	static AWOTOLDamageNumber* SpawnText(UWorld* World, const FVector& Loc,
+		const FString& Label, const FLinearColor& Color);
+
 protected:
 	virtual void Tick(float DeltaSeconds) override;
 

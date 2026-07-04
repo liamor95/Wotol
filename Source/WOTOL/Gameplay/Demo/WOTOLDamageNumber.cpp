@@ -32,6 +32,21 @@ AWOTOLDamageNumber* AWOTOLDamageNumber::Spawn(UWorld* World, const FVector& Loc,
 	return N;
 }
 
+AWOTOLDamageNumber* AWOTOLDamageNumber::SpawnText(UWorld* World, const FVector& Loc,
+	const FString& Label, const FLinearColor& Color)
+{
+	if (!World) return nullptr;
+	AWOTOLDamageNumber* N = World->SpawnActor<AWOTOLDamageNumber>(
+		AWOTOLDamageNumber::StaticClass(), Loc, FRotator::ZeroRotator);
+	if (N && N->Text)
+	{
+		N->Text->SetText(FText::FromString(Label));
+		N->Text->SetTextRenderColor(Color.ToFColor(true));
+		N->Text->SetWorldSize(90.f);
+	}
+	return N;
+}
+
 void AWOTOLDamageNumber::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);

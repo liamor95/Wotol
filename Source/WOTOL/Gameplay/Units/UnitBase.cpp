@@ -7,6 +7,7 @@
 #include "AbilityBase.h"
 #include "WOTOLProjectileBase.h"
 #include "Gameplay/Demo/WOTOLProjectileTracer.h"
+#include "Gameplay/Demo/WOTOLDamageNumber.h"
 #include "Core/FactionRegistrySubsystem.h"
 #include "Gameplay/Factions/FactionSynergySubsystem.h"
 
@@ -103,9 +104,33 @@ float AUnitBase::TakeDamageFromUnit(float Damage, AUnitBase* /*Instigator*/)
 
 	if (Damage <= 0.f) return 0.f;
 
-	// Appliquer la réduction de défense de CETTE unité (DEF%)
+	// ── ESQUIVE / PARADE (font durer les combats, tous les coups ne portent pas) ──
+	bool bBlocked = false;
+	if (UnitData)
+	{
+		const FVector FxLoc = GetActorLocation() + FVector(0.f, 0.f, 70.f);
+		// Esquive : le coup rate complètement
+		if (UnitData->Stats.DodgeChance > 0.f
+			&& FMath::FRandRange(0.f, 100.f) < UnitData->Stats.DodgeChance)
+		{
+			AWOTOLDamageNumber::SpawnText(GetWorld(), FxLoc, TEXT("Esquive"),
+				FLinearColor(0.5f, 0.9f, 1.f, 1.f));
+			return 0.f;
+		}
+		// Parade : le coup est bloqué (dégâts fortement réduits)
+		if (UnitData->Stats.BlockChance > 0.f
+			&& FMath::FRandRange(0.f, 100.f) < UnitData->Stats.BlockChance)
+		{
+			bBlocked = true;
+			AWOTOLDamageNumber::SpawnText(GetWorld(), FxLoc, TEXT("Pare"),
+				FLinearColor(1.f, 0.85f, 0.3f, 1.f));
+		}
+	}
+
+	// Appliquer la réduction de défense de CETTE unité (DEF%) + parade éventuelle
 	const float DefReduction = UnitData ? (UnitData->Stats.DefensePercent / 100.f) : 0.f;
-	const float EffDamage    = Damage * (1.f - DefReduction);
+	float EffDamage          = Damage * (1.f - DefReduction);
+	if (bBlocked) EffDamage *= 0.35f; // coup paré = 65% de dégâts en moins
 	const float Applied      = FMath::Min(EffDamage, CurrentHealth);
 	CurrentHealth           -= Applied;
 

@@ -257,6 +257,16 @@ struct FUnitStats
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", ClampMax = "100"))
 	float DefensePercent = 5.f;
 
+	// Chance de PARADE en % : le coup est bloqué (dégâts fortement réduits).
+	// Élevée pour les unités à bouclier / lourdes.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", ClampMax = "90"))
+	float BlockChance = 0.f;
+
+	// Chance d'ESQUIVE en % : le coup rate complètement (0 dégât).
+	// Élevée pour les unités rapides / agiles.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", ClampMax = "90"))
+	float DodgeChance = 0.f;
+
 	// Multiplicateur vitesse (1.0 = normal, 1.2 = +20%)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float MovementSpeed = 1.f;
