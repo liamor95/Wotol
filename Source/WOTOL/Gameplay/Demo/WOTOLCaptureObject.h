@@ -75,5 +75,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UTextRenderComponent> NameTag;
 
+	// Ombre noire derrière l'étiquette (contraste)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TObjectPtr<UTextRenderComponent> NameTagShadow;
+
 	void BuildVisual();
 };

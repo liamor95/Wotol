@@ -122,6 +122,15 @@ void AWOTOLDemoDirector::StartBattleNow()
 
 EFactionID AWOTOLDemoDirector::ResolvePlayerFaction() const
 {
+	// 1) Source fiable : le subsystem de démo (rempli au choix de faction).
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (const UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
+		{
+			if (Demo->SelectedFaction != EFactionID::None) return Demo->SelectedFaction;
+		}
+	}
+	// 2) Repli : le GameInstance WOTOL (si configuré).
 	if (const UWOTOLGameInstance* GI = Cast<UWOTOLGameInstance>(GetGameInstance()))
 	{
 		const EFactionID F = GI->GetSelectedFaction();

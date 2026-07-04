@@ -17,6 +17,13 @@ AWOTOLCaptureObject::AWOTOLCaptureObject()
 	ShapeMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShapeMesh"));
 	RootComponent = ShapeMesh;
 
+	NameTagShadow = CreateDefaultSubobject<UTextRenderComponent>(TEXT("NameTagShadow"));
+	NameTagShadow->SetupAttachment(ShapeMesh);
+	NameTagShadow->SetHorizontalAlignment(EHTA_Center);
+	NameTagShadow->SetWorldSize(104.f);
+	NameTagShadow->SetRelativeLocation(FVector(0.f, 0.f, 260.f));
+	NameTagShadow->SetTextRenderColor(FColor(0, 0, 0, 255));
+
 	NameTag = CreateDefaultSubobject<UTextRenderComponent>(TEXT("NameTag"));
 	NameTag->SetupAttachment(ShapeMesh);
 	NameTag->SetHorizontalAlignment(EHTA_Center);
@@ -37,18 +44,27 @@ void AWOTOLCaptureObject::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 	if (!NameTag) return;
 
-	NameTag->SetText(FText::FromString(FString::Printf(TEXT("%s\n%d / %d"),
-		*GetDisplayName().ToString(), FMath::RoundToInt(CurrentHealth), FMath::RoundToInt(MaxHealth))));
+	const FText TagText = FText::FromString(FString::Printf(TEXT("%s\n%d / %d"),
+		*GetDisplayName().ToString(), FMath::RoundToInt(CurrentHealth), FMath::RoundToInt(MaxHealth)));
+	NameTag->SetText(TagText);
+	if (NameTagShadow) NameTagShadow->SetText(TagText);
 
-	// Fait face à la caméra
+	// Étiquette + ombre décalée face à la caméra (contraste)
 	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
 	{
 		if (PC->PlayerCameraManager)
 		{
-			FRotator Face = (PC->PlayerCameraManager->GetCameraLocation()
-				- NameTag->GetComponentLocation()).Rotation();
+			const FVector NameLoc = NameTag->GetComponentLocation();
+			FRotator Face = (PC->PlayerCameraManager->GetCameraLocation() - NameLoc).Rotation();
 			Face.Pitch = 0.f; Face.Roll = 0.f;
 			NameTag->SetWorldRotation(Face);
+			if (NameTagShadow)
+			{
+				NameTagShadow->SetWorldRotation(Face);
+				const FVector Fwd   = Face.Vector();
+				const FVector Right = FRotationMatrix(Face).GetScaledAxis(EAxis::Y);
+				NameTagShadow->SetWorldLocation(NameLoc - Fwd * 3.f + Right * 6.f + FVector(0, 0, -8.f));
+			}
 		}
 	}
 }

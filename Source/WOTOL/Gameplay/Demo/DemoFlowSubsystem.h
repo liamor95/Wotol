@@ -152,6 +152,13 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Demo")
 	bool bDemoVictory = false;
 
+	// Faction choisie par le joueur (source fiable, indépendante du GameInstance).
+	UPROPERTY(BlueprintReadOnly, Category = "Demo")
+	EFactionID SelectedFaction = EFactionID::None;
+
+	UFUNCTION(BlueprintCallable, Category = "Demo")
+	void SetSelectedFaction(EFactionID F) { SelectedFaction = F; }
+
 	// Écran d'interface courant (menu / faction / préparation / jeu)
 	UPROPERTY(BlueprintReadOnly, Category = "Demo")
 	EDemoScreen Screen = EDemoScreen::MainMenu;

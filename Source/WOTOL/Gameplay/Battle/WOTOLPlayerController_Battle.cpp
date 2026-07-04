@@ -125,6 +125,12 @@ void AWOTOLPlayerController_Battle::ChangeLayerForSelection(float DeltaZ)
 
 void AWOTOLPlayerController_Battle::PickFactionAndPrepare(EFactionID Faction)
 {
+	// Source fiable = le subsystem (toujours présent), pas seulement le GameInstance.
+	if (UDemoFlowSubsystem* Demo = GetGameInstance()
+			? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr)
+	{
+		Demo->SetSelectedFaction(Faction);
+	}
 	if (UWOTOLGameInstance* GI = Cast<UWOTOLGameInstance>(GetGameInstance()))
 	{
 		GI->SessionConfig.SelectedFaction = Faction;
