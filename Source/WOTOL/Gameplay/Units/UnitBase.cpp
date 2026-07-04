@@ -1,5 +1,6 @@
 #include "UnitBase.h"
 #include "UnitDataAsset.h"
+#include "Components/SceneComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "VerticalLayerComponent.h"
 #include "UnitMoraleComponent.h"
@@ -108,13 +109,17 @@ float AUnitBase::TakeDamageFromUnit(float Damage, AUnitBase* /*Instigator*/)
 	bool bBlocked = false;
 	if (UnitData)
 	{
-		const FVector FxLoc = GetActorLocation() + FVector(0.f, 0.f, 70.f);
+		// Texte accroché à l'unité (VisualRoot) -> suit l'unité et sa hauteur de couche.
+		USceneComponent* Anchor = GetFloatingTextAnchor();
+		const FVector FxLoc = Anchor ? Anchor->GetComponentLocation() : GetActorLocation();
+		const FVector Jitter(FMath::FRandRange(-30.f, 30.f), FMath::FRandRange(-30.f, 30.f), 110.f);
 		// Esquive : le coup rate complètement
 		if (UnitData->Stats.DodgeChance > 0.f
 			&& FMath::FRandRange(0.f, 100.f) < UnitData->Stats.DodgeChance)
 		{
-			AWOTOLDamageNumber::SpawnText(GetWorld(), FxLoc, TEXT("Esquive"),
-				FLinearColor(0.5f, 0.9f, 1.f, 1.f));
+			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(GetWorld(), FxLoc,
+					TEXT("Esquive"), FLinearColor(0.5f, 0.9f, 1.f, 1.f)))
+				N->SetFollow(Anchor, Jitter);
 			return 0.f;
 		}
 		// Parade : le coup est bloqué (dégâts fortement réduits)
@@ -122,8 +127,9 @@ float AUnitBase::TakeDamageFromUnit(float Damage, AUnitBase* /*Instigator*/)
 			&& FMath::FRandRange(0.f, 100.f) < UnitData->Stats.BlockChance)
 		{
 			bBlocked = true;
-			AWOTOLDamageNumber::SpawnText(GetWorld(), FxLoc, TEXT("Pare"),
-				FLinearColor(1.f, 0.85f, 0.3f, 1.f));
+			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(GetWorld(), FxLoc,
+					TEXT("Pare"), FLinearColor(1.f, 0.85f, 0.3f, 1.f)))
+				N->SetFollow(Anchor, Jitter);
 		}
 	}
 
@@ -202,11 +208,14 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 		if (UnitData->Stats.AttackType == EUnitAttackType::Ranged)
 		{
 			const FLinearColor Col = (GetFaction() == EFactionID::Aquiloris)
-				? FLinearColor(0.45f, 0.88f, 1.f, 1.f)   // cyan Aquiloris
-				: FLinearColor(0.35f, 0.75f, 1.f, 1.f);  // bleu Noxéen (Noxeblast)
-			AWOTOLProjectileTracer::Fire(GetWorld(),
-				GetActorLocation() + FVector(0, 0, 40.f),
-				Target->GetActorLocation() + FVector(0, 0, 40.f), Col, 1.f);
+				? FLinearColor(0.3f, 0.95f, 1.f, 1.f)    // cyan vif Aquiloris
+				: FLinearColor(0.55f, 0.35f, 1.f, 1.f);  // violet vif Noxéen (Noxeblast)
+			// Part et arrive à la position VISUELLE (couche verticale comprise).
+			const USceneComponent* FromA = GetFloatingTextAnchor();
+			const USceneComponent* ToA   = Target->GetFloatingTextAnchor();
+			const FVector FromLoc = (FromA ? FromA->GetComponentLocation() : GetActorLocation()) + FVector(0, 0, 40.f);
+			const FVector ToLoc   = (ToA ? ToA->GetComponentLocation() : Target->GetActorLocation()) + FVector(0, 0, 40.f);
+			AWOTOLProjectileTracer::Fire(GetWorld(), FromLoc, ToLoc, Col, 1.8f);
 		}
 	}
 

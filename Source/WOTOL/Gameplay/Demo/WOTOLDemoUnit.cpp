@@ -175,16 +175,30 @@ float AWOTOLDemoUnit::GetEffectiveHealthPercent() const
 	return FMath::Clamp(CurrentHealth / Max, 0.f, 1.f);
 }
 
+USceneComponent* AWOTOLDemoUnit::GetFloatingTextAnchor() const
+{
+	return VisualRoot ? VisualRoot.Get() : Super::GetFloatingTextAnchor();
+}
+
 void AWOTOLDemoUnit::HandleHealthChanged(float NewHealth, float MaxHealth)
 {
-	// Chiffre de dégâts flottant rouge (uniquement quand on PERD des PV)
+	// Chiffre de dégâts flottant rouge (uniquement quand on PERD des PV), ACCROCHÉ à
+	// l'unité : il suit l'unité et reste à sa hauteur (couche verticale). Petit décalage
+	// latéral aléatoire -> les coups successifs ne se superposent pas.
 	if (LastKnownHealth >= 0.f && NewHealth < LastKnownHealth)
 	{
 		const float Dmg = LastKnownHealth - NewHealth;
-		const FVector Loc = GetActorLocation() + FVector(0.f, 0.f, 60.f);
-		AWOTOLDamageNumber::Spawn(GetWorld(), Loc, Dmg, FLinearColor(1.f, 0.f, 0.f, 1.f)); // rouge vif
-		// VFX d'impact : éclat de bulles (eau) à l'endroit du coup
-		AWOTOLBubbleBurst::Burst(GetWorld(), Loc, FLinearColor(0.65f, 0.88f, 1.f, 1.f), 6);
+		const FVector Anchor = GetFloatingTextAnchor()
+			? GetFloatingTextAnchor()->GetComponentLocation() : GetActorLocation();
+		const FVector Jitter(FMath::FRandRange(-35.f, 35.f), FMath::FRandRange(-35.f, 35.f), 0.f);
+		if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::Spawn(
+				GetWorld(), Anchor, Dmg, FLinearColor(1.f, 0.15f, 0.1f, 1.f))) // rouge vif
+		{
+			N->SetFollow(GetFloatingTextAnchor(), FVector(0.f, 0.f, 110.f) + Jitter);
+		}
+		// VFX d'impact : éclat de bulles (eau) à la position visuelle de l'unité
+		AWOTOLBubbleBurst::Burst(GetWorld(), Anchor + FVector(0, 0, 60.f),
+			FLinearColor(0.65f, 0.88f, 1.f, 1.f), 6);
 	}
 	LastKnownHealth = NewHealth;
 }

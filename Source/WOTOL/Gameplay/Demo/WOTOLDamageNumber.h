@@ -26,11 +26,20 @@ public:
 	static AWOTOLDamageNumber* SpawnText(UWorld* World, const FVector& Loc,
 		const FString& Label, const FLinearColor& Color);
 
+	// ACCROCHE le texte à un composant (ex: le VisualRoot d'une unité) : il SUIT l'unité
+	// et reste à SA hauteur de couche verticale, avec un petit décalage latéral aléatoire
+	// -> chaque unité a son propre chiffre, plus d'empilement illisible au niveau du sol.
+	void SetFollow(class USceneComponent* Comp, const FVector& LocalOffset);
+
 protected:
 	virtual void Tick(float DeltaSeconds) override;
 
 	UPROPERTY()
 	TObjectPtr<UTextRenderComponent> Text;
+
+	TWeakObjectPtr<class USceneComponent> Follow; // composant suivi (VisualRoot de l'unité)
+	FVector FollowOffset = FVector::ZeroVector;    // décalage local (autour de l'unité)
+	float   Rise = 0.f;                            // montée cumulée du texte
 
 	float Age  = 0.f;
 	float Life = 1.5f;

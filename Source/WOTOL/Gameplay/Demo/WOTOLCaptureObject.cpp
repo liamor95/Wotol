@@ -35,7 +35,7 @@ AWOTOLCaptureObject::AWOTOLCaptureObject()
 	NameTag->SetupAttachment(SceneRoot);
 	NameTag->SetHorizontalAlignment(EHTA_Center);
 	NameTag->SetWorldSize(40.f);
-	NameTag->SetRelativeLocation(FVector(0.f, 0.f, 250.f));
+	NameTag->SetRelativeLocation(FVector(0.f, 0.f, -140.f));
 }
 
 void AWOTOLCaptureObject::BeginPlay()
@@ -154,26 +154,98 @@ float AWOTOLCaptureObject::GetHealthPercent() const
 
 void AWOTOLCaptureObject::BuildVisual()
 {
-	if (!ShapeMesh) return;
+	if (!ShapeMesh || !SceneRoot) return;
 
-	// Aquiloris : cristal (cône) · Noxéens : organique (sphère)
-	const TCHAR* MeshPath = (OwnerFaction == EFactionID::Noxeens)
-		? TEXT("/Engine/BasicShapes/Sphere.Sphere")
-		: TEXT("/Engine/BasicShapes/Cone.Cone");
+	const TCHAR* M_CUBE = TEXT("/Engine/BasicShapes/Cube.Cube");
+	const TCHAR* M_SPH  = TEXT("/Engine/BasicShapes/Sphere.Sphere");
+	const TCHAR* M_CYL  = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
+	const TCHAR* M_CONE = TEXT("/Engine/BasicShapes/Cone.Cone");
 
-	if (UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, MeshPath))
+	UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
+		nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+
+	// Ajoute une pièce kitbash (mesh primitif + transform + couleur) au bâtiment.
+	auto AddPiece = [&](const TCHAR* MeshPath, const FVector& Loc, const FVector& Scale,
+		const FRotator& Rot, const FLinearColor& Color) -> UStaticMeshComponent*
 	{
-		ShapeMesh->SetStaticMesh(Mesh);
-	}
-	ShapeMesh->SetRelativeScale3D(FVector(3.f, 3.f, 4.f)); // structure imposante
-
-	if (UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
-			nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
-	{
-		if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, this))
+		UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
+		if (!C) return nullptr;
+		C->SetupAttachment(SceneRoot);
+		C->RegisterComponent();
+		C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		if (UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, MeshPath)) C->SetStaticMesh(M);
+		C->SetRelativeLocationAndRotation(Loc, Rot);
+		C->SetRelativeScale3D(Scale);
+		if (BaseMat)
 		{
-			MID->SetVectorParameterValue(TEXT("Color"), FFactionColors::Get(OwnerFaction));
-			ShapeMesh->SetMaterial(0, MID);
+			if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, this))
+			{
+				MID->SetVectorParameterValue(TEXT("Color"), Color);
+				C->SetMaterial(0, MID);
+			}
+		}
+		return C;
+	};
+
+	// L'acteur est spawné à +200 Z : la base du bâtiment est posée vers Z relatif -200 (sol).
+	if (OwnerFaction == EFactionID::Noxeens)
+	{
+		// ── ABYSSALYSEUR : bâtiment organique bioluminescent (vert abyssal) ──
+		const FLinearColor Dark (0.07f, 0.10f, 0.12f, 1.f);
+		const FLinearColor Shell(0.10f, 0.16f, 0.18f, 1.f);
+		const FLinearColor Glow (0.28f, 0.95f, 0.45f, 1.f);
+
+		AddPiece(M_CYL, FVector(0, 0, -195), FVector(4.2f, 4.2f, 0.5f), FRotator::ZeroRotator, Dark);      // socle
+		// Corps bulbeux (le mesh principal)
+		ShapeMesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, M_SPH));
+		ShapeMesh->SetRelativeLocation(FVector(0, 0, -40));
+		ShapeMesh->SetRelativeScale3D(FVector(3.0f, 3.0f, 3.2f));
+		if (BaseMat)
+		{
+			if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, this))
+			{
+				MID->SetVectorParameterValue(TEXT("Color"), Shell);
+				ShapeMesh->SetMaterial(0, MID);
+			}
+		}
+		AddPiece(M_CONE, FVector(0, 0, 210), FVector(1.3f, 1.3f, 3.0f), FRotator::ZeroRotator, Shell);     // flèche
+		AddPiece(M_SPH,  FVector(0, 0, 130), FVector(1.1f, 1.1f, 1.1f), FRotator::ZeroRotator, Glow);      // noyau lumineux
+		// Tentacules bioluminescents autour de la base
+		for (int32 i = 0; i < 6; ++i)
+		{
+			const float A = 2.f * PI * i / 6.f;
+			AddPiece(M_CONE, FVector(FMath::Cos(A) * 150.f, FMath::Sin(A) * 150.f, -120.f),
+				FVector(0.4f, 0.4f, 1.6f), FRotator(20.f, FMath::RadiansToDegrees(A), 0.f), Glow);
+		}
+	}
+	else
+	{
+		// ── CRISTALLISEUR : bâtiment cristal-tech (bleu acier + or + énergie cyan) ──
+		const FLinearColor Steel (0.12f, 0.20f, 0.42f, 1.f);
+		const FLinearColor Gold  (0.95f, 0.78f, 0.25f, 1.f);
+		const FLinearColor Energy(0.45f, 0.90f, 1.00f, 1.f);
+
+		AddPiece(M_CYL, FVector(0, 0, -195), FVector(4.4f, 4.4f, 0.5f), FRotator::ZeroRotator, Steel * 0.7f); // socle
+		// Tour principale (le mesh principal)
+		ShapeMesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, M_CYL));
+		ShapeMesh->SetRelativeLocation(FVector(0, 0, -40));
+		ShapeMesh->SetRelativeScale3D(FVector(2.6f, 2.6f, 2.4f));
+		if (BaseMat)
+		{
+			if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, this))
+			{
+				MID->SetVectorParameterValue(TEXT("Color"), Steel);
+				ShapeMesh->SetMaterial(0, MID);
+			}
+		}
+		AddPiece(M_CYL,  FVector(0, 0, 70),  FVector(3.0f, 3.0f, 0.3f), FRotator::ZeroRotator, Gold);      // anneau or
+		AddPiece(M_CONE, FVector(0, 0, 240), FVector(1.5f, 1.5f, 3.2f), FRotator::ZeroRotator, Energy);    // grand cristal
+		// Cristaux secondaires autour de la tour
+		for (int32 i = 0; i < 4; ++i)
+		{
+			const float A = 2.f * PI * i / 4.f + PI / 4.f;
+			AddPiece(M_CONE, FVector(FMath::Cos(A) * 130.f, FMath::Sin(A) * 130.f, 30.f),
+				FVector(0.5f, 0.5f, 1.8f), FRotator(-15.f, FMath::RadiansToDegrees(A), 0.f), Energy);
 		}
 	}
 }

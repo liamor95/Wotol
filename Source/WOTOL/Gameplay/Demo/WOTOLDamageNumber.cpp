@@ -1,5 +1,6 @@
 #include "WOTOLDamageNumber.h"
 #include "Components/TextRenderComponent.h"
+#include "Components/SceneComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Camera/PlayerCameraManager.h"
 
@@ -10,7 +11,18 @@ AWOTOLDamageNumber::AWOTOLDamageNumber()
 	Text = CreateDefaultSubobject<UTextRenderComponent>(TEXT("Text"));
 	RootComponent = Text;
 	Text->SetHorizontalAlignment(EHTA_Center);
-	Text->SetWorldSize(120.f); // gros et lisible
+	Text->SetWorldSize(70.f); // lisible mais pas envahissant (accroché à l'unité)
+}
+
+void AWOTOLDamageNumber::SetFollow(USceneComponent* Comp, const FVector& LocalOffset)
+{
+	Follow = Comp;
+	FollowOffset = LocalOffset;
+	if (Comp)
+	{
+		// Positionne tout de suite à côté de l'unité (à sa hauteur de couche).
+		SetActorLocation(Comp->GetComponentLocation() + LocalOffset);
+	}
 }
 
 void AWOTOLDamageNumber::Init(float Amount, const FLinearColor& Color)
@@ -42,7 +54,7 @@ AWOTOLDamageNumber* AWOTOLDamageNumber::SpawnText(UWorld* World, const FVector& 
 	{
 		N->Text->SetText(FText::FromString(Label));
 		N->Text->SetTextRenderColor(Color.ToFColor(true));
-		N->Text->SetWorldSize(90.f);
+		N->Text->SetWorldSize(55.f);
 	}
 	return N;
 }
@@ -52,7 +64,18 @@ void AWOTOLDamageNumber::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 
 	Age += DeltaSeconds;
-	AddActorWorldOffset(FVector(0.f, 0.f, 100.f * DeltaSeconds)); // monte
+	Rise += 70.f * DeltaSeconds; // le texte s'élève doucement
+
+	// S'il SUIT une unité : reste collé à côté d'elle, à SA hauteur (couche verticale),
+	// et monte. Sinon (texte libre) : simple montée à sa position d'origine.
+	if (Follow.IsValid())
+	{
+		SetActorLocation(Follow->GetComponentLocation() + FollowOffset + FVector(0.f, 0.f, Rise));
+	}
+	else
+	{
+		AddActorWorldOffset(FVector(0.f, 0.f, 70.f * DeltaSeconds));
+	}
 
 	// Toujours face caméra (lisible)
 	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)

@@ -57,6 +57,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void PerformAttack(AUnitBase* Target);
 
+	// Composant auquel accrocher les textes flottants (dégâts / esquive / parade) afin
+	// qu'ils SUIVENT l'unité à sa hauteur de couche. Par défaut = RootComponent ; les
+	// unités greybox renvoient leur VisualRoot (position visuelle réelle en hauteur).
+	virtual class USceneComponent* GetFloatingTextAnchor() const { return RootComponent; }
+
 	// ---- Sélection (joueur) ----
 	UFUNCTION(BlueprintCallable, Category = "Selection")
 	void SetSelected(bool bNewSelected);

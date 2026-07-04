@@ -23,8 +23,9 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 
 private:
-	UPROPERTY() TObjectPtr<UStaticMeshComponent> Ball;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> Ball; // cœur lumineux
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> Halo; // halo plus large (meilleure visibilité)
 	FVector Target = FVector::ZeroVector;
-	float Speed = 4000.f;
+	float Speed = 2600.f; // plus lent = mieux suivi à l'œil
 	float Life = 0.f;
 };

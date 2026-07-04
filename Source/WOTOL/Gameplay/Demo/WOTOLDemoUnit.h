@@ -59,6 +59,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Demo|Greybox")
 	float GetEffectiveHealthPercent() const;
 
+	// Les textes flottants s'accrochent au VisualRoot (position visuelle réelle, couche
+	// verticale comprise) -> chaque chiffre suit son unité et sa hauteur.
+	virtual class USceneComponent* GetFloatingTextAnchor() const override;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
