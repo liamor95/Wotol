@@ -157,6 +157,11 @@ FString AWOTOLDemoDirector::RangedUnitDisplayName(EFactionID Faction) const
 	return (Faction == EFactionID::Noxeens) ? TEXT("Noxeblast") : TEXT("Aquispheres");
 }
 
+FString AWOTOLDemoDirector::MythicDisplayName(EFactionID Faction) const
+{
+	return (Faction == EFactionID::Noxeens) ? TEXT("Noxedrake") : TEXT("Leviaphenix");
+}
+
 int32 AWOTOLDemoDirector::CountAlive(EFactionID Faction) const
 {
 	int32 Alive = 0;
@@ -564,15 +569,18 @@ void AWOTOLDemoDirector::ShowInterlude()
 
 	const FString Building = BuildingDisplayName(CachedPlayerFaction);
 	const FString Ranged   = RangedUnitDisplayName(CachedPlayerFaction);
+	const FString Mythic   = MythicDisplayName(CachedPlayerFaction);
 
 	const FString Lore = FString::Printf(TEXT(
-		"Apres votre victoire sur le Kraken, un oeuf a emerge du Coeur-Eclat du %s que vous\n"
-		"avez depose pour capturer la zone. Vous l'avez ramene jusqu'a votre cite.\n\n"
-		"Cette decouverte vous a apporte l'experience necessaire pour eriger un NOUVEAU\n"
-		"batiment et former une nouvelle categorie d'unites : les %s (unites a distance).\n\n"
+		"Apres votre victoire sur le Kraken, une creature des abysses — prisonniere elle aussi\n"
+		"des griffes du colosse — a ete liberee dans la bataille. Vous l'avez recueillie et\n"
+		"adoptee : le %s, qui grandira pour devenir votre creature MYTHIQUE.\n\n"
+		"De retour a votre cite, cette decouverte vous a apporte l'experience necessaire pour\n"
+		"eriger un NOUVEAU batiment et former une nouvelle categorie d'unites :\n"
+		"les %s (unites a distance).\n\n"
 		"Mais la faction rivale a repere votre %s et lance l'assaut pour s'emparer de la zone.\n"
 		"Deployez vos forces — distance comprise — et PROTEGEZ le batiment a tout prix."),
-		*Building, *Ranged, *Building);
+		*Mythic, *Ranged, *Building);
 
 	Demo->SetInterludeText(Lore);
 	Demo->SetScreen(EDemoScreen::Interlude);

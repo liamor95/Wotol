@@ -121,6 +121,7 @@ private:
 	// Noms propres à chaque faction (respect strict Aquiloris / Noxéens)
 	FString BuildingDisplayName(EFactionID Faction) const;   // Cristalliseur / Abyssalyseur
 	FString RangedUnitDisplayName(EFactionID Faction) const; // Aquispheres / Noxeblast
+	FString MythicDisplayName(EFactionID Faction) const;     // Leviaphenix / Noxedrake
 
 	// ── Siège du bâtiment (phase 2) : une partie de l'IA attaque l'objet de capture ──
 	void SiegeTick();  // applique des dégâts au bâtiment selon les assiégeants proches

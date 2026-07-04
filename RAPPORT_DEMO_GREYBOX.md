@@ -136,6 +136,23 @@ Fichiers ajoutés depuis : `WOTOLDemoHUD.*`, `WOTOLPlayerController_Battle.*`, `
 
 ---
 
+## 5quater. 💡 EN RÉSERVE (à ne PAS implémenter tout de suite)
+
+Idées validées par Liamor à garder pour plus tard :
+
+- **Phase 3 — « La Revanche »** : après une **ellipse temporelle** (racontée hors-champ via un
+  écran de transition), une 3e bataille de **grande ampleur** entre **Aquiloris et Noxéens**
+  (les 2 factions jouables), avec le **roster COMPLET** de chaque faction — donc les **2 unités
+  manquantes** : le **Mythique jouable** + l'**unité Spéciale** (Aquilombres / Noxéons).
+  But : montée en complexité progressive (Phase 1 = 1 seul ennemi = le Kraken → Phase 2 = escouade
+  rivale + siège du bâtiment → Phase 3 = affrontement total roster complet). Test de lisibilité RTS.
+- Transition narrative : présentation du mythique adopté (voir écran d'interlude actuel) qui,
+  en phase 3, deviendrait **jouable**.
+
+⚠️ Statut : **idée en réserve, non codée**. À réévaluer quand la phase 2 sera validée en jeu.
+
+---
+
 ## 6. Garanties
 
 - Base figée `claude/base-jouable-v1` **non touchée**.
