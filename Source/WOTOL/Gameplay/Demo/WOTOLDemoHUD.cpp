@@ -35,7 +35,8 @@ FBox2D AWOTOLDemoHUD::MenuButtonRect(int32 Index, float W, float H)
 FBox2D AWOTOLDemoHUD::StartGameButtonRect(float W, float H)
 {
 	const float BW = 340.f, BH = 64.f;
-	const float X = (W - BW) * 0.5f, Y = H * 0.55f;
+	// Placé BAS (près du bord inférieur) pour ne pas cacher le titre WOTOL + sous-titre.
+	const float X = (W - BW) * 0.5f, Y = H * 0.86f;
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
