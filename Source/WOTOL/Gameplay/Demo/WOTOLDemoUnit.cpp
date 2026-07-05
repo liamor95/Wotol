@@ -144,7 +144,10 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 				bPlaying = (D->GetScreen() == EDemoScreen::Playing);
 			}
 		}
-		const bool bShowTag = bIsBoss || IsSelected() || !bPlaying;
+		// En BATAILLE : on masque TOUTES les étiquettes d'unités (sauf le boss) — même
+		// sélectionnées, elles s'empilaient en une bouillie illisible dans la mêlée. Les PV
+		// du groupe sélectionné restent lisibles dans la barre de commandement (en bas).
+		const bool bShowTag = bIsBoss || !bPlaying;
 		if (NameTag->IsVisible() != bShowTag)
 		{
 			NameTag->SetVisibility(bShowTag);

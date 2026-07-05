@@ -668,10 +668,21 @@ void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
 		FGroup& G = Found ? Groups[*Found]
 			: Groups[Index.Add(Name, Groups.Add(FGroup{ Name, 0, 0.f, 0, 0, U->GetFaction() }))];
 		G.Count++;
-		G.HpSum += U->GetHealthPercent();
-		const int32 UMax = (U->GetUnitData()) ? U->GetUnitData()->Stats.MaxHealth : 100;
+		// PV EFFECTIFS (multiplicateur de PV inclus) -> le courant ne dépasse plus le max.
+		float Pct; int32 UMax;
+		if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U))
+		{
+			Pct  = DU->GetEffectiveHealthPercent();
+			UMax = DU->GetEffectiveMaxHealth();
+		}
+		else
+		{
+			Pct  = U->GetHealthPercent();
+			UMax = (U->GetUnitData()) ? U->GetUnitData()->Stats.MaxHealth : 100;
+		}
+		G.HpSum += Pct;
 		G.HpMax += UMax;
-		G.HpCur += FMath::RoundToInt(U->GetHealthPercent() * UMax);
+		G.HpCur += FMath::RoundToInt(Pct * UMax);
 	}
 	if (Groups.Num() == 0) return;
 
