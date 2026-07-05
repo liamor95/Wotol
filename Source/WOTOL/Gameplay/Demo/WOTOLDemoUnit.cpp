@@ -253,6 +253,12 @@ int32 AWOTOLDemoUnit::GetEffectiveMaxHealth() const
 	return FMath::RoundToInt(BaseMax * FMath::Max(1.f, HealthScale));
 }
 
+void AWOTOLDemoUnit::SetHealthToFull()
+{
+	CurrentHealth  = (float)GetEffectiveMaxHealth();
+	LastKnownHealth = CurrentHealth;
+}
+
 float AWOTOLDemoUnit::GetEffectiveHealthPercent() const
 {
 	const float Max = FMath::Max(1.f, (float)GetEffectiveMaxHealth());
@@ -373,7 +379,7 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 	if (WhipCooldown <= 0.f)
 	{
 		DoWhipStrike();
-		WhipCooldown = 2.f;
+		WhipCooldown = 2.6f; // moins fréquent (2.0 -> 2.6)
 	}
 
 	AUnitBase* Nearest = FindNearestEnemyUnit();
@@ -433,10 +439,10 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 		// ATTAQUE CRITIQUE (boss) : de temps en temps, aléatoirement, le colosse assène un
 		// coup dévastateur -> gros dégâts bonus + libellé "CRITIQUE". Cadencé par un cooldown.
 		CritCooldown -= DeltaSeconds;
-		if (CritCooldown <= 0.f && FMath::FRand() < 0.35f && Nearest->IsAlive())
+		if (CritCooldown <= 0.f && FMath::FRand() < 0.28f && Nearest->IsAlive())
 		{
-			CritCooldown = FMath::FRandRange(6.f, 10.f); // moins fréquent qu'avant
-			Nearest->TakeDamageFromUnit(190.f, this);    // coup critique (réduit de 320)
+			CritCooldown = FMath::FRandRange(7.f, 11.f); // encore moins fréquent
+			Nearest->TakeDamageFromUnit(140.f, this);    // coup critique (réduit 320->190->140)
 			const FVector CritLoc = Nearest->GetActorLocation() + FVector(0, 0, 90.f);
 			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(W, CritLoc, TEXT("CRITIQUE !"),
 					FLinearColor(1.f, 0.35f, 0.f, 1.f)))
@@ -1456,6 +1462,6 @@ void AWOTOLDemoUnit::DoWhipStrike()
 		// Balaie / repousse les unités (coup de fouet) + dégâts CONSÉQUENTS (colosse)
 		const FVector Push = To.GetSafeNormal() * 1300.f + FVector(0.f, 0.f, 400.f);
 		U->LaunchCharacter(Push, true, true);
-		U->TakeDamageFromUnit(110.f, this);
+		U->TakeDamageFromUnit(70.f, this); // réduit (110->70) : les unités fragiles survivent
 	}
 }

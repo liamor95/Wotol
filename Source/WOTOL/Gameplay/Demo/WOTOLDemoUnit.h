@@ -56,6 +56,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Demo|Greybox")
 	int32 GetEffectiveMaxHealth() const;
 
+	// Remet les PV au maximum effectif (après un changement de HealthScale à chaud,
+	// ex. calibrage du boss sur l'armée du joueur au lancement de la bataille).
+	UFUNCTION(BlueprintCallable, Category = "Demo|Greybox")
+	void SetHealthToFull();
+
 	// ─── Verticalité (nage) : l'unité tient une hauteur (couche) donnée ───────
 	// Règle la couche verticale cible ; l'unité y monte/descend en douceur et la tient.
 	UFUNCTION(BlueprintCallable, Category = "Demo|Greybox")

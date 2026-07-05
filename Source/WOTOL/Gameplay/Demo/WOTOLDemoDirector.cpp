@@ -399,6 +399,35 @@ void AWOTOLDemoDirector::LaunchBattle()
 					St->bAllowRetreat = false; // unités du joueur : ne fuient jamais
 				}
 			}
+
+			// ── ÉQUILIBRAGE AUTOMATIQUE PAR FACTION (phase 1, Kraken) ──
+			// Les Noxéens (fragiles) perdaient toujours, les Aquiloris (résistants)
+			// gagnaient : on CALIBRE les PV du Kraken sur la puissance RÉELLE de l'armée
+			// du joueur (PV totaux + un peu de sa capacité de survie) pour viser ~50/50
+			// quel que soit le camp. Vaut pour les deux factions, sans rien coder en dur.
+			if (CaptureObject == nullptr) // uniquement la bataille de créature
+			{
+				if (AWOTOLDemoUnit* Boss = Cast<AWOTOLDemoUnit>(
+						GetGameInstance() && GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()
+						? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()->GetBoss() : nullptr))
+				{
+					float ArmyHP = 0.f;
+					for (AUnitBase* U : Reg->GetUnitsForFaction(CachedPlayerFaction))
+					{
+						if (!U || !U->IsAlive()) continue;
+						if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U)) ArmyHP += DU->GetEffectiveMaxHealth();
+						else if (U->GetUnitData())                        ArmyHP += U->GetUnitData()->Stats.MaxHealth;
+					}
+					if (ArmyHP > 0.f && Boss->GetUnitData())
+					{
+						// Cible : PV du Kraken ≈ 1.5x les PV totaux de l'armée (réglable).
+						const float TargetHP = ArmyHP * 1.5f;
+						const int32 BaseMax  = FMath::Max(1, Boss->GetUnitData()->Stats.MaxHealth);
+						Boss->HealthScale    = FMath::Max(1.f, TargetHP / (float)BaseMax);
+						Boss->SetHealthToFull(); // applique PV = HealthScale * base
+					}
+				}
+			}
 		}
 	}
 
@@ -464,7 +493,7 @@ void AWOTOLDemoDirector::LaunchBattle()
 
 	// Cerveau tactique : ré-évalue les manœuvres des 2 armées toutes les 3,5 s.
 	GetWorldTimerManager().SetTimer(
-		TacticalHandle, this, &AWOTOLDemoDirector::TacticalTick, 3.5f, true, 3.5f);
+		TacticalHandle, this, &AWOTOLDemoDirector::TacticalTick, 2.0f, true, 2.0f);
 
 	BattleStartTime = GetWorld()->GetTimeSeconds(); // pour la durée du résumé
 }
