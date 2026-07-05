@@ -60,7 +60,7 @@ AWOTOLDemoUnit::AWOTOLDemoUnit()
 	NameTagShadow->SetupAttachment(VisualRoot);
 	NameTagShadow->SetRelativeLocation(FVector(0.f, 0.f, 140.f));
 	NameTagShadow->SetHorizontalAlignment(EHTA_Center);
-	NameTagShadow->SetWorldSize(46.f); // plus gros = liseré noir autour
+	NameTagShadow->SetWorldSize(44.f); // un peu plus gros que le nom = fin liseré noir centré
 	NameTagShadow->SetTextRenderColor(FColor(0, 0, 0, 255));
 	NameTagShadow->SetText(FText::GetEmpty());
 
@@ -192,11 +192,11 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 			NameTag->SetWorldRotation(Face);
 			if (NameTagShadow)
 			{
+				// CONTOUR (pas d'ombre décalée) : le noir est CENTRÉ et un peu plus gros,
+				// juste DERRIÈRE le texte -> il déborde en fin liseré = lettres bien
+				// détourées, sans double-vision.
 				NameTagShadow->SetWorldRotation(Face);
-				const FVector Fwd   = Face.Vector();                                   // vers la caméra
-				const FVector Right = FRotationMatrix(Face).GetScaledAxis(EAxis::Y);
-				NameTagShadow->SetWorldLocation(
-					NameLoc - Fwd * 2.f + Right * 3.f + FVector(0.f, 0.f, -4.f));       // derrière + bas-droite
+				NameTagShadow->SetWorldLocation(NameLoc - Face.Vector() * 1.5f);
 			}
 		}
 	}
@@ -251,7 +251,7 @@ void AWOTOLDemoUnit::HandleHealthChanged(float NewHealth, float MaxHealth)
 			? GetFloatingTextAnchor()->GetComponentLocation() : GetActorLocation();
 		const FVector Jitter(FMath::FRandRange(-35.f, 35.f), FMath::FRandRange(-35.f, 35.f), 0.f);
 		if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::Spawn(
-				GetWorld(), Anchor, Dmg, FLinearColor(1.f, 0.15f, 0.1f, 1.f))) // rouge vif
+				GetWorld(), Anchor, Dmg, FLinearColor(0.55f, 0.f, 0.f, 1.f))) // rouge FONCÉ (contraste sur sol clair)
 		{
 			N->SetFollow(GetFloatingTextAnchor(), FVector(0.f, 0.f, 110.f) + Jitter);
 		}

@@ -27,8 +27,8 @@ AWOTOLCaptureObject::AWOTOLCaptureObject()
 	NameTagShadow = CreateDefaultSubobject<UTextRenderComponent>(TEXT("NameTagShadow"));
 	NameTagShadow->SetupAttachment(SceneRoot);
 	NameTagShadow->SetHorizontalAlignment(EHTA_Center);
-	NameTagShadow->SetWorldSize(46.f);
-	NameTagShadow->SetRelativeLocation(FVector(0.f, 0.f, 250.f));
+	NameTagShadow->SetWorldSize(44.f); // fin liseré noir centré autour du nom
+	NameTagShadow->SetRelativeLocation(FVector(0.f, 0.f, -140.f));
 	NameTagShadow->SetTextRenderColor(FColor(0, 0, 0, 255));
 
 	NameTag = CreateDefaultSubobject<UTextRenderComponent>(TEXT("NameTag"));
@@ -67,10 +67,9 @@ void AWOTOLCaptureObject::Tick(float DeltaSeconds)
 			NameTag->SetWorldRotation(Face);
 			if (NameTagShadow)
 			{
+				// Contour noir CENTRÉ (fin liseré), pas d'ombre décalée.
 				NameTagShadow->SetWorldRotation(Face);
-				const FVector Fwd   = Face.Vector();
-				const FVector Right = FRotationMatrix(Face).GetScaledAxis(EAxis::Y);
-				NameTagShadow->SetWorldLocation(NameLoc - Fwd * 3.f + Right * 6.f + FVector(0, 0, -8.f));
+				NameTagShadow->SetWorldLocation(NameLoc - Face.Vector() * 1.5f);
 			}
 		}
 	}

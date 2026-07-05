@@ -118,7 +118,7 @@ float AUnitBase::TakeDamageFromUnit(float Damage, AUnitBase* /*Instigator*/)
 			&& FMath::FRandRange(0.f, 100.f) < UnitData->Stats.DodgeChance)
 		{
 			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(GetWorld(), FxLoc,
-					TEXT("Esquive"), FLinearColor(0.5f, 0.9f, 1.f, 1.f)))
+					TEXT("Esquive"), FLinearColor(0.04f, 0.16f, 0.55f, 1.f))) // bleu FONCÉ
 				N->SetFollow(Anchor, Jitter);
 			return 0.f;
 		}
@@ -128,7 +128,7 @@ float AUnitBase::TakeDamageFromUnit(float Damage, AUnitBase* /*Instigator*/)
 		{
 			bBlocked = true;
 			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(GetWorld(), FxLoc,
-					TEXT("Pare"), FLinearColor(1.f, 0.85f, 0.3f, 1.f)))
+					TEXT("Pare"), FLinearColor(0.45f, 0.22f, 0.f, 1.f))) // orange/brun FONCÉ
 				N->SetFollow(Anchor, Jitter);
 		}
 	}
