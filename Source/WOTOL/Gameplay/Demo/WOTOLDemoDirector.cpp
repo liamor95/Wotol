@@ -411,20 +411,21 @@ void AWOTOLDemoDirector::LaunchBattle()
 						GetGameInstance() && GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()
 						? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()->GetBoss() : nullptr))
 				{
-					float ArmyHP = 0.f;
+					// On calibre sur le DPS RÉEL de l'armée (somme des AttackDPS), PAS ses PV :
+					// les Noxéens frappent bien plus fort que les Aquiloris (glass cannons) et
+					// fondaient le Kraken sans pertes. En liant les PV du boss à la capacité de
+					// DÉGÂTS, les deux factions obtiennent une durée de combat comparable.
+					float ArmyDPS = 0.f;
 					for (AUnitBase* U : Reg->GetUnitsForFaction(CachedPlayerFaction))
 					{
-						if (!U || !U->IsAlive()) continue;
-						if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U)) ArmyHP += DU->GetEffectiveMaxHealth();
-						else if (U->GetUnitData())                        ArmyHP += U->GetUnitData()->Stats.MaxHealth;
+						if (!U || !U->IsAlive() || !U->GetUnitData()) continue;
+						ArmyDPS += U->GetUnitData()->Stats.AttackDPS;
 					}
-					if (ArmyHP > 0.f && Boss->GetUnitData())
+					if (ArmyDPS > 0.f && Boss->GetUnitData())
 					{
-						// Les PV TOTAUX de l'armée surestiment énormément sa capacité réelle
-						// de dégâts (53k PV n'infligent que ~29k au boss sur toute la bataille).
-						// On vise donc une FRACTION des PV de l'armée, bornée à une plage
-						// jouable. [Réglable : 0.30 très facile .. 0.55 dur]
-						const float TargetHP = FMath::Clamp(ArmyHP * 0.42f, 12000.f, 30000.f);
+						// K calé sur le bon ressenti Aquiloris (~22500 PV pour leur armée).
+						// [Réglable : 3.5 plus facile .. 5.5 plus dur]
+						const float TargetHP = FMath::Clamp(ArmyDPS * 4.5f, 12000.f, 34000.f);
 						const int32 BaseMax  = FMath::Max(1, Boss->GetUnitData()->Stats.MaxHealth);
 						Boss->HealthScale    = FMath::Max(1.f, TargetHP / (float)BaseMax);
 						Boss->SetHealthToFull(); // applique PV = HealthScale * base
@@ -793,9 +794,11 @@ void AWOTOLDemoDirector::SiegeTick()
 	}
 	if (Attackers > 0)
 	{
-		// 4 PV/s par assiégeant au contact, mais PLAFONNÉ (sinon la foule entière au
-		// centre écroule le bâtiment en quelques secondes = phase 2 impossible).
-		const float Damage = FMath::Min(Attackers * 4.f, 30.f);
+		// 3 PV/s par assiégeant au contact, PLAFONNÉ à 24/s. Avec l'objectif renforcé
+		// (16000 PV), même sous siège TOTAL non contré il tient ~660 s > chrono (600 s) :
+		// l'objectif est DÉFENDABLE. Les défenseurs qui écartent des assiégeants le
+		// sauvent largement. [Réglable : cap 24 = équilibré, plus haut = plus dur]
+		const float Damage = FMath::Min(Attackers * 3.f, 24.f);
 		CaptureObject->ApplyDamage(Damage);
 	}
 }

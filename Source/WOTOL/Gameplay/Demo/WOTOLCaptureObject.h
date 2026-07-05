@@ -38,11 +38,12 @@ public:
 
 	// PV de BÂTIMENT (bien plus résistant qu'une unité : un objectif stratégique).
 	// Dimensionné pour tenir face au siège le temps que le joueur écarte les assaillants.
+	// 16000 : sous siège total (24/s) il tombe en ~660 s > chrono 600 s -> défendable.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Capture")
-	float MaxHealth = 6000.f;
+	float MaxHealth = 16000.f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Capture")
-	float CurrentHealth = 6000.f;
+	float CurrentHealth = 16000.f;
 
 	// Nom affiché selon la faction (Cristalliseur / Abyssalyseur)
 	UFUNCTION(BlueprintPure, Category = "Capture")
