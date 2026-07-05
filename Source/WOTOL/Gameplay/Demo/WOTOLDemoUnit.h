@@ -42,6 +42,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Greybox")
 	float HealthScale = 1.f;
 
+	// Horodatage du dernier ordre MANUEL du joueur sur cette unité. La ré-évaluation
+	// tactique de l'IA (Director) laisse ces unités tranquilles pendant quelques secondes.
+	UPROPERTY(BlueprintReadWrite, Category = "Demo|Greybox")
+	float LastPlayerOrderTime = -1000.f;
+
 	// PV max effectifs (en tenant compte de HealthScale)
 	UFUNCTION(BlueprintPure, Category = "Demo|Greybox")
 	int32 GetEffectiveMaxHealth() const;

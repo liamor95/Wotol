@@ -89,7 +89,7 @@ float AUnitBase::GetHealthPercent() const
 	return CurrentHealth / static_cast<float>(UnitData->Stats.MaxHealth);
 }
 
-float AUnitBase::TakeDamageFromUnit(float Damage, AUnitBase* /*Instigator*/)
+float AUnitBase::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit)
 {
 	if (!IsAlive()) return 0.f;
 
@@ -139,6 +139,7 @@ float AUnitBase::TakeDamageFromUnit(float Damage, AUnitBase* /*Instigator*/)
 	if (bBlocked) EffDamage *= 0.35f; // coup paré = 65% de dégâts en moins
 	const float Applied      = FMath::Min(EffDamage, CurrentHealth);
 	CurrentHealth           -= Applied;
+	if (InstigatorUnit) InstigatorUnit->DamageDealt += Applied; // pour le résumé de bataille
 
 	const float MaxHP = UnitData ? static_cast<float>(UnitData->Stats.MaxHealth) : CurrentHealth;
 	OnHealthChanged.Broadcast(CurrentHealth, MaxHP);

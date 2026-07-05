@@ -124,6 +124,9 @@ void AWOTOLPlayerController_Battle::ChangeLayerForSelection(float DeltaZ)
 			// Couche visuelle : décalage 0 (fond) .. 2400 (haut). Contrôle joueur = INSTANTANÉ.
 			const float NewZ = FMath::Clamp(DU->GetDesiredZ() + DeltaZ, 0.f, 2400.f);
 			DU->SetDesiredZ(NewZ);
+			// Un changement de couche manuel compte comme un ordre -> l'IA tactique ne
+			// le réécrasera pas tout de suite.
+			DU->LastPlayerOrderTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
 		}
 	}
 }
@@ -465,9 +468,11 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 		}
 		if (Cnt > 0) Centroid /= Cnt;
 		const FVector TargetLoc = TargetUnit->GetActorLocation();
+		const float NowT = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
 		for (AUnitBase* Unit : Sel)
 		{
 			if (!Unit || !Unit->IsAlive()) continue;
+			if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(Unit)) DU->LastPlayerOrderTime = NowT;
 			if (AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(Unit->GetController()))
 			{
 				// Décalage conservé autour de la cible -> elles encerclent au lieu de s'empiler.
@@ -511,9 +516,11 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 		}
 	}
 
+	const float NowMove = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
 	for (AUnitBase* Unit : Sel)
 	{
 		if (!Unit || !Unit->IsAlive()) continue;
+		if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(Unit)) DU->LastPlayerOrderTime = NowMove;
 		AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(Unit->GetController());
 		if (!AIC) continue;
 

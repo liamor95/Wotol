@@ -46,6 +46,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	bool IsAlive() const { return CurrentHealth > 0.f; }
 
+	// Total de dégâts INFLIGÉS par cette unité (pour le résumé de bataille).
+	UPROPERTY(BlueprintReadOnly, Category = "Combat")
+	float DamageDealt = 0.f;
+
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	EFactionID GetFaction() const { return Faction; }
 

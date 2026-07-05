@@ -51,6 +51,10 @@ struct FUnitLossEntry
 	UPROPERTY(BlueprintReadOnly) int32   Lost  = 0;
 	UPROPERTY(BlueprintReadOnly) int32   Total = 0;
 	UPROPERTY(BlueprintReadOnly) EFactionID Faction = EFactionID::None;
+	UPROPERTY(BlueprintReadOnly) float   DamageDealt = 0.f; // dégâts infligés par le groupe
+	UPROPERTY(BlueprintReadOnly) int32   DefPct   = 0;      // taux (représentatif) du type
+	UPROPERTY(BlueprintReadOnly) int32   BlockPct = 0;
+	UPROPERTY(BlueprintReadOnly) int32   DodgePct = 0;
 };
 
 // Type de bataille (la même arène sert pour les deux)

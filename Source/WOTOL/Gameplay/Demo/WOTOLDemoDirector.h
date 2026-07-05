@@ -129,6 +129,12 @@ private:
 	void HandleCaptureDestroyed(); // bâtiment tombé à 0 -> objectif perdu -> défaite
 	FTimerHandle SiegeHandle;
 
+	// ── Cerveau tactique : ré-évalue périodiquement les 2 armées (poursuite, étagement
+	//    vertical par rôle, contournement de flanc) -> comportement vivant, plus figé. ──
+	void TacticalTick();
+	FVector FactionCentroid(EFactionID Faction) const;
+	FTimerHandle TacticalHandle;
+
 	void SpawnPlayerArmy(EFactionID Faction, const FVector& Origin, const FRotator& Facing);
 	void SpawnEnemyForCreature(EFactionID RivalFaction, const FVector& Origin, const FRotator& Facing);
 	void SpawnRivalSquad(EFactionID RivalFaction, const FVector& Origin, const FRotator& Facing);

@@ -435,6 +435,10 @@ void AWOTOLDemoDirector::LaunchBattle()
 		GetWorldTimerManager().SetTimer(
 			SiegeHandle, this, &AWOTOLDemoDirector::SiegeTick, 1.f, true);
 	}
+
+	// Cerveau tactique : ré-évalue les manœuvres des 2 armées toutes les 3,5 s.
+	GetWorldTimerManager().SetTimer(
+		TacticalHandle, this, &AWOTOLDemoDirector::TacticalTick, 3.5f, true, 3.5f);
 }
 
 void AWOTOLDemoDirector::CheckBattleEnd()
@@ -461,6 +465,7 @@ void AWOTOLDemoDirector::CheckBattleEnd()
 void AWOTOLDemoDirector::OnPlayerVictory()
 {
 	GetWorldTimerManager().ClearTimer(SiegeHandle);
+	GetWorldTimerManager().ClearTimer(TacticalHandle);
 	UGameInstance* GI = GetGameInstance();
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 
@@ -501,6 +506,7 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 void AWOTOLDemoDirector::OnPlayerDefeat()
 {
 	GetWorldTimerManager().ClearTimer(SiegeHandle);
+	GetWorldTimerManager().ClearTimer(TacticalHandle);
 	if (URTSBattleManager* RTS = GetWorld()->GetSubsystem<URTSBattleManager>())
 	{
 		RTS->EndBattle(CachedRivalFaction, EBattleResult::Defeat);
@@ -526,16 +532,23 @@ void AWOTOLDemoDirector::BuildBattleSummary(bool bVictory, bool bFinal, const FS
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	if (!Demo) return;
 
-	auto Accumulate = [](TArray<FUnitLossEntry>& Out, const FString& Name, EFactionID Fac, bool bDead)
+	auto Accumulate = [](TArray<FUnitLossEntry>& Out, const AWOTOLDemoUnit* U, const FString& Name)
 	{
 		FUnitLossEntry* E = Out.FindByPredicate([&](const FUnitLossEntry& X){ return X.UnitName == Name; });
 		if (!E)
 		{
-			FUnitLossEntry New; New.UnitName = Name; New.Faction = Fac;
+			FUnitLossEntry New; New.UnitName = Name; New.Faction = U->GetFaction();
+			if (const UUnitDataAsset* D = U->GetUnitData())
+			{
+				New.DefPct   = FMath::RoundToInt(D->Stats.DefensePercent);
+				New.BlockPct = FMath::RoundToInt(D->Stats.BlockChance);
+				New.DodgePct = FMath::RoundToInt(D->Stats.DodgeChance);
+			}
 			E = &Out[Out.Add(New)];
 		}
 		E->Total++;
-		if (bDead) E->Lost++;
+		if (!U->IsAlive()) E->Lost++;
+		E->DamageDealt += U->DamageDealt;
 	};
 
 	Demo->PlayerLosses.Reset();
@@ -549,8 +562,7 @@ void AWOTOLDemoDirector::BuildBattleSummary(bool bVictory, bool bFinal, const FS
 			: ((U->GetUnitData() && !U->GetUnitData()->DisplayName.IsEmpty())
 				? U->GetUnitData()->DisplayName.ToString() : U->GetName());
 		const bool bPlayer = (U->GetFaction() == CachedPlayerFaction);
-		Accumulate(bPlayer ? Demo->PlayerLosses : Demo->EnemyLosses,
-			Name, U->GetFaction(), !U->IsAlive());
+		Accumulate(bPlayer ? Demo->PlayerLosses : Demo->EnemyLosses, U, Name);
 	}
 
 	Demo->SummaryTitle    = Title;
@@ -607,6 +619,7 @@ void AWOTOLDemoDirector::RestartDemo(bool bKeepFaction)
 	GetWorldTimerManager().ClearTimer(PhaseHandle);
 	GetWorldTimerManager().ClearTimer(BattleStartHandle);
 	GetWorldTimerManager().ClearTimer(SiegeHandle);
+	GetWorldTimerManager().ClearTimer(TacticalHandle);
 	CleanupUnits();
 	ClearPlacementBoundary();
 	if (CaptureObject) { CaptureObject->Destroy(); CaptureObject = nullptr; }
@@ -707,6 +720,87 @@ void AWOTOLDemoDirector::SiegeTick()
 	}
 }
 
+FVector AWOTOLDemoDirector::FactionCentroid(EFactionID Faction) const
+{
+	FVector C = FVector::ZeroVector; int32 N = 0;
+	if (UWorld* W = GetWorld())
+	{
+		if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
+		{
+			for (AUnitBase* U : Reg->GetUnitsForFaction(Faction))
+			{
+				if (!U || !U->IsAlive()) continue;
+				C += U->GetActorLocation(); ++N;
+			}
+		}
+	}
+	return (N > 0) ? C / N : GetActorLocation();
+}
+
+// Ré-évaluation TACTIQUE (toutes ~3,5 s) : chaque camp poursuit l'adversaire, étage ses
+// unités sur les couches verticales selon le rôle, et envoie ~1/3 en contournement de
+// flanc (en passant par une couche haute). -> les armées manœuvrent au lieu de rester figées.
+void AWOTOLDemoDirector::TacticalTick()
+{
+	if (bBattleConcluded) return;
+	UWorld* W = GetWorld();
+	if (!W) return;
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>();
+	if (!Reg) return;
+
+	const FVector PlayerC = FactionCentroid(CachedPlayerFaction);
+	const FVector RivalC  = FactionCentroid(CachedRivalFaction);
+	const float Now = W->GetTimeSeconds();
+
+	auto CommandArmy = [&](EFactionID Fac, const FVector& EnemyCentroid, bool bIsPlayer)
+	{
+		int32 idx = 0;
+		for (AUnitBase* U : Reg->GetUnitsForFaction(Fac))
+		{
+			if (!U || !U->IsAlive()) continue;
+			AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U);
+			if (DU && DU->bCreatureBrain) continue; // le boss a son propre cerveau
+			// Respecte les ordres MANUELS récents du joueur (ne les écrase pas).
+			if (bIsPlayer && DU && (Now - DU->LastPlayerOrderTime) < 8.f) { ++idx; continue; }
+
+			AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(U->GetController());
+			if (!AIC) { ++idx; continue; }
+
+			// Étagement vertical par rôle : la distance/spéciale tire d'en haut, le chef au
+			// milieu, l'infanterie/montée au sol -> occupe les 4 couches (verticalité vivante).
+			const EUnitRole R = U->GetUnitData() ? U->GetUnitData()->Role : EUnitRole::Infanterie;
+			float Layer = 0.f;
+			switch (R)
+			{
+				case EUnitRole::Distance: Layer = 1600.f; break;
+				case EUnitRole::Speciale: Layer = 1600.f; break;
+				case EUnitRole::Chef:     Layer = 900.f;  break;
+				default:                  Layer = 0.f;    break;
+			}
+
+			// Contournement : ~1/3 des unités visent un FLANC (décalage latéral) en passant
+			// par une couche haute, pour prendre l'arrière/le côté de la ligne ennemie.
+			FVector Dest = EnemyCentroid;
+			if (idx % 3 == 0)
+			{
+				const float Sgn = (idx % 2 == 0) ? 1.f : -1.f;
+				Dest += FVector(0.f, Sgn * 1500.f, 0.f);
+				Layer = FMath::Max(Layer, 1600.f);
+			}
+
+			if (DU) DU->SetDesiredZ(Layer);
+			AIC->ActivateRTSBehavior();
+			AIC->IssueOrder_AttackMove(Dest);
+			if (UUnitAIStateComponent* St = U->FindComponentByClass<UUnitAIStateComponent>())
+				St->SightRange = 60000.f;
+			++idx;
+		}
+	};
+
+	CommandArmy(CachedPlayerFaction, RivalC, /*bIsPlayer=*/true);
+	CommandArmy(CachedRivalFaction, PlayerC, /*bIsPlayer=*/false);
+}
+
 void AWOTOLDemoDirector::HandleCaptureDestroyed()
 {
 	if (bBattleConcluded) return;
@@ -715,6 +809,7 @@ void AWOTOLDemoDirector::HandleCaptureDestroyed()
 	bBattleConcluded = true;
 	GetWorldTimerManager().ClearTimer(BattleCheckHandle);
 	GetWorldTimerManager().ClearTimer(SiegeHandle);
+	GetWorldTimerManager().ClearTimer(TacticalHandle);
 	OnPlayerDefeat();
 }
 

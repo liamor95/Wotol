@@ -44,8 +44,9 @@ FBox2D AWOTOLDemoHUD::FactionButtonRect(int32 Index, float W, float H)
 
 FBox2D AWOTOLDemoHUD::LaunchBattleButtonRect(float W, float H)
 {
+	// Remonté au-dessus de la barre de sélection (bas) pour ne rien chevaucher.
 	const float BW = 360.f, BH = 62.f;
-	const float X = (W - BW) * 0.5f, Y = H - 150.f;
+	const float X = (W - BW) * 0.5f, Y = H - 265.f;
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
@@ -140,9 +141,14 @@ void AWOTOLDemoHUD::DrawHUD()
 	// ─── 3) Barre de vie du BOSS (style "boss fight") ────────────────────────
 	if (Demo)
 	{
-		if (AWOTOLDemoUnit* Boss = Cast<AWOTOLDemoUnit>(Demo->GetBoss()))
+		// Barre du boss : seulement EN BATAILLE (pas pendant la préparation, pour garder
+		// l'écran de placement dégagé).
+		if (Screen == EDemoScreen::Playing)
 		{
-			DrawBossBar(W, H, Boss);
+			if (AWOTOLDemoUnit* Boss = Cast<AWOTOLDemoUnit>(Demo->GetBoss()))
+			{
+				DrawBossBar(W, H, Boss);
+			}
 		}
 
 		// Barre de vie du BÂTIMENT à défendre — uniquement EN BATAILLE (sinon elle
@@ -372,13 +378,18 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 			const FLinearColor LineCol = (E.Lost >= E.Total)
 				? FLinearColor(1.f, 0.4f, 0.35f, 1.f)   // anéanti
 				: FLinearColor(0.88f, 0.94f, 1.f, 1.f);
-			const FString Line = FString::Printf(TEXT("%s"), *E.UnitName);
-			const FString Stat = FString::Printf(TEXT("perdus %d / %d  (survivants %d)"),
-				E.Lost, E.Total, Survived);
-			DrawText(Line, LineCol, X + 18.f, Y, GEngine->GetMediumFont(), 1.1f);
+			DrawText(E.UnitName, LineCol, X + 18.f, Y, GEngine->GetMediumFont(), 1.1f);
+			// Pertes + dégâts infligés par le groupe
+			const FString Stat = FString::Printf(TEXT("perdus %d / %d  (survivants %d)  —  degats infliges : %d"),
+				E.Lost, E.Total, Survived, FMath::RoundToInt(E.DamageDealt));
 			DrawText(Stat, FLinearColor(0.75f, 0.82f, 0.92f, 1.f), X + 18.f, Y + 20.f,
 				GEngine->GetSmallFont(), 1.f);
-			Y += 46.f;
+			// Taux défensifs du type (représentatif)
+			const FString Rates = FString::Printf(TEXT("DEF %d%%   Parade %d%%   Esquive %d%%"),
+				E.DefPct, E.BlockPct, E.DodgePct);
+			DrawText(Rates, FLinearColor(0.65f, 0.78f, 0.7f, 1.f), X + 18.f, Y + 38.f,
+				GEngine->GetSmallFont(), 1.f);
+			Y += 62.f;
 		}
 		// Total en bas de colonne
 		const FString TotLine = FString::Printf(TEXT("TOTAL : %d pertes / %d"), TotalLost, Total);
@@ -709,7 +720,7 @@ void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
 
 	// ── Bandeau ADAPTATIF : sa largeur = nombre de cartes affichées (pas plein écran) ──
 	const float CardW = 172.f, CardH = 90.f, Gap = 10.f, Pad = 12.f;
-	const int32 MaxFit = FMath::Max(1, (int32)((W - 90.f) / (CardW + Gap))); // place pour le bouton pause
+	const int32 MaxFit = FMath::Max(1, (int32)((W - 180.f) / (CardW + Gap))); // laisse la place aux boutons de couche (droite)
 	const int32 Shown = FMath::Min(Groups.Num(), MaxFit);
 	const float BandH = CardH + 12.f;
 	const float BandY = H - BandH;

@@ -108,24 +108,22 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	}
 	AnimateWhips(DeltaSeconds);          // fouets du Kraken (no-op si l'unité n'en a pas)
 
-	// FACE À L'ENNEMI EN COMBAT : quand l'unité attaque, elle se tourne vers l'ennemi le
-	// plus proche -> le coup part VERS L'AVANT (fini l'impression de frapper en arrière).
+	// FACE À L'ENNEMI EN COMBAT : dès qu'un ennemi est à portée de combat, l'unité se
+	// tourne vers lui (pas seulement dans l'état "Attacking", car en mêlée l'état peut
+	// varier). -> le modèle regarde l'ennemi et le coup part VERS L'AVANT (fini le "frappe
+	// en arrière"). Sinon, l'unité garde son orientation de déplacement (OrientToMovement).
 	if (!bCreatureBrain)
 	{
-		if (UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>())
+		if (AUnitBase* Foe = FindNearestEnemyUnit())
 		{
-			if (S->GetCurrentState() == EUnitAIState::Attacking)
+			FVector To = Foe->GetActorLocation() - GetActorLocation();
+			To.Z = 0.f;
+			const float Dist = To.Size();
+			const float AtkRange = UnitData ? UnitData->Stats.AttackRange * 200.f : 200.f;
+			if (Dist > 1.f && Dist < AtkRange + 500.f)
 			{
-				if (AUnitBase* Foe = FindNearestEnemyUnit())
-				{
-					FVector To = Foe->GetActorLocation() - GetActorLocation();
-					To.Z = 0.f;
-					if (To.SizeSquared() > 1.f)
-					{
-						FRotator R = To.Rotation(); R.Pitch = 0.f; R.Roll = 0.f;
-						SetActorRotation(FMath::RInterpTo(GetActorRotation(), R, DeltaSeconds, 12.f));
-					}
-				}
+				FRotator R = To.Rotation(); R.Pitch = 0.f; R.Roll = 0.f;
+				SetActorRotation(FMath::RInterpTo(GetActorRotation(), R, DeltaSeconds, 10.f));
 			}
 		}
 	}
