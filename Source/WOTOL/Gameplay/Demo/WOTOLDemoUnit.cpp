@@ -18,6 +18,7 @@
 #include "WOTOLDamageNumber.h"
 #include "WOTOLBubbleBurst.h"
 #include "DemoFlowSubsystem.h"
+#include "OceanCurrentSubsystem.h"
 #include "Engine/GameInstance.h"
 
 namespace
@@ -134,6 +135,28 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		{
 			Desired.Pitch = 0.f; Desired.Roll = 0.f;
 			SetActorRotation(FMath::RInterpTo(GetActorRotation(), Desired, DeltaSeconds, 10.f));
+		}
+	}
+
+	// COURANT OCÉANIQUE : sur les couches HAUTES, la dérive pousse physiquement l'unité
+	// (joueur, ennemi ET Kraken). N'agit qu'EN BATAILLE (pas pendant le placement, sinon
+	// les unités posées s'envoleraient). La résistance vient de leur propre déplacement.
+	if (IsAlive())
+	{
+		if (UOceanCurrentSubsystem* Cur = GetWorld() ? GetWorld()->GetSubsystem<UOceanCurrentSubsystem>() : nullptr)
+		{
+			const FVector Drift = Cur->GetDriftAt(CurLayer);
+			if (!Drift.IsNearlyZero())
+			{
+				bool bInBattle = false;
+				if (UGameInstance* GI = GetGameInstance())
+					if (UDemoFlowSubsystem* D = GI->GetSubsystem<UDemoFlowSubsystem>())
+						bInBattle = (D->GetScreen() == EDemoScreen::Playing);
+				if (bInBattle)
+				{
+					AddActorWorldOffset(Drift * DeltaSeconds, true); // dérive (respecte la collision)
+				}
+			}
 		}
 	}
 

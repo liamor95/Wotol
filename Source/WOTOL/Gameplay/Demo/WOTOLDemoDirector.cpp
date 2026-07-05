@@ -2,6 +2,7 @@
 #include "WOTOLDemoUnit.h"
 #include "WOTOLCaptureObject.h"
 #include "DemoFlowSubsystem.h"
+#include "OceanCurrentSubsystem.h"
 #include "Gameplay/Units/UnitBase.h"
 #include "Gameplay/Units/UnitDataAsset.h"
 #include "Gameplay/Battle/RTSBattleManager.h"
@@ -73,6 +74,15 @@ void AWOTOLDemoDirector::BeginPreparation()
 
 	CleanupUnits(); // repart d'une armée propre (utile en phase 2)
 	bBattleConcluded = false;
+
+	// Nouveau COURANT océanique (sens + intensité) pour cette bataille.
+	if (UWorld* W = GetWorld())
+	{
+		if (UOceanCurrentSubsystem* Cur = W->GetSubsystem<UOceanCurrentSubsystem>())
+		{
+			Cur->Regenerate();
+		}
+	}
 	const FVector Center = GetActorLocation();
 	const FVector PlayerOrigin = Center + FVector(-ArmySeparation * 0.5f, 0.f, 0.f);
 	const FVector EnemyOrigin  = Center + FVector( ArmySeparation * 0.5f, 0.f, 0.f);
@@ -755,6 +765,7 @@ void AWOTOLDemoDirector::TacticalTick()
 	const FVector PlayerC = FactionCentroid(CachedPlayerFaction);
 	const FVector RivalC  = FactionCentroid(CachedRivalFaction);
 	const float Now = W->GetTimeSeconds();
+	UOceanCurrentSubsystem* Cur = W->GetSubsystem<UOceanCurrentSubsystem>();
 
 	auto CommandArmy = [&](EFactionID Fac, const FVector& OwnC, const FVector& EnemyC, bool bIsPlayer)
 	{
@@ -804,6 +815,19 @@ void AWOTOLDemoDirector::TacticalTick()
 				const float Sgn = (idx % 2 == 0) ? 1.f : -1.f;
 				Dest += FVector(0.f, Sgn * 1500.f, 0.f);
 				Layer = FMath::Max(Layer, 1600.f);
+			}
+
+			// ANTICIPATION DU COURANT : monter n'est intéressant que si le courant ne nous
+			// repousse pas de notre objectif. S'il est fort et à contre-sens en haut, l'unité
+			// RESTE AU SOL (contourne par en dessous) au lieu de se faire déporter.
+			if (Cur && Cur->IsActive() && Layer > 500.f)
+			{
+				const FVector DirToDest = (Dest - U->GetActorLocation()).GetSafeNormal2D();
+				const float Along = FVector::DotProduct(Cur->GetDirection(), DirToDest);
+				if (Along < -0.35f && Cur->GetFactorAt(Layer) > 0.4f)
+				{
+					Layer = 0.f; // courant défavorable en hauteur -> passe par le bas
+				}
 			}
 
 			if (DU) DU->SetDesiredZ(Layer);

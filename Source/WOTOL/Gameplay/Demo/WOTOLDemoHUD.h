@@ -49,6 +49,8 @@ private:
 	void DrawSummary(float W, float H, class UDemoFlowSubsystem* Demo);
 	void DrawInterlude(float W, float H, class UDemoFlowSubsystem* Demo);
 	void DrawBuildingBar(float W, float H, class AWOTOLCaptureObject* Building);
+	// Boussole de courant océanique (sens relatif caméra + intensité).
+	void DrawCurrentIndicator(float W, float H, class UWorld* World);
 	void DrawButton(const FBox2D& R, const FString& Label, const FLinearColor& Tint, float TextScale = 1.3f);
 
 	// Fond marin ANIMÉ (dégradé de profondeur + bulles qui montent + rais de lumière),

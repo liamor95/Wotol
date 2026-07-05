@@ -2,6 +2,8 @@
 #include "DemoFlowSubsystem.h"
 #include "WOTOLDemoUnit.h"
 #include "WOTOLCaptureObject.h"
+#include "OceanCurrentSubsystem.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Gameplay/Battle/WOTOLPlayerController_Battle.h"
 #include "Gameplay/Battle/RTSBattleManager.h"
 #include "Gameplay/Battle/UnitSelectionManager.h"
@@ -138,6 +140,9 @@ void AWOTOLDemoHUD::DrawHUD()
 
 	// ─── 2) Bandeau supérieur : timer (pilule) + objectif ────────────────────
 	DrawTopBar(W, H, World, Demo);
+
+	// Boussole de courant océanique (placement + bataille) pour anticiper la dérive.
+	DrawCurrentIndicator(W, H, World);
 
 	// ─── 3) Barre de vie du BOSS (style "boss fight") ────────────────────────
 	if (Demo)
@@ -425,6 +430,46 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 		DrawButton(SummaryContinueButtonRect(W, H), TEXT("CONTINUER — Defense de la zone"),
 			FLinearColor(1.f, 0.7f, 0.2f, 1.f), 1.4f);
 	}
+}
+
+void AWOTOLDemoHUD::DrawCurrentIndicator(float W, float H, UWorld* World)
+{
+	if (!World || !Canvas) return;
+	UOceanCurrentSubsystem* Cur = World->GetSubsystem<UOceanCurrentSubsystem>();
+	if (!Cur || !Cur->IsActive()) return;
+
+	// Angle du courant RELATIF à la caméra (boussole écran).
+	float CamYaw = 0.f;
+	if (APlayerController* PC = GetOwningPlayerController())
+		if (PC->PlayerCameraManager) CamYaw = PC->PlayerCameraManager->GetCameraRotation().Yaw;
+	const float WorldYaw = Cur->GetDirection().Rotation().Yaw;
+	const float Ang = FMath::DegreesToRadians(WorldYaw - CamYaw);
+	const FVector2D Dir(FMath::Sin(Ang), -FMath::Cos(Ang)); // haut écran = avant caméra
+
+	// Panneau en haut à droite (à gauche du bouton pause).
+	const float BX = W - 210.f, BY = 8.f, BW = 150.f, BH = 58.f;
+	DrawRect(FLinearColor(0.02f, 0.05f, 0.09f, 0.82f), BX, BY, BW, BH);
+	DrawRect(FLinearColor(0.25f, 0.7f, 1.f, 0.9f), BX, BY, BW, 3.f);
+	DrawText(TEXT("COURANT"), FLinearColor(0.7f, 0.9f, 1.f, 1.f), BX + 10.f, BY + 8.f, GEngine->GetSmallFont(), 1.f);
+
+	// Flèche
+	const FVector2D C(BX + 34.f, BY + 36.f);
+	const float Len = 20.f;
+	const FVector2D Tip = C + Dir * Len;
+	const FVector2D Tail = C - Dir * Len;
+	const FLinearColor Arr(0.4f, 0.85f, 1.f, 1.f);
+	DrawLine(Tail.X, Tail.Y, Tip.X, Tip.Y, Arr, 3.f);
+	const FVector2D Perp(-Dir.Y, Dir.X);
+	DrawLine(Tip.X, Tip.Y, (Tip - Dir * 8.f + Perp * 6.f).X, (Tip - Dir * 8.f + Perp * 6.f).Y, Arr, 3.f);
+	DrawLine(Tip.X, Tip.Y, (Tip - Dir * 8.f - Perp * 6.f).X, (Tip - Dir * 8.f - Perp * 6.f).Y, Arr, 3.f);
+
+	// Intensité (couches hautes)
+	const float S = Cur->GetStrength();
+	const TCHAR* Lbl = (S > 110.f) ? TEXT("Fort") : (S > 85.f) ? TEXT("Moyen") : TEXT("Faible");
+	DrawText(FString::Printf(TEXT("%s"), Lbl), FLinearColor(0.85f, 0.95f, 1.f, 1.f),
+		BX + 66.f, BY + 30.f, GEngine->GetSmallFont(), 1.f);
+	DrawText(TEXT("couches hautes"), FLinearColor(0.7f, 0.8f, 0.9f, 1.f),
+		BX + 66.f, BY + 44.f, GEngine->GetSmallFont(), 0.8f);
 }
 
 void AWOTOLDemoHUD::DrawInterlude(float W, float H, UDemoFlowSubsystem* Demo)
