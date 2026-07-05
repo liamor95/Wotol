@@ -12,6 +12,11 @@
 #include "Core/FactionRegistrySubsystem.h"
 #include "Gameplay/Factions/FactionSynergySubsystem.h"
 
+// Rythme de bataille (démo) : combats plus longs + déplacements ralentis (eau).
+// 0.42 dégâts -> ~2,5× plus d'échanges ; 0.55 vitesse -> approche/repli plus lents.
+float AUnitBase::GlobalDamageScale = 0.42f;
+float AUnitBase::GlobalSpeedScale  = 0.55f;
+
 AUnitBase::AUnitBase()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -79,8 +84,10 @@ void AUnitBase::InitFromDataAsset()
 		}
 	}
 
-	// MovementSpeed dans FUnitStats est un multiplicateur (1.0 = 600 UE units/s)
-	GetCharacterMovement()->MaxWalkSpeed = 600.f * UnitData->Stats.MovementSpeed;
+	// MovementSpeed dans FUnitStats est un multiplicateur (1.0 = 600 UE units/s).
+	// On applique le frottement de l'eau (GlobalSpeedScale) -> déplacements sous-marins
+	// plus lents = batailles moins expédiées.
+	GetCharacterMovement()->MaxWalkSpeed = 600.f * UnitData->Stats.MovementSpeed * GlobalSpeedScale;
 }
 
 float AUnitBase::GetHealthPercent() const
@@ -174,8 +181,9 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 
 	LastAttackTime = Now;
 
-	// Dégâts de base : ATK/s × cooldown = dégâts par frappe
-	float BaseDamage = UnitData->Stats.AttackDPS * UnitData->Stats.AttackCooldown;
+	// Dégâts de base : ATK/s × cooldown = dégâts par frappe. Réduits par le multiplicateur
+	// global de rythme -> plus d'échanges, batailles plus longues.
+	float BaseDamage = UnitData->Stats.AttackDPS * UnitData->Stats.AttackCooldown * GlobalDamageScale;
 
 	// Appliquer le multiplicateur vertical (attaque ascendante depuis Hadal = ×3)
 	if (VerticalLayer && Target->VerticalLayer)

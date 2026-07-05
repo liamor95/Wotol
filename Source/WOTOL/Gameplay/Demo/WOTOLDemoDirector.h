@@ -56,7 +56,7 @@ public:
 
 	// Multiplicateur de PV de la créature/boss (boss coriace)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
-	float CreatureHealthScale = 11.f;
+	float CreatureHealthScale = 15.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
 	float BattleStartDelay = 1.5f;

@@ -1157,9 +1157,9 @@ void AWOTOLDemoUnit::DoWhipStrike()
 		if (D > Reach) continue;
 		if (FVector::DotProduct(To.GetSafeNormal(), Fwd) < 0.15f) continue; // seulement ce qui est DEVANT
 
-		// Balaie / repousse les unités (coup de fouet) + petits dégâts
+		// Balaie / repousse les unités (coup de fouet) + dégâts CONSÉQUENTS (colosse)
 		const FVector Push = To.GetSafeNormal() * 1300.f + FVector(0.f, 0.f, 400.f);
 		U->LaunchCharacter(Push, true, true);
-		U->TakeDamageFromUnit(35.f, this);
+		U->TakeDamageFromUnit(110.f, this);
 	}
 }

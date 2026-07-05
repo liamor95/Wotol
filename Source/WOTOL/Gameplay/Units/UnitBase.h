@@ -50,6 +50,12 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Combat")
 	float DamageDealt = 0.f;
 
+	// ── Rythme de bataille (demo) — batailles plus LONGUES et sous-marines ──
+	// Multiplicateur GLOBAL de dégâts (< 1 = combats plus longs, plus d'échanges).
+	static float GlobalDamageScale;
+	// Multiplicateur GLOBAL de vitesse de déplacement (< 1 = frottement de l'eau).
+	static float GlobalSpeedScale;
+
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	EFactionID GetFaction() const { return Faction; }
 

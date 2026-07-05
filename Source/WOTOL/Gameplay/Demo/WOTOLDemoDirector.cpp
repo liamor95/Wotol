@@ -274,6 +274,10 @@ void AWOTOLDemoDirector::SpawnEnemyForCreature(EFactionID RivalFaction, const FV
 			Data->Stats.DefensePercent = FMath::Max(Data->Stats.DefensePercent, 55.f); // encaisse
 			Data->Stats.BlockChance    = FMath::Max(Data->Stats.BlockChance, 45.f);     // pare souvent
 			Data->Stats.DodgeChance    = FMath::Max(Data->Stats.DodgeChance, 10.f);
+			// Colosse MENAÇANT : frappe bien plus fort (compense le rythme global réduit)
+			// pour infliger de vraies pertes au petit groupe du joueur. Valeur ABSOLUE
+			// (idempotente : pas de cumul si on rejoue la démo -> asset partagé).
+			Data->Stats.AttackDPS      = FMath::Max(Data->Stats.AttackDPS, 420.f);
 		}
 		if (Demo)
 		{
