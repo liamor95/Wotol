@@ -37,6 +37,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Greybox")
 	bool bIsBoss = false;
 
+	// Créature géante occupant 2 NIVEAUX de verticalité : sa base repose sur son niveau
+	// courant et le corps s'étend sur ~2 niveaux (capteur de clic sur toute la colonne).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Greybox")
+	bool bTwoLayerCreature = false;
+
 	// Multiplicateur de PV (1 = stats normales ; >1 pour un boss coriace)
 	// À fixer AVANT BeginPlay (spawn différé).
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Greybox")

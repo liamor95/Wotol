@@ -901,22 +901,29 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 	{
 		const float KrakH = 6.5f * 100.f; // taille fixe du Kraken (indépendante du mythique)
 		BuildKrakenCephalopod(KrakH);
-		// Le corps du Kraken est modélisé AU-DESSUS de l'origine : on rabaisse tout le
-		// visuel pour qu'il REPOSE sur le fond (niveau 1), pas en lévitation. Ainsi le
-		// modèle et son capteur (ClickProxy) coïncident au sol -> le ciblage marche et
-		// les unités mêlée se retrouvent au CONTACT du corps, pas 2 niveaux en dessous.
-		VisualBaseZ = -KrakH * 0.30f;
+		// ── CONCEPT : le Kraken OCCUPE 2 NIVEAUX de verticalité ──
+		// Contrairement aux petites unités qui tiennent sur 1 niveau, le Kraken est si
+		// imposant que son modèle compte comme 2 niveaux de hauteur. Sa BASE (le point le
+		// plus bas) repose sur son niveau courant (le sol en phase 1) et le corps s'étend
+		// vers le haut sur ~2 niveaux. -> pas de lévitation : la base est posée au sol, et
+		// le capteur de clic couvre TOUTE la colonne (2 niveaux) pour un ciblage fiable.
+		bTwoLayerCreature = true;
+		// Le corps est modélisé autour de l'origine (parties basses jusqu'à ~-0.46*H) :
+		// on descend juste ce qu'il faut pour que la base touche le fond (annule le petit
+		// lift de spawn) sans l'enterrer. [Réglable : -0.10 à peine posé .. -0.30 enfoncé]
+		VisualBaseZ = -KrakH * 0.18f;
 		// Empreinte de collision RÉDUITE au corps visible (≈ rayon du corps) : les unités
 		// mêlée s'arrêtent au bord du modèle (collées), pas à 5 m à cause d'un rayon géant.
 		GetCapsuleComponent()->SetCapsuleSize(KrakH * 0.30f, FMath::Max(40.f, KrakH * 0.5f));
 		GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
-		if (NameTag)       NameTag->SetRelativeLocation(FVector(0.f, 0.f, KrakH * 0.5f + 50.f));
-		if (NameTagShadow) NameTagShadow->SetRelativeLocation(FVector(0.f, 0.f, KrakH * 0.5f + 50.f));
-		// Capteur de clic GÉNÉREUX, centré sur le corps rabaissé (couvre tout le modèle).
+		if (NameTag)       NameTag->SetRelativeLocation(FVector(0.f, 0.f, KrakH * 0.75f + 50.f));
+		if (NameTagShadow) NameTagShadow->SetRelativeLocation(FVector(0.f, 0.f, KrakH * 0.75f + 50.f));
+		// Capteur de clic couvrant la COLONNE de 2 niveaux : grand rayon + centré sur la
+		// mi-hauteur du corps -> on peut cliquer partout sur le Kraken (haut ou bas).
 		if (ClickProxy)
 		{
-			ClickProxy->SetSphereRadius(KrakH * 0.55f);
-			ClickProxy->SetRelativeLocation(FVector(0.f, 0.f, KrakH * 0.20f));
+			ClickProxy->SetSphereRadius(KrakH * 0.75f);
+			ClickProxy->SetRelativeLocation(FVector(0.f, 0.f, KrakH * 0.25f));
 		}
 		BobSeed = FMath::Fmod(GetActorLocation().X * 0.021f + GetActorLocation().Y * 0.013f, 6.283f);
 		return; // pas de disque d'équipe ni de silhouette d'unité pour le boss
