@@ -284,32 +284,25 @@ void AWOTOLDemoHUD::DrawGlowTitle(const FString& Text, float Y, float Scale, con
 	UFont* Font = GEngine->GetLargeFont();
 	float TW, TH; GetTextSize(Text, TW, TH, Font, Scale);
 	const float X = (Canvas->SizeX - TW) * 0.5f;
-	const float T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
-	const float Pulse = 0.75f + 0.25f * FMath::Sin(T * 1.8f);
 
-	// Halo : plusieurs copies décalées, teintées, translucides.
-	const FLinearColor Halo(Color.R, Color.G, Color.B, 0.10f * Pulse);
-	for (int32 i = 1; i <= 6; ++i)
+	// Contour NET (pas de halo flou) : 8 copies noires collées à 2 px -> lettres bien
+	// détourées et lisibles ; puis le texte plein par-dessus.
+	const FLinearColor Outline(0.f, 0.f, 0.f, 0.9f);
+	const float o = 2.f;
+	const float dirs[8][2] = { {-o,0},{o,0},{0,-o},{0,o},{-o,-o},{o,-o},{-o,o},{o,o} };
+	for (int32 i = 0; i < 8; ++i)
 	{
-		const float o = (float)i * 1.6f;
-		DrawText(Text, Halo, X - o, Y, Font, Scale);
-		DrawText(Text, Halo, X + o, Y, Font, Scale);
-		DrawText(Text, Halo, X, Y - o, Font, Scale);
-		DrawText(Text, Halo, X, Y + o, Font, Scale);
+		DrawText(Text, Outline, X + dirs[i][0], Y + dirs[i][1], Font, Scale);
 	}
-	// Ombre portée nette + titre plein
-	DrawText(Text, FLinearColor(0.f, 0.f, 0.f, 0.85f), X + 4.f, Y + 4.f, Font, Scale);
-	const FLinearColor Bright(FMath::Min(1.f, Color.R + 0.15f * Pulse),
-		FMath::Min(1.f, Color.G + 0.15f * Pulse), FMath::Min(1.f, Color.B + 0.15f * Pulse), 1.f);
-	DrawText(Text, Bright, X, Y, Font, Scale);
+	DrawText(Text, Color, X, Y, Font, Scale);
 }
 
 void AWOTOLDemoHUD::DrawMainMenu(float W, float H)
 {
 	DrawUnderwaterBackground(W, H);
 	// Titre imposant + halo pulsant, sous-titre, puis bouton
-	DrawGlowTitle(TEXT("W O T O L"), H * 0.22f, 6.0f, FLinearColor(0.45f, 0.85f, 1.f, 1.f));
-	DrawCenteredText(TEXT("War of the Ocean's Legacy"), H * 0.42f, FLinearColor(0.85f, 0.93f, 1.f, 1.f), 1.5f);
+	DrawGlowTitle(TEXT("W O T O L"), H * 0.24f, 4.4f, FLinearColor(0.5f, 0.88f, 1.f, 1.f));
+	DrawCenteredText(TEXT("War of the Ocean's Legacy"), H * 0.40f, FLinearColor(0.85f, 0.93f, 1.f, 1.f), 1.4f);
 	DrawButton(StartGameButtonRect(W, H), TEXT("COMMENCER LA DEMO"), FLinearColor(0.3f, 0.75f, 1.f, 1.f), 1.6f);
 }
 
@@ -452,22 +445,25 @@ void AWOTOLDemoHUD::DrawBuildingBar(float W, float H, AWOTOLCaptureObject* Build
 	const int32 MaxHP = FMath::RoundToInt(Building->MaxHealth);
 	const int32 CurHP = FMath::RoundToInt(Pct * MaxHP);
 
-	// Sous la zone du timer, à droite du centre pour ne pas gêner (barre "objectif").
-	const float BarW = 420.f, BarH = 22.f;
-	const float BX = (W - BarW) * 0.5f, BY = 132.f;
+	// Barre SLIM tout en haut (nom + PV DANS la barre) -> ne barre plus le milieu de l'écran.
+	const float BarW = 440.f, BarH = 16.f;
+	const float BX = (W - BarW) * 0.5f, BY = 52.f;
 
 	const FLinearColor Fac = FFactionColors::Get(Building->OwnerFaction);
-	DrawRect(Fac, BX - 4, BY - 4, BarW + 8, 3.f); // liseré faction
-	// Rouge quand la vie est basse (alerte : bâtiment en danger)
+	DrawRect(Fac, BX - 3, BY - 3, BarW + 6, 2.f);
 	const FLinearColor Fill = FMath::Lerp(FLinearColor(0.85f, 0.15f, 0.12f, 1.f),
 		FLinearColor(0.25f, 0.8f, 0.35f, 1.f), Pct);
 	DrawBar(BX, BY, BarW, BarH, Pct, Fill, FLinearColor(0.08f, 0.08f, 0.10f, 0.92f));
 
-	const FString Name = Building->GetDisplayName().ToString();
-	DrawText(Name, FLinearColor::White, BX, BY - 22.f, GEngine->GetMediumFont(), 1.f);
+	auto Shadowed = [&](const FString& S, float TX, float TY, UFont* F, float Sc, const FLinearColor& C)
+	{
+		DrawText(S, FLinearColor(0.f, 0.f, 0.f, 0.8f), TX + 1.f, TY + 1.f, F, Sc);
+		DrawText(S, C, TX, TY, F, Sc);
+	};
+	Shadowed(Building->GetDisplayName().ToString(), BX + 8.f, BY + 1.f, GEngine->GetMediumFont(), 0.9f, FLinearColor::White);
 	const FString HP = FString::Printf(TEXT("%d / %d"), CurHP, MaxHP);
 	float HW, HH; GetTextSize(HP, HW, HH, GEngine->GetSmallFont(), 1.f);
-	DrawText(HP, FLinearColor::White, BX + BarW - HW, BY - 20.f, GEngine->GetSmallFont(), 1.f);
+	Shadowed(HP, BX + BarW - HW - 8.f, BY + 2.f, GEngine->GetSmallFont(), 1.f, FLinearColor::White);
 }
 
 void AWOTOLDemoHUD::DrawPrepareBar(float W, float H)
@@ -631,21 +627,25 @@ void AWOTOLDemoHUD::DrawBossBar(float W, float H, AWOTOLDemoUnit* Boss)
 	const int32 MaxHP = Boss->GetEffectiveMaxHealth();
 	const int32 CurHP = FMath::RoundToInt(Pct * MaxHP);
 
-	const float BarW = 520.f, BarH = 26.f;
-	const float BX = (W - BarW) * 0.5f, BY = 96.f; // sous la pilule de timer (pas de chevauchement)
+	// Barre SLIM tout en haut (nom à gauche / PV à droite DANS la barre) -> ne barre plus
+	// le milieu de l'écran, l'action reste dégagée.
+	const float BarW = 440.f, BarH = 16.f;
+	const float BX = (W - BarW) * 0.5f, BY = 52.f;
 
-	// Liseré "boss" violet/cyan
-	DrawRect(FLinearColor(0.20f, 0.85f, 1.f, 0.9f), BX - 4, BY - 4, BarW + 8, 3.f);
+	DrawRect(FLinearColor(0.20f, 0.85f, 1.f, 0.9f), BX - 3, BY - 3, BarW + 6, 2.f);
 	DrawBar(BX, BY, BarW, BarH, Pct,
 		FLinearColor(0.62f, 0.12f, 0.85f, 1.f), FLinearColor(0.10f, 0.05f, 0.14f, 0.92f));
 
-	const FString Name = TEXT("KRAKEN");
-	float NW, NH; GetTextSize(Name, NW, NH, GEngine->GetLargeFont(), 1.2f);
-	DrawText(Name, FLinearColor(0.95f, 0.85f, 1.f, 1.f), (W - NW) * 0.5f, BY - 22.f, GEngine->GetLargeFont(), 1.2f);
-
+	// Libellés avec ombre (contraste) directement sur la barre
+	auto Shadowed = [&](const FString& S, float TX, float TY, UFont* F, float Sc, const FLinearColor& C)
+	{
+		DrawText(S, FLinearColor(0.f, 0.f, 0.f, 0.8f), TX + 1.f, TY + 1.f, F, Sc);
+		DrawText(S, C, TX, TY, F, Sc);
+	};
+	Shadowed(TEXT("KRAKEN"), BX + 8.f, BY + 1.f, GEngine->GetMediumFont(), 0.9f, FLinearColor(0.95f, 0.85f, 1.f, 1.f));
 	const FString HP = FString::Printf(TEXT("%d / %d"), CurHP, MaxHP);
-	float HW, HH; GetTextSize(HP, HW, HH, GEngine->GetMediumFont(), 1.f);
-	DrawText(HP, FLinearColor::White, (W - HW) * 0.5f, BY + 4.f, GEngine->GetMediumFont(), 1.f);
+	float HW, HH; GetTextSize(HP, HW, HH, GEngine->GetSmallFont(), 1.f);
+	Shadowed(HP, BX + BarW - HW - 8.f, BY + 2.f, GEngine->GetSmallFont(), 1.f, FLinearColor::White);
 }
 
 void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
@@ -656,7 +656,8 @@ void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
 
 	// Agrège les unités sélectionnées par nom (groupe) + PV totaux du groupe
 	struct FGroup { FString Name; int32 Count = 0; float HpSum = 0.f;
-		int32 HpCur = 0; int32 HpMax = 0; EFactionID Fac = EFactionID::None; };
+		int32 HpCur = 0; int32 HpMax = 0; EFactionID Fac = EFactionID::None;
+		EUnitRole Role = EUnitRole::Infanterie; };
 	TArray<FGroup> Groups;
 	TMap<FString, int32> Index;
 	for (AUnitBase* U : Sel->GetSelectedUnits())
@@ -664,9 +665,10 @@ void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
 		if (!U || !U->IsAlive()) continue;
 		const FString Name = (U->GetUnitData() && !U->GetUnitData()->DisplayName.IsEmpty())
 			? U->GetUnitData()->DisplayName.ToString() : U->GetName();
+		const EUnitRole Role = U->GetUnitData() ? U->GetUnitData()->Role : EUnitRole::Infanterie;
 		int32* Found = Index.Find(Name);
 		FGroup& G = Found ? Groups[*Found]
-			: Groups[Index.Add(Name, Groups.Add(FGroup{ Name, 0, 0.f, 0, 0, U->GetFaction() }))];
+			: Groups[Index.Add(Name, Groups.Add(FGroup{ Name, 0, 0.f, 0, 0, U->GetFaction(), Role }))];
 		G.Count++;
 		// PV EFFECTIFS (multiplicateur de PV inclus) -> le courant ne dépasse plus le max.
 		float Pct; int32 UMax;
@@ -686,28 +688,50 @@ void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
 	}
 	if (Groups.Num() == 0) return;
 
-	// Bandeau de fond plein largeur
-	const float BandH = 96.f;
-	const float BandY = H - BandH;
-	DrawRect(FLinearColor(0.02f, 0.03f, 0.05f, 0.72f), 0.f, BandY, W, BandH);
-	DrawRect(FLinearColor(0.30f, 0.62f, 1.f, 0.7f), 0.f, BandY, W, 3.f); // liseré haut
-
-	// Cartes d'unités
-	const float CardW = 172.f, CardH = 90.f, Gap = 10.f;
-	float X = 16.f;
-	const float Y = BandY + (BandH - CardH) * 0.5f;
-	for (const FGroup& G : Groups)
+	// Icône DISTINCTE par type d'unité (forme différente selon le rôle) — pour
+	// reconnaître l'unité d'un coup d'œil, pas seulement au nom.
+	auto DrawUnitIcon = [&](float CX, float CY, float R, EUnitRole Role, const FLinearColor& Fac)
 	{
+		if (!Canvas) return;
+		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.55f), CX - R - 3.f, CY - R - 3.f, (R + 3.f) * 2.f, (R + 3.f) * 2.f);
+		const FLinearColor Fill(FMath::Min(1.f, Fac.R + 0.15f), FMath::Min(1.f, Fac.G + 0.15f),
+			FMath::Min(1.f, Fac.B + 0.15f), 1.f);
+		switch (Role)
+		{
+			case EUnitRole::Chef:      Canvas->K2_DrawPolygon(nullptr, FVector2D(CX, CY), FVector2D(R, R), 3, Fill); break; // triangle
+			case EUnitRole::Mythique:  Canvas->K2_DrawPolygon(nullptr, FVector2D(CX, CY), FVector2D(R * 1.1f, R * 1.1f), 6, Fill); break; // hexa
+			case EUnitRole::Montee:    Canvas->K2_DrawPolygon(nullptr, FVector2D(CX, CY), FVector2D(R, R), 5, Fill); break; // penta
+			case EUnitRole::Distance:  Canvas->K2_DrawPolygon(nullptr, FVector2D(CX, CY), FVector2D(R, R), 4, Fill); break; // losange
+			case EUnitRole::Speciale:  Canvas->K2_DrawPolygon(nullptr, FVector2D(CX, CY), FVector2D(R, R), 8, Fill); break; // octogone
+			default:                   DrawRect(Fill, CX - R * 0.8f, CY - R * 0.8f, R * 1.6f, R * 1.6f); break;             // carré (infanterie)
+		}
+	};
+
+	// ── Bandeau ADAPTATIF : sa largeur = nombre de cartes affichées (pas plein écran) ──
+	const float CardW = 172.f, CardH = 90.f, Gap = 10.f, Pad = 12.f;
+	const int32 MaxFit = FMath::Max(1, (int32)((W - 90.f) / (CardW + Gap))); // place pour le bouton pause
+	const int32 Shown = FMath::Min(Groups.Num(), MaxFit);
+	const float BandH = CardH + 12.f;
+	const float BandY = H - BandH;
+	const float BandW = Shown * (CardW + Gap) - Gap + Pad * 2.f;
+	const float BandX = 12.f;
+	DrawRect(FLinearColor(0.02f, 0.03f, 0.05f, 0.78f), BandX, BandY, BandW, BandH);
+	DrawRect(FLinearColor(0.30f, 0.62f, 1.f, 0.7f), BandX, BandY, BandW, 3.f); // liseré haut
+
+	float X = BandX + Pad;
+	const float Y = BandY + (BandH - CardH) * 0.5f;
+	for (int32 gi = 0; gi < Shown; ++gi)
+	{
+		const FGroup& G = Groups[gi];
 		const FLinearColor Fac = FFactionColors::Get(G.Fac);
 		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), X, Y, CardW, CardH);
 		DrawRect(Fac, X, Y, CardW, 4.f);                       // liseré couleur de faction
-		// Icône (carré teinté)
-		DrawRect(Fac * 0.7f, X + 8.f, Y + 12.f, 40.f, 40.f);
-		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.5f), X + 8.f, Y + 12.f, 40.f, 4.f);
+		// Icône distincte par rôle
+		DrawUnitIcon(X + 30.f, Y + 34.f, 20.f, G.Role, Fac);
 		// Nom + nombre
-		DrawText(G.Name, FLinearColor::White, X + 56.f, Y + 10.f, GEngine->GetMediumFont(), 1.f);
+		DrawText(G.Name, FLinearColor::White, X + 58.f, Y + 10.f, GEngine->GetMediumFont(), 1.f);
 		DrawText(FString::Printf(TEXT("x%d"), G.Count), FLinearColor(1.f, 0.9f, 0.5f, 1.f),
-			X + 56.f, Y + 30.f, GEngine->GetMediumFont(), 1.2f);
+			X + 58.f, Y + 30.f, GEngine->GetMediumFont(), 1.2f);
 		// PV TOTAUX du groupe (restant / total), au-dessus de la barre
 		const FString HpTxt = FString::Printf(TEXT("PV %d / %d"), G.HpCur, G.HpMax);
 		DrawText(HpTxt, FLinearColor(0.85f, 0.95f, 0.85f, 1.f), X + 8.f, Y + CardH - 30.f,
@@ -720,7 +744,6 @@ void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
 			FLinearColor(0.12f, 0.12f, 0.12f, 0.9f));
 
 		X += CardW + Gap;
-		if (X > W - CardW - 70.f) break; // garde la place pour le bouton pause
 	}
 }
 
