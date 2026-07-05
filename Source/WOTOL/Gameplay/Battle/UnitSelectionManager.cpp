@@ -44,8 +44,14 @@ void UUnitSelectionManager::BoxSelect(APlayerController* PC,
 	{
 		if (!Unit || !Unit->IsAlive()) continue;
 
+		// On projette la position VISUELLE (ancre flottante = corps réel, hauteur de couche
+		// verticale comprise), PAS le pied au sol. Ainsi deux groupes superposés (montée en
+		// hauteur / infanterie au sol, même XY) occupent des positions ÉCRAN différentes :
+		// la boîte de sélection ne prend que le groupe réellement encadré.
+		const USceneComponent* Anchor = Unit->GetFloatingTextAnchor();
+		const FVector SelWorld = Anchor ? Anchor->GetComponentLocation() : Unit->GetActorLocation();
 		FVector2D ScreenPos;
-		if (PC->ProjectWorldLocationToScreen(Unit->GetActorLocation(), ScreenPos, true))
+		if (PC->ProjectWorldLocationToScreen(SelWorld, ScreenPos, true))
 		{
 			if (ScreenPos.X >= MinScreen.X && ScreenPos.X <= MaxScreen.X
 				&& ScreenPos.Y >= MinScreen.Y && ScreenPos.Y <= MaxScreen.Y)

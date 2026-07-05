@@ -55,9 +55,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
 	float ArmySeparation = 4500.f;
 
-	// Multiplicateur de PV de la créature/boss (boss coriace)
+	// Multiplicateur de PV de la créature/boss (réduit -> phase 1 gagnable)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
-	float CreatureHealthScale = 15.f;
+	float CreatureHealthScale = 8.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
 	float BattleStartDelay = 1.5f;

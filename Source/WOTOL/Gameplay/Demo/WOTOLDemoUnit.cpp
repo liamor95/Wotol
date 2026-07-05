@@ -433,10 +433,10 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 		// ATTAQUE CRITIQUE (boss) : de temps en temps, aléatoirement, le colosse assène un
 		// coup dévastateur -> gros dégâts bonus + libellé "CRITIQUE". Cadencé par un cooldown.
 		CritCooldown -= DeltaSeconds;
-		if (CritCooldown <= 0.f && FMath::FRand() < 0.5f && Nearest->IsAlive())
+		if (CritCooldown <= 0.f && FMath::FRand() < 0.35f && Nearest->IsAlive())
 		{
-			CritCooldown = FMath::FRandRange(4.f, 7.f); // prochaine fenêtre de critique
-			Nearest->TakeDamageFromUnit(320.f, this);   // coup critique
+			CritCooldown = FMath::FRandRange(6.f, 10.f); // moins fréquent qu'avant
+			Nearest->TakeDamageFromUnit(190.f, this);    // coup critique (réduit de 320)
 			const FVector CritLoc = Nearest->GetActorLocation() + FVector(0, 0, 90.f);
 			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(W, CritLoc, TEXT("CRITIQUE !"),
 					FLinearColor(1.f, 0.35f, 0.f, 1.f)))
@@ -937,10 +937,9 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 		// on descend juste ce qu'il faut pour que la base touche le fond (annule le petit
 		// lift de spawn) sans l'enterrer. [Réglable : -0.10 à peine posé .. -0.30 enfoncé]
 		VisualBaseZ = -KrakH * 0.18f;
-		// Empreinte de collision = ENTIÈRETÉ du corps (bec compris, qui avance jusqu'à
-		// ~0.44*H) : les unités s'arrêtent AU BORD du modèle sans jamais RENTRER dedans.
-		// (Trop petit -> elles pénètrent dans le bec ; c'est pourquoi 0.45*H et pas 0.30.)
-		GetCapsuleComponent()->SetCapsuleSize(KrakH * 0.45f, FMath::Max(40.f, KrakH * 0.5f));
+		// Empreinte de collision ≈ corps visible : les unités mêlée s'arrêtent au bord du
+		// modèle (assez près pour être "collées", assez loin pour ne pas entrer dans le bec).
+		GetCapsuleComponent()->SetCapsuleSize(KrakH * 0.38f, FMath::Max(40.f, KrakH * 0.5f));
 		GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 		if (NameTag)       NameTag->SetRelativeLocation(FVector(0.f, 0.f, KrakH * 0.75f + 50.f));
 		if (NameTagShadow) NameTagShadow->SetRelativeLocation(FVector(0.f, 0.f, KrakH * 0.75f + 50.f));
@@ -951,22 +950,10 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 			ClickProxy->SetSphereRadius(KrakH * 0.75f);
 			ClickProxy->SetRelativeLocation(FVector(0.f, 0.f, KrakH * 0.25f));
 		}
-		// ── BLOQUEUR DE CORPS (WorldStatic) : empêche PHYSIQUEMENT les unités d'entrer
-		// dans le modèle du Kraken. Les unités bloquent déjà le décor WorldStatic (ruines)
-		// -> elles GLISSENT autour du corps au lieu de le traverser = vrai contournement,
-		// et ne pénètrent jamais dans le bec. N'affecte ni les tirs (seul un CoverStructure
-		// bloque la ligne de vue) ni le déplacement du Kraken (composant du même acteur).
-		if (USphereComponent* Blocker = NewObject<USphereComponent>(this, TEXT("KrakenBodyBlocker")))
-		{
-			Blocker->SetupAttachment(VisualRoot);
-			Blocker->RegisterComponent();
-			Blocker->SetSphereRadius(KrakH * 0.45f);
-			Blocker->SetRelativeLocation(FVector(KrakH * 0.05f, 0.f, KrakH * 0.10f));
-			Blocker->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-			Blocker->SetCollisionObjectType(ECC_WorldStatic);
-			Blocker->SetCollisionResponseToAllChannels(ECR_Block);
-			Blocker->SetCanEverAffectNavigation(false); // pas de rebuild nav (le boss bouge)
-		}
+		// NB : pas de bloqueur physique WorldStatic sur le Kraken — il bloquait aussi la
+		// capsule (au sol) des unités en HAUTEUR visuelle, qui restaient figées contre lui.
+		// La non-pénétration est assurée par la distance d'arrêt mêlée (rayon de capsule
+		// ci-dessus) et l'encerclement par emplacements (ComputeEncircleSlot).
 		BobSeed = FMath::Fmod(GetActorLocation().X * 0.021f + GetActorLocation().Y * 0.013f, 6.283f);
 		return; // pas de disque d'équipe ni de silhouette d'unité pour le boss
 	}

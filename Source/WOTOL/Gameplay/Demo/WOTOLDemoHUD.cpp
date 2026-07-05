@@ -4,6 +4,7 @@
 #include "WOTOLCaptureObject.h"
 #include "OceanCurrentSubsystem.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Engine/Texture2D.h"
 #include "Gameplay/Battle/WOTOLPlayerController_Battle.h"
 #include "Gameplay/Battle/RTSBattleManager.h"
 #include "Gameplay/Battle/UnitSelectionManager.h"
@@ -456,10 +457,22 @@ void AWOTOLDemoHUD::DrawGlowTitle(const FString& Text, float Y, float Scale, con
 
 void AWOTOLDemoHUD::DrawMainMenu(float W, float H)
 {
-	DrawUnderwaterBackground(W, H);
-	// Titre imposant en LAVE (rouge/orange/jaune lumineux), sous-titre chaud, puis bouton
-	DrawLavaTitle(TEXT("WOTOL"), H * 0.22f, 5.0f);
-	DrawCenteredText(TEXT("WAR OF THE OCEAN'S LEGACY"), H * 0.42f, FLinearColor(1.f, 0.45f, 0.35f, 1.f), 1.5f);
+	// IMAGE d'accueil (si importée dans le projet : /Game/UI/MainMenuBG). Elle contient
+	// déjà le titre + le sous-titre -> on ne redessine pas le titre par-dessus. Tant qu'elle
+	// n'est pas importée, on retombe sur le fond procédural + titre lave.
+	if (UTexture2D* BG = LoadObject<UTexture2D>(nullptr, TEXT("/Game/UI/MainMenuBG.MainMenuBG")))
+	{
+		DrawTexture(BG, 0.f, 0.f, W, H, 0.f, 0.f, 1.f, 1.f);
+		// Léger assombrissement en bas pour la lisibilité du bouton.
+		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.28f), 0.f, H * 0.80f, W, H * 0.20f);
+	}
+	else
+	{
+		DrawUnderwaterBackground(W, H);
+		// Titre imposant en LAVE (rouge/orange/jaune lumineux), sous-titre chaud, puis bouton
+		DrawLavaTitle(TEXT("WOTOL"), H * 0.22f, 5.0f);
+		DrawCenteredText(TEXT("WAR OF THE OCEAN'S LEGACY"), H * 0.42f, FLinearColor(1.f, 0.45f, 0.35f, 1.f), 1.5f);
+	}
 	DrawButton(StartGameButtonRect(W, H), TEXT("COMMENCER LA DEMO"), FLinearColor(0.3f, 0.75f, 1.f, 1.f), 1.6f);
 }
 

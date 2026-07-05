@@ -291,13 +291,14 @@ void AWOTOLDemoDirector::SpawnEnemyForCreature(EFactionID RivalFaction, const FV
 		// dans la démo — aucun Noxedrake allié n'est déployé).
 		if (UUnitDataAsset* Data = Creature->GetUnitData())
 		{
-			Data->Stats.DefensePercent = FMath::Max(Data->Stats.DefensePercent, 55.f); // encaisse
-			Data->Stats.BlockChance    = FMath::Max(Data->Stats.BlockChance, 45.f);     // pare souvent
-			Data->Stats.DodgeChance    = FMath::Max(Data->Stats.DodgeChance, 10.f);
-			// Colosse MENAÇANT : frappe bien plus fort (compense le rythme global réduit)
-			// pour infliger de vraies pertes au petit groupe du joueur. Valeur ABSOLUE
-			// (idempotente : pas de cumul si on rejoue la démo -> asset partagé).
-			Data->Stats.AttackDPS      = FMath::Max(Data->Stats.AttackDPS, 420.f);
+			// ÉQUILIBRAGE : le Kraken doit rester un défi mais la phase 1 doit être
+			// GAGNABLE avec le petit groupe du joueur (les deux factions). On baisse donc
+			// nettement sa robustesse et sa frappe (valeurs ABSOLUES = idempotentes).
+			Data->Stats.DefensePercent = FMath::Min(Data->Stats.DefensePercent, 30.f); // encaisse moins
+			Data->Stats.BlockChance    = FMath::Min(Data->Stats.BlockChance, 22.f);     // pare moins
+			Data->Stats.DodgeChance    = FMath::Min(Data->Stats.DodgeChance, 6.f);
+			// Frappe forte mais plus soutenable pour un petit groupe (était 420).
+			Data->Stats.AttackDPS      = FMath::Clamp(Data->Stats.AttackDPS, 240.f, 300.f);
 		}
 		if (Demo)
 		{

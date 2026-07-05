@@ -211,6 +211,27 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 		BaseDamage *= Bonus.DamageMultiplier;
 	}
 
+	// ── COUP CRITIQUE (TOUTES les unités, pas seulement le boss) ──
+	// Chance de base + gros BONUS "dans le dos" : frapper l'ennemi par l'ARRIÈRE (donc
+	// réussir à le contourner) augmente fortement la chance de critique. C'est la
+	// récompense du flanquement / contournement des Aquilances & co.
+	{
+		float CritChance = 0.12f; // 12 % de base
+		const FVector ToAtk  = (GetActorLocation() - Target->GetActorLocation()).GetSafeNormal2D();
+		const FVector TgtFwd = Target->GetActorForwardVector().GetSafeNormal2D();
+		const bool bBackstab = FVector::DotProduct(TgtFwd, ToAtk) < -0.2f; // attaquant DERRIÈRE la cible
+		if (bBackstab) CritChance += 0.33f;                                 // +33 % dans le dos
+		if (FMath::FRand() < CritChance)
+		{
+			BaseDamage *= bBackstab ? 2.2f : 1.7f;
+			const FVector Loc = Target->GetActorLocation() + FVector(0.f, 0.f, 90.f);
+			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(GetWorld(), Loc,
+					bBackstab ? TEXT("CRITIQUE DOS !") : TEXT("CRITIQUE !"),
+					FLinearColor(1.f, 0.85f, 0.2f, 1.f)))
+				N->SetFollow(Target->GetFloatingTextAnchor(), FVector(0.f, 0.f, 140.f));
+		}
+	}
+
 	// COUVERTURE : pour un tir à distance, si une STRUCTURE de décor est entre le tireur et
 	// la cible, le tir la frappe ELLE (et l'endommage) au lieu de la cible -> se cacher
 	// derrière un pilier protège. (La mêlée n'est pas concernée : contact direct.)
