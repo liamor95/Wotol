@@ -294,9 +294,9 @@ void AWOTOLDemoDirector::SpawnEnemyForCreature(EFactionID RivalFaction, const FV
 			// ÉQUILIBRAGE : le Kraken doit rester un défi mais la phase 1 doit être
 			// GAGNABLE avec le petit groupe du joueur (les deux factions). On baisse donc
 			// nettement sa robustesse et sa frappe (valeurs ABSOLUES = idempotentes).
-			Data->Stats.DefensePercent = FMath::Min(Data->Stats.DefensePercent, 30.f); // encaisse moins
-			Data->Stats.BlockChance    = FMath::Min(Data->Stats.BlockChance, 22.f);     // pare moins
-			Data->Stats.DodgeChance    = FMath::Min(Data->Stats.DodgeChance, 6.f);
+			Data->Stats.DefensePercent = FMath::Min(Data->Stats.DefensePercent, 18.f); // encaisse bien moins
+			Data->Stats.BlockChance    = FMath::Min(Data->Stats.BlockChance, 10.f);     // pare rarement
+			Data->Stats.DodgeChance    = FMath::Min(Data->Stats.DodgeChance, 2.f);
 			// Frappe forte mais plus soutenable pour un petit groupe (était 420).
 			Data->Stats.AttackDPS      = FMath::Clamp(Data->Stats.AttackDPS, 240.f, 300.f);
 		}
@@ -420,8 +420,11 @@ void AWOTOLDemoDirector::LaunchBattle()
 					}
 					if (ArmyHP > 0.f && Boss->GetUnitData())
 					{
-						// Cible : PV du Kraken ≈ 1.5x les PV totaux de l'armée (réglable).
-						const float TargetHP = ArmyHP * 1.5f;
+						// Les PV TOTAUX de l'armée surestiment énormément sa capacité réelle
+						// de dégâts (53k PV n'infligent que ~29k au boss sur toute la bataille).
+						// On vise donc une FRACTION des PV de l'armée, bornée à une plage
+						// jouable. [Réglable : 0.30 très facile .. 0.55 dur]
+						const float TargetHP = FMath::Clamp(ArmyHP * 0.42f, 12000.f, 30000.f);
 						const int32 BaseMax  = FMath::Max(1, Boss->GetUnitData()->Stats.MaxHealth);
 						Boss->HealthScale    = FMath::Max(1.f, TargetHP / (float)BaseMax);
 						Boss->SetHealthToFull(); // applique PV = HealthScale * base
