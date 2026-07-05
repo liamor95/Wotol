@@ -68,4 +68,7 @@ protected:
 	FVector FallDir = FVector(1.f, 0.f, 0.f); // direction de bascule (horizontale)
 	float   PillarLen = 700.f;                // hauteur ~ (longueur qui balaie le sol)
 	TArray<TWeakObjectPtr<class AUnitBase>> AlreadyHit; // évite de blesser 2x pendant la chute
+
+	FVector LastFireDir = FVector::ZeroVector; // direction du dernier tir reçu (sens de chute)
+	bool    bHasFireDir = false;
 };

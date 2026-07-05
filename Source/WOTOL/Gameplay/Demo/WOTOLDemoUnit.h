@@ -59,6 +59,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Demo|Greybox")
 	float GetDesiredZ() const { return DesiredZ; }
 
+	// Ordonne à cette unité d'ATTAQUER une structure de décor (jusqu'à sa destruction).
+	UFUNCTION(BlueprintCallable, Category = "Demo|Greybox")
+	void OrderAttackCover(class AWOTOLCoverStructure* Cover);
+
 	// % de vie calculé sur les PV EFFECTIFS (boss inclus) — pour la barre du HUD.
 	// (GetHealthPercent() de base sature à 100% tant que PV > MaxHealth de base.)
 	UFUNCTION(BlueprintPure, Category = "Demo|Greybox")
@@ -151,6 +155,9 @@ private:
 	float DesiredZ     = 0.f;   // décalage de couche cible (0 = fond)
 	float CurLayer     = 0.f;   // décalage courant (interpolé)
 	bool  bArticulated = false;
+	// Retourne le visuel de 180° (humanoïdes construits "dos à l'avant") : corps + rig
+	// tournent ensemble -> le personnage regarde et frappe enfin vers l'AVANT.
+	bool  bVisualYawFlip = false;
 	float AnimPhase    = 0.f;
 	float SwingProgress = 0.f; // 0..1 avancement d'un coup d'épée
 
@@ -213,6 +220,11 @@ private:
 	float LayerReactTimer = 0.f;   // compte à rebours avant de s'adapter
 	// Unité ennemie la plus proche (partagée par le cerveau boss et le combat vertical)
 	class AUnitBase* FindNearestEnemyUnit() const;
+
+	// Cible de décor imposée par le joueur (attaquer une ruine/pilier jusqu'à destruction).
+	TWeakObjectPtr<class AWOTOLCoverStructure> TargetCover;
+	void TickAttackCover(float DeltaSeconds);
+	float CoverAttackTimer = 0.f;
 
 	float LastKnownHealth = -1.f;
 	bool  bCreatureStyled = false;

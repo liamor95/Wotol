@@ -4,6 +4,7 @@
 #include "DemoFlowSubsystem.h"
 #include "OceanCurrentSubsystem.h"
 #include "WOTOLCoverStructure.h"
+#include "WOTOLCurrentField.h"
 #include "Gameplay/Units/UnitBase.h"
 #include "Gameplay/Units/UnitDataAsset.h"
 #include "Gameplay/Battle/RTSBattleManager.h"
@@ -37,6 +38,13 @@ void AWOTOLDemoDirector::BeginPlay()
 
 	CachedPlayerFaction = ResolvePlayerFaction();
 	CachedRivalFaction  = RivalOf(CachedPlayerFaction);
+
+	// Visualisation du courant (traînées dérivantes sur les couches hautes) — persistante.
+	if (UWorld* W = GetWorld())
+	{
+		W->SpawnActor<AWOTOLCurrentField>(AWOTOLCurrentField::StaticClass(),
+			GetActorLocation(), FRotator::ZeroRotator);
+	}
 
 	// On NE lance plus la bataille tout de suite : on attend le flux d'écrans
 	// (menu principal → choix de faction → préparation → bataille).
@@ -836,7 +844,9 @@ void AWOTOLDemoDirector::TacticalTick()
 					break;
 				}
 				case EUnitRole::Chef:
-					Dest  = Front;
+					// Légèrement EN RETRAIT derrière le mur : survit assez pour placer sa
+					// compétence (ex. Lame Photonique) au lieu de mourir en première ligne.
+					Dest  = Front - Fwd * 400.f;
 					Layer = bCanLayer ? 800.f : 0.f;
 					break;
 				default: // Mythique / Spéciale : avancent sur l'ennemi, en hauteur si possible

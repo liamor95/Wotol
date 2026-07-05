@@ -101,6 +101,7 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	else
 	{
 		TickAbility(DeltaSeconds); // compétence active périodique (unités normales)
+		if (TargetCover.IsValid()) TickAttackCover(DeltaSeconds); // attaque de décor ordonnée
 	}
 
 	// Sur ORDRE d'attaque (cible imposée), l'unité se cale sur la couche de sa cible.
@@ -171,25 +172,12 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	// ANTI-EMPILEMENT : en pleine bataille, on n'affiche l'étiquette (nom + PV) que pour
 	// les unités SÉLECTIONNÉES (+ le boss) -> plus de bouillie de texte quand les unités se
 	// regroupent. En préparation/hors-jeu, on montre tout (les unités sont espacées).
+	// Étiquette nom + PV TOUJOURS visible (pour distinguer chaque unité). Le contour noir
+	// centré assure la lisibilité ; les formations espacent les unités.
+	if (!NameTag->IsVisible())
 	{
-		bool bPlaying = false;
-		if (UGameInstance* GI = GetGameInstance())
-		{
-			if (UDemoFlowSubsystem* D = GI->GetSubsystem<UDemoFlowSubsystem>())
-			{
-				bPlaying = (D->GetScreen() == EDemoScreen::Playing);
-			}
-		}
-		// En BATAILLE : on masque TOUTES les étiquettes d'unités (sauf le boss) — même
-		// sélectionnées, elles s'empilaient en une bouillie illisible dans la mêlée. Les PV
-		// du groupe sélectionné restent lisibles dans la barre de commandement (en bas).
-		const bool bShowTag = bIsBoss || !bPlaying;
-		if (NameTag->IsVisible() != bShowTag)
-		{
-			NameTag->SetVisibility(bShowTag);
-			if (NameTagShadow) NameTagShadow->SetVisibility(bShowTag);
-		}
-		if (!bShowTag) return; // inutile de mettre à jour un texte caché
+		NameTag->SetVisibility(true);
+		if (NameTagShadow) NameTagShadow->SetVisibility(true);
 	}
 
 	// Le boss s'appelle "Kraken" (créature neutre), pas le nom du mythique rival
@@ -436,6 +424,55 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 	{
 		CritCooldown -= DeltaSeconds;
 		AddMovementInput(To.GetSafeNormal(), 1.f); // avance vers la cible
+	}
+}
+
+// ─── Attaque de décor ordonnée par le joueur ────────────────────────────────
+void AWOTOLDemoUnit::OrderAttackCover(AWOTOLCoverStructure* Cover)
+{
+	TargetCover = Cover;
+	LastPlayerOrderTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	// Coupe l'ordre de déplacement auto pour ne pas être détourné.
+	if (UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>())
+		S->bFollowingPlayerOrder = false;
+}
+
+void AWOTOLDemoUnit::TickAttackCover(float Dt)
+{
+	AWOTOLCoverStructure* Cov = TargetCover.Get();
+	if (!Cov || Cov->IsDestroyed()) { TargetCover = nullptr; return; }
+	if (!IsAlive() || !UnitData) return;
+
+	FVector To = Cov->GetActorLocation() - GetActorLocation(); To.Z = 0.f;
+	const float Dist = To.Size();
+	// Se tourne vers la structure.
+	if (Dist > 1.f) { FRotator R = To.Rotation(); R.Pitch = 0.f; R.Roll = 0.f;
+		SetActorRotation(FMath::RInterpTo(GetActorRotation(), R, Dt, 12.f)); }
+
+	const float Range = UnitData->Stats.AttackRange * 200.f;
+	const bool  bRanged = (UnitData->Stats.AttackType == EUnitAttackType::Ranged);
+	const float Reach = bRanged ? FMath::Max(Range, 900.f) : (Range + 150.f);
+
+	if (Dist <= Reach)
+	{
+		CoverAttackTimer -= Dt;
+		if (CoverAttackTimer <= 0.f)
+		{
+			CoverAttackTimer = FMath::Max(0.5f, UnitData->Stats.AttackCooldown);
+			const float Dmg = UnitData->Stats.AttackDPS * UnitData->Stats.AttackCooldown * GlobalDamageScale;
+			Cov->TakeCoverDamage(Dmg, this); // désagrège la structure
+			// Tir/impact visuel
+			const FVector From = (GetFloatingTextAnchor() ? GetFloatingTextAnchor()->GetComponentLocation()
+				: GetActorLocation()) + FVector(0, 0, 40.f);
+			const FVector Hit = Cov->GetActorLocation() + FVector(0, 0, 200.f);
+			const FLinearColor Col = (GetFaction() == EFactionID::Aquiloris)
+				? FLinearColor(0.3f, 0.95f, 1.f, 1.f) : FLinearColor(0.55f, 0.35f, 1.f, 1.f);
+			AWOTOLProjectileTracer::Fire(GetWorld(), From, Hit, Col, 1.6f);
+		}
+	}
+	else
+	{
+		AddMovementInput(To.GetSafeNormal(), 1.f); // s'approche de la structure
 	}
 }
 
@@ -1034,6 +1071,9 @@ void AWOTOLDemoUnit::BuildArticulatedHumanoid(float H, const FLinearColor& Col, 
 	MakeBone(JLKnee, M_CUBE, FVector(H * 0.03f, 0, -H * 0.20f), FVector(0.14f, LegW, 0.05f), NoRot, Col);
 
 	bArticulated = true;
+	// Ces humanoïdes étaient construits dos-devant : on retourne tout le visuel de 180°.
+	bVisualYawFlip = true;
+	if (VisualRoot) VisualRoot->SetRelativeRotation(FRotator(0.f, 180.f, 0.f));
 }
 
 // Aquiloryons = humanoïde + épée (main droite) + bouclier cristal (main gauche)
@@ -1169,10 +1209,11 @@ void AWOTOLDemoUnit::AnimateBody(float Dt)
 		}
 		if (bDead) { Pitch = 70.f; }
 
+		const float FlipYaw = bVisualYawFlip ? 180.f : 0.f; // humanoïdes retournés
 		VisualRoot->SetRelativeLocation(
 			FMath::VInterpTo(VisualRoot->GetRelativeLocation(), FVector(Lunge, 0.f, Bob + CurLayer), Dt, 10.f));
 		VisualRoot->SetRelativeRotation(
-			FMath::RInterpTo(VisualRoot->GetRelativeRotation(), FRotator(Pitch, 0.f, Roll), Dt, 8.f));
+			FMath::RInterpTo(VisualRoot->GetRelativeRotation(), FRotator(Pitch, FlipYaw, Roll), Dt, 8.f));
 	}
 
 	// ── Ondulation des appendices (tentacules) ──

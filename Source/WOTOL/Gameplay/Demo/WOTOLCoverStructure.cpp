@@ -41,8 +41,9 @@ void AWOTOLCoverStructure::Tick(float DeltaSeconds)
 	if (bFalling) { TickFall(DeltaSeconds); return; }
 	if (bDestroyed || !HealthTag) return;
 
-	// Étiquette de PV : visible seulement si destructible ET endommagé.
-	const bool bShow = !bIndestructible && CurrentHealth < MaxHealth - 1.f;
+	// Étiquette de PV : TOUJOURS visible pour une structure destructible (on voit qu'elle
+	// est endommageable + ses PV). Masquée pour l'indestructible (pas de PV).
+	const bool bShow = !bIndestructible;
 	HealthTag->SetVisibility(bShow);
 	if (bShow)
 	{
@@ -127,10 +128,17 @@ void AWOTOLCoverStructure::BuildVisual()
 	PillarLen = (Variant == 0) ? 780.f : (Variant == 2) ? 560.f : 460.f;
 }
 
-void AWOTOLCoverStructure::TakeCoverDamage(float Amount, AUnitBase* /*InstigatorUnit*/)
+void AWOTOLCoverStructure::TakeCoverDamage(float Amount, AUnitBase* InstigatorUnit)
 {
 	if (bDestroyed || bIndestructible || Amount <= 0.f) return;
 	CurrentHealth -= Amount;
+	// Mémorise le SENS DU TIR (du tireur vers la structure) -> la structure tombera dans
+	// ce sens (elle bascule "dans le sens dans lequel on tire").
+	if (InstigatorUnit)
+	{
+		FVector D = GetActorLocation() - InstigatorUnit->GetActorLocation(); D.Z = 0.f;
+		if (!D.IsNearlyZero()) { LastFireDir = D.GetSafeNormal(); bHasFireDir = true; }
+	}
 	if (CurrentHealth <= 0.f) Collapse();
 }
 
@@ -140,10 +148,15 @@ void AWOTOLCoverStructure::Collapse()
 	UWorld* W = GetWorld();
 	const FVector Origin = GetActorLocation();
 
-	// DIRECTION DE CHUTE : vers l'unité vivante la plus proche (le pilier "tombe sur" les
-	// unités) ; à défaut, direction aléatoire. -> il écrasera ce qui est sur son passage.
+	// DIRECTION DE CHUTE :
+	//   1) dans le SENS DU TIR qui l'a abattue (elle tombe devant elle, vers les cibles) ;
+	//   2) sinon vers l'unité vivante la plus proche ; 3) sinon aléatoire.
 	FVector Dir = FVector(FMath::FRandRange(-1.f, 1.f), FMath::FRandRange(-1.f, 1.f), 0.f).GetSafeNormal();
-	if (W)
+	if (bHasFireDir)
+	{
+		Dir = LastFireDir;
+	}
+	else if (W)
 	{
 		if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
 		{

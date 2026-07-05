@@ -8,6 +8,7 @@
 #include "Gameplay/Demo/DemoFlowSubsystem.h"
 #include "Gameplay/Demo/WOTOLDemoDirector.h"
 #include "Gameplay/Demo/WOTOLDemoUnit.h"
+#include "Gameplay/Demo/WOTOLCoverStructure.h"
 #include "Core/WOTOLGameInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -405,6 +406,25 @@ void AWOTOLPlayerController_Battle::OnRightMouseReleased()
 	if (!SelectionMgr || !SelectionMgr->HasSelection()) return;
 
 	AUnitBase* TargetUnit = GetUnitUnderCursor();
+	// Clic droit sur une STRUCTURE de décor -> les unités l'attaquent jusqu'à destruction.
+	if (!TargetUnit)
+	{
+		FHitResult Hit;
+		if (GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_WorldStatic), true, Hit))
+		{
+			if (AWOTOLCoverStructure* Cover = Cast<AWOTOLCoverStructure>(Hit.GetActor()))
+			{
+				if (!Cover->bIndestructible && !Cover->IsDestroyed())
+				{
+					if (UUnitSelectionManager* Sel = GetSelectionManager())
+						for (AUnitBase* U : Sel->GetSelectedUnits())
+							if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U))
+								DU->OrderAttackCover(Cover);
+					return;
+				}
+			}
+		}
+	}
 	FVector    TargetLocation = FVector::ZeroVector;
 	if (!TargetUnit)
 	{
@@ -472,7 +492,7 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 		for (AUnitBase* Unit : Sel)
 		{
 			if (!Unit || !Unit->IsAlive()) continue;
-			if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(Unit)) DU->LastPlayerOrderTime = NowT;
+			if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(Unit)) DU->OrderAttackCover(nullptr); // annule attaque décor + stamp
 			if (AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(Unit->GetController()))
 			{
 				// Décalage conservé autour de la cible -> elles encerclent au lieu de s'empiler.
@@ -520,7 +540,7 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 	for (AUnitBase* Unit : Sel)
 	{
 		if (!Unit || !Unit->IsAlive()) continue;
-		if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(Unit)) DU->LastPlayerOrderTime = NowMove;
+		if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(Unit)) DU->OrderAttackCover(nullptr); // annule attaque décor + stamp
 		AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(Unit->GetController());
 		if (!AIC) continue;
 
