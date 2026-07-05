@@ -37,6 +37,8 @@ void AWOTOLCoverStructure::BeginPlay()
 void AWOTOLCoverStructure::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+	if (bFalling) { TickFall(DeltaSeconds); return; }
 	if (bDestroyed || !HealthTag) return;
 
 	// Étiquette de PV : visible seulement si destructible ET endommagé.
@@ -121,6 +123,8 @@ void AWOTOLCoverStructure::BuildVisual()
 	}
 
 	HealthTag->SetRelativeLocation(FVector(0.f, 0.f, (Variant == 0) ? 760.f : 520.f));
+	// Longueur qui balaiera le sol en tombant (≈ hauteur de la structure).
+	PillarLen = (Variant == 0) ? 780.f : (Variant == 2) ? 560.f : 460.f;
 }
 
 void AWOTOLCoverStructure::TakeCoverDamage(float Amount, AUnitBase* /*InstigatorUnit*/)
@@ -132,41 +136,90 @@ void AWOTOLCoverStructure::TakeCoverDamage(float Amount, AUnitBase* /*Instigator
 
 void AWOTOLCoverStructure::Collapse()
 {
-	if (bDestroyed) return;
-	bDestroyed = true;
-
-	// DÉBRIS : dégâts de zone à TOUTES les unités proches (amis comme ennemis) — c'est
-	// une masse de gravats qui tombe. L'IA peut donc effondrer un pilier au-dessus des ennemis.
+	if (bDestroyed || bFalling) return;
 	UWorld* W = GetWorld();
 	const FVector Origin = GetActorLocation();
+
+	// DIRECTION DE CHUTE : vers l'unité vivante la plus proche (le pilier "tombe sur" les
+	// unités) ; à défaut, direction aléatoire. -> il écrasera ce qui est sur son passage.
+	FVector Dir = FVector(FMath::FRandRange(-1.f, 1.f), FMath::FRandRange(-1.f, 1.f), 0.f).GetSafeNormal();
 	if (W)
 	{
 		if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
 		{
+			float Best = TNumericLimits<float>::Max();
 			const EFactionID Facs[2] = { EFactionID::Aquiloris, EFactionID::Noxeens };
 			for (EFactionID F : Facs)
 				for (AUnitBase* U : Reg->GetUnitsForFaction(F))
 				{
 					if (!U || !U->IsAlive()) continue;
-					if (FVector::Dist(U->GetActorLocation(), Origin) <= DebrisRadius)
-					{
-						U->TakeDamageFromUnit(DebrisDamage, nullptr);
-						U->LaunchCharacter((U->GetActorLocation() - Origin).GetSafeNormal2D() * 700.f + FVector(0, 0, 250.f), true, true);
-					}
+					FVector To = U->GetActorLocation() - Origin; To.Z = 0.f;
+					const float D = To.Size();
+					if (D > 60.f && D < Best) { Best = D; Dir = To.GetSafeNormal(); }
 				}
 		}
-		AWOTOLBubbleBurst::Burst(W, Origin + FVector(0, 0, 120.f), FLinearColor(0.6f, 0.62f, 0.68f, 1.f), 40);
-		AWOTOLDamageNumber::SpawnText(W, Origin + FVector(0, 0, 300.f), TEXT("EFFONDREMENT"),
-			FLinearColor(0.85f, 0.8f, 0.6f, 1.f));
+	}
+	FallDir = Dir.IsNearlyZero() ? FVector(1, 0, 0) : Dir;
+
+	// Démarre la BASCULE (animée dans TickFall). La collision est retirée pendant la chute.
+	bFalling = true;
+	FallElapsed = 0.f;
+	AlreadyHit.Reset();
+	for (UStaticMeshComponent* C : Parts)
+		if (C) C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	if (HealthTag) HealthTag->SetVisibility(false);
+
+	if (W)
+		AWOTOLDamageNumber::SpawnText(W, Origin + FVector(0, 0, PillarLen), TEXT("Il s'effondre !"),
+			FLinearColor(0.9f, 0.85f, 0.6f, 1.f));
+}
+
+void AWOTOLCoverStructure::TickFall(float Dt)
+{
+	UWorld* W = GetWorld();
+	if (!W || !SceneRoot) return;
+
+	FallElapsed += Dt;
+	const float Alpha = FMath::Clamp(FallElapsed / FallDuration, 0.f, 1.f);
+	// Accélération de chute (ease-in) : lent au début, s'abat vite à la fin.
+	const float Eased = Alpha * Alpha;
+	const float Angle = Eased * (PI * 0.5f); // 0 -> 90° (à plat)
+
+	// Bascule autour de la base : axe horizontal perpendiculaire à la direction de chute.
+	const FVector Axis = FVector::CrossProduct(FVector::UpVector, FallDir).GetSafeNormal();
+	SceneRoot->SetWorldRotation(FQuat(Axis, Angle));
+
+	// La "pointe" (haut du pilier) qui s'abat : position courante = base + haut pivoté.
+	const FVector Origin = GetActorLocation();
+	const FVector Tip = Origin + FQuat(Axis, Angle).RotateVector(FVector(0, 0, PillarLen));
+
+	// Écrase les unités sur le passage de la pointe (une seule fois chacune).
+	if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
+	{
+		const EFactionID Facs[2] = { EFactionID::Aquiloris, EFactionID::Noxeens };
+		for (EFactionID F : Facs)
+			for (AUnitBase* U : Reg->GetUnitsForFaction(F))
+			{
+				if (!U || !U->IsAlive()) continue;
+				if (AlreadyHit.Contains(U)) continue;
+				if (FVector::Dist(U->GetActorLocation(), Tip) <= DebrisRadius)
+				{
+					AlreadyHit.Add(U);
+					U->TakeDamageFromUnit(DebrisDamage, nullptr);
+					U->LaunchCharacter(FallDir * 650.f + FVector(0, 0, 260.f), true, true);
+					AWOTOLBubbleBurst::Burst(W, U->GetActorLocation() + FVector(0, 0, 40.f),
+						FLinearColor(0.6f, 0.62f, 0.68f, 1.f), 10);
+				}
+			}
 	}
 
-	// Retire la collision et l'affiche (débris au sol : on laisse un socle bas).
-	for (UStaticMeshComponent* C : Parts)
+	if (Alpha >= 1.f)
 	{
-		if (!C) continue;
-		C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		C->SetRelativeScale3D(C->GetRelativeScale3D() * FVector(1.1f, 1.1f, 0.12f)); // s'écrase
-		C->AddRelativeLocation(FVector(0, 0, -C->GetRelativeLocation().Z * 0.85f));
+		// Fin de la chute : gravats au sol (visuel aplati), plus de mise à jour.
+		bFalling = false;
+		bDestroyed = true;
+		AWOTOLBubbleBurst::Burst(W, Tip + FVector(0, 0, 20.f), FLinearColor(0.62f, 0.64f, 0.7f, 1.f), 30);
+		for (UStaticMeshComponent* C : Parts)
+			if (C) { FVector S = C->GetRelativeScale3D(); C->SetRelativeScale3D(FVector(S.X, S.Y, S.Z * 0.4f)); }
 	}
-	if (HealthTag) HealthTag->SetVisibility(false);
 }

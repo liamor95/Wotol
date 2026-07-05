@@ -50,13 +50,22 @@ protected:
 	virtual void Tick(float DeltaSeconds) override;
 
 	void BuildVisual();
-	void Collapse(); // effondrement : débris (dégâts de zone) + retire la collision
+	void Collapse();               // déclenche la CHUTE (bascule) vers les unités proches
+	void TickFall(float DeltaSeconds); // anime la bascule + écrase les unités sur le passage
 
 	UPROPERTY() TObjectPtr<USceneComponent> SceneRoot;
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> Parts;
 	UPROPERTY() TObjectPtr<UTextRenderComponent> HealthTag; // PV (visible si endommagé)
 
 	bool  bDestroyed = false;
-	float DebrisRadius = 550.f;
-	float DebrisDamage = 220.f;
+	float DebrisRadius = 380.f;
+	float DebrisDamage = 190.f;
+
+	// ── Chute animée ──
+	bool    bFalling = false;
+	float   FallElapsed = 0.f;
+	float   FallDuration = 1.1f;
+	FVector FallDir = FVector(1.f, 0.f, 0.f); // direction de bascule (horizontale)
+	float   PillarLen = 700.f;                // hauteur ~ (longueur qui balaie le sol)
+	TArray<TWeakObjectPtr<class AUnitBase>> AlreadyHit; // évite de blesser 2x pendant la chute
 };
