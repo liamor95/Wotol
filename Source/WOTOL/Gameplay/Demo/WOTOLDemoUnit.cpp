@@ -17,6 +17,8 @@
 #include "Core/FactionRegistrySubsystem.h"
 #include "WOTOLDamageNumber.h"
 #include "WOTOLBubbleBurst.h"
+#include "WOTOLCaptureObject.h"
+#include "WOTOLProjectileTracer.h"
 #include "DemoFlowSubsystem.h"
 #include "OceanCurrentSubsystem.h"
 #include "Engine/GameInstance.h"
@@ -95,6 +97,10 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	if (bCreatureBrain)
 	{
 		CreatureBrainTick(DeltaSeconds);
+	}
+	else
+	{
+		TickAbility(DeltaSeconds); // compétence active périodique (unités normales)
 	}
 
 	// Sur ORDRE d'attaque (cible imposée), l'unité se cale sur la couche de sa cible.
@@ -431,6 +437,163 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 		CritCooldown -= DeltaSeconds;
 		AddMovementInput(To.GetSafeNormal(), 1.f); // avance vers la cible
 	}
+}
+
+// ─── Compétences ACTIVES ────────────────────────────────────────────────────
+float AWOTOLDemoUnit::GetAbilityCooldownFor(FName Id) const
+{
+	// Valeurs du tableur (colonne CD), en secondes.
+	if (Id == TEXT("Aquis"))       return 12.f;
+	if (Id == TEXT("Aquiloryons")) return 10.f;
+	if (Id == TEXT("Aquilances"))  return 14.f;
+	if (Id == TEXT("Aquipheres") || Id == TEXT("Aquispheres")) return 8.f;
+	if (Id == TEXT("Noxar"))       return 12.f;
+	if (Id == TEXT("Noxeflare"))   return 10.f;
+	if (Id == TEXT("Noxebeast"))   return 14.f;
+	if (Id == TEXT("Noxeblast"))   return 8.f;
+	return 12.f;
+}
+
+void AWOTOLDemoUnit::TickAbility(float Dt)
+{
+	if (!IsAlive() || !UnitData) return;
+
+	// Compétences uniquement EN BATAILLE (pas au placement).
+	if (UGameInstance* GI = GetGameInstance())
+		if (UDemoFlowSubsystem* D = GI->GetSubsystem<UDemoFlowSubsystem>())
+			if (D->GetScreen() != EDemoScreen::Playing) return;
+
+	if (!bAbilityInit)
+	{
+		bAbilityInit  = true;
+		AbilityCooldown = GetAbilityCooldownFor(UnitData->GetFName()) * FMath::FRandRange(0.6f, 1.1f);
+	}
+
+	AbilityCooldown -= Dt;
+	if (AbilityCooldown > 0.f) return;
+	AbilityCooldown = GetAbilityCooldownFor(UnitData->GetFName());
+	UseAbility();
+}
+
+void AWOTOLDemoUnit::UseAbility()
+{
+	const FString Id = UnitData ? UnitData->GetFName().ToString() : FString();
+	if (Id == TEXT("Aquis"))        Ability_Shockwave();
+	else if (Id == TEXT("Noxar"))   Ability_Laser();
+	else if (Id == TEXT("Noxeblast")) Ability_ProjectileBurst();
+	else if (Id == TEXT("Noxeflare")) Ability_BlindFlash();
+	// (Aquiloryons/Aquilances/Aquispheres/Noxebeast : leur "compétence" est leur
+	//  comportement de formation/charge géré par le cerveau tactique.)
+}
+
+// AQUIS — Lame Photonique : frappe le sol -> onde de choc qui REPOUSSE et blesse les
+// ennemis autour (répit). N'agit que s'il y a des ennemis proches.
+void AWOTOLDemoUnit::Ability_Shockwave()
+{
+	UWorld* W = GetWorld(); if (!W) return;
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return;
+	const EFactionID Enemy = (GetFaction() == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
+	const FVector Origin = GetActorLocation();
+	const float Radius = 700.f;
+	int32 Hit = 0;
+	for (AUnitBase* U : Reg->GetUnitsForFaction(Enemy))
+	{
+		if (!U || !U->IsAlive()) continue;
+		FVector To = U->GetActorLocation() - Origin; To.Z = 0.f;
+		if (To.Size() > Radius) continue;
+		U->LaunchCharacter(To.GetSafeNormal() * 1400.f + FVector(0, 0, 350.f), true, true);
+		U->TakeDamageFromUnit(70.f, this);
+		++Hit;
+	}
+	AWOTOLBubbleBurst::Burst(W, Origin + FVector(0, 0, 30.f), FLinearColor(0.5f, 0.9f, 1.f, 1.f), 24);
+	if (Hit > 0)
+		AWOTOLDamageNumber::SpawnText(W, Origin + FVector(0, 0, 160.f), TEXT("Lame Photonique"),
+			FLinearColor(0.5f, 0.9f, 1.f, 1.f));
+}
+
+// NOXAR — Rayon laser : cible l'OBJECTIF (bâtiment adverse) si présent, sinon l'ennemi
+// le plus proche. Gros dégâts, ponctuel.
+void AWOTOLDemoUnit::Ability_Laser()
+{
+	UWorld* W = GetWorld(); if (!W) return;
+	const FVector From = (GetFloatingTextAnchor() ? GetFloatingTextAnchor()->GetComponentLocation()
+		: GetActorLocation()) + FVector(0, 0, 40.f);
+
+	FVector To = From; bool bHasTarget = false;
+	// 1) Objectif : bâtiment de capture adverse (le sien = celui qu'il n'a pas)
+	if (UGameInstance* GI = GetGameInstance())
+		if (UDemoFlowSubsystem* D = GI->GetSubsystem<UDemoFlowSubsystem>())
+			if (AWOTOLCaptureObject* Obj = Cast<AWOTOLCaptureObject>(D->GetCaptureObject()))
+				if (Obj->OwnerFaction != GetFaction() && Obj->GetHealthPercent() > 0.f)
+				{
+					Obj->ApplyDamage(650.f);
+					To = Obj->GetActorLocation() + FVector(0, 0, 120.f);
+					bHasTarget = true;
+				}
+	// 2) Sinon : ennemi le plus proche
+	if (!bHasTarget)
+		if (AUnitBase* Foe = FindNearestEnemyUnit())
+		{
+			Foe->TakeDamageFromUnit(520.f, this);
+			To = (Foe->GetFloatingTextAnchor() ? Foe->GetFloatingTextAnchor()->GetComponentLocation()
+				: Foe->GetActorLocation()) + FVector(0, 0, 40.f);
+			bHasTarget = true;
+		}
+	if (!bHasTarget) return;
+
+	// Faisceau : plusieurs boules très rapides le long de la ligne (approximation greybox).
+	for (int32 i = 0; i < 6; ++i)
+	{
+		const FVector A = FMath::Lerp(From, To, i / 6.f);
+		const FVector B = FMath::Lerp(From, To, (i + 1) / 6.f);
+		AWOTOLProjectileTracer::Fire(W, A, B, FLinearColor(0.9f, 0.2f, 0.9f, 1.f), 2.4f);
+	}
+	AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 120.f), TEXT("Rayon Laser"),
+		FLinearColor(0.9f, 0.3f, 1.f, 1.f));
+}
+
+// NOXEBLAST — Rafale : plusieurs projectiles sur l'ennemi le plus proche.
+void AWOTOLDemoUnit::Ability_ProjectileBurst()
+{
+	UWorld* W = GetWorld(); if (!W) return;
+	AUnitBase* Foe = FindNearestEnemyUnit(); if (!Foe) return;
+	const FVector From = (GetFloatingTextAnchor() ? GetFloatingTextAnchor()->GetComponentLocation()
+		: GetActorLocation()) + FVector(0, 0, 40.f);
+	const FVector To = (Foe->GetFloatingTextAnchor() ? Foe->GetFloatingTextAnchor()->GetComponentLocation()
+		: Foe->GetActorLocation()) + FVector(0, 0, 40.f);
+	for (int32 i = 0; i < 5; ++i)
+	{
+		const FVector Jit(FMath::FRandRange(-40.f, 40.f), FMath::FRandRange(-40.f, 40.f), FMath::FRandRange(-20.f, 40.f));
+		AWOTOLProjectileTracer::Fire(W, From, To + Jit, FLinearColor(0.55f, 0.35f, 1.f, 1.f), 1.6f);
+	}
+	Foe->TakeDamageFromUnit(180.f, this);
+	AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 110.f), TEXT("Rafale"),
+		FLinearColor(0.6f, 0.4f, 1.f, 1.f));
+}
+
+// NOXEFLARE — Éblouissement : flash qui aveugle les ennemis proches DEVANT (précision ~0).
+void AWOTOLDemoUnit::Ability_BlindFlash()
+{
+	UWorld* W = GetWorld(); if (!W) return;
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return;
+	const EFactionID Enemy = (GetFaction() == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
+	const FVector Origin = GetActorLocation();
+	const FVector Fwd = GetActorForwardVector();
+	const float Radius = 650.f, Now = W->GetTimeSeconds();
+	int32 Hit = 0;
+	for (AUnitBase* U : Reg->GetUnitsForFaction(Enemy))
+	{
+		if (!U || !U->IsAlive()) continue;
+		FVector To = U->GetActorLocation() - Origin; To.Z = 0.f;
+		if (To.Size() > Radius) continue;
+		if (FVector::DotProduct(To.GetSafeNormal(), Fwd) < 0.f) continue; // seulement devant
+		U->BlindedUntil = Now + 4.f; // précision quasi nulle pendant 4 s
+		++Hit;
+	}
+	AWOTOLBubbleBurst::Burst(W, Origin + Fwd * 120.f + FVector(0, 0, 60.f), FLinearColor(0.85f, 0.95f, 0.4f, 1.f), 20);
+	if (Hit > 0)
+		AWOTOLDamageNumber::SpawnText(W, Origin + FVector(0, 0, 150.f), TEXT("Eblouissement"),
+			FLinearColor(0.9f, 0.95f, 0.4f, 1.f));
 }
 
 // Tailles réelles approximatives (mètres) — valeurs du GDD/document de démo

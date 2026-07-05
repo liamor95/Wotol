@@ -177,6 +177,17 @@ private:
 	// Cerveau autonome de créature/boss (cherche l'ennemi, avance, attaque)
 	void CreatureBrainTick(float DeltaSeconds);
 
+	// ─── Compétences ACTIVES (déclenchées périodiquement, cooldown du tableur) ─────
+	void  TickAbility(float DeltaSeconds); // décrémente le cooldown + déclenche
+	void  UseAbility();                    // dispatch selon l'unité
+	void  Ability_Shockwave();             // Aquis : onde de choc au sol (repousse autour)
+	void  Ability_Laser();                 // Noxar : rayon laser sur l'objectif / le + proche
+	void  Ability_ProjectileBurst();       // Noxeblast : rafale de projectiles
+	void  Ability_BlindFlash();            // Noxeflare : éblouit les ennemis proches
+	float GetAbilityCooldownFor(FName Id) const; // CD du tableur par unité
+	float AbilityCooldown = 6.f;           // temps avant la prochaine compétence
+	bool  bAbilityInit = false;
+
 	// ─── Fouets du Kraken (2 grands tentacules articulés) ─────────────────────
 	// Chaîne de pivots (base → pointe) formant un tentacule capable de "claquer".
 	void BuildWhipTentacle(const FVector& RootLoc, float SideSign,

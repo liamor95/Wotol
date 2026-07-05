@@ -50,6 +50,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Combat")
 	float DamageDealt = 0.f;
 
+	// Aveuglé jusqu'à ce temps (secondes de jeu) : précision quasi nulle (rate souvent).
+	UPROPERTY(BlueprintReadOnly, Category = "Combat")
+	float BlindedUntil = 0.f;
+
 	// ── Rythme de bataille (demo) — batailles plus LONGUES et sous-marines ──
 	// Multiplicateur GLOBAL de dégâts (< 1 = combats plus longs, plus d'échanges).
 	static float GlobalDamageScale;

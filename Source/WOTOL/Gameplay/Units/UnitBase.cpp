@@ -14,7 +14,7 @@
 
 // Rythme de bataille (démo) : combats plus longs + déplacements ralentis (eau).
 // 0.42 dégâts -> ~2,5× plus d'échanges ; 0.55 vitesse -> approche/repli plus lents.
-float AUnitBase::GlobalDamageScale = 0.42f;
+float AUnitBase::GlobalDamageScale = 0.33f;
 float AUnitBase::GlobalSpeedScale  = 0.55f;
 
 AUnitBase::AUnitBase()
@@ -180,6 +180,15 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 	if (Now - LastAttackTime < UnitData->Stats.AttackCooldown) return;
 
 	LastAttackTime = Now;
+
+	// AVEUGLÉ (flash Noxeflare) : précision quasi nulle -> rate le plus souvent.
+	if (Now < BlindedUntil && FMath::FRand() < 0.75f)
+	{
+		AWOTOLDamageNumber::SpawnText(GetWorld(), GetActorLocation() + FVector(0, 0, 70.f),
+			TEXT("Rate"), FLinearColor(0.6f, 0.6f, 0.65f, 1.f));
+		OnAttackPerformed(Target);
+		return;
+	}
 
 	// Dégâts de base : ATK/s × cooldown = dégâts par frappe. Réduits par le multiplicateur
 	// global de rythme -> plus d'échanges, batailles plus longues.
