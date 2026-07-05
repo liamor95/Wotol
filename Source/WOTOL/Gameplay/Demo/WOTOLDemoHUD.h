@@ -63,6 +63,7 @@ private:
 	void DrawUnderwaterBackground(float W, float H);
 	// Grand titre lumineux avec halo + pulsation (menu principal).
 	void DrawGlowTitle(const FString& Text, float Y, float Scale, const FLinearColor& Color);
+	void DrawLavaTitle(const FString& Text, float Y, float Scale);
 
 	// Éléments style Total War
 	void DrawTopBar(float W, float H, class UWorld* World, class UDemoFlowSubsystem* Demo);

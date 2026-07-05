@@ -242,37 +242,139 @@ void AWOTOLDemoHUD::DrawUnderwaterBackground(float W, float H)
 {
 	const float T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
 
-	// Dégradé de profondeur : surface (haut) plus claire -> abysse (bas) sombre.
-	const int32 Bands = 48;
-	const FLinearColor Surface(0.05f, 0.20f, 0.34f, 1.f);
-	const FLinearColor Deep   (0.005f, 0.02f, 0.06f, 1.f);
-	const float BandH = H / Bands + 1.f;
-	for (int32 i = 0; i < Bands; ++i)
-	{
-		const float f = (float)i / (Bands - 1);
-		DrawRect(FMath::Lerp(Surface, Deep, f), 0.f, i * (H / Bands), W, BandH);
-	}
-
-	// Rais de lumière obliques qui dérivent lentement (god rays).
-	for (int32 j = 0; j < 5; ++j)
-	{
-		const float baseX = W * (0.12f + 0.18f * j);
-		const float x = baseX + FMath::Sin(T * 0.15f + j * 1.3f) * W * 0.04f;
-		DrawRect(FLinearColor(0.4f, 0.7f, 1.f, 0.035f), x, 0.f, 90.f + 20.f * j, H);
-	}
-
-	// Bulles qui montent (cercles semi-transparents), déterministes par indice.
+	// Bruit déterministe (mêmes reliefs à chaque frame).
 	auto Rnd = [](int32 n) -> float
 	{
 		n = (n << 13) ^ n;
 		return (float)((n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 2147483647.f;
 	};
+
+	// ── 1) Dégradé de profondeur : bleu clair de surface -> abysse ─────────────
+	const int32 Bands = 64;
+	const FLinearColor Surface(0.06f, 0.24f, 0.40f, 1.f);
+	const FLinearColor Mid    (0.02f, 0.10f, 0.20f, 1.f);
+	const FLinearColor Deep   (0.004f, 0.015f, 0.05f, 1.f);
+	for (int32 i = 0; i < Bands; ++i)
+	{
+		const float f = (float)i / (Bands - 1);
+		const FLinearColor Col = (f < 0.5f)
+			? FMath::Lerp(Surface, Mid, f * 2.f)
+			: FMath::Lerp(Mid, Deep, (f - 0.5f) * 2.f);
+		DrawRect(Col, 0.f, i * (H / Bands), W, H / Bands + 1.f);
+	}
+
+	// ── 2) Puits de lumière CENTRAL (source haut-centre) : cône lumineux ───────
+	if (Canvas)
+	{
+		const float cx = W * 0.52f;
+		for (int32 k = 0; k < 22; ++k)
+		{
+			const float f = (float)k / 21.f;
+			const float y = f * H;
+			const float halfw = FMath::Lerp(70.f, W * 0.34f, f);      // s'élargit vers le bas
+			const float a = (1.f - f) * 0.10f;                        // s'estompe en descendant
+			DrawRect(FLinearColor(0.55f, 0.82f, 1.f, a),
+				cx - halfw, y, halfw * 2.f, H / 22.f + 1.f);
+		}
+		// Halo brillant à la source.
+		Canvas->K2_DrawPolygon(nullptr, FVector2D(cx, H * 0.02f), FVector2D(220.f, 220.f), 24,
+			FLinearColor(0.7f, 0.9f, 1.f, 0.12f));
+	}
+
+	// ── 3) Rais de lumière obliques qui dérivent (god rays) ────────────────────
+	for (int32 j = 0; j < 6; ++j)
+	{
+		const float baseX = W * (0.30f + 0.10f * j);
+		const float x = baseX + FMath::Sin(T * 0.15f + j * 1.3f) * W * 0.05f;
+		DrawRect(FLinearColor(0.5f, 0.78f, 1.f, 0.03f), x, 0.f, 60.f + 26.f * j, H);
+	}
+
+	// ── 4) PAROIS ROCHEUSES latérales (jagged) — encadrent la scène, profondeur ─
+	{
+		const int32 Rows = 54;
+		const float rowH = H / Rows + 1.f;
+		const FLinearColor WallFar (0.03f, 0.07f, 0.12f, 1.f);
+		const FLinearColor WallNear(0.015f, 0.03f, 0.055f, 1.f);
+		for (int32 r = 0; r < Rows; ++r)
+		{
+			const float y = r * (H / Rows);
+			// Largeur dentelée (deux octaves de bruit) — la paroi avance/recule.
+			const float nL = Rnd(r * 2) * 0.6f + Rnd(r * 2 + 31) * 0.4f;
+			const float nR = Rnd(r * 2 + 7) * 0.6f + Rnd(r * 2 + 53) * 0.4f;
+			const float leftW  = W * (0.06f + 0.10f * nL);
+			const float rightW = W * (0.06f + 0.10f * nR);
+			// Couche lointaine (plus large, plus claire) puis proche (plus étroite, sombre).
+			DrawRect(WallFar,  0.f,        y, leftW,  rowH);
+			DrawRect(WallFar,  W - rightW, y, rightW, rowH);
+			DrawRect(WallNear, 0.f,        y, leftW  * 0.6f, rowH);
+			DrawRect(WallNear, W - rightW * 0.6f, y, rightW * 0.6f, rowH);
+		}
+	}
+
+	// ── 5) FOND MARIN dentelé (crêtes) au bas — vallée centrale ────────────────
+	{
+		const int32 Cols = 96;
+		const float colW = W / Cols + 1.f;
+		for (int32 c = 0; c < Cols; ++c)
+		{
+			const float x = c * (W / Cols);
+			// Vallée : plus creux au centre, remonte sur les bords.
+			const float centerBias = FMath::Abs((float)c / Cols - 0.5f) * 2.f; // 0 centre -> 1 bords
+			const float n = Rnd(c) * 0.5f + Rnd(c + 17) * 0.5f;
+			const float farH  = H * (0.10f + 0.14f * centerBias + 0.06f * n);
+			DrawRect(FLinearColor(0.02f, 0.05f, 0.09f, 1.f), x, H - farH, colW, farH);
+			const float nearH = H * (0.05f + 0.10f * centerBias + 0.05f * Rnd(c + 91));
+			DrawRect(FLinearColor(0.008f, 0.02f, 0.035f, 1.f), x, H - nearH, colW, nearH);
+		}
+	}
+
+	// ── 6) CHEMINÉES VOLCANIQUES : lueurs chaudes qui palpitent près du fond ────
+	if (Canvas)
+	{
+		const float vents[3][2] = { {0.16f, 0.86f}, {0.30f, 0.92f}, {0.78f, 0.88f} };
+		for (int32 v = 0; v < 3; ++v)
+		{
+			const float vx = W * vents[v][0];
+			const float vy = H * vents[v][1];
+			const float pulse = 0.5f + 0.5f * FMath::Sin(T * 2.f + v * 2.1f);
+			const float glow = 60.f + 40.f * pulse;
+			Canvas->K2_DrawPolygon(nullptr, FVector2D(vx, vy), FVector2D(glow, glow * 0.6f), 20,
+				FLinearColor(1.f, 0.35f, 0.08f, 0.10f + 0.06f * pulse));
+			Canvas->K2_DrawPolygon(nullptr, FVector2D(vx, vy), FVector2D(glow * 0.4f, glow * 0.28f), 16,
+				FLinearColor(1.f, 0.6f, 0.2f, 0.16f + 0.08f * pulse));
+			// Braises qui montent.
+			for (int32 e = 0; e < 6; ++e)
+			{
+				const float ephase = Rnd(v * 10 + e + 500);
+				const float ey = vy - FMath::Fmod(T * (30.f + ephase * 40.f) + ephase * 300.f, 300.f);
+				const float ex = vx + FMath::Sin(T * 1.5f + e) * 18.f;
+				const float ea = FMath::Clamp((vy - ey) / 300.f, 0.f, 1.f);
+				Canvas->K2_DrawPolygon(nullptr, FVector2D(ex, ey), FVector2D(2.5f, 2.5f), 8,
+					FLinearColor(1.f, 0.5f, 0.15f, (1.f - ea) * 0.7f));
+			}
+		}
+	}
+
+	// ── 7) PARTICULES en suspension (spores/plancton) qui dérivent ─────────────
+	if (Canvas)
+	{
+		for (int32 i = 0; i < 60; ++i)
+		{
+			const float px = FMath::Fmod(Rnd(i + 600) * W + T * (4.f + Rnd(i + 610) * 8.f), W);
+			const float py = Rnd(i + 620) * H + FMath::Sin(T * 0.4f + i) * 10.f;
+			const float ps = 1.f + Rnd(i + 630) * 2.f;
+			Canvas->K2_DrawPolygon(nullptr, FVector2D(px, py), FVector2D(ps, ps), 6,
+				FLinearColor(0.6f, 0.85f, 1.f, 0.10f + Rnd(i + 640) * 0.10f));
+		}
+	}
+
+	// ── 8) Bulles qui montent ──────────────────────────────────────────────────
 	if (Canvas)
 	{
 		const int32 NumBubbles = 46;
 		for (int32 i = 0; i < NumBubbles; ++i)
 		{
-			const float bx    = Rnd(i) * W + FMath::Sin(T * 0.6f + i) * 12.f; // léger zig-zag
+			const float bx    = Rnd(i) * W + FMath::Sin(T * 0.6f + i) * 12.f;
 			const float size  = 3.f + Rnd(i + 100) * 13.f;
 			const float speed = 28.f + Rnd(i + 200) * 74.f;
 			const float phase = Rnd(i + 300);
@@ -280,14 +382,57 @@ void AWOTOLDemoHUD::DrawUnderwaterBackground(float W, float H)
 			const float a     = 0.06f + Rnd(i + 400) * 0.12f;
 			Canvas->K2_DrawPolygon(nullptr, FVector2D(bx, by), FVector2D(size, size), 16,
 				FLinearColor(0.6f, 0.85f, 1.f, a));
-			// petit reflet clair sur la bulle
 			Canvas->K2_DrawPolygon(nullptr, FVector2D(bx - size * 0.3f, by - size * 0.3f),
 				FVector2D(size * 0.28f, size * 0.28f), 10, FLinearColor(0.9f, 0.97f, 1.f, a * 1.4f));
 		}
 	}
 
-	// Vignette basse (assombrit le bas pour la lisibilité du texte).
-	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.35f), 0.f, H * 0.72f, W, H * 0.28f);
+	// ── 9) Vignette (haut + bas + coins) pour cadrer et lisibilité du texte ────
+	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.35f), 0.f, H * 0.74f, W, H * 0.26f);
+	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.22f), 0.f, 0.f, W, H * 0.10f);
+}
+
+// Titre "LAVE" multicolore et lumineux (pour le nom du jeu) : halo chaud +
+// dégradé rouge->orange->jaune + braises scintillantes. Fait "péter" le titre.
+void AWOTOLDemoHUD::DrawLavaTitle(const FString& Text, float Y, float Scale)
+{
+	if (!Canvas) return;
+	UFont* Font = GEngine->GetLargeFont();
+	float TW, TH; GetTextSize(Text, TW, TH, Font, Scale);
+	const float X = (Canvas->SizeX - TW) * 0.5f;
+	const float T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	const float pulse = 0.5f + 0.5f * FMath::Sin(T * 2.2f);
+
+	// Halo chaud diffus derrière le texte (plusieurs couches).
+	const FVector2D C(X + TW * 0.5f, Y + TH * 0.5f * Scale);
+	Canvas->K2_DrawPolygon(nullptr, C, FVector2D(TW * 0.62f, TH * Scale * 0.9f), 24,
+		FLinearColor(1.f, 0.25f, 0.05f, 0.10f + 0.05f * pulse));
+	Canvas->K2_DrawPolygon(nullptr, C, FVector2D(TW * 0.45f, TH * Scale * 0.7f), 24,
+		FLinearColor(1.f, 0.45f, 0.1f, 0.10f));
+
+	// Contour sombre (braise éteinte) pour détourer.
+	const float o = 3.f;
+	const float dirs[8][2] = { {-o,0},{o,0},{0,-o},{0,o},{-o,-o},{o,-o},{-o,o},{o,o} };
+	for (int32 i = 0; i < 8; ++i)
+		DrawText(Text, FLinearColor(0.18f, 0.02f, 0.f, 0.95f), X + dirs[i][0], Y + dirs[i][1], Font, Scale);
+
+	// Dégradé vertical simulé : rouge (bas) -> orange -> jaune (haut) via 3 passes
+	// légèrement décalées, la plus claire au-dessus.
+	DrawText(Text, FLinearColor(0.85f, 0.10f, 0.02f, 1.f), X, Y + 3.f, Font, Scale); // rouge profond (bas)
+	DrawText(Text, FLinearColor(1.f, 0.42f, 0.08f, 1.f),  X, Y + 1.f, Font, Scale);  // orange
+	DrawText(Text, FLinearColor(1.f, 0.82f, 0.28f, 1.f),  X, Y,       Font, Scale);  // cœur jaune
+
+	// Braises scintillantes autour des lettres.
+	auto Rnd = [](int32 n) -> float { n = (n << 13) ^ n;
+		return (float)((n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 2147483647.f; };
+	for (int32 i = 0; i < 18; ++i)
+	{
+		const float ex = X + Rnd(i) * TW;
+		const float ey = Y + TH * Scale * (0.1f + Rnd(i + 40) * 0.8f) - FMath::Fmod(T * 20.f + Rnd(i + 80) * 60.f, 60.f);
+		const float ea = 0.4f + 0.6f * FMath::Sin(T * 3.f + i);
+		Canvas->K2_DrawPolygon(nullptr, FVector2D(ex, ey), FVector2D(2.f, 2.f), 6,
+			FLinearColor(1.f, 0.6f, 0.2f, FMath::Max(0.f, ea) * 0.6f));
+	}
 }
 
 void AWOTOLDemoHUD::DrawGlowTitle(const FString& Text, float Y, float Scale, const FLinearColor& Color)
@@ -312,9 +457,9 @@ void AWOTOLDemoHUD::DrawGlowTitle(const FString& Text, float Y, float Scale, con
 void AWOTOLDemoHUD::DrawMainMenu(float W, float H)
 {
 	DrawUnderwaterBackground(W, H);
-	// Titre imposant + halo pulsant, sous-titre, puis bouton
-	DrawGlowTitle(TEXT("W O T O L"), H * 0.24f, 4.4f, FLinearColor(0.5f, 0.88f, 1.f, 1.f));
-	DrawCenteredText(TEXT("War of the Ocean's Legacy"), H * 0.40f, FLinearColor(0.85f, 0.93f, 1.f, 1.f), 1.4f);
+	// Titre imposant en LAVE (rouge/orange/jaune lumineux), sous-titre chaud, puis bouton
+	DrawLavaTitle(TEXT("WOTOL"), H * 0.22f, 5.0f);
+	DrawCenteredText(TEXT("WAR OF THE OCEAN'S LEGACY"), H * 0.42f, FLinearColor(1.f, 0.45f, 0.35f, 1.f), 1.5f);
 	DrawButton(StartGameButtonRect(W, H), TEXT("COMMENCER LA DEMO"), FLinearColor(0.3f, 0.75f, 1.f, 1.f), 1.6f);
 }
 
