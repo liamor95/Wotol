@@ -665,10 +665,10 @@ void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
 		if (!U || !U->IsAlive()) continue;
 		const FString Name = (U->GetUnitData() && !U->GetUnitData()->DisplayName.IsEmpty())
 			? U->GetUnitData()->DisplayName.ToString() : U->GetName();
-		const EUnitRole Role = U->GetUnitData() ? U->GetUnitData()->Role : EUnitRole::Infanterie;
+		const EUnitRole URole = U->GetUnitData() ? U->GetUnitData()->Role : EUnitRole::Infanterie;
 		int32* Found = Index.Find(Name);
 		FGroup& G = Found ? Groups[*Found]
-			: Groups[Index.Add(Name, Groups.Add(FGroup{ Name, 0, 0.f, 0, 0, U->GetFaction(), Role }))];
+			: Groups[Index.Add(Name, Groups.Add(FGroup{ Name, 0, 0.f, 0, 0, U->GetFaction(), URole }))];
 		G.Count++;
 		// PV EFFECTIFS (multiplicateur de PV inclus) -> le courant ne dépasse plus le max.
 		float Pct; int32 UMax;
@@ -690,13 +690,13 @@ void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
 
 	// Icône DISTINCTE par type d'unité (forme différente selon le rôle) — pour
 	// reconnaître l'unité d'un coup d'œil, pas seulement au nom.
-	auto DrawUnitIcon = [&](float CX, float CY, float R, EUnitRole Role, const FLinearColor& Fac)
+	auto DrawUnitIcon = [&](float CX, float CY, float R, EUnitRole IconRole, const FLinearColor& Fac)
 	{
 		if (!Canvas) return;
 		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.55f), CX - R - 3.f, CY - R - 3.f, (R + 3.f) * 2.f, (R + 3.f) * 2.f);
 		const FLinearColor Fill(FMath::Min(1.f, Fac.R + 0.15f), FMath::Min(1.f, Fac.G + 0.15f),
 			FMath::Min(1.f, Fac.B + 0.15f), 1.f);
-		switch (Role)
+		switch (IconRole)
 		{
 			case EUnitRole::Chef:      Canvas->K2_DrawPolygon(nullptr, FVector2D(CX, CY), FVector2D(R, R), 3, Fill); break; // triangle
 			case EUnitRole::Mythique:  Canvas->K2_DrawPolygon(nullptr, FVector2D(CX, CY), FVector2D(R * 1.1f, R * 1.1f), 6, Fill); break; // hexa
