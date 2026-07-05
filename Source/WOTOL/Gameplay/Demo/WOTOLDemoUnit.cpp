@@ -379,12 +379,27 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 	AUnitBase* Nearest = FindNearestEnemyUnit();
 	if (!Nearest) return;
 
-	// Le boss rejoint la couche visuelle de sa cible (plonge / remonte) — mais avec un
-	// temps d'adaptation, pas instantanément (il ne colle pas la hauteur du joueur en direct).
-	if (AWOTOLDemoUnit* T = Cast<AWOTOLDemoUnit>(Nearest))
+	// ── MANŒUVRE : le Kraken n'est pas STATIQUE. Toutes les ~4-8 s il déclenche un
+	// contournement : il tourne autour de l'ennemi (strafe latéral) et change de couche
+	// verticale pour attaquer sous un autre angle / anticiper. Occupant 2 niveaux, sa
+	// BASE est bornée à [0, 800] (sommet <= couche 4 = surface, il ne sort pas de l'eau).
+	BossRepositionCD -= DeltaSeconds;
+	if (BossRepositionCD <= 0.f)
 	{
-		AdaptLayerTo(T->GetDesiredZ(), DeltaSeconds);
+		BossRepositionCD = FMath::FRandRange(5.f, 8.f);
+		BossRepoTimer    = FMath::FRandRange(2.5f, 4.f);
+		BossStrafeDir    = (FMath::FRand() < 0.5f) ? 1.f : -1.f;
+		BossLayerGoal    = (FMath::FRand() < 0.5f) ? 0.f : 800.f; // plonge au sol ou remonte d'1 couche
 	}
+	const bool bManeuver = (BossRepoTimer > 0.f);
+	if (bManeuver) BossRepoTimer -= DeltaSeconds;
+
+	// Couche : pendant la manœuvre il vise sa propre couche (BossLayerGoal), sinon il
+	// rejoint celle de sa cible — toujours borné à 2 niveaux d'occupation.
+	float LayerGoal = BossLayerGoal;
+	if (!bManeuver)
+		if (AWOTOLDemoUnit* T = Cast<AWOTOLDemoUnit>(Nearest)) LayerGoal = T->GetDesiredZ();
+	AdaptLayerTo(FMath::Clamp(LayerGoal, 0.f, 800.f), DeltaSeconds);
 
 	FVector To = Nearest->GetActorLocation() - GetActorLocation();
 	To.Z = 0.f;
@@ -400,6 +415,16 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 
 	const float Range = UnitData ? UnitData->Stats.AttackRange * 200.f : 200.f;
 	const float Edge  = Dist - GetSimpleCollisionRadius() - Nearest->GetSimpleCollisionRadius();
+
+	// Déplacement LATÉRAL pendant la manœuvre : il CONTOURNE l'ennemi (utilise l'espace)
+	// même quand il est déjà à portée, au lieu de rester planté au centre.
+	if (bManeuver && Dist > 1.f)
+	{
+		const FVector Fwd  = To.GetSafeNormal();
+		const FVector Side = FVector::CrossProduct(FVector::UpVector, Fwd) * BossStrafeDir;
+		const FVector Push = (Side * 0.85f + Fwd * (Edge > Range ? 0.4f : -0.15f)).GetSafeNormal();
+		AddMovementInput(Push, 1.f);
+	}
 
 	if (Edge <= Range)
 	{
@@ -912,9 +937,10 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 		// on descend juste ce qu'il faut pour que la base touche le fond (annule le petit
 		// lift de spawn) sans l'enterrer. [Réglable : -0.10 à peine posé .. -0.30 enfoncé]
 		VisualBaseZ = -KrakH * 0.18f;
-		// Empreinte de collision RÉDUITE au corps visible (≈ rayon du corps) : les unités
-		// mêlée s'arrêtent au bord du modèle (collées), pas à 5 m à cause d'un rayon géant.
-		GetCapsuleComponent()->SetCapsuleSize(KrakH * 0.30f, FMath::Max(40.f, KrakH * 0.5f));
+		// Empreinte de collision = ENTIÈRETÉ du corps (bec compris, qui avance jusqu'à
+		// ~0.44*H) : les unités s'arrêtent AU BORD du modèle sans jamais RENTRER dedans.
+		// (Trop petit -> elles pénètrent dans le bec ; c'est pourquoi 0.45*H et pas 0.30.)
+		GetCapsuleComponent()->SetCapsuleSize(KrakH * 0.45f, FMath::Max(40.f, KrakH * 0.5f));
 		GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 		if (NameTag)       NameTag->SetRelativeLocation(FVector(0.f, 0.f, KrakH * 0.75f + 50.f));
 		if (NameTagShadow) NameTagShadow->SetRelativeLocation(FVector(0.f, 0.f, KrakH * 0.75f + 50.f));
@@ -924,6 +950,22 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 		{
 			ClickProxy->SetSphereRadius(KrakH * 0.75f);
 			ClickProxy->SetRelativeLocation(FVector(0.f, 0.f, KrakH * 0.25f));
+		}
+		// ── BLOQUEUR DE CORPS (WorldStatic) : empêche PHYSIQUEMENT les unités d'entrer
+		// dans le modèle du Kraken. Les unités bloquent déjà le décor WorldStatic (ruines)
+		// -> elles GLISSENT autour du corps au lieu de le traverser = vrai contournement,
+		// et ne pénètrent jamais dans le bec. N'affecte ni les tirs (seul un CoverStructure
+		// bloque la ligne de vue) ni le déplacement du Kraken (composant du même acteur).
+		if (USphereComponent* Blocker = NewObject<USphereComponent>(this, TEXT("KrakenBodyBlocker")))
+		{
+			Blocker->SetupAttachment(VisualRoot);
+			Blocker->RegisterComponent();
+			Blocker->SetSphereRadius(KrakH * 0.45f);
+			Blocker->SetRelativeLocation(FVector(KrakH * 0.05f, 0.f, KrakH * 0.10f));
+			Blocker->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+			Blocker->SetCollisionObjectType(ECC_WorldStatic);
+			Blocker->SetCollisionResponseToAllChannels(ECR_Block);
+			Blocker->SetCanEverAffectNavigation(false); // pas de rebuild nav (le boss bouge)
 		}
 		BobSeed = FMath::Fmod(GetActorLocation().X * 0.021f + GetActorLocation().Y * 0.013f, 6.283f);
 		return; // pas de disque d'équipe ni de silhouette d'unité pour le boss

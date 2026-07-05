@@ -111,6 +111,8 @@ private:
 	AAIAdaptiveController* GetAIController() const;
 	bool                   HasLowHealth() const;
 	bool                   IsInAttackRange(AUnitBase* Target) const;
+	// Emplacement d'ENCERCLEMENT autour d'une grosse cible (Kraken) — vrai si applicable.
+	bool                   ComputeEncircleSlot(AUnitBase* Target, FVector& OutSlot) const;
 
 	EUnitAIState CurrentState = EUnitAIState::Idle;
 	bool         bAIActive    = false;

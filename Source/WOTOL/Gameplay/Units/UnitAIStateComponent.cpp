@@ -186,8 +186,45 @@ void UUnitAIStateComponent::EvaluateSeeking()
 
 	if (AAIAdaptiveController* AIC = GetAIController())
 	{
-		AIC->MoveToActor(Target, 50.f);
+		// GROSSE CIBLE (Kraken) : au lieu de foncer tous sur le centre (embouteillage
+		// devant le bec), chaque unité vise un EMPLACEMENT ANGULAIRE distinct autour du
+		// corps -> ENCERCLEMENT (certaines par les flancs, d'autres par l'ARRIÈRE). Avec
+		// le bloqueur de corps, elles glissent autour au lieu de traverser.
+		FVector Slot;
+		if (ComputeEncircleSlot(Target, Slot))
+			AIC->MoveToLocation(Slot, 60.f);
+		else
+			AIC->MoveToActor(Target, 50.f);
 	}
+}
+
+bool UUnitAIStateComponent::ComputeEncircleSlot(AUnitBase* Target, FVector& OutSlot) const
+{
+	if (!Target) return false;
+	AUnitBase* Owner = Cast<AUnitBase>(GetOwner());
+	if (!Owner) return false;
+
+	// Seulement pour les cibles VOLUMINEUSES (rayon de collision élevé = Kraken/boss).
+	const float TgtR = Target->GetSimpleCollisionRadius();
+	if (TgtR < 150.f) return false;
+
+	// Angle STABLE par unité (réparti sur tout le cercle) -> répartition autour du corps.
+	const uint32 Id = GetOwner() ? GetOwner()->GetUniqueID() : 0;
+	float Ang = ((float)(Id % 360)) * (PI / 180.f);
+	// Les unités MONTÉES (Aquilances), rapides, sont poussées vers l'ARRIÈRE/les flancs :
+	// elles font le tour pour frapper là où le Kraken est à découvert.
+	if (Owner->GetUnitData() && Owner->GetUnitData()->Role == EUnitRole::Montee)
+	{
+		const FVector ToOwner = (Owner->GetActorLocation() - Target->GetActorLocation()).GetSafeNormal2D();
+		const float Base = FMath::Atan2(ToOwner.Y, ToOwner.X);
+		Ang = Base + PI + ((Id % 2 == 0) ? 0.6f : -0.6f); // opposé au point d'approche + biais latéral
+	}
+
+	const FVector Dir(FMath::Cos(Ang), FMath::Sin(Ang), 0.f);
+	const float ApproachR = TgtR + 40.f + Owner->GetSimpleCollisionRadius();
+	OutSlot = Target->GetActorLocation() + Dir * ApproachR;
+	OutSlot.Z = Owner->GetActorLocation().Z;
+	return true;
 }
 
 void UUnitAIStateComponent::EvaluateAttacking()

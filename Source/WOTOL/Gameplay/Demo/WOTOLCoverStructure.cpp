@@ -41,22 +41,26 @@ void AWOTOLCoverStructure::Tick(float DeltaSeconds)
 	if (bFalling) { TickFall(DeltaSeconds); return; }
 	if (bDestroyed || !HealthTag) return;
 
-	// Étiquette de PV : TOUJOURS visible pour une structure destructible (on voit qu'elle
-	// est endommageable + ses PV). Masquée pour l'indestructible (pas de PV).
-	const bool bShow = !bIndestructible;
-	HealthTag->SetVisibility(bShow);
-	if (bShow)
+	// Étiquette TOUJOURS visible sur TOUTE structure : PV pour une ruine destructible,
+	// libellé "Indestructible" pour l'autre (cohérence : chaque élément a son étiquette).
+	HealthTag->SetVisibility(true);
+	if (bIndestructible)
+	{
+		HealthTag->SetText(FText::FromString(TEXT("Indestructible")));
+		HealthTag->SetTextRenderColor(FColor(150, 200, 230, 255)); // cyan froid : inaltérable
+	}
+	else
 	{
 		HealthTag->SetText(FText::FromString(FString::Printf(TEXT("Ruine  %d / %d"),
 			FMath::RoundToInt(CurrentHealth), FMath::RoundToInt(MaxHealth))));
-		if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
-			if (PC->PlayerCameraManager)
-			{
-				FRotator F = (PC->PlayerCameraManager->GetCameraLocation() - HealthTag->GetComponentLocation()).Rotation();
-				F.Pitch = 0.f; F.Roll = 0.f;
-				HealthTag->SetWorldRotation(F);
-			}
 	}
+	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+		if (PC->PlayerCameraManager)
+		{
+			FRotator F = (PC->PlayerCameraManager->GetCameraLocation() - HealthTag->GetComponentLocation()).Rotation();
+			F.Pitch = 0.f; F.Roll = 0.f;
+			HealthTag->SetWorldRotation(F);
+		}
 }
 
 // Ajoute une pièce (mesh primitif) avec collision bloquante (unités + tirs).

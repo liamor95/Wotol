@@ -219,6 +219,13 @@ private:
 	float WhipStrike   = -1.f;  // <0 = repos ; 0..1 = déroulé du coup en cours
 	float CritCooldown = 3.f;   // (boss) temps avant la prochaine attaque critique possible
 
+	// (Boss) REPOSITIONNEMENT dynamique : le Kraken n'est pas figé, il tourne autour de
+	// l'ennemi, change d'angle et de couche verticale pour anticiper/attaquer à découvert.
+	float BossRepositionCD  = 4.f;   // délai avant la prochaine manœuvre
+	float BossRepoTimer     = 0.f;   // temps restant de la manœuvre en cours
+	float BossStrafeDir     = 1.f;   // sens du contournement (gauche/droite)
+	float BossLayerGoal     = 0.f;   // couche visée pendant la manœuvre (base, 0..800)
+
 	// Combat vertical : quand l'unité poursuit/attaque, elle rejoint la couche
 	// (hauteur) de sa cible — mais avec un TEMPS D'ADAPTATION (pas instantané), pour que
 	// l'ennemi ne "colle" pas la hauteur du joueur en même temps que lui.
