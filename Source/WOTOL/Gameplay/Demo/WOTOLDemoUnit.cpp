@@ -978,36 +978,77 @@ void AWOTOLDemoUnit::BuildKrakenCephalopod(float H)
 {
 	const FRotator NoRot = FRotator::ZeroRotator;
 	const float h = H / 100.f;
-	const FLinearColor KrakArmor(0.16f, 0.12f, 0.30f, 1.f); // manteau bleu-violet
-	const FLinearColor KrakSkin (0.24f, 0.16f, 0.34f, 1.f); // chair un peu plus claire
-	const FLinearColor KrakGlow (0.20f, 0.85f, 1.00f, 1.f); // yeux/craquelures cyan
-	const FLinearColor Beak     (0.05f, 0.05f, 0.06f, 1.f);
+	// Palette fidèle à la réf : armure acier bleu-violet sombre, plaques + claires,
+	// veines/yeux cyan bioluminescents, dessous de tentacules violet, bec noir.
+	const FLinearColor KrakArmor (0.11f, 0.13f, 0.24f, 1.f);
+	const FLinearColor KrakPlate (0.17f, 0.15f, 0.28f, 1.f);
+	const FLinearColor KrakGlow  (0.22f, 0.85f, 1.00f, 1.f);
+	const FLinearColor KrakPurple(0.30f, 0.20f, 0.42f, 1.f);
+	const FLinearColor Beak      (0.04f, 0.04f, 0.05f, 1.f);
 
-	// MANTEAU : grand cône lisse pointant vers le haut/arrière (capuchon du calamar)
-	AddPart(M_CONE, FVector(-H * 0.15f, 0, H * 0.30f), FVector(h * 0.55f, h * 0.55f, h * 0.85f),
-		FRotator(-18.f, 0, 0), KrakArmor);
-	// TÊTE bulbeuse (grosse sphère) au centre
-	SetupMainPart(M_SPH, FVector(0, 0, H * 0.02f), FVector(h * 0.60f, h * 0.60f, h * 0.55f), NoRot, KrakSkin);
-	// Bourrelet frontal (là où partent les bras) — adoucit la jonction
-	AddPart(M_SPH, FVector(H * 0.30f, 0, -H * 0.10f), FVector(h * 0.45f, h * 0.50f, h * 0.35f), NoRot, KrakSkin);
-	// GROS YEUX cyan de chaque côté
-	AddPart(M_SPH, FVector(H * 0.30f, H * 0.28f, H * 0.05f), FVector(h * 0.14f, h * 0.14f, h * 0.14f), NoRot, KrakGlow);
-	AddPart(M_SPH, FVector(H * 0.30f, -H * 0.28f, H * 0.05f), FVector(h * 0.14f, h * 0.14f, h * 0.14f), NoRot, KrakGlow);
-	// BEC sombre au centre-avant
-	AddPart(M_CONE, FVector(H * 0.42f, 0, -H * 0.16f), FVector(h * 0.12f, h * 0.12f, h * 0.18f), FRotator(60.f, 0, 0), Beak);
+	// ── MANTEAU / CAPUCHON pointu, incliné vers l'arrière ──
+	AddPart(M_CONE, FVector(-H * 0.16f, 0, H * 0.34f), FVector(h * 0.50f, h * 0.42f, h * 0.95f),
+		FRotator(-16.f, 0, 0), KrakArmor);
+	// Crête dorsale (arête du capuchon) : quelques épines vers le haut/arrière
+	for (int32 i = 0; i < 4; ++i)
+	{
+		const float u = i / 3.f;
+		AddPart(M_CONE, FVector(-H * (0.02f + 0.16f * u), 0, H * (0.40f + 0.14f * u)),
+			FVector(0.10f, 0.10f, h * (0.22f - 0.03f * i)), FRotator(-40.f, 0, 0), KrakPlate);
+	}
 
-	// 8 TENTACULES organisés en éventail vers l'avant/bas, ondulant en séquence
+	// ── GRANDS AILERONS latéraux pointus (silhouette "bat-wing" de la réf) ──
+	for (int32 s = -1; s <= 1; s += 2)
+	{
+		// Aileron plat et effilé, écarté et relevé
+		AddPart(M_CONE, FVector(-H * 0.05f, s * H * 0.30f, H * 0.30f),
+			FVector(h * 0.62f, h * 0.09f, h * 0.95f), FRotator(-8.f, s * 42.f, s * 58.f), KrakArmor);
+		// Nervure lumineuse cyan sur l'aileron
+		AddPart(M_CONE, FVector(-H * 0.05f, s * H * 0.32f, H * 0.32f),
+			FVector(h * 0.30f, h * 0.03f, h * 0.7f), FRotator(-8.f, s * 42.f, s * 58.f), KrakGlow);
+		// Pointe secondaire (bord dentelé)
+		AddPart(M_CONE, FVector(-H * 0.02f, s * H * 0.44f, H * 0.10f),
+			FVector(0.10f, 0.06f, h * 0.4f), FRotator(10.f, s * 55.f, s * 70.f), KrakPlate);
+	}
+
+	// ── TÊTE bulbeuse plaquée ──
+	SetupMainPart(M_SPH, FVector(0, 0, H * 0.03f), FVector(h * 0.58f, h * 0.56f, h * 0.52f), NoRot, KrakArmor);
+	AddPart(M_SPH, FVector(H * 0.16f, 0, H * 0.14f), FVector(h * 0.40f, h * 0.42f, h * 0.30f), NoRot, KrakPlate); // front plaqué
+	AddPart(M_SPH, FVector(H * 0.30f, 0, -H * 0.10f), FVector(h * 0.44f, h * 0.48f, h * 0.34f), NoRot, KrakPurple); // bourrelet des bras
+	// Veines cyan sur la tête
+	AddPart(M_CONE, FVector(H * 0.10f, H * 0.18f, H * 0.16f), FVector(0.05f, 0.03f, h * 0.28f), FRotator(20.f, 30.f, 20.f), KrakGlow);
+	AddPart(M_CONE, FVector(H * 0.10f, -H * 0.18f, H * 0.16f), FVector(0.05f, 0.03f, h * 0.28f), FRotator(20.f, -30.f, -20.f), KrakGlow);
+
+	// ── GROS YEUX cyan + arcade sombre ──
+	for (int32 s = -1; s <= 1; s += 2)
+	{
+		AddPart(M_SPH, FVector(H * 0.30f, s * H * 0.27f, H * 0.06f), FVector(h * 0.15f, h * 0.15f, h * 0.15f), NoRot, KrakGlow);
+		AddPart(M_SPH, FVector(H * 0.30f, s * H * 0.27f, H * 0.06f), FVector(h * 0.19f, h * 0.19f, h * 0.10f), NoRot, KrakArmor); // paupière/arcade
+	}
+
+	// ── BEC noir (mâchoires haute + basse) au centre-avant ──
+	AddPart(M_CONE, FVector(H * 0.44f, 0, -H * 0.10f), FVector(h * 0.13f, h * 0.13f, h * 0.20f), FRotator(55.f, 0, 0), Beak);
+	AddPart(M_CONE, FVector(H * 0.44f, 0, -H * 0.24f), FVector(h * 0.11f, h * 0.11f, h * 0.16f), FRotator(125.f, 0, 0), Beak);
+
+	// ── 8 TENTACULES effilés (2 segments = fuseau qui s'affine), éventail avant/bas ──
 	for (int32 i = 0; i < 8; ++i)
 	{
-		const float t = (i / 7.f) - 0.5f;              // -0.5..0.5
-		const float Yaw = t * 150.f;                   // éventail net (pas d'amas)
-		const FVector Root(H * 0.30f, t * H * 0.55f, -H * 0.20f);
-		RegisterWiggle(AddPart(M_CONE, Root,
-			FVector(0.16f, 0.16f, h * 0.7f), FRotator(120.f, Yaw, 0), KrakArmor), (float)i * 0.6f);
+		const float t   = (i / 7.f) - 0.5f;            // -0.5..0.5
+		const float Yaw = t * 165.f;
+		const float ph  = (float)i * 0.55f;
+		const FVector Root(H * 0.30f, t * H * 0.52f, -H * 0.16f);
+		// segment de base (large)
+		RegisterWiggle(AddPart(M_CONE, Root, FVector(0.22f, 0.22f, h * 0.42f),
+			FRotator(118.f, Yaw, 0), KrakPurple), ph);
+		// segment de pointe (fin), un peu plus bas/avant
+		const FVector Tip(H * 0.34f, t * H * 0.60f, -H * 0.46f);
+		RegisterWiggle(AddPart(M_CONE, Tip, FVector(0.12f, 0.12f, h * 0.40f),
+			FRotator(128.f, Yaw, 0), KrakPurple), ph + 0.4f);
 	}
-	// 2 longs FOUETS ARTICULÉS vers l'avant (3 segments chacun) — coup de fouet
-	BuildWhipTentacle(FVector(H * 0.42f, H * 0.14f, -H * 0.05f),  1.f, KrakArmor, H);
-	BuildWhipTentacle(FVector(H * 0.42f, -H * 0.14f, -H * 0.05f), -1.f, KrakArmor, H);
+
+	// ── 2 longs FOUETS segmentés à pointe BARBELÉE (les "grands tentacules") ──
+	BuildWhipTentacle(FVector(H * 0.40f, H * 0.13f, -H * 0.02f),  1.f, KrakPlate, H);
+	BuildWhipTentacle(FVector(H * 0.40f, -H * 0.13f, -H * 0.02f), -1.f, KrakPlate, H);
 }
 
 // ─── Fouets du Kraken : tentacule articulé (chaîne de pivots) ────────────────
@@ -1015,8 +1056,9 @@ void AWOTOLDemoUnit::BuildWhipTentacle(const FVector& RootLoc, float SideSign,
 	const FLinearColor& Color, float H)
 {
 	const float h = H / 100.f;
-	const int32 Segs = 3;
-	const float SegLen = H * 0.42f;
+	const int32 Segs = 4;                  // plus long (comme la réf)
+	const float SegLen = H * 0.40f;
+	const FLinearColor Glow(0.22f, 0.85f, 1.00f, 1.f);
 	TArray<TObjectPtr<USceneComponent>>& Chain = (SideSign >= 0.f) ? WhipJointsR : WhipJointsL;
 
 	USceneComponent* Parent = VisualRoot;
@@ -1027,17 +1069,23 @@ void AWOTOLDemoUnit::BuildWhipTentacle(const FVector& RootLoc, float SideSign,
 		USceneComponent* J = MakeJoint(Parent, Off);
 		if (!J) break;
 		// Segment couché le long de +X (cylindre pivoté), effilé vers la pointe.
-		const float w = FMath::Lerp(0.11f, 0.05f, (Segs > 1) ? (float)i / (Segs - 1) : 0.f);
+		const float w = FMath::Lerp(0.13f, 0.05f, (Segs > 1) ? (float)i / (Segs - 1) : 0.f);
 		MakeBone(J, M_CYL, FVector(SegLen * 0.5f, 0.f, 0.f),
 			FVector(w, w, SegLen / 100.f), FRotator(90.f, 0.f, 0.f), Color);
+		// petite bague lumineuse cyan à chaque jointure (segments armurés)
+		MakeBone(J, M_SPH, FVector(0.f, 0.f, 0.f), FVector(w * 1.15f, w * 1.15f, w * 0.5f), FRotator::ZeroRotator, Glow);
 		Chain.Add(J);
 		Parent = J;
 	}
-	// Pointe barbelée au bout de la chaîne
+	// POINTE BARBELÉE : lame centrale + 2 crochets latéraux (masse tranchante de la réf).
 	if (Parent && Parent != VisualRoot)
 	{
-		MakeBone(Parent, M_CONE, FVector(SegLen * 0.5f, 0.f, 0.f),
-			FVector(0.07f, 0.07f, h * 0.16f), FRotator(90.f, 0.f, 0.f), Color);
+		MakeBone(Parent, M_CONE, FVector(SegLen * 0.55f, 0.f, 0.f),
+			FVector(0.08f, 0.08f, h * 0.22f), FRotator(90.f, 0.f, 0.f), Color);            // lame
+		MakeBone(Parent, M_CONE, FVector(SegLen * 0.45f, 0.f, SegLen * 0.14f),
+			FVector(0.05f, 0.05f, h * 0.14f), FRotator(55.f, 0.f, 0.f), Color);            // crochet haut
+		MakeBone(Parent, M_CONE, FVector(SegLen * 0.45f, 0.f, -SegLen * 0.14f),
+			FVector(0.05f, 0.05f, h * 0.14f), FRotator(125.f, 0.f, 0.f), Color);           // crochet bas
 	}
 }
 
