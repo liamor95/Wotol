@@ -573,11 +573,12 @@ void AWOTOLDemoDirector::ShowInterlude()
 
 	const FString Lore = FString::Printf(TEXT(
 		"Apres votre victoire sur le Kraken, une creature des abysses — prisonniere elle aussi\n"
-		"des griffes du colosse — a ete liberee dans la bataille. Vous l'avez recueillie et\n"
-		"adoptee : le %s, qui grandira pour devenir votre creature MYTHIQUE.\n\n"
+		"des griffes du colosse — a ete liberee. Vous l'avez recueillie et adoptee : le %s,\n"
+		"qui grandira pour devenir votre creature MYTHIQUE.\n"
+		"\n"
 		"De retour a votre cite, cette decouverte vous a apporte l'experience necessaire pour\n"
-		"eriger un NOUVEAU batiment et former une nouvelle categorie d'unites :\n"
-		"les %s (unites a distance).\n\n"
+		"eriger un NOUVEAU batiment et former une nouvelle categorie : les %s (a distance).\n"
+		"\n"
 		"Mais la faction rivale a repere votre %s et lance l'assaut pour s'emparer de la zone.\n"
 		"Deployez vos forces — distance comprise — et PROTEGEZ le batiment a tout prix."),
 		*Mythic, *Ranged, *Building);

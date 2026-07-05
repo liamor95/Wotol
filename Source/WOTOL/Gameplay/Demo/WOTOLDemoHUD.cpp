@@ -296,19 +296,25 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 void AWOTOLDemoHUD::DrawInterlude(float W, float H, UDemoFlowSubsystem* Demo)
 {
 	DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, 1.f), 0.f, 0.f, W, H);
-	DrawCenteredText(TEXT("— ENTRE DEUX BATAILLES —"), H * 0.12f,
-		FLinearColor(0.6f, 0.9f, 1.f, 1.f), 2.0f);
+	DrawCenteredText(TEXT("— ENTRE DEUX BATAILLES —"), H * 0.07f,
+		FLinearColor(0.6f, 0.9f, 1.f, 1.f), 1.9f);
 
-	// Texte narratif (multi-lignes) centré
+	// Texte narratif (multi-lignes) — réparti sur la hauteur disponible AU-DESSUS du bouton
+	// (départ haut + interligne serré) pour que la dernière ligne ne soit jamais masquée.
 	if (Demo && !Demo->InterludeText.IsEmpty())
 	{
 		TArray<FString> Lines;
 		Demo->InterludeText.ParseIntoArray(Lines, TEXT("\n"), false);
-		float Y = H * 0.26f;
+		const float ButtonTop = InterludeContinueButtonRect(W, H).Min.Y;
+		const float StartY = H * 0.17f;
+		const float AvailH = ButtonTop - 24.f - StartY;
+		const float Step   = (Lines.Num() > 1)
+			? FMath::Clamp(AvailH / Lines.Num(), 24.f, 34.f) : 30.f;
+		float Y = StartY;
 		for (const FString& Line : Lines)
 		{
-			DrawCenteredText(Line, Y, FLinearColor(0.92f, 0.96f, 1.f, 1.f), 1.05f);
-			Y += 34.f;
+			DrawCenteredText(Line, Y, FLinearColor(0.92f, 0.96f, 1.f, 1.f), 1.0f);
+			Y += Step;
 		}
 	}
 
@@ -347,6 +353,32 @@ void AWOTOLDemoHUD::DrawPrepareBar(float W, float H)
 		H * 0.20f, FLinearColor(0.9f, 0.95f, 1.f, 1.f), 1.0f);
 	DrawCenteredText(TEXT("La ligne coloree au sol = LIMITE DE PLACEMENT (vous ne pouvez pas depasser votre premier tiers)"),
 		H * 0.20f + 30.f, FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 0.85f);
+
+	// ── Fenêtre TUTO "CONTROLES" (à GAUCHE) — souris + clavier caméra. Disparait au combat. ──
+	{
+		const float PW = 400.f, PH = 196.f;
+		const float PX = 16.f, PY = H - 386.f;
+		DrawRect(FLinearColor(0.02f, 0.05f, 0.09f, 0.9f), PX, PY, PW, PH);
+		DrawRect(FLinearColor(0.30f, 0.7f, 1.f, 1.f), PX, PY, PW, 4.f);
+
+		DrawText(TEXT("CONTROLES"), FLinearColor(0.6f, 0.9f, 1.f, 1.f),
+			PX + 14.f, PY + 12.f, GEngine->GetMediumFont(), 1.1f);
+		const TCHAR* Lines[7] = {
+			TEXT("Clic GAUCHE : selectionner (glisser = boite)"),
+			TEXT("Clic DROIT : deplacer / attaquer"),
+			TEXT("Double-clic : zoom sur une unite"),
+			TEXT("CTRL : selectionner toute l'armee"),
+			TEXT("Molette : zoom  |  Clic droit maintenu : pivoter"),
+			TEXT("Camera : Z avancer / S reculer / Q gauche / D droite"),
+			TEXT("Camera : E monter / Espace descendre")
+		};
+		float Y = PY + 40.f;
+		for (const TCHAR* L : Lines)
+		{
+			DrawText(L, FLinearColor(0.9f, 0.95f, 1.f, 1.f), PX + 14.f, Y, GEngine->GetSmallFont(), 1.05f);
+			Y += 21.f;
+		}
+	}
 
 	// ── Fenêtre d'INFO / mini-tuto sur la VERTICALITÉ (au-dessus des boutons Monter/Descendre) ──
 	{

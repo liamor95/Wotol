@@ -2,6 +2,7 @@
 #include "UnitSelectionManager.h"
 #include "WOTOLBattleCamera.h"
 #include "Gameplay/Units/UnitBase.h"
+#include "Gameplay/Units/UnitAIStateComponent.h"
 #include "Gameplay/AI/AIAdaptiveController.h"
 #include "Gameplay/Demo/WOTOLDemoHUD.h"
 #include "Gameplay/Demo/DemoFlowSubsystem.h"
@@ -448,14 +449,34 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 
 	const TArray<AUnitBase*>& Sel = SelectionMgr->GetSelectedUnits();
 
-	// Attaque : tout le monde cible l'ennemi
+	// ATTAQUE (clic droit sur un ennemi) : on envoie le groupe EN ATTACK-MOVE vers la
+	// zone de la cible plutôt que de verrouiller TOUTES les unités sur une seule cible.
+	// -> elles avancent en formation, engagent l'ennemi le plus proche et continuent après
+	// (exactement comme l'IA autonome, qui était plus efficace que l'ancien "tout le monde
+	// tape le même"). On garde donc l'efficacité de l'autonomie tout en dirigeant l'assaut.
 	if (TargetUnit && TargetUnit->GetFaction() != PlayerFaction)
 	{
+		FVector Centroid = FVector::ZeroVector;
+		int32 Cnt = 0;
+		for (AUnitBase* Unit : Sel)
+		{
+			if (!Unit || !Unit->IsAlive()) continue;
+			Centroid += Unit->GetActorLocation(); ++Cnt;
+		}
+		if (Cnt > 0) Centroid /= Cnt;
+		const FVector TargetLoc = TargetUnit->GetActorLocation();
 		for (AUnitBase* Unit : Sel)
 		{
 			if (!Unit || !Unit->IsAlive()) continue;
 			if (AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(Unit->GetController()))
-				AIC->IssueOrder_AttackTarget(TargetUnit);
+			{
+				// Décalage conservé autour de la cible -> elles encerclent au lieu de s'empiler.
+				FVector Offset = Unit->GetActorLocation() - Centroid; Offset.Z = 0.f;
+				AIC->ActivateRTSBehavior();
+				AIC->IssueOrder_AttackMove(TargetLoc + Offset.GetClampedToMaxSize(400.f));
+			}
+			if (UUnitAIStateComponent* St = Unit->FindComponentByClass<UUnitAIStateComponent>())
+				St->SightRange = 60000.f;
 		}
 		return;
 	}
@@ -502,6 +523,19 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 		FVector Dest(TargetLocation.X + Offset.X, TargetLocation.Y + Offset.Y,
 			Unit->GetActorLocation().Z);
 		if (bClamp) Dest.X = FMath::Min(Dest.X, BoundaryX); // pas au-delà de sa zone
-		AIC->IssueOrder_Move(Dest);
+		// En PRÉPARATION : simple placement (pas de combat). EN BATAILLE : attack-move
+		// -> l'unité se repositionne MAIS continue d'engager l'ennemi (reste autonome et
+		// efficace, ne devient pas passive après un ordre de déplacement).
+		if (bClamp)
+		{
+			AIC->IssueOrder_Move(Dest);
+		}
+		else
+		{
+			AIC->ActivateRTSBehavior();
+			AIC->IssueOrder_AttackMove(Dest);
+			if (UUnitAIStateComponent* St = Unit->FindComponentByClass<UUnitAIStateComponent>())
+				St->SightRange = 60000.f;
+		}
 	}
 }
