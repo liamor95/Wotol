@@ -18,6 +18,7 @@
 #include "WOTOLDamageNumber.h"
 #include "WOTOLBubbleBurst.h"
 #include "WOTOLCaptureObject.h"
+#include "WOTOLCoverStructure.h"
 #include "WOTOLProjectileTracer.h"
 #include "DemoFlowSubsystem.h"
 #include "OceanCurrentSubsystem.h"
