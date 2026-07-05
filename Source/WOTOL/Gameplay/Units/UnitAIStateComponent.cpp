@@ -334,6 +334,7 @@ AAIAdaptiveController* UUnitAIStateComponent::GetAIController() const
 
 bool UUnitAIStateComponent::HasLowHealth() const
 {
+	if (!bAllowRetreat) return false; // ne fuit jamais : tient son poste jusqu'à la mort
 	AUnitBase* Owner = Cast<AUnitBase>(GetOwner());
 	return Owner && Owner->GetHealthPercent() < RetreatHealthRatio;
 }
@@ -345,7 +346,12 @@ bool UUnitAIStateComponent::IsInAttackRange(AUnitBase* Target) const
 	if (!Owner || !Owner->GetUnitData()) return false;
 
 	// AttackRange est en "cases hex" — 1 case ≈ 200 UE units
-	const float Range = Owner->GetUnitData()->Stats.AttackRange * 200.f;
+	const float HexRange = Owner->GetUnitData()->Stats.AttackRange;
+	// CORPS-À-CORPS (portée 1) : on veut le CONTACT VISUEL — l'unité doit être
+	// quasi collée au modèle 3D ennemi, pas à 10 m. On réduit donc la portée
+	// effective au strict bord-à-bord. Les unités à distance (portée ≥ 2) gardent
+	// leur allonge et n'ont pas besoin de se rapprocher.
+	const float Range = (HexRange <= 1.f) ? 55.f : HexRange * 200.f;
 	// Distance HORIZONTALE bord à bord : on ignore l'écart de hauteur (monde
 	// océanique — les créatures flottent) et on soustrait les rayons de collision,
 	// sinon une unité au sol sous un kraken en lévitation ne peut jamais le toucher.

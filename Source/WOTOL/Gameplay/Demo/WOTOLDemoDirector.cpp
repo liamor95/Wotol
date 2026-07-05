@@ -395,6 +395,7 @@ void AWOTOLDemoDirector::LaunchBattle()
 				if (UUnitAIStateComponent* St = U->FindComponentByClass<UUnitAIStateComponent>())
 				{
 					St->SightRange = 60000.f;
+					St->bAllowRetreat = false; // unités du joueur : ne fuient jamais
 				}
 			}
 		}
@@ -479,12 +480,30 @@ void AWOTOLDemoDirector::CheckBattleEnd()
 		bBattleConcluded = true;
 		GetWorldTimerManager().ClearTimer(BattleCheckHandle);
 		OnPlayerVictory();
+		return;
 	}
-	else if (PlayerAlive <= 0)
+	if (PlayerAlive <= 0)
 	{
 		bBattleConcluded = true;
 		GetWorldTimerManager().ClearTimer(BattleCheckHandle);
 		OnPlayerDefeat();
+		return;
+	}
+
+	// ── TEMPS ÉCOULÉ ── L'objectif a-t-il tenu ?
+	// Phase 2 : si le Cristalliseur n'est pas détruit à la fin du chrono -> VICTOIRE
+	// (objectif "défendre la zone" rempli). Phase 1 (tuer le Kraken) : temps écoulé
+	// sans avoir anéanti l'ennemi = échec de l'objectif -> défaite.
+	if (URTSBattleManager* RTS = GetWorld()->GetSubsystem<URTSBattleManager>())
+	{
+		if (RTS->GetTimeRemaining() <= 0.f)
+		{
+			bBattleConcluded = true;
+			GetWorldTimerManager().ClearTimer(BattleCheckHandle);
+			const bool bObjectiveHeld = (CaptureObject != nullptr); // bâtiment encore debout
+			if (bObjectiveHeld) OnPlayerVictory();
+			else                OnPlayerDefeat();
+		}
 	}
 }
 
@@ -786,6 +805,21 @@ void AWOTOLDemoDirector::TacticalTick()
 	const bool    bHasObj = (CaptureObject != nullptr);
 	const FVector ObjLoc  = bHasObj ? CaptureObject->GetActorLocation() : GetActorLocation();
 
+	// PHASE 1 : détecte le boss (Kraken) — l'objectif est de l'ANÉANTIR. Les unités du
+	// joueur l'ASSAILLENT (mêlée au contact, distance au large, montures en charge).
+	bool    bHasBoss = false;
+	FVector BossLoc  = GetActorLocation();
+	if (!bHasObj)
+	{
+		for (AWOTOLDemoUnit* U : SpawnedUnits)
+		{
+			if (U && U->bCreatureBrain && U->IsAlive())
+			{
+				bHasBoss = true; BossLoc = U->GetActorLocation(); break;
+			}
+		}
+	}
+
 	// Centre de gravité des unités d'un rôle donné (pour cibler la ligne arrière adverse).
 	auto RoleCentroid = [&](EFactionID F, EUnitRole Want, const FVector& Fallback) -> FVector
 	{
@@ -797,6 +831,22 @@ void AWOTOLDemoDirector::TacticalTick()
 			C += U->GetActorLocation(); ++N;
 		}
 		return (N > 0) ? C / N : Fallback;
+	};
+
+	// Unité ennemie qui MENACE le plus l'objectif : celle (de préférence à distance)
+	// la plus proche du Cristalliseur. Les défenseurs la prennent pour cible prioritaire.
+	auto ObjectiveThreat = [&](EFactionID EnemyFac, bool bPreferRanged) -> AUnitBase*
+	{
+		AUnitBase* Best = nullptr; float BestScore = TNumericLimits<float>::Max();
+		for (AUnitBase* U : Reg->GetUnitsForFaction(EnemyFac))
+		{
+			if (!U || !U->IsAlive() || !U->GetUnitData()) continue;
+			float Score = FVector::Dist2D(U->GetActorLocation(), ObjLoc);
+			// Un tireur qui canarde le bâtiment est plus dangereux qu'un mêlée équidistant.
+			if (bPreferRanged && U->GetUnitData()->Role == EUnitRole::Distance) Score *= 0.5f;
+			if (Score < BestScore) { BestScore = Score; Best = U; }
+		}
+		return Best;
 	};
 
 	auto CommandArmy = [&](EFactionID Fac, EFactionID EnemyFac, const FVector& OwnC,
@@ -834,6 +884,55 @@ void AWOTOLDemoDirector::TacticalTick()
 			// ── COMPORTEMENT + FORMATION selon le RÔLE (synergie de faction) ──
 			float   Layer = 0.f;
 			FVector Dest  = EnemyC;
+
+			// ═══ PHASE 1 : ASSAUT DU BOSS (Kraken) ═══ objectif = l'anéantir.
+			if (bHasBoss && bIsPlayer)
+			{
+				const FVector ToBoss = (BossLoc - OwnC).GetSafeNormal2D();
+				const FVector Side   = FVector::CrossProduct(FVector::UpVector, ToBoss).GetSafeNormal();
+				switch (R)
+				{
+					case EUnitRole::Distance:
+						// Canarde le Kraken en restant à distance (ne se jette pas dessus).
+						Dest  = BossLoc - ToBoss * 900.f + Side * ((float)(disCol++ - 1) * 300.f);
+						Layer = bCanLayer ? 1400.f : 0.f;
+						break;
+					case EUnitRole::Montee:
+					{
+						// Aquilances : FLANQUENT et EMPALENT — charge alternée gauche/droite
+						// sur les flancs du Kraken (hit-and-run) pour le harceler.
+						const int32 c = monCol++;
+						const float SideSign = (c % 2 == 0) ? 1.f : -1.f;
+						const float Speed = Data ? Data->Stats.MovementSpeed : 1.f;
+						const float Cycle = FMath::Max(5.f, 11.f - Speed * 3.f);
+						const bool  bCharge = FMath::Fmod(Now + idx * 1.3f, Cycle) < 4.f;
+						Dest  = bCharge ? (BossLoc + Side * SideSign * 160.f)
+										: (BossLoc - ToBoss * 500.f + Side * SideSign * 500.f);
+						Layer = 0.f;
+						break;
+					}
+					case EUnitRole::Chef:
+						// Le chef reste un peu en retrait (survivre pour placer sa compétence).
+						Dest  = BossLoc - ToBoss * 650.f;
+						Layer = 0.f;
+						break;
+					default: // Infanterie / Mythique / Spéciale : au CONTACT, encerclent le boss
+					{
+						const int32 c = infCol++;
+						const float Ang = (2.f * PI) * ((float)c / 6.f);
+						Dest  = BossLoc + FVector(FMath::Cos(Ang), FMath::Sin(Ang), 0.f) * 240.f;
+						Layer = 0.f;
+						break;
+					}
+				}
+				if (DU) DU->SetDesiredZ(Layer);
+				AIC->ActivateRTSBehavior();
+				AIC->IssueOrder_AttackMove(Dest);
+				if (UUnitAIStateComponent* St = U->FindComponentByClass<UUnitAIStateComponent>())
+					St->SightRange = 60000.f;
+				++idx;
+				continue;
+			}
 
 			// ═══ MODE OBJECTIF (phase 2) : l'IA sert l'objectif de mission ═══
 			if (bHasObj && bDefendObj)
@@ -886,7 +985,16 @@ void AWOTOLDemoDirector::TacticalTick()
 				AIC->ActivateRTSBehavior();
 				AIC->IssueOrder_AttackMove(Dest);
 				if (UUnitAIStateComponent* St = U->FindComponentByClass<UUnitAIStateComponent>())
+				{
 					St->SightRange = 60000.f;
+					// Tireurs et montures VERROUILLENT le tireur ennemi qui menace le
+					// bâtiment (cible imposée) au lieu de taper le mêlée le plus proche
+					// -> ils contrent réellement ce qui fait baisser les PV du Cristalliseur.
+					if (R == EUnitRole::Distance || R == EUnitRole::Montee)
+						St->ForceTarget = ObjectiveThreat(EnemyFac, /*bPreferRanged=*/true);
+					else
+						St->ForceTarget = nullptr;
+				}
 				++idx;
 				continue;
 			}

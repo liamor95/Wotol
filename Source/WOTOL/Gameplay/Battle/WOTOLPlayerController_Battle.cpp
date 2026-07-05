@@ -607,7 +607,7 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 	TArray<int32> SlotOfUnit; SlotOfUnit.Init(-1, Count);
 	for (int32 s = 0; s < Slots.Num(); ++s)
 	{
-		int32 Best = -1; float BestD = FLT_MAX;
+		int32 Best = -1; float BestD = TNumericLimits<float>::Max();
 		for (int32 u = 0; u < Count; ++u)
 		{
 			if (Used[u]) continue;

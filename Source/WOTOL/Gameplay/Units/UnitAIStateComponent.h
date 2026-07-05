@@ -52,6 +52,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Config")
 	float RetreatHealthRatio = 0.25f;
 
+	// Autorise la FUITE à bas PV (repli vers le spawn). Mis à FALSE pour les unités
+	// du joueur : elles tiennent leur poste/ordre et se battent jusqu'à la mort.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Config")
+	bool bAllowRetreat = true;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Config")
 	float TickInterval = 0.25f;  // évaluation toutes les 250ms
 
