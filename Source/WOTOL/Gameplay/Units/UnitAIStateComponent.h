@@ -77,6 +77,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "AI")
 	bool bFollowingPlayerOrder = false;
 
+	// Temps immobile accumulé pendant un ordre de déplacement (détection d'arrivée).
+	float PlayerOrderStillTime = 0.f;
+
 	UPROPERTY(BlueprintAssignable, Category = "AI")
 	FOnAIStateChanged OnAIStateChanged;
 

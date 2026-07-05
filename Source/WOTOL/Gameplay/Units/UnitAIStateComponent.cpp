@@ -57,8 +57,24 @@ void UUnitAIStateComponent::SetAIActive(bool bActive)
 
 void UUnitAIStateComponent::AITick()
 {
-	// Ordre de déplacement simple en cours — attendre l'arrivée
-	if (bFollowingPlayerOrder) return;
+	// Ordre de déplacement simple en cours : l'ordre du joueur PRIME, l'unité ne s'arrête
+	// pas pour engager. On détecte l'ARRIVÉE (immobile un court instant) pour reprendre
+	// ensuite le comportement autonome (elle se défend là où on l'a envoyée).
+	if (bFollowingPlayerOrder)
+	{
+		const AActor* Owner = GetOwner();
+		if (Owner && Owner->GetVelocity().SizeSquared() < 400.f)
+		{
+			PlayerOrderStillTime += TickInterval;
+			if (PlayerOrderStillTime > 1.5f) { bFollowingPlayerOrder = false; PlayerOrderStillTime = 0.f; }
+		}
+		else
+		{
+			PlayerOrderStillTime = 0.f;
+		}
+		return;
+	}
+	PlayerOrderStillTime = 0.f;
 
 	switch (CurrentState)
 	{

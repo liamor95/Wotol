@@ -530,19 +530,9 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 		FVector Dest(TargetLocation.X + Offset.X, TargetLocation.Y + Offset.Y,
 			Unit->GetActorLocation().Z);
 		if (bClamp) Dest.X = FMath::Min(Dest.X, BoundaryX); // pas au-delà de sa zone
-		// En PRÉPARATION : simple placement (pas de combat). EN BATAILLE : attack-move
-		// -> l'unité se repositionne MAIS continue d'engager l'ennemi (reste autonome et
-		// efficace, ne devient pas passive après un ordre de déplacement).
-		if (bClamp)
-		{
-			AIC->IssueOrder_Move(Dest);
-		}
-		else
-		{
-			AIC->ActivateRTSBehavior();
-			AIC->IssueOrder_AttackMove(Dest);
-			if (UUnitAIStateComponent* St = Unit->FindComponentByClass<UUnitAIStateComponent>())
-				St->SightRange = 60000.f;
-		}
+		// DÉPLACEMENT PUR : l'unité va DIRECTEMENT au point demandé, sans s'arrêter pour
+		// engager l'ennemi (l'ordre du joueur PRIME sur le comportement auto). Elle y va
+		// même en prenant des dégâts. Pour attaquer, clic droit sur un ENNEMI.
+		AIC->IssueOrder_Move(Dest);
 	}
 }

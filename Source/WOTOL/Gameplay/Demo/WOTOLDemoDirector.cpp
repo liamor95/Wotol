@@ -781,8 +781,15 @@ void AWOTOLDemoDirector::TacticalTick()
 			if (!U || !U->IsAlive()) continue;
 			AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U);
 			if (DU && DU->bCreatureBrain) continue; // le boss a son propre cerveau
-			// Respecte les ordres MANUELS récents du joueur (ne les écrase pas).
-			if (bIsPlayer && DU && (Now - DU->LastPlayerOrderTime) < 8.f) { ++idx; continue; }
+			// L'ORDRE DU JOUEUR PRIME : on ne touche pas une unité qui vient de recevoir un
+			// ordre (fenêtre de 8 s) NI une unité en train d'EXÉCUTER un déplacement ordonné
+			// (bFollowingPlayerOrder) -> elle va au bout de son ordre, l'IA ne la détourne pas.
+			if (bIsPlayer && DU)
+			{
+				const UUnitAIStateComponent* St = U->FindComponentByClass<UUnitAIStateComponent>();
+				const bool bFollowing = St && St->bFollowingPlayerOrder;
+				if (bFollowing || (Now - DU->LastPlayerOrderTime) < 12.f) { ++idx; continue; }
+			}
 
 			AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(U->GetController());
 			if (!AIC) { ++idx; continue; }
