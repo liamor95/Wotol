@@ -18,7 +18,10 @@ void UOceanCurrentSubsystem::Regenerate()
 float UOceanCurrentSubsystem::GetFactorAt(float LayerZ) const
 {
 	if (Strength <= 1.f) return 0.f;
-	return FMath::Clamp((LayerZ - LowZ) / (TopZ - LowZ), 0.f, 1.f);
+	const float Raw = FMath::Clamp((LayerZ - LowZ) / (TopZ - LowZ), 0.f, 1.f);
+	// Courbe en racine : rehausse les valeurs moyennes -> les DEUX couches hautes
+	// (grade 2 ~1600 et grade 3 ~2400) subissent un courant FORT (pas juste le sommet).
+	return FMath::Sqrt(Raw);
 }
 
 FVector UOceanCurrentSubsystem::GetDriftAt(float LayerZ) const

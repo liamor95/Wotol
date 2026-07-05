@@ -55,6 +55,7 @@ void AWOTOLCurrentField::Tick(float Dt)
 	UWorld* W = GetWorld();
 	UOceanCurrentSubsystem* Cur = W ? W->GetSubsystem<UOceanCurrentSubsystem>() : nullptr;
 	const bool bActive = Cur && Cur->IsActive();
+	const float T = W ? W->GetTimeSeconds() : 0.f;
 
 	for (int32 i = 0; i < Streaks.Num(); ++i)
 	{
@@ -63,15 +64,26 @@ void AWOTOLCurrentField::Tick(float Dt)
 		if (!bActive) { C->SetVisibility(false); continue; }
 		C->SetVisibility(true);
 
-		const FVector Dir = Cur->GetDirection();
+		const FVector Dir  = Cur->GetDirection();
+		const FVector Side = FVector::CrossProduct(FVector::UpVector, Dir).GetSafeNormal();
 		FVector P = C->GetRelativeLocation();
-		// Dérive (vitesse ∝ intensité + facteur de couche : plus haut = plus vite).
+		// Dérive PLUS RAPIDE (montre la vitesse du courant) dans le sens choisi.
 		const float F = Cur->GetFactorAt(P.Z);
-		P += Dir * (Cur->GetStrength() * (0.7f + F) * Dt);
+		P += Dir * (Cur->GetStrength() * (1.4f + F) * Dt);
+		// ONDULATION / BOUCLE (comme les traits de vent en dessin animé) : la traînée
+		// SERPENTE perpendiculairement au courant selon sa progression + le temps.
+		const float Along = FVector::DotProduct(P, Dir);
+		const float Phase = Along * 0.004f + T * 3.0f + (float)i * 0.7f;
+		const float Wave  = FMath::Sin(Phase) * (70.f + 50.f * F);
+		// Remplace la composante latérale par l'onde -> chemin sinueux/looping.
+		P -= Side * FVector::DotProduct(P, Side);
+		P += Side * Wave;
 		// Bouclage dans le volume (l'axe de dérive ré-enroule).
-		if (FVector::DotProduct(P, Dir) > Span * 1.2f) P -= Dir * (Span * 2.2f);
+		if (Along > Span * 1.2f) P -= Dir * (Span * 2.2f);
 		C->SetRelativeLocation(P);
-		// Oriente la traînée le long du courant.
-		C->SetWorldRotation((Dir.Rotation() + FRotator(90.f, 0.f, 0.f)).Quaternion());
+		// Oriente la traînée le long du courant, inclinée selon la PENTE de l'onde
+		// -> effet de virage/boucle plutôt qu'un simple trait droit.
+		const float Slope = FMath::Cos(Phase) * 38.f;
+		C->SetWorldRotation((Dir.Rotation() + FRotator(90.f, Slope, 0.f)).Quaternion());
 	}
 }

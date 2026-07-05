@@ -42,6 +42,6 @@ private:
 	FVector Direction = FVector(1.f, 0.f, 0.f); // horizontal, normalisé
 	float   Strength  = 0.f;                    // unités/s de dérive AU SOMMET
 
-	static constexpr float LowZ = 1000.f;       // en dessous : aucun courant
+	static constexpr float LowZ = 900.f;        // en dessous : aucun courant
 	static constexpr float TopZ = 2400.f;       // au sommet : courant maximal
 };

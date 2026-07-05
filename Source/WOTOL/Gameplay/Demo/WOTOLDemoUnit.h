@@ -63,8 +63,12 @@ public:
 
 	// ─── Verticalité (nage) : l'unité tient une hauteur (couche) donnée ───────
 	// Règle la couche verticale cible ; l'unité y monte/descend en douceur et la tient.
+	// BORNÉE par MaxLayerZ : certaines unités (montées) ne peuvent pas dépasser un grade.
 	UFUNCTION(BlueprintCallable, Category = "Demo|Greybox")
-	void SetDesiredZ(float NewZ) { DesiredZ = NewZ; }
+	void SetDesiredZ(float NewZ) { DesiredZ = FMath::Clamp(NewZ, 0.f, MaxLayerZ); }
+
+	// Plafond de couche verticale de CETTE unité (ex. montées limitées au grade 1 = 800).
+	float MaxLayerZ = 2400.f;
 
 	UFUNCTION(BlueprintPure, Category = "Demo|Greybox")
 	float GetDesiredZ() const { return DesiredZ; }
