@@ -145,10 +145,14 @@ void AWOTOLDemoHUD::DrawHUD()
 			DrawBossBar(W, H, Boss);
 		}
 
-		// Barre de vie du BÂTIMENT à défendre (phase 2) — descend en temps réel.
-		if (AWOTOLCaptureObject* Building = Cast<AWOTOLCaptureObject>(Demo->GetCaptureObject()))
+		// Barre de vie du BÂTIMENT à défendre — uniquement EN BATAILLE (sinon elle
+		// chevauchait le texte de préparation). En prépa, l'objet n'est pas attaqué.
+		if (Screen == EDemoScreen::Playing)
 		{
-			DrawBuildingBar(W, H, Building);
+			if (AWOTOLCaptureObject* Building = Cast<AWOTOLCaptureObject>(Demo->GetCaptureObject()))
+			{
+				DrawBuildingBar(W, H, Building);
+			}
 		}
 
 		// Écran de fin
@@ -349,10 +353,8 @@ void AWOTOLDemoHUD::DrawBuildingBar(float W, float H, AWOTOLCaptureObject* Build
 
 void AWOTOLDemoHUD::DrawPrepareBar(float W, float H)
 {
-	DrawCenteredText(TEXT("PREPARATION — placez vos unites (clic gauche: selection, clic droit: deplacer)"),
-		H * 0.20f, FLinearColor(0.9f, 0.95f, 1.f, 1.f), 1.0f);
-	DrawCenteredText(TEXT("La ligne coloree au sol = LIMITE DE PLACEMENT (vous ne pouvez pas depasser votre premier tiers)"),
-		H * 0.20f + 30.f, FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 0.85f);
+	// (Les instructions détaillées sont dans les 2 fenêtres ci-dessous — plus de texte
+	// centré qui chevauchait la barre du bâtiment / les unités.)
 
 	// ── Fenêtre TUTO "CONTROLES" (à GAUCHE) — souris + clavier caméra. Disparait au combat. ──
 	{

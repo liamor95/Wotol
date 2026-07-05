@@ -17,6 +17,8 @@
 #include "Core/FactionRegistrySubsystem.h"
 #include "WOTOLDamageNumber.h"
 #include "WOTOLBubbleBurst.h"
+#include "DemoFlowSubsystem.h"
+#include "Engine/GameInstance.h"
 
 namespace
 {
@@ -73,6 +75,17 @@ AWOTOLDemoUnit::AWOTOLDemoUnit()
 	// L'IA RTS possède automatiquement l'unité au spawn
 	AIControllerClass = AAIAdaptiveController::StaticClass();
 	AutoPossessAI     = EAutoPossessAI::PlacedInWorldOrSpawned;
+
+	// ORIENTATION : l'unité regarde là où elle SE DÉPLACE (et non une rotation de
+	// contrôleur arbitraire) -> le modèle ne "regarde plus vers l'arrière". En combat,
+	// on la force en plus à faire face à l'ennemi (voir Tick) pour que le coup parte devant.
+	bUseControllerRotationYaw = false;
+	if (UCharacterMovementComponent* Move = GetCharacterMovement())
+	{
+		Move->bOrientRotationToMovement = true;
+		Move->bUseControllerDesiredRotation = false;
+		Move->RotationRate = FRotator(0.f, 540.f, 0.f);
+	}
 }
 
 void AWOTOLDemoUnit::Tick(float DeltaSeconds)
@@ -95,7 +108,50 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	}
 	AnimateWhips(DeltaSeconds);          // fouets du Kraken (no-op si l'unité n'en a pas)
 
+	// FACE À L'ENNEMI EN COMBAT : quand l'unité attaque, elle se tourne vers l'ennemi le
+	// plus proche -> le coup part VERS L'AVANT (fini l'impression de frapper en arrière).
+	if (!bCreatureBrain)
+	{
+		if (UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>())
+		{
+			if (S->GetCurrentState() == EUnitAIState::Attacking)
+			{
+				if (AUnitBase* Foe = FindNearestEnemyUnit())
+				{
+					FVector To = Foe->GetActorLocation() - GetActorLocation();
+					To.Z = 0.f;
+					if (To.SizeSquared() > 1.f)
+					{
+						FRotator R = To.Rotation(); R.Pitch = 0.f; R.Roll = 0.f;
+						SetActorRotation(FMath::RInterpTo(GetActorRotation(), R, DeltaSeconds, 12.f));
+					}
+				}
+			}
+		}
+	}
+
 	if (!NameTag) return;
+
+	// ANTI-EMPILEMENT : en pleine bataille, on n'affiche l'étiquette (nom + PV) que pour
+	// les unités SÉLECTIONNÉES (+ le boss) -> plus de bouillie de texte quand les unités se
+	// regroupent. En préparation/hors-jeu, on montre tout (les unités sont espacées).
+	{
+		bool bPlaying = false;
+		if (UGameInstance* GI = GetGameInstance())
+		{
+			if (UDemoFlowSubsystem* D = GI->GetSubsystem<UDemoFlowSubsystem>())
+			{
+				bPlaying = (D->GetScreen() == EDemoScreen::Playing);
+			}
+		}
+		const bool bShowTag = bIsBoss || IsSelected() || !bPlaying;
+		if (NameTag->IsVisible() != bShowTag)
+		{
+			NameTag->SetVisibility(bShowTag);
+			if (NameTagShadow) NameTagShadow->SetVisibility(bShowTag);
+		}
+		if (!bShowTag) return; // inutile de mettre à jour un texte caché
+	}
 
 	// Le boss s'appelle "Kraken" (créature neutre), pas le nom du mythique rival
 	const FString DisplayName = (bCreatureBrain || bIsBoss)
