@@ -419,21 +419,20 @@ void AWOTOLDemoDirector::LaunchBattle()
 						GetGameInstance() && GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()
 						? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()->GetBoss() : nullptr))
 				{
-					// On calibre sur le DPS RÉEL de l'armée (somme des AttackDPS), PAS ses PV :
-					// les Noxéens frappent bien plus fort que les Aquiloris (glass cannons) et
-					// fondaient le Kraken sans pertes. En liant les PV du boss à la capacité de
-					// DÉGÂTS, les deux factions obtiennent une durée de combat comparable.
-					float ArmyDPS = 0.f;
+					// PV du Kraken = fraction DÉTERMINISTE des PV totaux de l'armée du joueur.
+					// La composition d'armée est FIXE -> valeur CONSTANTE à chaque partie.
+					// 0.42 redonne ~22500 PV pour les Aquiloris (le bon ressenti : victoire,
+					// ~6 pertes). [Réglable : 0.35 plus facile .. 0.50 plus dur]
+					float ArmyHP = 0.f;
 					for (AUnitBase* U : Reg->GetUnitsForFaction(CachedPlayerFaction))
 					{
 						if (!U || !U->IsAlive() || !U->GetUnitData()) continue;
-						ArmyDPS += U->GetUnitData()->Stats.AttackDPS;
+						if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U)) ArmyHP += DU->GetEffectiveMaxHealth();
+						else                                              ArmyHP += U->GetUnitData()->Stats.MaxHealth;
 					}
-					if (ArmyDPS > 0.f && Boss->GetUnitData())
+					if (ArmyHP > 0.f && Boss->GetUnitData())
 					{
-						// K calé sur le bon ressenti Aquiloris (~22500 PV pour leur armée).
-						// [Réglable : 3.5 plus facile .. 5.5 plus dur]
-						const float TargetHP = FMath::Clamp(ArmyDPS * 4.5f, 12000.f, 34000.f);
+						const float TargetHP = FMath::Clamp(ArmyHP * 0.42f, 12000.f, 34000.f);
 						const int32 BaseMax  = FMath::Max(1, Boss->GetUnitData()->Stats.MaxHealth);
 						Boss->HealthScale    = FMath::Max(1.f, TargetHP / (float)BaseMax);
 						Boss->SetHealthToFull(); // applique PV = HealthScale * base
