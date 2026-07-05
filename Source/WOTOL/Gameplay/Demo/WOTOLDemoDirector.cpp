@@ -899,16 +899,23 @@ void AWOTOLDemoDirector::TacticalTick()
 						break;
 					case EUnitRole::Montee:
 					{
-						// Aquilances : FLANQUENT et EMPALENT — charge alternée gauche/droite
-						// sur les flancs du Kraken (hit-and-run) pour le harceler.
+						// Aquilances : rapides et mobiles -> ENCERCLENT. Un groupe part à
+						// GAUCHE, l'autre à DROITE (voire par l'ARRIÈRE) pour désorienter le
+						// Kraken et le prendre à flanc/dos à découvert. Elles varient aussi la
+						// VERTICALITÉ (angle d'attaque haut/bas) au lieu de rester au sol.
 						const int32 c = monCol++;
 						const float SideSign = (c % 2 == 0) ? 1.f : -1.f;
+						const bool  bRear    = (c % 3 == 0); // un tiers tente le contournement arrière
 						const float Speed = Data ? Data->Stats.MovementSpeed : 1.f;
 						const float Cycle = FMath::Max(5.f, 11.f - Speed * 3.f);
 						const bool  bCharge = FMath::Fmod(Now + idx * 1.3f, Cycle) < 4.f;
-						Dest  = bCharge ? (BossLoc + Side * SideSign * 160.f)
-										: (BossLoc - ToBoss * 500.f + Side * SideSign * 500.f);
-						Layer = 0.f;
+						const FVector FlankPos = bRear
+							? (BossLoc + ToBoss * 520.f)                        // derrière le Kraken
+							: (BossLoc - ToBoss * 500.f + Side * SideSign * 560.f); // large sur un flanc
+						Dest  = bCharge ? (BossLoc + Side * SideSign * 150.f + (bRear ? ToBoss * 180.f : FVector::ZeroVector))
+										: FlankPos;
+						// Variation d'angle vertical : alternance sol / couche intermédiaire.
+						Layer = (bCanLayer && (c % 2 == 1)) ? 900.f : 0.f;
 						break;
 					}
 					case EUnitRole::Chef:

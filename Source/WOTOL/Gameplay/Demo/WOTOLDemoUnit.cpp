@@ -901,12 +901,23 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 	{
 		const float KrakH = 6.5f * 100.f; // taille fixe du Kraken (indépendante du mythique)
 		BuildKrakenCephalopod(KrakH);
-		GetCapsuleComponent()->SetCapsuleSize(FMath::Max(24.f, KrakH * 1.6f * 0.5f),
-			FMath::Max(40.f, KrakH * 0.5f));
+		// Le corps du Kraken est modélisé AU-DESSUS de l'origine : on rabaisse tout le
+		// visuel pour qu'il REPOSE sur le fond (niveau 1), pas en lévitation. Ainsi le
+		// modèle et son capteur (ClickProxy) coïncident au sol -> le ciblage marche et
+		// les unités mêlée se retrouvent au CONTACT du corps, pas 2 niveaux en dessous.
+		VisualBaseZ = -KrakH * 0.30f;
+		// Empreinte de collision RÉDUITE au corps visible (≈ rayon du corps) : les unités
+		// mêlée s'arrêtent au bord du modèle (collées), pas à 5 m à cause d'un rayon géant.
+		GetCapsuleComponent()->SetCapsuleSize(KrakH * 0.30f, FMath::Max(40.f, KrakH * 0.5f));
 		GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 		if (NameTag)       NameTag->SetRelativeLocation(FVector(0.f, 0.f, KrakH * 0.5f + 50.f));
 		if (NameTagShadow) NameTagShadow->SetRelativeLocation(FVector(0.f, 0.f, KrakH * 0.5f + 50.f));
-		if (ClickProxy)    ClickProxy->SetSphereRadius(KrakH * 0.6f);
+		// Capteur de clic GÉNÉREUX, centré sur le corps rabaissé (couvre tout le modèle).
+		if (ClickProxy)
+		{
+			ClickProxy->SetSphereRadius(KrakH * 0.55f);
+			ClickProxy->SetRelativeLocation(FVector(0.f, 0.f, KrakH * 0.20f));
+		}
 		BobSeed = FMath::Fmod(GetActorLocation().X * 0.021f + GetActorLocation().Y * 0.013f, 6.283f);
 		return; // pas de disque d'équipe ni de silhouette d'unité pour le boss
 	}
@@ -1212,7 +1223,7 @@ void AWOTOLDemoUnit::AnimateBody(float Dt)
 
 		const float FlipYaw = bVisualYawFlip ? 180.f : 0.f; // humanoïdes retournés
 		VisualRoot->SetRelativeLocation(
-			FMath::VInterpTo(VisualRoot->GetRelativeLocation(), FVector(Lunge, 0.f, Bob + CurLayer), Dt, 10.f));
+			FMath::VInterpTo(VisualRoot->GetRelativeLocation(), FVector(Lunge, 0.f, Bob + CurLayer + VisualBaseZ), Dt, 10.f));
 		VisualRoot->SetRelativeRotation(
 			FMath::RInterpTo(VisualRoot->GetRelativeRotation(), FRotator(Pitch, FlipYaw, Roll), Dt, 8.f));
 	}

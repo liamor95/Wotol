@@ -154,6 +154,10 @@ private:
 	// physique reste au sol -> déplacement + attaques fonctionnent à toute hauteur.
 	float DesiredZ     = 0.f;   // décalage de couche cible (0 = fond)
 	float CurLayer     = 0.f;   // décalage courant (interpolé)
+	// Décalage VERTICAL de base du visuel (constant). Sert au Kraken : son corps est
+	// construit au-dessus de l'origine ; on le rabaisse pour qu'il REPOSE au niveau du
+	// sol (niveau 1) au lieu de léviter, aligné avec son capteur de clic/ciblage.
+	float VisualBaseZ  = 0.f;
 	bool  bArticulated = false;
 	// Retourne le visuel de 180° (humanoïdes construits "dos à l'avant") : corps + rig
 	// tournent ensemble -> le personnage regarde et frappe enfin vers l'AVANT.
