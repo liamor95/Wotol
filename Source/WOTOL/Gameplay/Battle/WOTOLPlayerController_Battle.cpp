@@ -548,10 +548,21 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 		}
 		if (Cnt > 0) Centroid /= Cnt;
 		const FVector TargetLoc = TargetUnit->GetActorLocation();
+		// Couche VERTICALE de la cible : les unités qui peuvent nager montent/descendent à
+		// SA hauteur pour l'attaquer là où elle se trouve (ex. Aquisphères en l'air), au lieu
+		// de rester au sol sous elle. La cible précise est VERROUILLÉE (ForceTarget).
+		float TargetLayer = 0.f;
+		if (AWOTOLDemoUnit* TDU = Cast<AWOTOLDemoUnit>(TargetUnit)) TargetLayer = TDU->GetDesiredZ();
 		for (AUnitBase* Unit : Sel)
 		{
 			if (!Unit || !Unit->IsAlive()) continue;
-			if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(Unit)) DU->OrderAttackCover(nullptr); // annule attaque décor + stamp
+			if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(Unit))
+			{
+				DU->OrderAttackCover(nullptr); // annule attaque décor + stamp
+				// Monte/descend à la couche de la cible (si l'unité sait changer de couche).
+				const bool bCanLayer = DU->GetUnitData() ? DU->GetUnitData()->Stats.bCanChangeLayer : true;
+				if (bCanLayer) DU->SetDesiredZ(TargetLayer);
+			}
 			if (AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(Unit->GetController()))
 			{
 				// Décalage conservé autour de la cible -> elles encerclent au lieu de s'empiler.
@@ -560,7 +571,10 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 				AIC->IssueOrder_AttackMove(TargetLoc + Offset.GetClampedToMaxSize(400.f));
 			}
 			if (UUnitAIStateComponent* St = Unit->FindComponentByClass<UUnitAIStateComponent>())
+			{
 				St->SightRange = 60000.f;
+				St->ForceTarget = TargetUnit; // VERROUILLE l'unité cliquée (pas "le plus proche")
+			}
 		}
 		return;
 	}
@@ -637,6 +651,10 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 	{
 		AUnitBase* Unit = Movers[u];
 		if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(Unit)) DU->OrderAttackCover(nullptr); // annule attaque décor + stamp
+		// Ordre de DÉPLACEMENT pur -> on lève le verrouillage de cible (sinon l'unité
+		// repartirait attaquer l'ennemi verrouillé au lieu d'aller au point demandé).
+		if (UUnitAIStateComponent* St = Unit->FindComponentByClass<UUnitAIStateComponent>())
+			St->ForceTarget = nullptr;
 		AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(Unit->GetController());
 		if (!AIC) continue;
 

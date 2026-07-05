@@ -8,6 +8,7 @@
 #include "Gameplay/Units/UnitBase.h"
 #include "Gameplay/Units/UnitDataAsset.h"
 #include "Gameplay/Battle/RTSBattleManager.h"
+#include "Gameplay/Battle/UnitSelectionManager.h"
 #include "Gameplay/AI/AIAdaptiveController.h"
 #include "Gameplay/Units/UnitAIStateComponent.h"
 #include "Gameplay/Battle/WOTOLBattleCamera.h"
@@ -83,6 +84,13 @@ void AWOTOLDemoDirector::BeginPreparation()
 
 	CleanupUnits(); // repart d'une armée propre (utile en phase 2)
 	bBattleConcluded = false;
+
+	// On VIDE la sélection : sinon le HUD (barre de commandement bas-gauche) continue
+	// d'afficher le roster de la phase précédente (unités désormais détruites/différentes).
+	// Le joueur re-sélectionnera ses nouvelles unités et le HUD se réaffichera alors.
+	if (UWorld* W = GetWorld())
+		if (UUnitSelectionManager* Sel = W->GetSubsystem<UUnitSelectionManager>())
+			Sel->ClearSelection();
 
 	// Nouveau COURANT océanique (sens + intensité) pour cette bataille.
 	if (UWorld* W = GetWorld())
