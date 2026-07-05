@@ -128,6 +128,7 @@ private:
 	UFUNCTION()
 	void HandleCaptureDestroyed(); // bâtiment tombé à 0 -> objectif perdu -> défaite
 	FTimerHandle SiegeHandle;
+	float BattleStartTime = 0.f; // horodatage du début de la bataille (durée du résumé)
 
 	// ── Cerveau tactique : ré-évalue périodiquement les 2 armées (poursuite, étagement
 	//    vertical par rôle, contournement de flanc) -> comportement vivant, plus figé. ──

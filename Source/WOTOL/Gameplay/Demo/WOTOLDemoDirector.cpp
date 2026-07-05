@@ -453,6 +453,8 @@ void AWOTOLDemoDirector::LaunchBattle()
 	// Cerveau tactique : ré-évalue les manœuvres des 2 armées toutes les 3,5 s.
 	GetWorldTimerManager().SetTimer(
 		TacticalHandle, this, &AWOTOLDemoDirector::TacticalTick, 3.5f, true, 3.5f);
+
+	BattleStartTime = GetWorld()->GetTimeSeconds(); // pour la durée du résumé
 }
 
 void AWOTOLDemoDirector::CheckBattleEnd()
@@ -582,6 +584,7 @@ void AWOTOLDemoDirector::BuildBattleSummary(bool bVictory, bool bFinal, const FS
 	Demo->SummaryTitle    = Title;
 	Demo->bSummaryVictory = bVictory;
 	Demo->bSummaryIsFinal = bFinal;
+	Demo->SummaryDurationSeconds = FMath::Max(0.f, GetWorld()->GetTimeSeconds() - BattleStartTime);
 }
 
 // Écran de TRANSITION narrative (hors-champ) — appelé depuis le bouton du résumé phase 1.
@@ -769,8 +772,10 @@ void AWOTOLDemoDirector::TacticalTick()
 
 	auto CommandArmy = [&](EFactionID Fac, const FVector& OwnC, const FVector& EnemyC, bool bIsPlayer)
 	{
-		const FVector DirToOwn = (OwnC - EnemyC).GetSafeNormal2D(); // vers son propre camp
-		int32 idx = 0;
+		const FVector Fwd     = (EnemyC - OwnC).GetSafeNormal2D();            // vers l'ennemi
+		const FVector Lateral = FVector::CrossProduct(FVector::UpVector, Fwd).GetSafeNormal();
+		const FVector Front   = OwnC + (EnemyC - OwnC) * 0.35f;               // ligne de front (côté allié)
+		int32 idx = 0, infCol = 0, disCol = 0, monCol = 0;                    // colonnes par rôle
 		for (AUnitBase* U : Reg->GetUnitsForFaction(Fac))
 		{
 			if (!U || !U->IsAlive()) continue;
@@ -784,42 +789,53 @@ void AWOTOLDemoDirector::TacticalTick()
 
 			const UUnitDataAsset* Data = U->GetUnitData();
 			const EUnitRole R = Data ? Data->Role : EUnitRole::Infanterie;
-			// On RESPECTE les stats : une unité qui ne peut pas changer de couche reste au sol.
 			const bool bCanLayer = Data ? Data->Stats.bCanChangeLayer : true;
 
-			// Étagement vertical par rôle (si l'unité en est capable) : distance/spéciale en
-			// hauteur pour tirer, chef au milieu, infanterie/montée au sol.
-			float Layer = 0.f;
-			if (bCanLayer)
+			// ── COMPORTEMENT + FORMATION selon le RÔLE (synergie de faction) ──
+			float   Layer = 0.f;
+			FVector Dest  = EnemyC;
+			switch (R)
 			{
-				switch (R)
+				case EUnitRole::Infanterie:
 				{
-					case EUnitRole::Distance: Layer = 1600.f; break;
-					case EUnitRole::Speciale: Layer = 1600.f; break;
-					case EUnitRole::Chef:     Layer = 900.f;  break;
-					default:                  Layer = 0.f;    break;
+					// MUR défensif sur 2 couches (sol + 1re hauteur) au front : bloque et
+					// protège les lignes arrière. Se tient en ligne, ne charge pas.
+					const int32 c = infCol++;
+					Dest  = Front + Lateral * ((float)(c / 2 - 2) * 240.f);
+					Layer = (bCanLayer && (c % 2 == 1)) ? 800.f : 0.f;
+					break;
 				}
+				case EUnitRole::Distance:
+				{
+					// En RETRAIT derrière le mur + en HAUTEUR : canarde sans s'exposer.
+					const int32 c = disCol++;
+					Dest  = Front - Fwd * 950.f + Lateral * ((float)(c - 1) * 300.f);
+					Layer = bCanLayer ? 1600.f : 0.f;
+					break;
+				}
+				case EUnitRole::Montee:
+				{
+					// CHARGE hit-and-run (ancrée au sol) : fonce briser les lignes, puis
+					// revient se repositionner (cycle temporel). Rapide = charge plus souvent.
+					const float Speed = Data ? Data->Stats.MovementSpeed : 1.f;
+					const float Cycle = FMath::Max(6.f, 12.f - Speed * 3.f); // rapide -> cycle court
+					const bool  bCharge = FMath::Fmod(Now + idx * 1.7f, Cycle) < 3.5f;
+					const int32 c = monCol++;
+					Dest  = bCharge ? EnemyC : (Front - Fwd * 250.f + Lateral * ((float)(c - 1) * 320.f));
+					Layer = 0.f; // monture : sol / 1re couche uniquement
+					break;
+				}
+				case EUnitRole::Chef:
+					Dest  = Front;
+					Layer = bCanLayer ? 800.f : 0.f;
+					break;
+				default: // Mythique / Spéciale : avancent sur l'ennemi, en hauteur si possible
+					Dest  = EnemyC;
+					Layer = bCanLayer ? 1200.f : 0.f;
+					break;
 			}
 
-			// Destination selon le TYPE D'ATTAQUE : la DISTANCE se tient à distance (standoff)
-			// pour tirer ; la mêlée/monture CHARGE le centre ennemi.
-			FVector Dest = EnemyC;
-			if (R == EUnitRole::Distance)
-			{
-				Dest = EnemyC + DirToOwn * 1100.f; // reste en retrait pour canarder
-			}
-
-			// Contournement : ~1/3 (hors distance) vise un FLANC via une couche haute.
-			if (idx % 3 == 0 && R != EUnitRole::Distance && bCanLayer)
-			{
-				const float Sgn = (idx % 2 == 0) ? 1.f : -1.f;
-				Dest += FVector(0.f, Sgn * 1500.f, 0.f);
-				Layer = FMath::Max(Layer, 1600.f);
-			}
-
-			// ANTICIPATION DU COURANT : monter n'est intéressant que si le courant ne nous
-			// repousse pas de notre objectif. S'il est fort et à contre-sens en haut, l'unité
-			// RESTE AU SOL (contourne par en dessous) au lieu de se faire déporter.
+			// ANTICIPATION DU COURANT : ne pas monter si un courant fort repousse du but.
 			if (Cur && Cur->IsActive() && Layer > 500.f)
 			{
 				const FVector DirToDest = (Dest - U->GetActorLocation()).GetSafeNormal2D();

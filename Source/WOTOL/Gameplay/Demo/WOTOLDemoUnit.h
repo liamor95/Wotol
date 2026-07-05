@@ -190,6 +190,7 @@ private:
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> WhipJointsR;
 	float WhipCooldown = 2.f;   // temps avant le prochain coup
 	float WhipStrike   = -1.f;  // <0 = repos ; 0..1 = déroulé du coup en cours
+	float CritCooldown = 3.f;   // (boss) temps avant la prochaine attaque critique possible
 
 	// Combat vertical : quand l'unité poursuit/attaque, elle rejoint la couche
 	// (hauteur) de sa cible — mais avec un TEMPS D'ADAPTATION (pas instantané), pour que

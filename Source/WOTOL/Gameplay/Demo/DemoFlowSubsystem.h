@@ -192,6 +192,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
 	bool bSummaryVictory = true;
 
+	// Durée totale de la bataille (secondes) — affichée dans le résumé.
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
+	float SummaryDurationSeconds = 0.f;
+
 	// Vrai = résumé FINAL de démo (boutons Rejouer / Changer de faction) ;
 	// Faux = résumé intermédiaire phase 1 (bouton Continuer vers la phase 2).
 	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")

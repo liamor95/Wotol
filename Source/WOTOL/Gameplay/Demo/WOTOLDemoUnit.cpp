@@ -134,7 +134,7 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		if (bWant)
 		{
 			Desired.Pitch = 0.f; Desired.Roll = 0.f;
-			SetActorRotation(FMath::RInterpTo(GetActorRotation(), Desired, DeltaSeconds, 10.f));
+			SetActorRotation(FMath::RInterpTo(GetActorRotation(), Desired, DeltaSeconds, 22.f));
 		}
 	}
 
@@ -409,9 +409,26 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 	if (Edge <= Range)
 	{
 		PerformAttack(Nearest);   // throttlé par le cooldown interne de l'unité
+
+		// ATTAQUE CRITIQUE (boss) : de temps en temps, aléatoirement, le colosse assène un
+		// coup dévastateur -> gros dégâts bonus + libellé "CRITIQUE". Cadencé par un cooldown.
+		CritCooldown -= DeltaSeconds;
+		if (CritCooldown <= 0.f && FMath::FRand() < 0.5f && Nearest->IsAlive())
+		{
+			CritCooldown = FMath::FRandRange(4.f, 7.f); // prochaine fenêtre de critique
+			Nearest->TakeDamageFromUnit(320.f, this);   // coup critique
+			const FVector CritLoc = Nearest->GetActorLocation() + FVector(0, 0, 90.f);
+			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(W, CritLoc, TEXT("CRITIQUE !"),
+					FLinearColor(1.f, 0.35f, 0.f, 1.f)))
+			{
+				N->SetFollow(Nearest->GetFloatingTextAnchor(), FVector(0, 0, 140.f));
+			}
+			AWOTOLBubbleBurst::Burst(W, CritLoc, FLinearColor(1.f, 0.5f, 0.2f, 1.f), 12);
+		}
 	}
 	else
 	{
+		CritCooldown -= DeltaSeconds;
 		AddMovementInput(To.GetSafeNormal(), 1.f); // avance vers la cible
 	}
 }
@@ -976,12 +993,13 @@ void AWOTOLDemoUnit::AnimateBody(float Dt)
 		const float Bob  = FMath::Sin(AnimClock * 1.6f + BobSeed) * Amp;
 		const float Roll = FMath::Sin(AnimClock * 1.25f + BobSeed) * 2.0f;
 		float Pitch = 0.f, Lunge = 0.f;
-		// Attaque des unités NON articulées : petit à-coup vers l'avant
-		if (!bArticulated && bAttacking)
+		// Attaque : à-coup vers l'AVANT (+X) — pour TOUTES les unités (articulées comprises),
+		// afin que la frappe se lise clairement vers l'ennemi (le corps se projette devant).
+		if (bAttacking)
 		{
 			const float s = FMath::Sin(AnimClock * 7.f);
-			Pitch = -6.f - 5.f * FMath::Abs(s);
-			Lunge = 6.f * FMath::Max(0.f, s);
+			Pitch = -5.f - 4.f * FMath::Abs(s);
+			Lunge = 14.f * FMath::Max(0.f, s); // projection nette vers l'avant
 		}
 		if (bDead) { Pitch = 70.f; }
 

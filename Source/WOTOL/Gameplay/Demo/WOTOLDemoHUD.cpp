@@ -359,7 +359,9 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 	const FString Title = Demo->SummaryTitle.IsEmpty()
 		? (bWin ? TEXT("VICTOIRE") : TEXT("DEFAITE")) : Demo->SummaryTitle;
 	DrawGlowTitle(FString::Printf(TEXT("— %s —"), *Title), H * 0.06f, 2.8f, TitleCol);
-	DrawCenteredText(TEXT("Resume de la bataille"), H * 0.17f, FLinearColor(0.8f, 0.9f, 1.f, 1.f), 1.1f);
+	const int32 Dur = FMath::RoundToInt(Demo->SummaryDurationSeconds);
+	const FString Sub = FString::Printf(TEXT("Resume de la bataille  —  duree : %d min %02d s"), Dur / 60, Dur % 60);
+	DrawCenteredText(Sub, H * 0.17f, FLinearColor(0.8f, 0.9f, 1.f, 1.f), 1.1f);
 
 	// Deux colonnes : pertes de TON armée (gauche) / pertes de l'ennemi (droite).
 	// Hauteur bornée AU-DESSUS des boutons + interligne DYNAMIQUE -> tout tient, rien ne
