@@ -3,6 +3,7 @@
 #include "WOTOLCaptureObject.h"
 #include "DemoFlowSubsystem.h"
 #include "OceanCurrentSubsystem.h"
+#include "WOTOLCoverStructure.h"
 #include "Gameplay/Units/UnitBase.h"
 #include "Gameplay/Units/UnitDataAsset.h"
 #include "Gameplay/Battle/RTSBattleManager.h"
@@ -97,6 +98,7 @@ void AWOTOLDemoDirector::BeginPreparation()
 	}
 
 	SpawnPlacementBoundary(); // barrière visuelle : zone de placement = ton premier tiers
+	SpawnCoverStructures();   // ruines Éthériennes (couverture au centre de l'arène)
 	FocusCameraOnPlayer();
 	if (Demo)
 	{
@@ -639,6 +641,7 @@ void AWOTOLDemoDirector::RestartDemo(bool bKeepFaction)
 	GetWorldTimerManager().ClearTimer(TacticalHandle);
 	CleanupUnits();
 	ClearPlacementBoundary();
+	ClearCoverStructures();
 	if (CaptureObject) { CaptureObject->Destroy(); CaptureObject = nullptr; }
 	bBattleConcluded = false;
 	// Roster de phase 1 (les valeurs phase 2 sont réappliquées par BeginPreparation)
@@ -966,6 +969,45 @@ void AWOTOLDemoDirector::SpawnPlacementBoundary()
 		}
 		PlacementMarkers.Add(Line);
 	}
+}
+
+void AWOTOLDemoDirector::SpawnCoverStructures()
+{
+	ClearCoverStructures();
+	UWorld* W = GetWorld();
+	if (!W) return;
+	const FVector C = GetActorLocation();
+
+	// Quelques ruines Éthériennes réparties AUTOUR DU CENTRE (là où l'action se concentre).
+	// Mix : un grand pilier INDESTRUCTIBLE (couverture fiable) + des ruines DESTRUCTIBLES.
+	struct FCover { FVector Off; int32 Variant; bool bIndestructible; float HP; };
+	// NB : on évite le centre exact (0,0) — l'objet de capture (phase 2) y est posé.
+	const FCover Layout[] = {
+		{ FVector(  650.f,  650.f, 0.f), 0, true,  0.f    }, // grand pilier : INDESTRUCTIBLE
+		{ FVector(  850.f, -1200.f, 0.f), 1, false, 1100.f}, // pan de mur (destructible)
+		{ FVector(-1000.f, -900.f, 0.f), 2, false, 1400.f}, // arche brisée (destructible)
+		{ FVector(-1100.f, 1100.f, 0.f), 0, false, 1300.f}, // pilier (destructible)
+	};
+	for (const FCover& S : Layout)
+	{
+		const FTransform TM(FRotator(0.f, FMath::FRandRange(0.f, 360.f), 0.f), C + S.Off);
+		AWOTOLCoverStructure* Cov = W->SpawnActorDeferred<AWOTOLCoverStructure>(
+			AWOTOLCoverStructure::StaticClass(), TM, this, nullptr,
+			ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		if (!Cov) continue;
+		Cov->Variant = S.Variant;                      // AVANT BeginPlay -> bonne forme
+		Cov->bIndestructible = S.bIndestructible;
+		if (S.HP > 0.f) { Cov->MaxHealth = S.HP; }
+		UGameplayStatics::FinishSpawningActor(Cov, TM);
+		CoverStructures.Add(Cov);
+	}
+}
+
+void AWOTOLDemoDirector::ClearCoverStructures()
+{
+	for (TObjectPtr<AWOTOLCoverStructure>& C : CoverStructures)
+		if (C) C->Destroy();
+	CoverStructures.Empty();
 }
 
 void AWOTOLDemoDirector::ClearPlacementBoundary()

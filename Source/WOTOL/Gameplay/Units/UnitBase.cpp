@@ -9,6 +9,7 @@
 #include "WOTOLProjectileBase.h"
 #include "Gameplay/Demo/WOTOLProjectileTracer.h"
 #include "Gameplay/Demo/WOTOLDamageNumber.h"
+#include "Gameplay/Demo/WOTOLCoverStructure.h"
 #include "Core/FactionRegistrySubsystem.h"
 #include "Gameplay/Factions/FactionSynergySubsystem.h"
 
@@ -208,6 +209,32 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 	{
 		const FSynergyBonus Bonus = Synergy->ComputeSynergyBonus(this);
 		BaseDamage *= Bonus.DamageMultiplier;
+	}
+
+	// COUVERTURE : pour un tir à distance, si une STRUCTURE de décor est entre le tireur et
+	// la cible, le tir la frappe ELLE (et l'endommage) au lieu de la cible -> se cacher
+	// derrière un pilier protège. (La mêlée n'est pas concernée : contact direct.)
+	if (UnitData->Stats.AttackType == EUnitAttackType::Ranged)
+	{
+		const USceneComponent* FromA = GetFloatingTextAnchor();
+		const USceneComponent* ToA   = Target->GetFloatingTextAnchor();
+		const FVector From = (FromA ? FromA->GetComponentLocation() : GetActorLocation()) + FVector(0, 0, 40.f);
+		const FVector To   = (ToA ? ToA->GetComponentLocation() : Target->GetActorLocation()) + FVector(0, 0, 40.f);
+		FHitResult Hit;
+		FCollisionObjectQueryParams ObjQ(ECC_WorldStatic); // uniquement le décor (ignore les unités)
+		FCollisionQueryParams Q; Q.AddIgnoredActor(this);
+		if (GetWorld()->LineTraceSingleByObjectType(Hit, From, To, ObjQ, Q))
+		{
+			if (AWOTOLCoverStructure* Cov = Cast<AWOTOLCoverStructure>(Hit.GetActor()))
+			{
+				Cov->TakeCoverDamage(BaseDamage, this); // le décor encaisse (peut s'effondrer)
+				const FLinearColor Col = (GetFaction() == EFactionID::Aquiloris)
+					? FLinearColor(0.3f, 0.95f, 1.f, 1.f) : FLinearColor(0.55f, 0.35f, 1.f, 1.f);
+				AWOTOLProjectileTracer::Fire(GetWorld(), From, Hit.ImpactPoint, Col, 1.8f);
+				OnAttackPerformed(Target);
+				return; // cible protégée par la couverture
+			}
+		}
 	}
 
 	// À distance AVEC projectile défini -> tir ; sinon (mêlée OU distance sans

@@ -7,6 +7,7 @@
 
 class AWOTOLDemoUnit;
 class AWOTOLCaptureObject;
+class AWOTOLCoverStructure;
 class UUnitDataAsset;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDemoMessage, const FString&, Message);
@@ -156,6 +157,11 @@ private:
 	void FocusCameraOnPlayer(); // recadre la caméra derrière l'armée, vers l'ennemi
 	void SpawnPlacementBoundary(); // marqueurs colorés de la zone de placement
 	void ClearPlacementBoundary();
+	void SpawnCoverStructures();   // ruines/piliers (couverture, destructibles ou non)
+	void ClearCoverStructures();
+
+	UPROPERTY()
+	TArray<TObjectPtr<AWOTOLCoverStructure>> CoverStructures;
 
 	UPROPERTY()
 	TArray<TObjectPtr<AActor>> PlacementMarkers;
