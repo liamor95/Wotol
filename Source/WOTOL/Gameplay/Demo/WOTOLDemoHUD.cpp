@@ -12,6 +12,7 @@
 #include "Gameplay/Battle/RTSBattleManager.h"
 #include "Gameplay/Battle/UnitSelectionManager.h"
 #include "Gameplay/Units/UnitBase.h"
+#include "Core/FactionRegistrySubsystem.h"
 #include "Gameplay/Units/UnitDataAsset.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
@@ -169,6 +170,27 @@ void AWOTOLDemoHUD::DrawHUD()
 			if (AWOTOLCaptureObject* Building = Cast<AWOTOLCaptureObject>(Demo->GetCaptureObject()))
 			{
 				DrawBuildingBar(W, H, Building);
+			}
+		}
+
+		// Compteur d'unités COMPACT (allié vs ennemi) — savoir combien il reste en face
+		// sans encombrer l'écran. Petit bandeau discret en haut, sous le timer.
+		if (Screen == EDemoScreen::Playing)
+		{
+			if (UFactionRegistrySubsystem* Reg = World ? World->GetSubsystem<UFactionRegistrySubsystem>() : nullptr)
+			{
+				const EFactionID Ally  = Demo->GetPlayerFaction();
+				const EFactionID Enemy = (Ally == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
+				auto CountAlive = [&](EFactionID F) { int32 n = 0; for (AUnitBase* U : Reg->GetUnitsForFaction(F)) if (U && U->IsAlive()) ++n; return n; };
+				const int32 NA = CountAlive(Ally), NE = CountAlive(Enemy);
+				const FString Txt = FString::Printf(TEXT("Allies %d    Ennemis %d"), NA, NE);
+				UFont* F = GEngine ? GEngine->GetMediumFont() : nullptr;
+				float TW = 0.f, TH = 0.f; GetTextSize(Txt, TW, TH, F, 1.f);
+				const float BX = (W - TW) * 0.5f, BY = 92.f;
+				DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.5f), BX - 14.f, BY - 4.f, TW + 28.f, TH + 8.f);
+				DrawText(FString::Printf(TEXT("Allies %d"), NA), FLinearColor(0.5f, 0.85f, 1.f, 1.f), BX, BY, F, 1.f);
+				float AW = 0.f, AH = 0.f; GetTextSize(FString::Printf(TEXT("Allies %d    "), NA), AW, AH, F, 1.f);
+				DrawText(FString::Printf(TEXT("Ennemis %d"), NE), FLinearColor(1.f, 0.5f, 0.4f, 1.f), BX + AW, BY, F, 1.f);
 			}
 		}
 

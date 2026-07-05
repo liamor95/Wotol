@@ -327,6 +327,15 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	const float Lat = UnitSpacing, Depth = UnitSpacing * 1.4f;
 	auto SetLayer = [](AWOTOLDemoUnit* U, float Z) { if (U) U->SetDesiredZ(Z); };
 
+	// PLACEMENT SYMÉTRIQUE : l'ennemi doit respecter le MÊME espace neutre au centre que
+	// le joueur (dont la limite de placement est à Center + PlacementBoundaryOffsetX).
+	// On décale toute la formation vers l'arrière si sa ligne avant dépasserait la limite
+	// MIROIR (Center - PlacementBoundaryOffsetX), pour un même écart des deux côtés.
+	const float MirrorX    = GetActorLocation().X - PlacementBoundaryOffsetX; // ex. Center + 1200
+	const float FrontReach = Depth * 5.f;                                     // avancée max (distance)
+	const float ShiftX     = FMath::Max(0.f, MirrorX - (Origin.X - FrontReach));
+	const FVector O        = Origin + FVector(ShiftX, 0.f, 0.f);
+
 	// Rangée compacte (colonnes de PerRow, se replie sur plusieurs lignes)
 	auto PlaceRows = [&](FName Id, int32 Count, float BackStart, float Layer, int32 PerRow)
 	{
@@ -336,13 +345,13 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 			const int32 Row = i / PerRow;
 			const int32 Col = i % PerRow;
 			const float Y = (Col - (PerRow - 1) * 0.5f) * Lat;
-			const FVector Loc = Origin + FVector(-BackStart - Row * Depth, Y, 100.f);
+			const FVector Loc = O + FVector(-BackStart - Row * Depth, Y, 100.f);
 			SetLayer(SpawnUnit(Id, Loc, Facing, 1.f), Layer);
 		}
 	};
 
 	SetLayer(SpawnUnit(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Chef),
-		Origin + FVector(0.f, 0.f, 100.f), Facing, 1.f), L1);
+		O + FVector(0.f, 0.f, 100.f), Facing, 1.f), L1);
 
 	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Infanterie), InfantryCount, Depth, L0, 8);
 	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Montee), MountedCount, Depth * 3.f, L1, 6);
