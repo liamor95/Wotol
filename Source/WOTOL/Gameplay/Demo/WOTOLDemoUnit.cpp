@@ -237,10 +237,11 @@ void AWOTOLDemoUnit::BeginPlay()
 		CurrentHealth = UnitData->Stats.MaxHealth * HealthScale;
 	}
 
-	// PLAFOND DE VERTICALITÉ par rôle : les unités MONTÉES (Aquilances, Noxebeast) sont
-	// limitées au grade 1 (sol + 1re couche = 800) ; elles ne peuvent pas nager sur les
-	// deux couches supérieures. Les autres peuvent monter jusqu'au grade 3 (2400).
-	if (UnitData && UnitData->Role == EUnitRole::Montee)
+	// PLAFOND DE VERTICALITÉ propre à UNE unité précise : le NOXEBEAST (montée Noxéen) est
+	// limité au grade 1 (sol + 1re couche = 800) — il ne peut pas nager sur les 2 couches
+	// hautes. Ciblé par son identifiant, PAS par le rôle : les Aquilances (montées) ne sont
+	// PAS concernées et peuvent monter jusqu'au grade 3.
+	if (UnitData && UnitData->DisplayName.ToString().Contains(TEXT("Noxebeast")))
 	{
 		MaxLayerZ = 800.f;
 		DesiredZ  = FMath::Min(DesiredZ, MaxLayerZ);
