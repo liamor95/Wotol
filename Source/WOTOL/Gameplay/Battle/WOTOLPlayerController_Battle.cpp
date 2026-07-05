@@ -2,6 +2,7 @@
 #include "UnitSelectionManager.h"
 #include "WOTOLBattleCamera.h"
 #include "Gameplay/Units/UnitBase.h"
+#include "Gameplay/Units/UnitDataAsset.h"
 #include "Gameplay/Units/UnitAIStateComponent.h"
 #include "Gameplay/AI/AIAdaptiveController.h"
 #include "Gameplay/Demo/WOTOLDemoHUD.h"
@@ -279,6 +280,61 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 	return true; // en pause : tout clic est consommé par le menu
 }
 
+bool AWOTOLPlayerController_Battle::HandleCommandBarClick(bool bDoubleClick)
+{
+	UUnitSelectionManager* Sel = GetSelectionManager();
+	if (!Sel || !Sel->HasSelection()) return false;
+
+	FVector2D Vp;
+	if (!GetViewportSizeSafe(Vp)) return false;
+	float MX, MY;
+	if (!GetMousePosition(MX, MY)) return false;
+	const FVector2D M(MX, MY);
+
+	// Reconstitue l'ordre des groupes EXACTEMENT comme la barre de commandement
+	// (agrégation par nom, dans l'ordre d'itération de la sélection).
+	TArray<FString> Order;
+	TMap<FString, TArray<AUnitBase*>> ByName;
+	for (AUnitBase* U : Sel->GetSelectedUnits())
+	{
+		if (!U || !U->IsAlive()) continue;
+		const FString Name = (U->GetUnitData() && !U->GetUnitData()->DisplayName.IsEmpty())
+			? U->GetUnitData()->DisplayName.ToString() : U->GetName();
+		if (!ByName.Contains(Name)) Order.Add(Name);
+		ByName.FindOrAdd(Name).Add(U);
+	}
+	if (Order.Num() == 0) return false;
+
+	const int32 MaxFit = AWOTOLDemoHUD::CommandCardMaxFit(Vp.X);
+	const int32 Shown = FMath::Min(Order.Num(), MaxFit);
+	for (int32 i = 0; i < Shown; ++i)
+	{
+		if (!AWOTOLDemoHUD::CommandCardRect(i, Vp.X, Vp.Y).IsInside(M)) continue;
+
+		// Clic sur cette carte.
+		if (!bDoubleClick) return true; // simple clic : consommé, ne désélectionne pas.
+
+		// DOUBLE clic : ne garde QUE ce groupe sélectionné + zoom caméra dessus,
+		// comme un double-clic sur l'unité, mais sans avoir à la chercher au sol.
+		const TArray<AUnitBase*>& Grp = ByName[Order[i]];
+		Sel->ClearSelection();
+		for (int32 g = 0; g < Grp.Num(); ++g)
+		{
+			if (!Grp[g]) continue;
+			if (g == 0) Sel->SelectUnit(Grp[g], PlayerFaction);
+			else        Sel->AddToSelection(Grp[g], PlayerFaction);
+		}
+		if (BattleCamera.IsValid())
+		{
+			FVector C = FVector::ZeroVector; int32 N = 0;
+			for (AUnitBase* U : Grp) { if (U) { C += U->GetActorLocation(); ++N; } }
+			if (N > 0) BattleCamera->FocusOnUnitClose(C / N, 1000.f);
+		}
+		return true;
+	}
+	return false;
+}
+
 void AWOTOLPlayerController_Battle::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
@@ -325,6 +381,10 @@ void AWOTOLPlayerController_Battle::OnLeftMousePressed()
 		&& FVector2D::Distance(Pos, LastLeftClickPos) < 14.f;
 	LastLeftClickTime = Now;
 	LastLeftClickPos  = Pos;
+
+	// Clic sur la barre de commandement (bas-gauche) : simple clic consommé (pas de
+	// désélection), double clic = sélectionne + zoome sur ce groupe d'unités.
+	if (HandleCommandBarClick(bDouble)) return;
 
 	if (bDouble)
 	{
@@ -488,7 +548,6 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 		}
 		if (Cnt > 0) Centroid /= Cnt;
 		const FVector TargetLoc = TargetUnit->GetActorLocation();
-		const float NowT = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
 		for (AUnitBase* Unit : Sel)
 		{
 			if (!Unit || !Unit->IsAlive()) continue;
@@ -506,19 +565,57 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 		return;
 	}
 
-	// ── Déplacement en CONSERVANT LA FORMATION ──
-	// Chaque unité garde son décalage par rapport au centre du groupe ; la ligne
-	// entière se déplace au point cliqué sans se disperser ni se déformer.
+	// ── Déplacement avec REGROUPEMENT au point cliqué ──
+	// On NE conserve PAS l'écartement d'origine (qui pouvait être très large et empêchait
+	// les unités d'arriver au point) : on génère une formation COMPACTE centrée sur le point
+	// cliqué, en grille serrée orientée dans le sens du déplacement. Les unités convergent
+	// donc au point précis tout en gardant un espacement propre (elles ne s'empilent pas).
+	TArray<AUnitBase*> Movers;
 	FVector Centroid = FVector::ZeroVector;
-	int32 Count = 0;
 	for (AUnitBase* Unit : Sel)
 	{
 		if (!Unit || !Unit->IsAlive()) continue;
+		Movers.Add(Unit);
 		Centroid += Unit->GetActorLocation();
-		++Count;
 	}
+	const int32 Count = Movers.Num();
 	if (Count == 0) return;
 	Centroid /= Count;
+
+	// Repère de la formation : Fwd = sens de marche (centre -> point cliqué).
+	FVector Fwd = (TargetLocation - Centroid).GetSafeNormal2D();
+	if (Fwd.IsNearlyZero()) Fwd = FVector(1.f, 0.f, 0.f);
+	const FVector Right = FVector::CrossProduct(FVector::UpVector, Fwd).GetSafeNormal();
+	const float Spacing = 165.f;
+	const int32 Cols = FMath::Max(1, FMath::CeilToInt(FMath::Sqrt((float)Count)));
+
+	// Génère les emplacements (rangées derrière le point, centrées latéralement).
+	TArray<FVector> Slots; Slots.Reserve(Count);
+	for (int32 i = 0; i < Count; ++i)
+	{
+		const int32 Row = i / Cols;
+		const int32 ColIdx = i % Cols;
+		const int32 RowCount = FMath::Min(Cols, Count - Row * Cols);
+		const float LateralX = (ColIdx - (RowCount - 1) * 0.5f) * Spacing;
+		const float BackY = -(float)Row * Spacing; // rangées vers l'arrière
+		Slots.Add(TargetLocation + Right * LateralX + Fwd * BackY);
+	}
+
+	// Affectation gloutonne : chaque emplacement prend l'unité NON assignée la plus proche
+	// (limite les croisements, chacun va au slot le plus naturel).
+	TArray<bool> Used; Used.Init(false, Count);
+	TArray<int32> SlotOfUnit; SlotOfUnit.Init(-1, Count);
+	for (int32 s = 0; s < Slots.Num(); ++s)
+	{
+		int32 Best = -1; float BestD = FLT_MAX;
+		for (int32 u = 0; u < Count; ++u)
+		{
+			if (Used[u]) continue;
+			const float D = FVector::DistSquared2D(Movers[u]->GetActorLocation(), Slots[s]);
+			if (D < BestD) { BestD = D; Best = u; }
+		}
+		if (Best >= 0) { Used[Best] = true; SlotOfUnit[Best] = s; }
+	}
 
 	// En PRÉPARATION : on ne peut pas placer au-delà de sa zone (premier tiers).
 	bool bClamp = false;
@@ -536,19 +633,17 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 		}
 	}
 
-	const float NowMove = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
-	for (AUnitBase* Unit : Sel)
+	for (int32 u = 0; u < Count; ++u)
 	{
-		if (!Unit || !Unit->IsAlive()) continue;
+		AUnitBase* Unit = Movers[u];
 		if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(Unit)) DU->OrderAttackCover(nullptr); // annule attaque décor + stamp
 		AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(Unit->GetController());
 		if (!AIC) continue;
 
-		// Décalage horizontal conservé ; hauteur (couche verticale) inchangée.
-		FVector Offset = Unit->GetActorLocation() - Centroid;
-		Offset.Z = 0.f;
-		FVector Dest(TargetLocation.X + Offset.X, TargetLocation.Y + Offset.Y,
-			Unit->GetActorLocation().Z);
+		// Emplacement compact assigné dans la formation regroupée ; hauteur inchangée.
+		const int32 s = SlotOfUnit[u];
+		const FVector Slot = (s >= 0) ? Slots[s] : TargetLocation;
+		FVector Dest(Slot.X, Slot.Y, Unit->GetActorLocation().Z);
 		if (bClamp) Dest.X = FMath::Min(Dest.X, BoundaryX); // pas au-delà de sa zone
 		// DÉPLACEMENT PUR : l'unité va DIRECTEMENT au point demandé, sans s'arrêter pour
 		// engager l'ennemi (l'ordre du joueur PRIME sur le comportement auto). Elle y va

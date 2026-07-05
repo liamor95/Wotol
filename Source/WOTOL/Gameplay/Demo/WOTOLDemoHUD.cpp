@@ -712,6 +712,23 @@ void AWOTOLDemoHUD::DrawBossBar(float W, float H, AWOTOLDemoUnit* Boss)
 	Shadowed(HP, BX + BarW - HW - 8.f, BY + 2.f, GEngine->GetSmallFont(), 1.f, FLinearColor::White);
 }
 
+// Constantes de disposition PARTAGÉES entre le rendu et le hit-test (double-clic).
+static constexpr float kCardW = 172.f, kCardH = 90.f, kGap = 10.f, kPad = 12.f, kBandX = 12.f;
+
+int32 AWOTOLDemoHUD::CommandCardMaxFit(float W)
+{
+	return FMath::Max(1, (int32)((W - 180.f) / (kCardW + kGap)));
+}
+
+FBox2D AWOTOLDemoHUD::CommandCardRect(int32 Index, float W, float H)
+{
+	const float BandH = kCardH + 12.f;
+	const float BandY = H - BandH;
+	const float Y = BandY + (BandH - kCardH) * 0.5f;
+	const float X = kBandX + kPad + Index * (kCardW + kGap);
+	return FBox2D(FVector2D(X, Y), FVector2D(X + kCardW, Y + kCardH));
+}
+
 void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
 {
 	if (!World) return;
@@ -772,8 +789,8 @@ void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
 	};
 
 	// ── Bandeau ADAPTATIF : sa largeur = nombre de cartes affichées (pas plein écran) ──
-	const float CardW = 172.f, CardH = 90.f, Gap = 10.f, Pad = 12.f;
-	const int32 MaxFit = FMath::Max(1, (int32)((W - 180.f) / (CardW + Gap))); // laisse la place aux boutons de couche (droite)
+	const float CardW = kCardW, CardH = kCardH, Gap = kGap, Pad = kPad;
+	const int32 MaxFit = CommandCardMaxFit(W); // laisse la place aux boutons de couche (droite)
 	const int32 Shown = FMath::Min(Groups.Num(), MaxFit);
 	const float BandH = CardH + 12.f;
 	const float BandY = H - BandH;

@@ -37,6 +37,11 @@ public:
 	static FBox2D SummaryQuitButtonRect(float W, float H);          // final : quitter
 	static FBox2D InterludeContinueButtonRect(float W, float H);    // transition -> phase 2
 
+	// Carte de la barre de commandement (bas-gauche) pour l'index de groupe donné.
+	// Sert au double-clic : sélectionner + zoomer sur ce groupe d'unités.
+	static FBox2D CommandCardRect(int32 Index, float W, float H);
+	static int32  CommandCardMaxFit(float W);
+
 private:
 	void DrawCenteredText(const FString& Text, float Y, const FLinearColor& Color, float Scale);
 	void DrawPauseButton(float W, float H);

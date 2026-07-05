@@ -67,6 +67,12 @@ private:
 	bool HandleUIClick();
 	bool GetViewportSizeSafe(FVector2D& Out) const;
 
+	// Clic sur une carte de la barre de commandement (bas-gauche).
+	// Simple clic = consommé (ne désélectionne pas). Double clic = sélectionne
+	// ce groupe d'unités + zoom caméra dessus (comme un double-clic sur l'unité).
+	// Renvoie vrai si le clic a été traité (à consommer).
+	bool HandleCommandBarClick(bool bDoubleClick);
+
 	// Flux d'écrans
 	class AWOTOLDemoDirector* GetDemoDirector() const;
 	void PickFactionAndPrepare(EFactionID Faction);

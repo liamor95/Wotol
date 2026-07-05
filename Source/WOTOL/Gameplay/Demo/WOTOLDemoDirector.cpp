@@ -781,12 +781,34 @@ void AWOTOLDemoDirector::TacticalTick()
 	const float Now = W->GetTimeSeconds();
 	UOceanCurrentSubsystem* Cur = W->GetSubsystem<UOceanCurrentSubsystem>();
 
-	auto CommandArmy = [&](EFactionID Fac, const FVector& OwnC, const FVector& EnemyC, bool bIsPlayer)
+	// OBJECTIF de mission (phase 2) : le Cristalliseur/Abyssalyseur à défendre.
+	// S'il existe, l'IA adapte tout son comportement autour de lui (défense / assaut).
+	const bool    bHasObj = (CaptureObject != nullptr);
+	const FVector ObjLoc  = bHasObj ? CaptureObject->GetActorLocation() : GetActorLocation();
+
+	// Centre de gravité des unités d'un rôle donné (pour cibler la ligne arrière adverse).
+	auto RoleCentroid = [&](EFactionID F, EUnitRole Want, const FVector& Fallback) -> FVector
+	{
+		FVector C = FVector::ZeroVector; int32 N = 0;
+		for (AUnitBase* U : Reg->GetUnitsForFaction(F))
+		{
+			if (!U || !U->IsAlive() || !U->GetUnitData()) continue;
+			if (U->GetUnitData()->Role != Want) continue;
+			C += U->GetActorLocation(); ++N;
+		}
+		return (N > 0) ? C / N : Fallback;
+	};
+
+	auto CommandArmy = [&](EFactionID Fac, EFactionID EnemyFac, const FVector& OwnC,
+		const FVector& EnemyC, bool bIsPlayer, bool bDefendObj)
 	{
 		const FVector Fwd     = (EnemyC - OwnC).GetSafeNormal2D();            // vers l'ennemi
 		const FVector Lateral = FVector::CrossProduct(FVector::UpVector, Fwd).GetSafeNormal();
 		const FVector Front   = OwnC + (EnemyC - OwnC) * 0.35f;               // ligne de front (côté allié)
-		int32 idx = 0, infCol = 0, disCol = 0, monCol = 0;                    // colonnes par rôle
+		// Ligne arrière adverse (unités à distance) = cible prioritaire des flanqueurs.
+		const FVector EnemyRangedC = RoleCentroid(EnemyFac, EUnitRole::Distance, EnemyC);
+		const FVector ToEnemyFromObj = (EnemyC - ObjLoc).GetSafeNormal2D();
+		int32 idx = 0, infCol = 0, disCol = 0, monCol = 0;                    // colonnes / anneau par rôle
 		for (AUnitBase* U : Reg->GetUnitsForFaction(Fac))
 		{
 			if (!U || !U->IsAlive()) continue;
@@ -812,6 +834,106 @@ void AWOTOLDemoDirector::TacticalTick()
 			// ── COMPORTEMENT + FORMATION selon le RÔLE (synergie de faction) ──
 			float   Layer = 0.f;
 			FVector Dest  = EnemyC;
+
+			// ═══ MODE OBJECTIF (phase 2) : l'IA sert l'objectif de mission ═══
+			if (bHasObj && bDefendObj)
+			{
+				// DÉFENSE du Cristalliseur : mur-bouclier autour, tireurs qui visent la
+				// ligne arrière adverse, montures qui foncent désorganiser les tireurs.
+				switch (R)
+				{
+					case EUnitRole::Infanterie:
+					{
+						// Anneau de boucliers TOUT AUTOUR du bâtiment (dos au centre) :
+						// bloque le corps-à-corps ET les tirs à distance venant de dehors.
+						const int32 c = infCol++;
+						const float Ang = (2.f * PI) * ((float)c / 8.f);
+						const FVector RD(FMath::Cos(Ang), FMath::Sin(Ang), 0.f);
+						Dest  = ObjLoc + RD * 360.f;
+						Layer = 0.f;
+						break;
+					}
+					case EUnitRole::Distance:
+					{
+						// Juste derrière l'anneau, en hauteur : CANARDE les tireurs adverses
+						// pour les empêcher d'endommager l'objectif.
+						Dest  = ObjLoc + (EnemyRangedC - ObjLoc).GetSafeNormal2D() * 500.f;
+						Layer = bCanLayer ? 1400.f : 0.f;
+						break;
+					}
+					case EUnitRole::Montee:
+					{
+						// FONCE sur la ligne arrière ennemie (tireurs) pour la désorganiser
+						// et gagner un répit — hit-and-run temporel.
+						const float Speed = Data ? Data->Stats.MovementSpeed : 1.f;
+						const float Cycle = FMath::Max(6.f, 12.f - Speed * 3.f);
+						const bool  bCharge = FMath::Fmod(Now + idx * 1.7f, Cycle) < 4.f;
+						Dest  = bCharge ? EnemyRangedC : (ObjLoc + Fwd * 520.f);
+						Layer = 0.f;
+						break;
+					}
+					case EUnitRole::Chef:
+						// Protégé DANS l'anneau (survit pour placer sa compétence).
+						Dest  = ObjLoc - ToEnemyFromObj * 120.f;
+						Layer = 0.f;
+						break;
+					default: // Mythique / Spéciale : tiennent le front côté ennemi de l'anneau
+						Dest  = ObjLoc + ToEnemyFromObj * 340.f;
+						Layer = bCanLayer ? 900.f : 0.f;
+						break;
+				}
+				if (DU) DU->SetDesiredZ(Layer);
+				AIC->ActivateRTSBehavior();
+				AIC->IssueOrder_AttackMove(Dest);
+				if (UUnitAIStateComponent* St = U->FindComponentByClass<UUnitAIStateComponent>())
+					St->SightRange = 60000.f;
+				++idx;
+				continue;
+			}
+			if (bHasObj && !bDefendObj)
+			{
+				// ASSAUT sur le Cristalliseur : lire la défense adverse et la briser.
+				switch (R)
+				{
+					case EUnitRole::Distance:
+						// Canarde l'objectif à distance (reste au large de l'anneau).
+						Dest  = ObjLoc - ToEnemyFromObj * 850.f;
+						Layer = bCanLayer ? 1400.f : 0.f;
+						break;
+					case EUnitRole::Montee:
+					case EUnitRole::Speciale:
+					{
+						// BRISEURS : chargent l'anneau défensif pour l'ouvrir. Cherchent
+						// une ouverture en changeant de verticalité (haut/bas alterné).
+						Dest  = ObjLoc;
+						Layer = bCanLayer ? ((idx % 2 == 0) ? 1600.f : 0.f) : 0.f;
+						break;
+					}
+					case EUnitRole::Infanterie:
+						Dest  = ObjLoc; // siège au corps-à-corps
+						Layer = 0.f;
+						break;
+					default: // Chef / Mythique : poussent sur l'objectif en hauteur
+						Dest  = ObjLoc;
+						Layer = bCanLayer ? 1200.f : 0.f;
+						break;
+				}
+				// Anticipation du courant conservée plus bas.
+				if (Cur && Cur->IsActive() && Layer > 500.f)
+				{
+					const FVector DirToDest = (Dest - U->GetActorLocation()).GetSafeNormal2D();
+					if (FVector::DotProduct(Cur->GetDirection(), DirToDest) < -0.35f
+						&& Cur->GetFactorAt(Layer) > 0.4f) Layer = 0.f;
+				}
+				if (DU) DU->SetDesiredZ(Layer);
+				AIC->ActivateRTSBehavior();
+				AIC->IssueOrder_AttackMove(Dest);
+				if (UUnitAIStateComponent* St = U->FindComponentByClass<UUnitAIStateComponent>())
+					St->SightRange = 60000.f;
+				++idx;
+				continue;
+			}
+
 			switch (R)
 			{
 				case EUnitRole::Infanterie:
@@ -875,8 +997,9 @@ void AWOTOLDemoDirector::TacticalTick()
 		}
 	};
 
-	CommandArmy(CachedPlayerFaction, PlayerC, RivalC, /*bIsPlayer=*/true);
-	CommandArmy(CachedRivalFaction, RivalC, PlayerC, /*bIsPlayer=*/false);
+	// Le joueur DÉFEND son objectif (Cristalliseur) ; le rival l'ASSAILLE.
+	CommandArmy(CachedPlayerFaction, CachedRivalFaction, PlayerC, RivalC, /*bIsPlayer=*/true,  /*bDefendObj=*/true);
+	CommandArmy(CachedRivalFaction, CachedPlayerFaction, RivalC, PlayerC, /*bIsPlayer=*/false, /*bDefendObj=*/false);
 }
 
 void AWOTOLDemoDirector::HandleCaptureDestroyed()
