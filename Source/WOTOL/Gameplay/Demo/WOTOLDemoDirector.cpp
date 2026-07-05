@@ -79,7 +79,9 @@ void AWOTOLDemoDirector::BeginPreparation()
 	// rester fluide/stable sur un portable (évite les surcharges mémoire/GPU).
 	if (BT == EBattleType::RivalDefense)
 	{
-		InfantryCount = 12; MountedCount = 6; RangedCount = 8;
+		// Phase 2 = GRANDE bataille : plus d'unités des deux côtés -> siège plus long et
+		// plus disputé (vise >= 5 min). Reste mesuré pour la fluidité sur portable.
+		InfantryCount = 16; MountedCount = 8; RangedCount = 10;
 	}
 
 	CleanupUnits(); // repart d'une armée propre (utile en phase 2)

@@ -15,7 +15,10 @@
 
 // Rythme de bataille (démo) : combats plus longs + déplacements ralentis (eau).
 // 0.42 dégâts -> ~2,5× plus d'échanges ; 0.55 vitesse -> approche/repli plus lents.
-float AUnitBase::GlobalDamageScale = 0.33f;
+// Rythme global des dégâts (frottement de l'eau). PLUS BAS = échanges plus lents
+// = batailles PLUS LONGUES, sans changer l'issue ni les pertes (tout le monde frappe
+// ET encaisse proportionnellement moins). 0.20 vise des batailles de ~4-5 min.
+float AUnitBase::GlobalDamageScale = 0.20f;
 float AUnitBase::GlobalSpeedScale  = 0.55f;
 
 AUnitBase::AUnitBase()

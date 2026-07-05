@@ -7,7 +7,12 @@ void UOceanCurrentSubsystem::Regenerate()
 	// balayer instantanément une unité placée en couche haute (elle peut résister/avancer).
 	const float Yaw = FMath::FRandRange(0.f, 360.f);
 	Direction = FRotator(0.f, Yaw, 0.f).Vector();
-	Strength  = FMath::FRandRange(60.f, 135.f); // unités/s au sommet
+	// Les courants océaniques sont souvent PUISSANTS : ~65% de chance d'un courant FORT,
+	// sinon modéré. Assez marqué pour peser sur les unités des couches hautes (elles
+	// doivent lutter/anticiper), sans balayer instantanément.
+	Strength = (FMath::FRand() < 0.65f)
+		? FMath::FRandRange(160.f, 280.f)  // fort (majoritaire)
+		: FMath::FRandRange(80.f, 150.f);  // modéré
 }
 
 float UOceanCurrentSubsystem::GetFactorAt(float LayerZ) const
