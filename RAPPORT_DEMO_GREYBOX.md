@@ -149,7 +149,27 @@ Idées validées par Liamor à garder pour plus tard :
 - Transition narrative : présentation du mythique adopté (voir écran d'interlude actuel) qui,
   en phase 3, deviendrait **jouable**.
 
-⚠️ Statut : **idée en réserve, non codée**. À réévaluer quand la phase 2 sera validée en jeu.
+### Compétences des unités MANQUANTES (à implémenter en phase 3) — dictées par Liamor
+**AQUILORIS**
+- **Aquilombres (Spéciale)** — Compétence (CD) : **se téléporte derrière les lignes ennemies**,
+  assène un **coup critique dans le dos**, puis **revient à sa position initiale** (arrière).
+- **Léviaphénix (Mythique)** — c'est un **BUFFER** : sa compétence **renforce les attaques, les
+  compétences et la défense** des autres unités de la faction (aura). Pas de grosse attaque ;
+  au corps-à-corps il donne des **coups de nageoire / de queue** quand on l'attaque de près.
+
+**NOXÉENS**
+- **Noxéons (Spéciale)** — fait **jaillir de la bioluminescence du fond marin** (zone) pour
+  **augmenter les capacités énergétiques** des unités Noxéennes proches (buff Noxeblast /
+  Noxeflare / Noxedrake / Noxar…). Support de zone.
+- **Noxedrake (Mythique, = le Kraken jouable)** — grosse compétence : **gros rayon VERT** (faisceau
+  continu, couleur de faction) ; au corps-à-corps, **coups de mâchoire** (mord les ennemis proches).
+
+### Corrections de couleur (déjà appliquées aux unités de phase 2)
+- **Rayon de Noxar** = **VERT** (couleur de faction), pas violet.
+- **Flash d'éblouissement de Noxeflare** = **VIOLET**.
+
+⚠️ Statut : **idée en réserve, non codée** (sauf les corrections de couleur ci-dessus).
+À réévaluer quand la phase 2 sera validée en jeu.
 
 ---
 

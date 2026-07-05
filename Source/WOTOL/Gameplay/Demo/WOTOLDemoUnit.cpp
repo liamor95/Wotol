@@ -541,15 +541,17 @@ void AWOTOLDemoUnit::Ability_Laser()
 		}
 	if (!bHasTarget) return;
 
+	// Couleur du rayon = couleur de FACTION (vert Noxéen / cyan Aquiloris).
+	const FLinearColor Beam = (GetFaction() == EFactionID::Noxeens)
+		? FLinearColor(0.3f, 1.f, 0.45f, 1.f) : FLinearColor(0.3f, 0.9f, 1.f, 1.f);
 	// Faisceau : plusieurs boules très rapides le long de la ligne (approximation greybox).
 	for (int32 i = 0; i < 6; ++i)
 	{
 		const FVector A = FMath::Lerp(From, To, i / 6.f);
 		const FVector B = FMath::Lerp(From, To, (i + 1) / 6.f);
-		AWOTOLProjectileTracer::Fire(W, A, B, FLinearColor(0.9f, 0.2f, 0.9f, 1.f), 2.4f);
+		AWOTOLProjectileTracer::Fire(W, A, B, Beam, 2.4f);
 	}
-	AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 120.f), TEXT("Rayon Laser"),
-		FLinearColor(0.9f, 0.3f, 1.f, 1.f));
+	AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 120.f), TEXT("Rayon Laser"), Beam);
 }
 
 // NOXEBLAST — Rafale : plusieurs projectiles sur l'ennemi le plus proche.
@@ -590,10 +592,11 @@ void AWOTOLDemoUnit::Ability_BlindFlash()
 		U->BlindedUntil = Now + 4.f; // précision quasi nulle pendant 4 s
 		++Hit;
 	}
-	AWOTOLBubbleBurst::Burst(W, Origin + Fwd * 120.f + FVector(0, 0, 60.f), FLinearColor(0.85f, 0.95f, 0.4f, 1.f), 20);
+	// Flash VIOLET (éblouissement bioluminescent des Noxeflare).
+	AWOTOLBubbleBurst::Burst(W, Origin + Fwd * 120.f + FVector(0, 0, 60.f), FLinearColor(0.7f, 0.35f, 1.f, 1.f), 20);
 	if (Hit > 0)
 		AWOTOLDamageNumber::SpawnText(W, Origin + FVector(0, 0, 150.f), TEXT("Eblouissement"),
-			FLinearColor(0.9f, 0.95f, 0.4f, 1.f));
+			FLinearColor(0.72f, 0.4f, 1.f, 1.f));
 }
 
 // Tailles réelles approximatives (mètres) — valeurs du GDD/document de démo
