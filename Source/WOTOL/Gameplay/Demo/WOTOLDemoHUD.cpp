@@ -44,9 +44,10 @@ FBox2D AWOTOLDemoHUD::FactionButtonRect(int32 Index, float W, float H)
 
 FBox2D AWOTOLDemoHUD::LaunchBattleButtonRect(float W, float H)
 {
-	// Remonté au-dessus de la barre de sélection (bas) pour ne rien chevaucher.
-	const float BW = 360.f, BH = 62.f;
-	const float X = (W - BW) * 0.5f, Y = H - 265.f;
+	// Petit bouton JUSTE SOUS le timer (haut centre) -> le centre de l'écran reste libre
+	// pour placer les unités. Il "brille" (reflet animé de DrawButton) pour attirer l'oeil.
+	const float BW = 250.f, BH = 42.f;
+	const float X = (W - BW) * 0.5f, Y = 66.f;
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
@@ -355,46 +356,51 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 	DrawGlowTitle(FString::Printf(TEXT("— %s —"), *Title), H * 0.06f, 2.8f, TitleCol);
 	DrawCenteredText(TEXT("Resume de la bataille"), H * 0.17f, FLinearColor(0.8f, 0.9f, 1.f, 1.f), 1.1f);
 
-	// Deux colonnes : pertes de TON armée (gauche) / pertes de l'ennemi (droite)
+	// Deux colonnes : pertes de TON armée (gauche) / pertes de l'ennemi (droite).
+	// Hauteur bornée AU-DESSUS des boutons + interligne DYNAMIQUE -> tout tient, rien ne
+	// chevauche (2 lignes compactes par unité).
+	const float ColTop  = H * 0.22f;
+	const float ColBot  = SummaryReplayButtonRect(W, H).Min.Y - 24.f; // au-dessus des boutons
 	auto DrawColumn = [&](float X, float ColW, const FString& Header,
 		const TArray<FUnitLossEntry>& Entries, const FLinearColor& Accent)
 	{
-		const float Top = H * 0.24f;
-		DrawRect(FLinearColor(0.02f, 0.04f, 0.08f, 0.9f), X, Top, ColW, H * 0.5f);
-		DrawRect(Accent, X, Top, ColW, 4.f);
-		DrawText(Header, Accent, X + 18.f, Top + 12.f, GEngine->GetLargeFont(), 1.2f);
+		const float ColH = ColBot - ColTop;
+		DrawRect(FLinearColor(0.02f, 0.04f, 0.08f, 0.9f), X, ColTop, ColW, ColH);
+		DrawRect(Accent, X, ColTop, ColW, 4.f);
+		DrawText(Header, Accent, X + 18.f, ColTop + 10.f, GEngine->GetMediumFont(), 1.2f);
 
-		float Y = Top + 52.f;
+		const float HeaderH = 40.f, TotalH = 26.f;
+		const float AvailH = ColH - HeaderH - TotalH;
+		const int32 N = FMath::Max(1, Entries.Num());
+		const float Step = FMath::Clamp(AvailH / N, 34.f, 52.f);
+
+		float Y = ColTop + HeaderH;
 		int32 TotalLost = 0, Total = 0;
 		if (Entries.Num() == 0)
 		{
 			DrawText(TEXT("(aucune unite)"), FLinearColor(0.7f, 0.7f, 0.7f, 1.f),
-				X + 18.f, Y, GEngine->GetMediumFont(), 1.f);
+				X + 18.f, Y, GEngine->GetSmallFont(), 1.f);
 		}
 		for (const FUnitLossEntry& E : Entries)
 		{
 			TotalLost += E.Lost; Total += E.Total;
 			const int32 Survived = E.Total - E.Lost;
 			const FLinearColor LineCol = (E.Lost >= E.Total)
-				? FLinearColor(1.f, 0.4f, 0.35f, 1.f)   // anéanti
-				: FLinearColor(0.88f, 0.94f, 1.f, 1.f);
-			DrawText(E.UnitName, LineCol, X + 18.f, Y, GEngine->GetMediumFont(), 1.1f);
-			// Pertes + dégâts infligés par le groupe
-			const FString Stat = FString::Printf(TEXT("perdus %d / %d  (survivants %d)  —  degats infliges : %d"),
-				E.Lost, E.Total, Survived, FMath::RoundToInt(E.DamageDealt));
-			DrawText(Stat, FLinearColor(0.75f, 0.82f, 0.92f, 1.f), X + 18.f, Y + 20.f,
-				GEngine->GetSmallFont(), 1.f);
-			// Taux défensifs du type (représentatif)
-			const FString Rates = FString::Printf(TEXT("DEF %d%%   Parade %d%%   Esquive %d%%"),
+				? FLinearColor(1.f, 0.4f, 0.35f, 1.f) : FLinearColor(0.9f, 0.95f, 1.f, 1.f);
+			// Ligne 1 : nom + pertes + dégâts infligés
+			const FString L1 = FString::Printf(TEXT("%s  —  perdus %d/%d (surv %d)  —  degats %d"),
+				*E.UnitName, E.Lost, E.Total, Survived, FMath::RoundToInt(E.DamageDealt));
+			DrawText(L1, LineCol, X + 18.f, Y, GEngine->GetSmallFont(), 1.05f);
+			// Ligne 2 : taux défensifs
+			const FString L2 = FString::Printf(TEXT("   DEF %d%%   Parade %d%%   Esquive %d%%"),
 				E.DefPct, E.BlockPct, E.DodgePct);
-			DrawText(Rates, FLinearColor(0.65f, 0.78f, 0.7f, 1.f), X + 18.f, Y + 38.f,
-				GEngine->GetSmallFont(), 1.f);
-			Y += 62.f;
+			DrawText(L2, FLinearColor(0.62f, 0.78f, 0.72f, 1.f), X + 18.f, Y + 16.f, GEngine->GetSmallFont(), 1.f);
+			Y += Step;
 		}
 		// Total en bas de colonne
 		const FString TotLine = FString::Printf(TEXT("TOTAL : %d pertes / %d"), TotalLost, Total);
-		DrawText(TotLine, FLinearColor(1.f, 0.9f, 0.6f, 1.f), X + 18.f, Top + H * 0.5f - 34.f,
-			GEngine->GetMediumFont(), 1.1f);
+		DrawText(TotLine, FLinearColor(1.f, 0.9f, 0.6f, 1.f), X + 18.f, ColBot - TotalH + 2.f,
+			GEngine->GetMediumFont(), 1.f);
 	};
 
 	const float ColW = FMath::Min(460.f, (W - 120.f) * 0.5f);
@@ -533,7 +539,7 @@ void AWOTOLDemoHUD::DrawPrepareBar(float W, float H)
 	}
 
 	DrawButton(LaunchBattleButtonRect(W, H), TEXT("LANCER LA BATAILLE"),
-		FLinearColor(1.f, 0.7f, 0.2f, 1.f), 1.5f);
+		FLinearColor(1.f, 0.7f, 0.2f, 1.f), 1.0f);
 }
 
 void AWOTOLDemoHUD::DrawPauseButton(float W, float H)

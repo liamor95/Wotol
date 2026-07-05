@@ -752,8 +752,9 @@ void AWOTOLDemoDirector::TacticalTick()
 	const FVector RivalC  = FactionCentroid(CachedRivalFaction);
 	const float Now = W->GetTimeSeconds();
 
-	auto CommandArmy = [&](EFactionID Fac, const FVector& EnemyCentroid, bool bIsPlayer)
+	auto CommandArmy = [&](EFactionID Fac, const FVector& OwnC, const FVector& EnemyC, bool bIsPlayer)
 	{
+		const FVector DirToOwn = (OwnC - EnemyC).GetSafeNormal2D(); // vers son propre camp
 		int32 idx = 0;
 		for (AUnitBase* U : Reg->GetUnitsForFaction(Fac))
 		{
@@ -766,22 +767,35 @@ void AWOTOLDemoDirector::TacticalTick()
 			AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(U->GetController());
 			if (!AIC) { ++idx; continue; }
 
-			// Étagement vertical par rôle : la distance/spéciale tire d'en haut, le chef au
-			// milieu, l'infanterie/montée au sol -> occupe les 4 couches (verticalité vivante).
-			const EUnitRole R = U->GetUnitData() ? U->GetUnitData()->Role : EUnitRole::Infanterie;
+			const UUnitDataAsset* Data = U->GetUnitData();
+			const EUnitRole R = Data ? Data->Role : EUnitRole::Infanterie;
+			// On RESPECTE les stats : une unité qui ne peut pas changer de couche reste au sol.
+			const bool bCanLayer = Data ? Data->Stats.bCanChangeLayer : true;
+
+			// Étagement vertical par rôle (si l'unité en est capable) : distance/spéciale en
+			// hauteur pour tirer, chef au milieu, infanterie/montée au sol.
 			float Layer = 0.f;
-			switch (R)
+			if (bCanLayer)
 			{
-				case EUnitRole::Distance: Layer = 1600.f; break;
-				case EUnitRole::Speciale: Layer = 1600.f; break;
-				case EUnitRole::Chef:     Layer = 900.f;  break;
-				default:                  Layer = 0.f;    break;
+				switch (R)
+				{
+					case EUnitRole::Distance: Layer = 1600.f; break;
+					case EUnitRole::Speciale: Layer = 1600.f; break;
+					case EUnitRole::Chef:     Layer = 900.f;  break;
+					default:                  Layer = 0.f;    break;
+				}
 			}
 
-			// Contournement : ~1/3 des unités visent un FLANC (décalage latéral) en passant
-			// par une couche haute, pour prendre l'arrière/le côté de la ligne ennemie.
-			FVector Dest = EnemyCentroid;
-			if (idx % 3 == 0)
+			// Destination selon le TYPE D'ATTAQUE : la DISTANCE se tient à distance (standoff)
+			// pour tirer ; la mêlée/monture CHARGE le centre ennemi.
+			FVector Dest = EnemyC;
+			if (R == EUnitRole::Distance)
+			{
+				Dest = EnemyC + DirToOwn * 1100.f; // reste en retrait pour canarder
+			}
+
+			// Contournement : ~1/3 (hors distance) vise un FLANC via une couche haute.
+			if (idx % 3 == 0 && R != EUnitRole::Distance && bCanLayer)
 			{
 				const float Sgn = (idx % 2 == 0) ? 1.f : -1.f;
 				Dest += FVector(0.f, Sgn * 1500.f, 0.f);
@@ -797,8 +811,8 @@ void AWOTOLDemoDirector::TacticalTick()
 		}
 	};
 
-	CommandArmy(CachedPlayerFaction, RivalC, /*bIsPlayer=*/true);
-	CommandArmy(CachedRivalFaction, PlayerC, /*bIsPlayer=*/false);
+	CommandArmy(CachedPlayerFaction, PlayerC, RivalC, /*bIsPlayer=*/true);
+	CommandArmy(CachedRivalFaction, RivalC, PlayerC, /*bIsPlayer=*/false);
 }
 
 void AWOTOLDemoDirector::HandleCaptureDestroyed()

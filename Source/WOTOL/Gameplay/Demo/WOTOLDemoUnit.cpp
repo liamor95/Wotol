@@ -76,15 +76,14 @@ AWOTOLDemoUnit::AWOTOLDemoUnit()
 	AIControllerClass = AAIAdaptiveController::StaticClass();
 	AutoPossessAI     = EAutoPossessAI::PlacedInWorldOrSpawned;
 
-	// ORIENTATION : l'unité regarde là où elle SE DÉPLACE (et non une rotation de
-	// contrôleur arbitraire) -> le modèle ne "regarde plus vers l'arrière". En combat,
-	// on la force en plus à faire face à l'ennemi (voir Tick) pour que le coup parte devant.
+	// ORIENTATION : on gère TOUTE la rotation nous-mêmes dans Tick (face à l'ennemi en
+	// combat, sinon face au déplacement). On DÉSACTIVE l'orientation auto du mouvement qui
+	// se battait avec notre code -> fini le "regarde/frappe en arrière".
 	bUseControllerRotationYaw = false;
 	if (UCharacterMovementComponent* Move = GetCharacterMovement())
 	{
-		Move->bOrientRotationToMovement = true;
+		Move->bOrientRotationToMovement = false;
 		Move->bUseControllerDesiredRotation = false;
-		Move->RotationRate = FRotator(0.f, 540.f, 0.f);
 	}
 }
 
@@ -114,17 +113,27 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	// en arrière"). Sinon, l'unité garde son orientation de déplacement (OrientToMovement).
 	if (!bCreatureBrain)
 	{
+		FRotator Desired = GetActorRotation();
+		bool bWant = false;
+		// 1) Un ennemi à portée de combat -> on lui FAIT FACE (le coup part devant).
 		if (AUnitBase* Foe = FindNearestEnemyUnit())
 		{
 			FVector To = Foe->GetActorLocation() - GetActorLocation();
 			To.Z = 0.f;
 			const float Dist = To.Size();
 			const float AtkRange = UnitData ? UnitData->Stats.AttackRange * 200.f : 200.f;
-			if (Dist > 1.f && Dist < AtkRange + 500.f)
-			{
-				FRotator R = To.Rotation(); R.Pitch = 0.f; R.Roll = 0.f;
-				SetActorRotation(FMath::RInterpTo(GetActorRotation(), R, DeltaSeconds, 10.f));
-			}
+			if (Dist > 1.f && Dist < AtkRange + 500.f) { Desired = To.Rotation(); bWant = true; }
+		}
+		// 2) Sinon, on regarde la direction de DÉPLACEMENT.
+		if (!bWant)
+		{
+			FVector V = GetVelocity(); V.Z = 0.f;
+			if (V.SizeSquared() > 100.f) { Desired = V.Rotation(); bWant = true; }
+		}
+		if (bWant)
+		{
+			Desired.Pitch = 0.f; Desired.Roll = 0.f;
+			SetActorRotation(FMath::RInterpTo(GetActorRotation(), Desired, DeltaSeconds, 10.f));
 		}
 	}
 
