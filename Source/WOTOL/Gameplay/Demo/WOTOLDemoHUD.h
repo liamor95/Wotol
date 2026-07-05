@@ -51,6 +51,12 @@ private:
 	void DrawBuildingBar(float W, float H, class AWOTOLCaptureObject* Building);
 	void DrawButton(const FBox2D& R, const FString& Label, const FLinearColor& Tint, float TextScale = 1.3f);
 
+	// Fond marin ANIMÉ (dégradé de profondeur + bulles qui montent + rais de lumière),
+	// partagé par tous les écrans plein-écran pour un rendu vivant (pas une couleur plate).
+	void DrawUnderwaterBackground(float W, float H);
+	// Grand titre lumineux avec halo + pulsation (menu principal).
+	void DrawGlowTitle(const FString& Text, float Y, float Scale, const FLinearColor& Color);
+
 	// Éléments style Total War
 	void DrawTopBar(float W, float H, class UWorld* World, class UDemoFlowSubsystem* Demo);
 	void DrawBossBar(float W, float H, class AWOTOLDemoUnit* Boss);

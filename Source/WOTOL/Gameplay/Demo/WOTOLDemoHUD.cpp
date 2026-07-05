@@ -198,33 +198,153 @@ void AWOTOLDemoHUD::DrawHUD()
 void AWOTOLDemoHUD::DrawButton(const FBox2D& R, const FString& Label, const FLinearColor& Tint, float TextScale)
 {
 	const FVector2D Sz = R.Max - R.Min;
-	DrawRect(FLinearColor(0.04f, 0.06f, 0.10f, 0.96f), R.Min.X, R.Min.Y, Sz.X, Sz.Y);
-	DrawRect(Tint, R.Min.X, R.Min.Y, Sz.X, 4.f);                          // liseré haut
-	DrawRect(Tint, R.Min.X, R.Max.Y - 4.f, Sz.X, 4.f);                    // liseré bas
+	const float T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+
+	// Corps : léger dégradé vertical (haut plus clair) pour un relief "verre/eau".
+	const int32 Bands = 10;
+	for (int32 i = 0; i < Bands; ++i)
+	{
+		const float f = (float)i / (Bands - 1);
+		const FLinearColor C = FMath::Lerp(FLinearColor(0.07f, 0.11f, 0.18f, 0.97f),
+			FLinearColor(0.02f, 0.03f, 0.06f, 0.97f), f);
+		DrawRect(C, R.Min.X, R.Min.Y + Sz.Y * f * (Bands - 1) / Bands, Sz.X, Sz.Y / Bands + 1.f);
+	}
+	// Liserés teintés (haut/bas) + montants
+	DrawRect(Tint, R.Min.X, R.Min.Y, Sz.X, 4.f);
+	DrawRect(Tint, R.Min.X, R.Max.Y - 4.f, Sz.X, 4.f);
+	DrawRect(Tint * 0.7f, R.Min.X, R.Min.Y, 3.f, Sz.Y);
+	DrawRect(Tint * 0.7f, R.Max.X - 3.f, R.Min.Y, 3.f, Sz.Y);
+	// Reflet animé qui balaie le bouton (vie/appel au clic)
+	const float SheenX = R.Min.X + (0.5f + 0.5f * FMath::Sin(T * 1.6f)) * (Sz.X - 40.f);
+	DrawRect(FLinearColor(Tint.R, Tint.G, Tint.B, 0.14f), SheenX, R.Min.Y + 4.f, 40.f, Sz.Y - 8.f);
+
+	// Libellé + ombre pour le contraste
 	float TW, TH; GetTextSize(Label, TW, TH, GEngine->GetLargeFont(), TextScale);
-	DrawText(Label, FLinearColor::White, R.Min.X + (Sz.X - TW) * 0.5f,
-		R.Min.Y + (Sz.Y - TH) * 0.5f, GEngine->GetLargeFont(), TextScale);
+	const float LX = R.Min.X + (Sz.X - TW) * 0.5f, LY = R.Min.Y + (Sz.Y - TH) * 0.5f;
+	DrawText(Label, FLinearColor(0.f, 0.f, 0.f, 0.7f), LX + 2.f, LY + 2.f, GEngine->GetLargeFont(), TextScale);
+	DrawText(Label, FLinearColor::White, LX, LY, GEngine->GetLargeFont(), TextScale);
+}
+
+// ─── Fond marin animé (dégradé + bulles + rais de lumière) ────────────────────
+void AWOTOLDemoHUD::DrawUnderwaterBackground(float W, float H)
+{
+	const float T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+
+	// Dégradé de profondeur : surface (haut) plus claire -> abysse (bas) sombre.
+	const int32 Bands = 48;
+	const FLinearColor Surface(0.05f, 0.20f, 0.34f, 1.f);
+	const FLinearColor Deep   (0.005f, 0.02f, 0.06f, 1.f);
+	const float BandH = H / Bands + 1.f;
+	for (int32 i = 0; i < Bands; ++i)
+	{
+		const float f = (float)i / (Bands - 1);
+		DrawRect(FMath::Lerp(Surface, Deep, f), 0.f, i * (H / Bands), W, BandH);
+	}
+
+	// Rais de lumière obliques qui dérivent lentement (god rays).
+	for (int32 j = 0; j < 5; ++j)
+	{
+		const float baseX = W * (0.12f + 0.18f * j);
+		const float x = baseX + FMath::Sin(T * 0.15f + j * 1.3f) * W * 0.04f;
+		DrawRect(FLinearColor(0.4f, 0.7f, 1.f, 0.035f), x, 0.f, 90.f + 20.f * j, H);
+	}
+
+	// Bulles qui montent (cercles semi-transparents), déterministes par indice.
+	auto Rnd = [](int32 n) -> float
+	{
+		n = (n << 13) ^ n;
+		return (float)((n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 2147483647.f;
+	};
+	if (Canvas)
+	{
+		const int32 NumBubbles = 46;
+		for (int32 i = 0; i < NumBubbles; ++i)
+		{
+			const float bx    = Rnd(i) * W + FMath::Sin(T * 0.6f + i) * 12.f; // léger zig-zag
+			const float size  = 3.f + Rnd(i + 100) * 13.f;
+			const float speed = 28.f + Rnd(i + 200) * 74.f;
+			const float phase = Rnd(i + 300);
+			const float by    = H - FMath::Fmod(T * speed + phase * (H + 140.f), H + 140.f);
+			const float a     = 0.06f + Rnd(i + 400) * 0.12f;
+			Canvas->K2_DrawPolygon(nullptr, FVector2D(bx, by), FVector2D(size, size), 16,
+				FLinearColor(0.6f, 0.85f, 1.f, a));
+			// petit reflet clair sur la bulle
+			Canvas->K2_DrawPolygon(nullptr, FVector2D(bx - size * 0.3f, by - size * 0.3f),
+				FVector2D(size * 0.28f, size * 0.28f), 10, FLinearColor(0.9f, 0.97f, 1.f, a * 1.4f));
+		}
+	}
+
+	// Vignette basse (assombrit le bas pour la lisibilité du texte).
+	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.35f), 0.f, H * 0.72f, W, H * 0.28f);
+}
+
+void AWOTOLDemoHUD::DrawGlowTitle(const FString& Text, float Y, float Scale, const FLinearColor& Color)
+{
+	if (!Canvas) return;
+	UFont* Font = GEngine->GetLargeFont();
+	float TW, TH; GetTextSize(Text, TW, TH, Font, Scale);
+	const float X = (Canvas->SizeX - TW) * 0.5f;
+	const float T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	const float Pulse = 0.75f + 0.25f * FMath::Sin(T * 1.8f);
+
+	// Halo : plusieurs copies décalées, teintées, translucides.
+	const FLinearColor Halo(Color.R, Color.G, Color.B, 0.10f * Pulse);
+	for (int32 i = 1; i <= 6; ++i)
+	{
+		const float o = (float)i * 1.6f;
+		DrawText(Text, Halo, X - o, Y, Font, Scale);
+		DrawText(Text, Halo, X + o, Y, Font, Scale);
+		DrawText(Text, Halo, X, Y - o, Font, Scale);
+		DrawText(Text, Halo, X, Y + o, Font, Scale);
+	}
+	// Ombre portée nette + titre plein
+	DrawText(Text, FLinearColor(0.f, 0.f, 0.f, 0.85f), X + 4.f, Y + 4.f, Font, Scale);
+	const FLinearColor Bright(FMath::Min(1.f, Color.R + 0.15f * Pulse),
+		FMath::Min(1.f, Color.G + 0.15f * Pulse), FMath::Min(1.f, Color.B + 0.15f * Pulse), 1.f);
+	DrawText(Text, Bright, X, Y, Font, Scale);
 }
 
 void AWOTOLDemoHUD::DrawMainMenu(float W, float H)
 {
-	DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, 1.f), 0.f, 0.f, W, H); // fond bleu nuit
-	DrawCenteredText(TEXT("W O T O L"), H * 0.26f, FLinearColor(0.5f, 0.85f, 1.f, 1.f), 3.4f);
-	DrawCenteredText(TEXT("War of the Ocean's Legacy"), H * 0.37f, FLinearColor(0.8f, 0.9f, 1.f, 1.f), 1.2f);
-	DrawButton(StartGameButtonRect(W, H), TEXT("Commencer la demo"), FLinearColor(0.3f, 0.7f, 1.f, 1.f), 1.5f);
+	DrawUnderwaterBackground(W, H);
+	// Titre imposant + halo pulsant, sous-titre, puis bouton
+	DrawGlowTitle(TEXT("W O T O L"), H * 0.22f, 6.0f, FLinearColor(0.45f, 0.85f, 1.f, 1.f));
+	DrawCenteredText(TEXT("War of the Ocean's Legacy"), H * 0.42f, FLinearColor(0.85f, 0.93f, 1.f, 1.f), 1.5f);
+	DrawButton(StartGameButtonRect(W, H), TEXT("COMMENCER LA DEMO"), FLinearColor(0.3f, 0.75f, 1.f, 1.f), 1.6f);
 }
 
 void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 {
-	DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, 1.f), 0.f, 0.f, W, H);
-	DrawCenteredText(TEXT("Choisissez votre faction"), H * 0.30f, FLinearColor::White, 2.0f);
-	DrawButton(FactionButtonRect(0, W, H), TEXT("AQUILORIS"), FLinearColor(0.25f, 0.55f, 1.f, 1.f), 1.6f);
-	DrawButton(FactionButtonRect(1, W, H), TEXT("NOXEENS"), FLinearColor(0.25f, 0.9f, 0.45f, 1.f), 1.6f);
+	DrawUnderwaterBackground(W, H);
+	DrawGlowTitle(TEXT("CHOISISSEZ VOTRE FACTION"), H * 0.16f, 2.2f, FLinearColor(0.7f, 0.9f, 1.f, 1.f));
+
+	const float T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	// Emblème animé au-dessus de chaque bouton (cristal Aquiloris / organisme Noxéen).
+	if (Canvas)
+	{
+		const FBox2D RA = FactionButtonRect(0, W, H);
+		const FBox2D RN = FactionButtonRect(1, W, H);
+		const float bobA = FMath::Sin(T * 1.4f) * 8.f;
+		const float bobN = FMath::Sin(T * 1.4f + 1.6f) * 8.f;
+		const FVector2D CA((RA.Min.X + RA.Max.X) * 0.5f, RA.Min.Y - 70.f + bobA);
+		const FVector2D CN((RN.Min.X + RN.Max.X) * 0.5f, RN.Min.Y - 70.f + bobN);
+		// Aquiloris : cristal (triangle cyan) + halo
+		Canvas->K2_DrawPolygon(nullptr, CA, FVector2D(52.f, 52.f), 16, FLinearColor(0.2f, 0.6f, 1.f, 0.15f));
+		Canvas->K2_DrawPolygon(nullptr, CA, FVector2D(34.f, 46.f), 3, FLinearColor(0.5f, 0.9f, 1.f, 0.95f));
+		// Noxéens : organisme (hexa vert) + halo
+		Canvas->K2_DrawPolygon(nullptr, CN, FVector2D(52.f, 52.f), 16, FLinearColor(0.2f, 0.9f, 0.45f, 0.15f));
+		Canvas->K2_DrawPolygon(nullptr, CN, FVector2D(40.f, 40.f), 16, FLinearColor(0.3f, 0.95f, 0.5f, 0.95f));
+	}
+
+	DrawButton(FactionButtonRect(0, W, H), TEXT("AQUILORIS"), FLinearColor(0.3f, 0.6f, 1.f, 1.f), 1.7f);
+	DrawButton(FactionButtonRect(1, W, H), TEXT("NOXEENS"), FLinearColor(0.3f, 0.95f, 0.5f, 1.f), 1.7f);
+	DrawCenteredText(TEXT("Aquiloris : cristal-tech, coordination   —   Noxeens : abysses bioluminescents"),
+		FactionButtonRect(0, W, H).Max.Y + 40.f, FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 1.0f);
 }
 
 void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 {
-	DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, 1.f), 0.f, 0.f, W, H); // fond bleu nuit
+	DrawUnderwaterBackground(W, H);
 	if (!Demo) return;
 
 	// Titre (or si victoire, rouge si défaite)
@@ -233,8 +353,8 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 		: FLinearColor(1.f, 0.3f, 0.25f, 1.f);
 	const FString Title = Demo->SummaryTitle.IsEmpty()
 		? (bWin ? TEXT("VICTOIRE") : TEXT("DEFAITE")) : Demo->SummaryTitle;
-	DrawCenteredText(FString::Printf(TEXT("— %s —"), *Title), H * 0.08f, TitleCol, 2.6f);
-	DrawCenteredText(TEXT("Resume de la bataille"), H * 0.16f, FLinearColor(0.8f, 0.9f, 1.f, 1.f), 1.1f);
+	DrawGlowTitle(FString::Printf(TEXT("— %s —"), *Title), H * 0.06f, 2.8f, TitleCol);
+	DrawCenteredText(TEXT("Resume de la bataille"), H * 0.17f, FLinearColor(0.8f, 0.9f, 1.f, 1.f), 1.1f);
 
 	// Deux colonnes : pertes de TON armée (gauche) / pertes de l'ennemi (droite)
 	auto DrawColumn = [&](float X, float ColW, const FString& Header,
@@ -299,9 +419,8 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 
 void AWOTOLDemoHUD::DrawInterlude(float W, float H, UDemoFlowSubsystem* Demo)
 {
-	DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, 1.f), 0.f, 0.f, W, H);
-	DrawCenteredText(TEXT("— ENTRE DEUX BATAILLES —"), H * 0.07f,
-		FLinearColor(0.6f, 0.9f, 1.f, 1.f), 1.9f);
+	DrawUnderwaterBackground(W, H);
+	DrawGlowTitle(TEXT("— ENTRE DEUX BATAILLES —"), H * 0.06f, 1.9f, FLinearColor(0.6f, 0.9f, 1.f, 1.f));
 
 	// Texte narratif (multi-lignes) — réparti sur la hauteur disponible AU-DESSUS du bouton
 	// (départ haut + interligne serré) pour que la dernière ligne ne soit jamais masquée.
