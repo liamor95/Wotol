@@ -65,6 +65,13 @@ private:
 	void DrawGlowTitle(const FString& Text, float Y, float Scale, const FLinearColor& Color);
 	void DrawLavaTitle(const FString& Text, float Y, float Scale);
 
+	// Image d'accueil : chargée soit comme asset importé (/Game/UI/MainMenuBG), soit
+	// directement depuis le PNG du disque (Content/UI/MainMenuBG.png) -> pas d'import
+	// manuel nécessaire. Mise en cache (chargée une seule fois).
+	class UTexture2D* GetMenuBackground();
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> MenuBgTexture = nullptr;
+	bool bMenuBgTried = false;
+
 	// Éléments style Total War
 	void DrawTopBar(float W, float H, class UWorld* World, class UDemoFlowSubsystem* Demo);
 	void DrawBossBar(float W, float H, class AWOTOLDemoUnit* Boss);

@@ -5,6 +5,9 @@
 #include "OceanCurrentSubsystem.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/Texture2D.h"
+#include "ImageUtils.h"
+#include "Misc/Paths.h"
+#include "Misc/FileHelper.h"
 #include "Gameplay/Battle/WOTOLPlayerController_Battle.h"
 #include "Gameplay/Battle/RTSBattleManager.h"
 #include "Gameplay/Battle/UnitSelectionManager.h"
@@ -290,46 +293,35 @@ void AWOTOLDemoHUD::DrawUnderwaterBackground(float W, float H)
 		DrawRect(FLinearColor(0.5f, 0.78f, 1.f, 0.03f), x, 0.f, 60.f + 26.f * j, H);
 	}
 
-	// ── 4) PAROIS ROCHEUSES latérales (jagged) — encadrent la scène, profondeur ─
+	// ── 4) ASSOMBRISSEMENT LATÉRAL doux (parois lointaines) — encadre sans dentelure
+	// pixelisée : simples bandes verticales dégradées vers les bords. ──
 	{
-		const int32 Rows = 54;
-		const float rowH = H / Rows + 1.f;
-		const FLinearColor WallFar (0.03f, 0.07f, 0.12f, 1.f);
-		const FLinearColor WallNear(0.015f, 0.03f, 0.055f, 1.f);
-		for (int32 r = 0; r < Rows; ++r)
+		const int32 Steps = 24;
+		for (int32 s = 0; s < Steps; ++s)
 		{
-			const float y = r * (H / Rows);
-			// Largeur dentelée (deux octaves de bruit) — la paroi avance/recule.
-			const float nL = Rnd(r * 2) * 0.6f + Rnd(r * 2 + 31) * 0.4f;
-			const float nR = Rnd(r * 2 + 7) * 0.6f + Rnd(r * 2 + 53) * 0.4f;
-			const float leftW  = W * (0.06f + 0.10f * nL);
-			const float rightW = W * (0.06f + 0.10f * nR);
-			// Couche lointaine (plus large, plus claire) puis proche (plus étroite, sombre).
-			DrawRect(WallFar,  0.f,        y, leftW,  rowH);
-			DrawRect(WallFar,  W - rightW, y, rightW, rowH);
-			DrawRect(WallNear, 0.f,        y, leftW  * 0.6f, rowH);
-			DrawRect(WallNear, W - rightW * 0.6f, y, rightW * 0.6f, rowH);
+			const float f = (float)s / (Steps - 1);           // 0 bord -> 1 centre
+			const float bw = W * 0.18f * (1.f - f);           // largeur décroissante
+			const float a  = (1.f - f) * 0.06f;
+			DrawRect(FLinearColor(0.f, 0.02f, 0.04f, a), 0.f, 0.f, bw, H);
+			DrawRect(FLinearColor(0.f, 0.02f, 0.04f, a), W - bw, 0.f, bw, H);
 		}
 	}
 
-	// ── 5) FOND MARIN dentelé (crêtes) au bas — vallée centrale ────────────────
+	// ── 5) FOND MARIN en vallée (bandes lisses, plus haut sur les bords) ───────
 	{
-		const int32 Cols = 96;
+		const int32 Cols = 64;
 		const float colW = W / Cols + 1.f;
 		for (int32 c = 0; c < Cols; ++c)
 		{
 			const float x = c * (W / Cols);
-			// Vallée : plus creux au centre, remonte sur les bords.
 			const float centerBias = FMath::Abs((float)c / Cols - 0.5f) * 2.f; // 0 centre -> 1 bords
-			const float n = Rnd(c) * 0.5f + Rnd(c + 17) * 0.5f;
-			const float farH  = H * (0.10f + 0.14f * centerBias + 0.06f * n);
-			DrawRect(FLinearColor(0.02f, 0.05f, 0.09f, 1.f), x, H - farH, colW, farH);
-			const float nearH = H * (0.05f + 0.10f * centerBias + 0.05f * Rnd(c + 91));
-			DrawRect(FLinearColor(0.008f, 0.02f, 0.035f, 1.f), x, H - nearH, colW, nearH);
+			const float farH = H * (0.08f + 0.12f * centerBias);
+			DrawRect(FLinearColor(0.015f, 0.035f, 0.06f, 1.f), x, H - farH, colW, farH);
 		}
 	}
 
-	// ── 6) CHEMINÉES VOLCANIQUES : lueurs chaudes qui palpitent près du fond ────
+	// ── 6) CHEMINÉES VOLCANIQUES : seulement de fines BRAISES qui montent (pas de gros
+	// halo en polygone plein, qui rendait des ovales orange opaques à l'écran). ──
 	if (Canvas)
 	{
 		const float vents[3][2] = { {0.16f, 0.86f}, {0.30f, 0.92f}, {0.78f, 0.88f} };
@@ -337,21 +329,13 @@ void AWOTOLDemoHUD::DrawUnderwaterBackground(float W, float H)
 		{
 			const float vx = W * vents[v][0];
 			const float vy = H * vents[v][1];
-			const float pulse = 0.5f + 0.5f * FMath::Sin(T * 2.f + v * 2.1f);
-			const float glow = 60.f + 40.f * pulse;
-			Canvas->K2_DrawPolygon(nullptr, FVector2D(vx, vy), FVector2D(glow, glow * 0.6f), 20,
-				FLinearColor(1.f, 0.35f, 0.08f, 0.10f + 0.06f * pulse));
-			Canvas->K2_DrawPolygon(nullptr, FVector2D(vx, vy), FVector2D(glow * 0.4f, glow * 0.28f), 16,
-				FLinearColor(1.f, 0.6f, 0.2f, 0.16f + 0.08f * pulse));
-			// Braises qui montent.
-			for (int32 e = 0; e < 6; ++e)
+			for (int32 e = 0; e < 8; ++e)
 			{
 				const float ephase = Rnd(v * 10 + e + 500);
 				const float ey = vy - FMath::Fmod(T * (30.f + ephase * 40.f) + ephase * 300.f, 300.f);
 				const float ex = vx + FMath::Sin(T * 1.5f + e) * 18.f;
 				const float ea = FMath::Clamp((vy - ey) / 300.f, 0.f, 1.f);
-				Canvas->K2_DrawPolygon(nullptr, FVector2D(ex, ey), FVector2D(2.5f, 2.5f), 8,
-					FLinearColor(1.f, 0.5f, 0.15f, (1.f - ea) * 0.7f));
+				DrawRect(FLinearColor(1.f, 0.5f, 0.15f, (1.f - ea) * 0.5f), ex, ey, 2.5f, 2.5f);
 			}
 		}
 	}
@@ -402,14 +386,9 @@ void AWOTOLDemoHUD::DrawLavaTitle(const FString& Text, float Y, float Scale)
 	float TW, TH; GetTextSize(Text, TW, TH, Font, Scale);
 	const float X = (Canvas->SizeX - TW) * 0.5f;
 	const float T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
-	const float pulse = 0.5f + 0.5f * FMath::Sin(T * 2.2f);
 
-	// Halo chaud diffus derrière le texte (plusieurs couches).
-	const FVector2D C(X + TW * 0.5f, Y + TH * 0.5f * Scale);
-	Canvas->K2_DrawPolygon(nullptr, C, FVector2D(TW * 0.62f, TH * Scale * 0.9f), 24,
-		FLinearColor(1.f, 0.25f, 0.05f, 0.10f + 0.05f * pulse));
-	Canvas->K2_DrawPolygon(nullptr, C, FVector2D(TW * 0.45f, TH * Scale * 0.7f), 24,
-		FLinearColor(1.f, 0.45f, 0.1f, 0.10f));
+	// (Pas de halo en polygone plein : le Canvas ne dégrade pas l'alpha -> ça faisait un
+	// gros ovale orange opaque. On s'appuie sur les passes de texte décalées ci-dessous.)
 
 	// Contour sombre (braise éteinte) pour détourer.
 	const float o = 3.f;
@@ -455,12 +434,35 @@ void AWOTOLDemoHUD::DrawGlowTitle(const FString& Text, float Y, float Scale, con
 	DrawText(Text, Color, X, Y, Font, Scale);
 }
 
+UTexture2D* AWOTOLDemoHUD::GetMenuBackground()
+{
+	if (bMenuBgTried) return MenuBgTexture;
+	bMenuBgTried = true;
+
+	// 1) Priorité à l'asset importé dans l'éditeur (le plus propre, cuit au packaging).
+	if (UTexture2D* Asset = LoadObject<UTexture2D>(nullptr, TEXT("/Game/UI/MainMenuBG.MainMenuBG")))
+	{
+		MenuBgTexture = Asset;
+		return MenuBgTexture;
+	}
+	// 2) Sinon, on charge le PNG DIRECTEMENT depuis le disque (pas d'import manuel requis
+	//    pour la démo en éditeur). Content/UI/MainMenuBG.png.
+	const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/MainMenuBG.png");
+	if (FPaths::FileExists(PngPath))
+	{
+		if (UTexture2D* Loaded = FImageUtils::ImportFileAsTexture2D(PngPath))
+		{
+			MenuBgTexture = Loaded;
+		}
+	}
+	return MenuBgTexture;
+}
+
 void AWOTOLDemoHUD::DrawMainMenu(float W, float H)
 {
-	// IMAGE d'accueil (si importée dans le projet : /Game/UI/MainMenuBG). Elle contient
-	// déjà le titre + le sous-titre -> on ne redessine pas le titre par-dessus. Tant qu'elle
-	// n'est pas importée, on retombe sur le fond procédural + titre lave.
-	if (UTexture2D* BG = LoadObject<UTexture2D>(nullptr, TEXT("/Game/UI/MainMenuBG.MainMenuBG")))
+	// IMAGE d'accueil : asset importé OU PNG chargé depuis le disque (voir GetMenuBackground).
+	// Elle contient déjà le titre + le sous-titre -> on ne redessine pas le titre par-dessus.
+	if (UTexture2D* BG = GetMenuBackground())
 	{
 		DrawTexture(BG, 0.f, 0.f, W, H, 0.f, 0.f, 1.f, 1.f);
 		// Léger assombrissement en bas pour la lisibilité du bouton.
