@@ -329,16 +329,14 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	const float Lat = UnitSpacing, Depth = UnitSpacing * 1.4f;
 	auto SetLayer = [](AWOTOLDemoUnit* U, float Z) { if (U) U->SetDesiredZ(Z); };
 
-	// PLACEMENT SYMÉTRIQUE : l'ennemi doit respecter le MÊME espace neutre au centre que
-	// le joueur (dont la limite de placement est à Center + PlacementBoundaryOffsetX).
-	// On décale toute la formation vers l'arrière si sa ligne avant dépasserait la limite
-	// MIROIR (Center - PlacementBoundaryOffsetX), pour un même écart des deux côtés.
-	const float MirrorX    = GetActorLocation().X - PlacementBoundaryOffsetX; // ex. Center + 1200
-	const float FrontReach = Depth * 5.f;                                     // avancée max (distance)
-	const float ShiftX     = FMath::Max(0.f, MirrorX - (Origin.X - FrontReach));
-	const FVector O        = Origin + FVector(ShiftX, 0.f, 0.f);
+	// PLACEMENT MIROIR EXACT de l'armée du joueur : la formation ennemie s'étend vers
+	// l'ARRIÈRE (loin du centre, +X), comme celle du joueur s'étend vers -X. Ainsi la
+	// ligne de front (chef/infanterie) est à la MÊME distance du centre des deux côtés
+	// (même espace neutre / même "premier tiers"), et les tireurs restent EN ARRIÈRE
+	// au lieu de se retrouver collés au Cristalliseur.
+	const FVector O = Origin; // Center + ArmySeparation/2 (déjà symétrique du joueur)
 
-	// Rangée compacte (colonnes de PerRow, se replie sur plusieurs lignes)
+	// Rangée compacte : rangées vers l'ARRIÈRE (+X, loin du centre).
 	auto PlaceRows = [&](FName Id, int32 Count, float BackStart, float Layer, int32 PerRow)
 	{
 		if (Id.IsNone()) return;
@@ -347,15 +345,17 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 			const int32 Row = i / PerRow;
 			const int32 Col = i % PerRow;
 			const float Y = (Col - (PerRow - 1) * 0.5f) * Lat;
-			const FVector Loc = O + FVector(-BackStart - Row * Depth, Y, 100.f);
+			const FVector Loc = O + FVector(BackStart + Row * Depth, Y, 100.f);
 			SetLayer(SpawnUnit(Id, Loc, Facing, 1.f), Layer);
 		}
 	};
 
+	// Chef en pointe vers le centre (miroir du chef joueur, à -Depth du centre côté ennemi).
 	SetLayer(SpawnUnit(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Chef),
-		O + FVector(0.f, 0.f, 100.f), Facing, 1.f), L1);
+		O + FVector(-Depth, 0.f, 100.f), Facing, 1.f), L1);
 
-	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Infanterie), InfantryCount, Depth, L0, 8);
+	// Infanterie en FRONT (près de l'origine), montées puis distance de plus en plus EN ARRIÈRE.
+	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Infanterie), InfantryCount, 0.f, L0, 8);
 	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Montee), MountedCount, Depth * 3.f, L1, 6);
 	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Distance), RangedCount, Depth * 5.f, L2, 8);
 }
@@ -1066,7 +1066,7 @@ void AWOTOLDemoDirector::TacticalTick()
 				// ~55% ASSIÈGENT l'objectif, ~45% CHASSENT les défenseurs (sinon elle se
 				// rue en masse sur le bâtiment et le détruit sans jamais combattre l'armée,
 				// ne laissant aucune chance à la défense). EnemyC = centre de l'armée adverse.
-				const bool bSiegeDuty = ((idx % 20) < 11); // ~55% siège / ~45% chasse
+				const bool bSiegeDuty = ((idx % 20) < 9); // ~45% siège / ~55% chasse l'armée
 				if (!bSiegeDuty)
 				{
 					// CHASSE l'armée ennemie : engage les défenseurs pour les réduire.
