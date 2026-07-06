@@ -199,6 +199,10 @@ private:
 	UFUNCTION()
 	void HandleHealthChanged(float NewHealth, float MaxHealth);
 
+	// MORT : stoppe tout mouvement, rend l'unité non sélectionnable/ciblable ; elle coule.
+	UFUNCTION()
+	void HandleDeath(AUnitBase* Unit);
+
 	// Cerveau autonome de créature/boss (cherche l'ennemi, avance, attaque)
 	void CreatureBrainTick(float DeltaSeconds);
 

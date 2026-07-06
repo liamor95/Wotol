@@ -97,6 +97,16 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	// MORTE : plus aucune logique de jeu (pas de compétence, pas de combat, pas de contrôle
+	// de couche). On anime UNIQUEMENT la lente descente vers le fond + l'affalement.
+	if (!IsAlive())
+	{
+		AnimateBody(DeltaSeconds);
+		if (bArticulated) AnimateArticulated(DeltaSeconds);
+		AnimateWhips(DeltaSeconds);
+		return;
+	}
+
 	if (bCreatureBrain)
 	{
 		CreatureBrainTick(DeltaSeconds);
@@ -260,6 +270,7 @@ void AWOTOLDemoUnit::BeginPlay()
 	BuildGreyboxShape();
 	OnUnitSelected.AddDynamic(this, &AWOTOLDemoUnit::HandleSelected);
 	OnHealthChanged.AddDynamic(this, &AWOTOLDemoUnit::HandleHealthChanged);
+	OnUnitDied.AddDynamic(this, &AWOTOLDemoUnit::HandleDeath);
 	LastKnownHealth = CurrentHealth;
 
 	// La couche verticale démarre au fond (décalage visuel 0). Le corps physique
@@ -311,6 +322,29 @@ void AWOTOLDemoUnit::HandleHealthChanged(float NewHealth, float MaxHealth)
 			FLinearColor(0.65f, 0.88f, 1.f, 1.f), 6);
 	}
 	LastKnownHealth = NewHealth;
+}
+
+void AWOTOLDemoUnit::HandleDeath(AUnitBase* /*Unit*/)
+{
+	// L'unité est morte : elle ne nage plus, ne bouge plus, n'est plus jouable.
+	DesiredZ = 0.f; // elle va couler vers le fond (interpolé lentement dans AnimateBody)
+
+	// Stoppe net tout déplacement physique et coupe le moteur de marche.
+	if (UCharacterMovementComponent* Move = GetCharacterMovement())
+	{
+		Move->StopMovementImmediately();
+		Move->DisableMovement();
+	}
+	// Coupe le cerveau de créature (le Kraken) le cas échéant.
+	bCreatureBrain = false;
+
+	// Non sélectionnable / non ciblable : on désactive le capteur de clic.
+	if (ClickProxy)
+	{
+		ClickProxy->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+	// Retire l'anneau/disque de sélection s'il était affiché.
+	SetSelected(false);
 }
 
 void AWOTOLDemoUnit::HandleSelected(bool bSel)
@@ -1299,8 +1333,11 @@ void AWOTOLDemoUnit::AnimateBody(float Dt)
 		|| St == EUnitAIState::Patrolling || St == EUnitAIState::Retreating;
 	const bool  bAttacking = (St == EUnitAIState::Attacking);
 
-	// Couche verticale VISUELLE : monte/descend en douceur vers DesiredZ
-	CurLayer = FMath::FInterpTo(CurLayer, DesiredZ, Dt, 2.5f);
+	// MORT : l'unité ne nage plus -> elle COULE lentement vers le fond (couche 0) et s'y
+	// immobilise. On force la couche cible au sol et on descend TRÈS doucement.
+	if (bDead) DesiredZ = 0.f;
+	// Couche verticale VISUELLE : monte/descend vers DesiredZ (lentement si morte = elle coule).
+	CurLayer = FMath::FInterpTo(CurLayer, DesiredZ, Dt, bDead ? 0.5f : 2.5f);
 
 	// ── Flottement du conteneur visuel (nage) + inclinaison + couche ──
 	if (VisualRoot)
