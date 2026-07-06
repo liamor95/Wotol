@@ -54,6 +54,14 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Combat")
 	float BlindedUntil = 0.f;
 
+	// RALENTI (encre du Kraken) jusqu'à ce temps : vitesse fortement réduite tant qu'on
+	// est dans la flaque. Rafraîchi en continu par la zone d'encre.
+	UPROPERTY(BlueprintReadOnly, Category = "Combat")
+	float SlowUntil = 0.f;
+
+	// Vitesse de marche de base (mémorisée pour appliquer/retirer le ralenti).
+	float BaseWalkSpeed = 0.f;
+
 	// ── Rythme de bataille (demo) — batailles plus LONGUES et sous-marines ──
 	// Multiplicateur GLOBAL de dégâts (< 1 = combats plus longs, plus d'échanges).
 	static float GlobalDamageScale;

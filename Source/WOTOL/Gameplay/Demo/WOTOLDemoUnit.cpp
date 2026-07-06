@@ -19,6 +19,7 @@
 #include "WOTOLBubbleBurst.h"
 #include "WOTOLCaptureObject.h"
 #include "WOTOLCoverStructure.h"
+#include "WOTOLInkZone.h"
 #include "WOTOLProjectileTracer.h"
 #include "DemoFlowSubsystem.h"
 #include "OceanCurrentSubsystem.h"
@@ -166,6 +167,14 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 				}
 			}
 		}
+	}
+
+	// RALENTI par l'encre du Kraken : tant que SlowUntil est actif, vitesse fortement
+	// réduite ; sinon vitesse de base restaurée.
+	if (GetCharacterMovement() && BaseWalkSpeed > 0.f)
+	{
+		const float NowS = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+		GetCharacterMovement()->MaxWalkSpeed = (NowS < SlowUntil) ? BaseWalkSpeed * 0.4f : BaseWalkSpeed;
 	}
 
 	if (!NameTag) return;
@@ -395,6 +404,16 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 	AUnitBase* Nearest = FindNearestEnemyUnit();
 	if (!Nearest) return;
 
+	// JET D'ENCRE périodique (~12 s) : le céphalopode projette de l'encre sur un groupe
+	// ennemi -> flaque IRRÉGULIÈRE au sol qui RALENTIT et réduit la PRÉCISION des unités
+	// dessus (+ léger poison). Même capacité quelle que soit la faction affrontée.
+	InkCooldown -= DeltaSeconds;
+	if (InkCooldown <= 0.f)
+	{
+		InkCooldown = FMath::FRandRange(11.f, 14.f);
+		DoInkJet(Nearest);
+	}
+
 	// ── MANŒUVRE : le Kraken n'est pas STATIQUE. Toutes les ~4-8 s il déclenche un
 	// contournement : il tourne autour de l'ennemi (strafe latéral) et change de couche
 	// verticale pour attaquer sous un autre angle / anticiper. Occupant 2 niveaux, sa
@@ -605,7 +624,7 @@ void AWOTOLDemoUnit::Ability_Laser()
 			if (AWOTOLCaptureObject* Obj = Cast<AWOTOLCaptureObject>(D->GetCaptureObject()))
 				if (Obj->OwnerFaction != GetFaction() && Obj->GetHealthPercent() > 0.f)
 				{
-					Obj->ApplyDamage(650.f);
+					Obj->ApplyDamage(200.f); // réduit 650->200 : menace réelle sans pulvériser l'objectif
 					To = Obj->GetActorLocation() + FVector(0, 0, 120.f);
 					bHasTarget = true;
 				}
@@ -1443,6 +1462,50 @@ void AWOTOLDemoUnit::AnimateWhips(float Dt)
 	};
 	AnimateChain(WhipJointsR, 0.f);
 	AnimateChain(WhipJointsL, 1.5f);
+}
+
+void AWOTOLDemoUnit::DoInkJet(AUnitBase* Target)
+{
+	UWorld* W = GetWorld();
+	if (!W || !Target) return;
+
+	// Point d'impact au SOL sous la cible (là où l'encre se répand).
+	FVector Ground = Target->GetActorLocation();
+	Ground.Z = 6.f;
+
+	// ── VISUEL : jet d'encre depuis la gueule vers le point d'impact + éclaboussure ──
+	const FVector Mouth = (GetFloatingTextAnchor() ? GetFloatingTextAnchor()->GetComponentLocation()
+		: GetActorLocation()) + GetActorForwardVector() * 120.f + FVector(0, 0, 40.f);
+	const FLinearColor InkCol(0.15f, 0.05f, 0.28f, 1.f); // encre violet sombre
+	AWOTOLProjectileTracer::Fire(W, Mouth, Ground + FVector(0, 0, 60.f), InkCol, 2.4f);
+	AWOTOLBubbleBurst::Burst(W, Ground + FVector(0, 0, 20.f), InkCol, 20);
+	AWOTOLDamageNumber::SpawnText(W, GetActorLocation() + FVector(0, 0, 200.f),
+		TEXT("Jet d'encre"), InkCol);
+
+	// ── FLAQUE persistante (ralenti + précision réduite pour qui s'y trouve) ──
+	FActorSpawnParameters P; P.Owner = this;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	if (AWOTOLInkZone* Zone = W->SpawnActor<AWOTOLInkZone>(
+			AWOTOLInkZone::StaticClass(), Ground, FRotator::ZeroRotator, P))
+	{
+		Zone->Radius   = 400.f;
+		Zone->Lifetime = 8.f;
+		Zone->Caster   = this;
+	}
+
+	// Aveuglement IMMÉDIAT des unités proches de l'impact (le jet les asperge).
+	const float Now = W->GetTimeSeconds();
+	if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
+	{
+		const EFactionID Enemy = (GetFaction() == EFactionID::Aquiloris)
+			? EFactionID::Noxeens : EFactionID::Aquiloris;
+		for (AUnitBase* U : Reg->GetUnitsForFaction(Enemy))
+		{
+			if (!U || !U->IsAlive()) continue;
+			if (FVector::DistSquared2D(U->GetActorLocation(), Ground) < 400.f * 400.f)
+				U->BlindedUntil = Now + 3.f; // précision réduite quelques secondes
+		}
+	}
 }
 
 void AWOTOLDemoUnit::DoWhipStrike()

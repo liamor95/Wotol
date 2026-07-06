@@ -93,6 +93,7 @@ void AUnitBase::InitFromDataAsset()
 	// On applique le frottement de l'eau (GlobalSpeedScale) -> déplacements sous-marins
 	// plus lents = batailles moins expédiées.
 	GetCharacterMovement()->MaxWalkSpeed = 600.f * UnitData->Stats.MovementSpeed * GlobalSpeedScale;
+	BaseWalkSpeed = GetCharacterMovement()->MaxWalkSpeed; // mémorisé pour le ralenti (encre)
 }
 
 float AUnitBase::GetHealthPercent() const

@@ -221,12 +221,14 @@ private:
 	void AnimateWhips(float DeltaSeconds);
 	// Déclenche un coup de fouet : repousse et blesse les unités devant le Kraken.
 	void DoWhipStrike();
+	void DoInkJet(AUnitBase* Target); // jet d'encre -> flaque ralentissante/aveuglante
 
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> WhipJointsL;
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> WhipJointsR;
 	float WhipCooldown = 2.f;   // temps avant le prochain coup
 	float WhipStrike   = -1.f;  // <0 = repos ; 0..1 = déroulé du coup en cours
 	float CritCooldown = 3.f;   // (boss) temps avant la prochaine attaque critique possible
+	float InkCooldown  = 6.f;   // (boss) temps avant le prochain JET D'ENCRE
 
 	// (Boss) REPOSITIONNEMENT dynamique : le Kraken n'est pas figé, il tourne autour de
 	// l'ennemi, change d'angle et de couche verticale pour anticiper/attaquer à découvert.
