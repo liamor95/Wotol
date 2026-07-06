@@ -444,9 +444,14 @@ void AWOTOLDemoDirector::LaunchBattle()
 				}
 				// AVANTAGE DE ZONE (phase 2) : le joueur a POSÉ le Cristalliseur et capturé
 				// la zone en phase 1 -> ses unités défendent un terrain qui leur appartient
-				// (cristaux de terraformation) : elles ENCAISSENT MOINS (bonus défensif).
+				// (cristaux de terraformation). Les Noxéens surclassaient trop la défense
+				// (35/35 pertes vs 8) : on donne un avantage FORT sur les deux fronts —
+				// encaisser beaucoup moins ET frapper plus fort. [Réglable]
 				if (CaptureObject != nullptr)
-					U->IncomingDamageMult = 0.7f; // -30% de dégâts subis
+				{
+					U->IncomingDamageMult = 0.5f;  // -50% de dégâts subis
+					U->OutgoingDamageMult = 1.4f;  // +40% de dégâts infligés
+				}
 			}
 
 			// ── ÉQUILIBRAGE AUTOMATIQUE PAR FACTION (phase 1, Kraken) ──

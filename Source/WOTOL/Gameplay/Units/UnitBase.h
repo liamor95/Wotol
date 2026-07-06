@@ -67,6 +67,11 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Combat")
 	float IncomingDamageMult = 1.f;
 
+	// Multiplicateur des dégâts INFLIGÉS (1 = normal). > 1 = avantage offensif (ex. le
+	// défenseur de la phase 2 galvanisé par sa zone/ses cristaux -> frappe plus fort).
+	UPROPERTY(BlueprintReadWrite, Category = "Combat")
+	float OutgoingDamageMult = 1.f;
+
 	// ── Rythme de bataille (demo) — batailles plus LONGUES et sous-marines ──
 	// Multiplicateur GLOBAL de dégâts (< 1 = combats plus longs, plus d'échanges).
 	static float GlobalDamageScale;

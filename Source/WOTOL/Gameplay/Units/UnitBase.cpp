@@ -200,6 +200,7 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 	// Dégâts de base : ATK/s × cooldown = dégâts par frappe. Réduits par le multiplicateur
 	// global de rythme -> plus d'échanges, batailles plus longues.
 	float BaseDamage = UnitData->Stats.AttackDPS * UnitData->Stats.AttackCooldown * GlobalDamageScale;
+	BaseDamage *= OutgoingDamageMult; // avantage OFFENSIF de zone (défenseur galvanisé)
 
 	// Appliquer le multiplicateur vertical (attaque ascendante depuis Hadal = ×3)
 	if (VerticalLayer && Target->VerticalLayer)
