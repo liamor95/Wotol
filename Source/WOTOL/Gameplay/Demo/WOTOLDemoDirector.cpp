@@ -1061,7 +1061,33 @@ void AWOTOLDemoDirector::TacticalTick()
 			}
 			if (bHasObj && !bDefendObj)
 			{
-				// ASSAUT sur le Cristalliseur : lire la défense adverse et la briser.
+				// ASSAUT : l'armée ATTAQUANTE partage son effort entre DEUX buts —
+				// (1) détruire le Cristalliseur, (2) anéantir l'armée qui le défend.
+				// ~55% ASSIÈGENT l'objectif, ~45% CHASSENT les défenseurs (sinon elle se
+				// rue en masse sur le bâtiment et le détruit sans jamais combattre l'armée,
+				// ne laissant aucune chance à la défense). EnemyC = centre de l'armée adverse.
+				const bool bSiegeDuty = ((idx % 20) < 11); // ~55% siège / ~45% chasse
+				if (!bSiegeDuty)
+				{
+					// CHASSE l'armée ennemie : engage les défenseurs pour les réduire.
+					switch (R)
+					{
+						case EUnitRole::Distance:
+							Dest  = EnemyC - ToEnemyFromObj * 200.f; // canarde les défenseurs au large
+							Layer = bCanLayer ? 1400.f : 0.f;
+							break;
+						case EUnitRole::Montee:
+						case EUnitRole::Speciale:
+							Dest  = EnemyC;                          // charge les défenseurs
+							Layer = 0.f;
+							break;
+						default:
+							Dest  = EnemyC;                          // mêlée / chef sur l'armée
+							Layer = bCanLayer ? 300.f : 0.f;
+							break;
+					}
+				}
+				else
 				switch (R)
 				{
 					case EUnitRole::Distance:
