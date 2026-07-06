@@ -45,6 +45,18 @@ void URTSBattleManager::StartBattlePhase(float BattleDurationSeconds)
 	}
 }
 
+void URTSBattleManager::ResetForNewBattle(float BattleDurationSeconds)
+{
+	if (UWorld* W = GetWorld())
+	{
+		W->GetTimerManager().ClearTimer(BattleTickHandle);
+	}
+	TimeRemaining = FMath::Max(BattleDurationSeconds, 60.f);
+	bBattleEnded  = false;
+	SetPhase(EBattlePhase::Preparation);
+	OnBattleTimerTick.Broadcast(TimeRemaining); // rafraîchit l'affichage immédiatement
+}
+
 void URTSBattleManager::EndBattle(EFactionID Winner, EBattleResult Result)
 {
 	if (bBattleEnded) return;

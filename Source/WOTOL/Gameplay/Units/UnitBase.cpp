@@ -297,7 +297,9 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 			const USceneComponent* ToA   = Target->GetFloatingTextAnchor();
 			const FVector FromLoc = (FromA ? FromA->GetComponentLocation() : GetActorLocation()) + FVector(0, 0, 40.f);
 			const FVector ToLoc   = (ToA ? ToA->GetComponentLocation() : Target->GetActorLocation()) + FVector(0, 0, 40.f);
-			AWOTOLProjectileTracer::Fire(GetWorld(), FromLoc, ToLoc, Col, 1.8f);
+			// Noxéen (Noxeblast) = ovale allongé violet ; Aquiloris (Aquisphères) = petite sphère.
+			const bool bBolt = (GetFaction() == EFactionID::Noxeens);
+			AWOTOLProjectileTracer::Fire(GetWorld(), FromLoc, ToLoc, Col, 1.0f, bBolt);
 		}
 	}
 

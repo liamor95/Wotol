@@ -20,6 +20,7 @@
 #include "WOTOLCaptureObject.h"
 #include "WOTOLCoverStructure.h"
 #include "WOTOLInkZone.h"
+#include "WOTOLBeam.h"
 #include "WOTOLProjectileTracer.h"
 #include "DemoFlowSubsystem.h"
 #include "OceanCurrentSubsystem.h"
@@ -640,16 +641,42 @@ void AWOTOLDemoUnit::Ability_Laser()
 	if (!bHasTarget) return;
 
 	// Couleur du rayon = couleur de FACTION (vert Noxéen / cyan Aquiloris).
-	const FLinearColor Beam = (GetFaction() == EFactionID::Noxeens)
+	const FLinearColor BeamCol = (GetFaction() == EFactionID::Noxeens)
 		? FLinearColor(0.3f, 1.f, 0.45f, 1.f) : FLinearColor(0.3f, 0.9f, 1.f, 1.f);
-	// Faisceau : plusieurs boules très rapides le long de la ligne (approximation greybox).
-	for (int32 i = 0; i < 6; ++i)
+
+	// Décision : s'il y a PLUSIEURS ennemis alignés devant -> BALAYAGE horizontal du rayon
+	// (touche tout le banc) ; sinon rayon FIXE sur la cible unique. Le trait est CONTINU.
+	const FVector Fwd = GetActorForwardVector();
+	TArray<float> FrontYaws; float MinYaw = 999.f, MaxYaw = -999.f; int32 Front = 0;
+	if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
 	{
-		const FVector A = FMath::Lerp(From, To, i / 6.f);
-		const FVector B = FMath::Lerp(From, To, (i + 1) / 6.f);
-		AWOTOLProjectileTracer::Fire(W, A, B, Beam, 2.4f);
+		const EFactionID Enemy = (GetFaction() == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
+		for (AUnitBase* U : Reg->GetUnitsForFaction(Enemy))
+		{
+			if (!U || !U->IsAlive()) continue;
+			FVector D = U->GetActorLocation() - From; D.Z = 0.f;
+			if (D.Size() > 1600.f) continue;
+			if (FVector::DotProduct(D.GetSafeNormal(), Fwd) < 0.3f) continue; // devant seulement
+			const float Y = D.Rotation().Yaw;
+			MinYaw = FMath::Min(MinYaw, Y); MaxYaw = FMath::Max(MaxYaw, Y); ++Front;
+		}
 	}
-	AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 120.f), TEXT("Rayon Laser"), Beam);
+
+	if (Front >= 3 && (MaxYaw - MinYaw) > 12.f)
+	{
+		// BALAYAGE : le rayon balaie de MinYaw à MaxYaw en ~1 s (le bras suit ce mouvement),
+		// touchant chaque ennemi traversé (dégâts répartis, un peu moins par cible).
+		AWOTOLBeam::Fire(W, From, MinYaw - 6.f, MaxYaw + 6.f, 1600.f, BeamCol, this, 240.f);
+		AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 120.f), TEXT("Rayon — Balayage"), BeamCol);
+	}
+	else
+	{
+		// RAYON FIXE sur la cible unique (bâtiment ou ennemi le plus proche).
+		FVector D = To - From; D.Z = 0.f;
+		const float Y = D.Rotation().Yaw;
+		AWOTOLBeam::Fire(W, From, Y, Y, FMath::Max(600.f, D.Size() + 100.f), BeamCol, this, 0.f);
+		AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 120.f), TEXT("Rayon Laser"), BeamCol);
+	}
 }
 
 // NOXEBLAST — Rafale : plusieurs projectiles sur l'ennemi le plus proche.
@@ -664,7 +691,7 @@ void AWOTOLDemoUnit::Ability_ProjectileBurst()
 	for (int32 i = 0; i < 5; ++i)
 	{
 		const FVector Jit(FMath::FRandRange(-40.f, 40.f), FMath::FRandRange(-40.f, 40.f), FMath::FRandRange(-20.f, 40.f));
-		AWOTOLProjectileTracer::Fire(W, From, To + Jit, FLinearColor(0.55f, 0.35f, 1.f, 1.f), 1.6f);
+		AWOTOLProjectileTracer::Fire(W, From, To + Jit, FLinearColor(0.55f, 0.35f, 1.f, 1.f), 1.0f, /*bBolt=*/true);
 	}
 	Foe->TakeDamageFromUnit(180.f, this);
 	AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 110.f), TEXT("Rafale"),
@@ -1490,6 +1517,9 @@ void AWOTOLDemoUnit::DoInkJet(AUnitBase* Target)
 	{
 		Zone->Radius   = 400.f;
 		Zone->Lifetime = 8.f;
+		// Hauteur du crachat = couche visuelle du Kraken : le brouillard flotte là ~1 s
+		// puis s'écoule au sol (géré par la zone). Si le Kraken est haut, le fog est haut.
+		Zone->FloatHeight = FMath::Max(200.f, CurLayer + 200.f);
 		Zone->Caster   = this;
 	}
 

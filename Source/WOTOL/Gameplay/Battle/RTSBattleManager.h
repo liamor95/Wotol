@@ -39,6 +39,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Battle|RTS")
 	void EndBattle(EFactionID Winner, EBattleResult Result);
 
+	// Réinitialise le chrono/état AVANT une nouvelle bataille (transition de phase) :
+	// le timer réaffiche la durée pleine (10:00) dès la préparation, pas le reliquat
+	// de la phase précédente.
+	UFUNCTION(BlueprintCallable, Category = "Battle|RTS")
+	void ResetForNewBattle(float BattleDurationSeconds = 600.f);
+
 	// ─── Lecture ──────────────────────────────────────────────────────────────
 
 	UFUNCTION(BlueprintPure, Category = "Battle|RTS")

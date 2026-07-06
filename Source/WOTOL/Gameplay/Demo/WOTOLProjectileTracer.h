@@ -16,9 +16,11 @@ class WOTOL_API AWOTOLProjectileTracer : public AActor
 public:
 	AWOTOLProjectileTracer();
 
-	// Tire une boule de From vers To (couleur = faction).
+	// Tire un projectile de From vers To (couleur = faction).
+	// bBolt = true -> ovale ALLONGÉ (trait/projectile, ex. Noxeblast) orienté vers la cible.
+	// bBolt = false -> petite SPHÈRE (ex. Aquisphères), taille d'un vrai projectile.
 	static void Fire(UWorld* World, const FVector& From, const FVector& To,
-		const FLinearColor& Color, float Size = 1.f);
+		const FLinearColor& Color, float Size = 1.f, bool bBolt = false);
 
 	virtual void Tick(float DeltaSeconds) override;
 

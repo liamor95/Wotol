@@ -21,13 +21,15 @@ AWOTOLProjectileTracer::AWOTOLProjectileTracer()
 }
 
 void AWOTOLProjectileTracer::Fire(UWorld* World, const FVector& From, const FVector& To,
-	const FLinearColor& Color, float Size)
+	const FLinearColor& Color, float Size, bool bBolt)
 {
 	if (!World) return;
+	// Oriente l'acteur vers la cible (utile pour l'ovale allongé).
+	const FRotator Aim = (To - From).Rotation();
 	FActorSpawnParameters P;
 	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	AWOTOLProjectileTracer* T = World->SpawnActor<AWOTOLProjectileTracer>(
-		AWOTOLProjectileTracer::StaticClass(), From, FRotator::ZeroRotator, P);
+		AWOTOLProjectileTracer::StaticClass(), From, Aim, P);
 	if (!T) return;
 
 	T->Target = To;
@@ -35,31 +37,38 @@ void AWOTOLProjectileTracer::Fire(UWorld* World, const FVector& From, const FVec
 	UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
 		nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 
-	// Cœur vif (couleur saturée, un peu éclaircie pour "briller")
-	const float S = 0.55f * Size; // nettement plus gros qu'avant (0.28)
+	const FLinearColor Core(FMath::Min(1.f, Color.R + 0.3f),
+		FMath::Min(1.f, Color.G + 0.3f), FMath::Min(1.f, Color.B + 0.3f), 1.f);
+
+	// Taille de VRAI projectile (bien plus petit que les unités). Rayon ~15-25 cm.
 	if (Sphere) T->Ball->SetStaticMesh(Sphere);
-	T->Ball->SetRelativeScale3D(FVector(S, S, S));
-	if (BaseMat)
+	if (bBolt)
 	{
+		// Ovale ALLONGÉ le long de l'axe X (sens de tir) : fin et effilé = trait/projectile.
+		T->Ball->SetRelativeScale3D(FVector(0.55f * Size, 0.14f * Size, 0.14f * Size));
+	}
+	else
+	{
+		// Petite sphère.
+		const float S = 0.22f * Size;
+		T->Ball->SetRelativeScale3D(FVector(S, S, S));
+	}
+	if (BaseMat)
 		if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, T))
 		{
-			const FLinearColor Core(FMath::Min(1.f, Color.R + 0.3f),
-				FMath::Min(1.f, Color.G + 0.3f), FMath::Min(1.f, Color.B + 0.3f), 1.f);
 			MID->SetVectorParameterValue(TEXT("Color"), Core);
 			T->Ball->SetMaterial(0, MID);
 		}
-	}
-	// Halo (env. 1.9× le cœur, couleur de faction pleine) : lisible de loin.
+
+	// Halo DISCRET (juste un léger nimbe), pas une grosse boule.
 	if (Sphere) T->Halo->SetStaticMesh(Sphere);
-	T->Halo->SetRelativeScale3D(FVector(1.9f, 1.9f, 1.9f)); // relatif au cœur
+	T->Halo->SetRelativeScale3D(bBolt ? FVector(1.15f, 1.5f, 1.5f) : FVector(1.4f, 1.4f, 1.4f));
 	if (BaseMat)
-	{
 		if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, T))
 		{
-			MID->SetVectorParameterValue(TEXT("Color"), Color);
+			MID->SetVectorParameterValue(TEXT("Color"), FLinearColor(Color.R, Color.G, Color.B, 0.4f));
 			T->Halo->SetMaterial(0, MID);
 		}
-	}
 }
 
 void AWOTOLProjectileTracer::Tick(float DeltaSeconds)

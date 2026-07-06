@@ -21,8 +21,9 @@ public:
 	AWOTOLInkZone();
 
 	// Configuré par le Kraken au spawn.
-	float Radius   = 380.f;   // rayon d'effet (~7-8 m de diamètre)
-	float Lifetime = 8.f;     // durée avant dissipation
+	float Radius      = 380.f;   // rayon d'effet (~7-8 m de diamètre)
+	float Lifetime    = 8.f;     // durée totale (fog + flaque au sol)
+	float FloatHeight = 0.f;     // hauteur où l'encre est crachée (couche du Kraken)
 	TWeakObjectPtr<AUnitBase> Caster; // le Kraken (pour attribuer le poison)
 
 protected:
@@ -32,6 +33,11 @@ protected:
 	UPROPERTY() TObjectPtr<USceneComponent> SceneRoot;
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> Blobs;
 
-	float Elapsed = 0.f;
+	float Elapsed  = 0.f;
 	float DotAccum = 0.f; // accumulateur pour le poison (appliqué ~1x/s)
+	float GroundZ  = 6.f;
+	TArray<FVector> BlobBase; // positions locales de base des galettes (pour l'ondulation)
+
+	static constexpr float FogTime     = 1.2f; // durée du brouillard flottant
+	static constexpr float DescendTime = 0.6f; // durée d'écoulement vers le sol
 };

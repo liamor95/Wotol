@@ -87,6 +87,12 @@ void AWOTOLDemoDirector::BeginPreparation()
 	CleanupUnits(); // repart d'une armée propre (utile en phase 2)
 	bBattleConcluded = false;
 
+	// REMET LE CHRONO À 10:00 dès la préparation (sinon il affiche le reliquat de la
+	// phase précédente). Nouvelle bataille = tout repart à zéro.
+	if (UWorld* W = GetWorld())
+		if (URTSBattleManager* RTS = W->GetSubsystem<URTSBattleManager>())
+			RTS->ResetForNewBattle(600.f);
+
 	// On VIDE la sélection : sinon le HUD (barre de commandement bas-gauche) continue
 	// d'afficher le roster de la phase précédente (unités désormais détruites/différentes).
 	// Le joueur re-sélectionnera ses nouvelles unités et le HUD se réaffichera alors.
@@ -525,6 +531,14 @@ void AWOTOLDemoDirector::LaunchBattle()
 	// Siège du bâtiment (phase 2) : dégâts en continu selon les assiégeants proches.
 	if (CaptureObject)
 	{
+		// ── ÉQUILIBRAGE ASYMÉTRIQUE de l'objectif selon l'ATTAQUANT ──
+		// Les Noxéens attaquants (gros DPS) écrasaient la défense Aquiloris et détruisaient
+		// le Cristalliseur. Les Aquiloris attaquants laissaient le Noxéen défenseur gagner
+		// (cas "parfait" -> on n'y touche PAS). On RENFORCE donc l'objectif UNIQUEMENT quand
+		// l'attaquant est Noxéen, pour que la défense Aquiloris soit tenable jusqu'au chrono.
+		const float ObjHP = (CachedRivalFaction == EFactionID::Noxeens) ? 26000.f : 16000.f;
+		CaptureObject->MaxHealth     = ObjHP;
+		CaptureObject->CurrentHealth = ObjHP;
 		GetWorldTimerManager().SetTimer(
 			SiegeHandle, this, &AWOTOLDemoDirector::SiegeTick, 1.f, true);
 	}

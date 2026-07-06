@@ -47,9 +47,11 @@ void AWOTOLInkZone::BeginPlay()
 		const float bx = FMath::Cos(ang) * dist;
 		const float by = FMath::Sin(ang) * dist;
 		const float br = Radius * (0.35f + InkRnd(i + 40) * 0.5f);
-		// Cylindre TRÈS plat (galette) posé au sol.
-		C->SetRelativeScale3D(FVector(br / 50.f, br / 50.f, 0.03f));
-		C->SetRelativeLocation(FVector(bx, by, 4.f + InkRnd(i + 60) * 3.f));
+		// Départ en BROUILLARD : galette plus volumineuse (haute) ; elle s'aplatira au sol.
+		C->SetRelativeScale3D(FVector(br / 50.f, br / 50.f, 0.4f));
+		const FVector Base3(bx, by, InkRnd(i + 60) * 40.f);
+		C->SetRelativeLocation(Base3);
+		BlobBase.Add(Base3);
 
 		if (Base)
 			if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Base, this))
@@ -60,6 +62,11 @@ void AWOTOLInkZone::BeginPlay()
 			}
 		Blobs.Add(C);
 	}
+
+	// Démarre à la HAUTEUR du crachat (couche du Kraken) : le brouillard flotte là.
+	FVector L = GetActorLocation();
+	L.Z = FMath::Max(GroundZ, FloatHeight);
+	SetActorLocation(L);
 }
 
 void AWOTOLInkZone::Tick(float Dt)
@@ -70,6 +77,43 @@ void AWOTOLInkZone::Tick(float Dt)
 	UWorld* W = GetWorld();
 	if (!W) return;
 	const float Now = W->GetTimeSeconds();
+
+	// ── PHASES : brouillard flottant (FogTime) -> écoulement vers le sol (DescendTime)
+	// -> flaque au sol (le reste). Hauteur de l'acteur interpolée en conséquence. ──
+	const bool bAirborne = (Elapsed < FogTime);
+	{
+		float z;
+		if (Elapsed < FogTime)                 z = FMath::Max(GroundZ, FloatHeight);
+		else if (Elapsed < FogTime + DescendTime)
+		{
+			const float t = (Elapsed - FogTime) / DescendTime;
+			z = FMath::Lerp(FMath::Max(GroundZ, FloatHeight), GroundZ, t);
+		}
+		else                                   z = GroundZ;
+		FVector L = GetActorLocation(); L.Z = z; SetActorLocation(L);
+	}
+
+	// ONDULATION type fumée sous-marine tant que c'est aérien, puis APLATISSEMENT au sol.
+	for (int32 i = 0; i < Blobs.Num(); ++i)
+	{
+		if (!Blobs[i] || !BlobBase.IsValidIndex(i)) continue;
+		const FVector B = BlobBase[i];
+		if (bAirborne)
+		{
+			const float w = FMath::Sin(Now * 2.5f + i * 1.3f);
+			Blobs[i]->SetRelativeLocation(B + FVector(w * 25.f, FMath::Cos(Now * 2.f + i) * 25.f, w * 20.f));
+			const float br = Blobs[i]->GetRelativeScale3D().X;
+			Blobs[i]->SetRelativeScale3D(FVector(br, br, 0.4f + 0.15f * w)); // volute qui respire
+		}
+		else
+		{
+			// s'aplatit progressivement en galette au sol
+			FVector S = Blobs[i]->GetRelativeScale3D();
+			S.Z = FMath::FInterpTo(S.Z, 0.03f, Dt, 6.f);
+			Blobs[i]->SetRelativeScale3D(S);
+			Blobs[i]->SetRelativeLocation(FVector(B.X, B.Y, 4.f));
+		}
+	}
 
 	// Dissipation : sur la dernière seconde, on rétrécit la tache (fondu).
 	const float Remain = Lifetime - Elapsed;
