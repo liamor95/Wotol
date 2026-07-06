@@ -150,6 +150,7 @@ float AUnitBase::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit)
 	const float DefReduction = UnitData ? (UnitData->Stats.DefensePercent / 100.f) : 0.f;
 	float EffDamage          = Damage * (1.f - DefReduction);
 	if (bBlocked) EffDamage *= 0.35f; // coup paré = 65% de dégâts en moins
+	EffDamage *= IncomingDamageMult;  // avantage de ZONE (défenseur qui possède le terrain)
 	const float Applied      = FMath::Min(EffDamage, CurrentHealth);
 	CurrentHealth           -= Applied;
 	if (InstigatorUnit) InstigatorUnit->DamageDealt += Applied; // pour le résumé de bataille

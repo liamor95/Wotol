@@ -62,6 +62,11 @@ public:
 	// Vitesse de marche de base (mémorisée pour appliquer/retirer le ralenti).
 	float BaseWalkSpeed = 0.f;
 
+	// Multiplicateur des dégâts REÇUS (1 = normal). < 1 = avantage défensif (ex. le
+	// défenseur de la phase 2 qui possède la zone/les cristaux -> encaisse moins).
+	UPROPERTY(BlueprintReadWrite, Category = "Combat")
+	float IncomingDamageMult = 1.f;
+
 	// ── Rythme de bataille (demo) — batailles plus LONGUES et sous-marines ──
 	// Multiplicateur GLOBAL de dégâts (< 1 = combats plus longs, plus d'échanges).
 	static float GlobalDamageScale;

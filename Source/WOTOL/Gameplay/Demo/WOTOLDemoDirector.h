@@ -159,6 +159,11 @@ private:
 	void ClearPlacementBoundary();
 	void SpawnCoverStructures();   // ruines/piliers (couverture, destructibles ou non)
 	void ClearCoverStructures();
+	void SpawnZoneCrystals();      // (phase 2) cristaux de terraformation disséminés
+	void ClearZoneCrystals();
+
+	UPROPERTY()
+	TArray<TObjectPtr<AActor>> ZoneCrystals;
 
 	UPROPERTY()
 	TArray<TObjectPtr<AWOTOLCoverStructure>> CoverStructures;

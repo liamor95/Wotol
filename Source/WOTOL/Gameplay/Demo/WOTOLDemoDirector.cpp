@@ -123,6 +123,9 @@ void AWOTOLDemoDirector::BeginPreparation()
 
 	SpawnPlacementBoundary(); // barrière visuelle : zone de placement = ton premier tiers
 	SpawnCoverStructures();   // ruines Éthériennes (couverture au centre de l'arène)
+	// Phase 2 : cristaux de terraformation disséminés (zone acquise par le joueur).
+	if (BT == EBattleType::RivalDefense) SpawnZoneCrystals();
+	else                                 ClearZoneCrystals();
 	FocusCameraOnPlayer();
 	if (Demo)
 	{
@@ -439,6 +442,11 @@ void AWOTOLDemoDirector::LaunchBattle()
 					St->SightRange = 60000.f;
 					St->bAllowRetreat = false; // unités du joueur : ne fuient jamais
 				}
+				// AVANTAGE DE ZONE (phase 2) : le joueur a POSÉ le Cristalliseur et capturé
+				// la zone en phase 1 -> ses unités défendent un terrain qui leur appartient
+				// (cristaux de terraformation) : elles ENCAISSENT MOINS (bonus défensif).
+				if (CaptureObject != nullptr)
+					U->IncomingDamageMult = 0.7f; // -30% de dégâts subis
 			}
 
 			// ── ÉQUILIBRAGE AUTOMATIQUE PAR FACTION (phase 1, Kraken) ──
@@ -1366,6 +1374,74 @@ void AWOTOLDemoDirector::ClearCoverStructures()
 	for (TObjectPtr<AWOTOLCoverStructure>& C : CoverStructures)
 		if (C) C->Destroy();
 	CoverStructures.Empty();
+}
+
+// (Phase 2) CRISTAUX DE TERRAFORMATION : amas de cristaux disséminés sur toute la carte,
+// nés de la pose du Cristalliseur -> marquent la ZONE ACQUISE par le joueur (avantage
+// défensif). Purement décoratifs (la collision reste légère), lumineux à la couleur du camp.
+void AWOTOLDemoDirector::SpawnZoneCrystals()
+{
+	ClearZoneCrystals();
+	UWorld* W = GetWorld();
+	if (!W) return;
+	const FVector C = GetActorLocation();
+
+	UStaticMesh* Cone = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cone.Cone"));
+	UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
+		nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+	// Couleur du camp qui possède la zone (le joueur défenseur).
+	const FLinearColor Col = FFactionColors::Get(CachedPlayerFaction);
+
+	const int32 Clusters = 14;
+	for (int32 i = 0; i < Clusters; ++i)
+	{
+		// Répartis sur toute la carte, en évitant le centre exact (objectif) + un peu d'aléa.
+		const float ang = FMath::FRandRange(0.f, 2.f * PI);
+		const float rad = FMath::FRandRange(900.f, 3800.f);
+		const FVector Base = C + FVector(FMath::Cos(ang) * rad, FMath::Sin(ang) * rad, 0.f);
+
+		FActorSpawnParameters P; P.Owner = this;
+		P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		AActor* Cluster = W->SpawnActor<AActor>(AActor::StaticClass(), Base, FRotator::ZeroRotator, P);
+		if (!Cluster) continue;
+		USceneComponent* Root = NewObject<USceneComponent>(Cluster);
+		Root->RegisterComponent();
+		Cluster->SetRootComponent(Root);
+
+		// 3-5 pointes de cristal de tailles variées (amas).
+		const int32 Shards = FMath::RandRange(3, 5);
+		for (int32 s = 0; s < Shards; ++s)
+		{
+			UStaticMeshComponent* M = NewObject<UStaticMeshComponent>(Cluster);
+			if (!M) continue;
+			M->SetupAttachment(Root);
+			M->RegisterComponent();
+			if (Cone) M->SetStaticMesh(Cone);
+			M->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			M->SetCanEverAffectNavigation(false);
+			const float h = FMath::FRandRange(1.2f, 3.2f);
+			const float w = FMath::FRandRange(0.25f, 0.5f);
+			M->SetRelativeScale3D(FVector(w, w, h));
+			M->SetRelativeLocation(FVector(FMath::FRandRange(-80.f, 80.f), FMath::FRandRange(-80.f, 80.f), 0.f));
+			M->SetRelativeRotation(FRotator(FMath::FRandRange(-12.f, 12.f), 0.f, FMath::FRandRange(-12.f, 12.f)));
+			if (BaseMat)
+				if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, Cluster))
+				{
+					const FLinearColor Glow(FMath::Min(1.f, Col.R + 0.25f), FMath::Min(1.f, Col.G + 0.25f),
+						FMath::Min(1.f, Col.B + 0.25f), 1.f);
+					MID->SetVectorParameterValue(TEXT("Color"), Glow);
+					M->SetMaterial(0, MID);
+				}
+		}
+		ZoneCrystals.Add(Cluster);
+	}
+}
+
+void AWOTOLDemoDirector::ClearZoneCrystals()
+{
+	for (TObjectPtr<AActor>& A : ZoneCrystals)
+		if (A) A->Destroy();
+	ZoneCrystals.Empty();
 }
 
 void AWOTOLDemoDirector::ClearPlacementBoundary()
