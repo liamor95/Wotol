@@ -329,15 +329,30 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	const float Lat = UnitSpacing, Depth = UnitSpacing * 1.4f;
 	auto SetLayer = [](AWOTOLDemoUnit* U, float Z) { if (U) U->SetDesiredZ(Z); };
 
-	// PLACEMENT MIROIR EXACT de l'armée du joueur : la formation ennemie s'étend vers
-	// l'ARRIÈRE (loin du centre, +X), comme celle du joueur s'étend vers -X. Ainsi la
-	// ligne de front (chef/infanterie) est à la MÊME distance du centre des deux côtés
-	// (même espace neutre / même "premier tiers"), et les tireurs restent EN ARRIÈRE
-	// au lieu de se retrouver collés au Cristalliseur.
-	const FVector O = Origin; // Center + ArmySeparation/2 (déjà symétrique du joueur)
+	// SEULE CONTRAINTE : l'ennemi est LIMITÉ À SON TIERS (comme le joueur au sien). On
+	// borne donc chaque unité pour qu'elle ne franchisse pas la limite MIROIR (côté ennemi
+	// = Center - PlacementBoundaryOffsetX). À l'intérieur, il place ses unités LIBREMENT.
+	const float MirrorX = GetActorLocation().X - PlacementBoundaryOffsetX; // limite du tiers ennemi
+	const FVector O = Origin;
 
-	// Rangée compacte : rangées vers l'ARRIÈRE (+X, loin du centre).
-	auto PlaceRows = [&](FName Id, int32 Count, float BackStart, float Layer, int32 PerRow)
+	// PLACEMENT ALÉATOIRE par couche, PROPRE À LA FACTION : chaque unité peut être au sol
+	// ou en hauteur. Les caps de verticalité (ex. Noxebeast au grade 1) sont respectés
+	// automatiquement par SetDesiredZ (clamp sur MaxLayerZ). On choisit une couche au
+	// hasard parmi celles qui conviennent au rôle.
+	auto PickLayer = [&](EDemoUnitCategory Cat) -> float
+	{
+		const float r = FMath::FRand();
+		switch (Cat)
+		{
+			case EDemoUnitCategory::Distance:  return (r < 0.6f) ? L2 : L1;           // tireurs plutôt haut
+			case EDemoUnitCategory::Montee:    return (r < 0.5f) ? L0 : L1;           // montées sol/1re couche
+			case EDemoUnitCategory::Chef:
+			case EDemoUnitCategory::Mythique:  return (r < 0.5f) ? L1 : L2;           // commandement en hauteur
+			default:                           return (r < 0.7f) ? L0 : L1;           // mêlée surtout au sol
+		}
+	};
+
+	auto PlaceRows = [&](FName Id, EDemoUnitCategory Cat, int32 Count, float BackStart, int32 PerRow)
 	{
 		if (Id.IsNone()) return;
 		for (int32 i = 0; i < Count; ++i)
@@ -345,19 +360,20 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 			const int32 Row = i / PerRow;
 			const int32 Col = i % PerRow;
 			const float Y = (Col - (PerRow - 1) * 0.5f) * Lat;
-			const FVector Loc = O + FVector(BackStart + Row * Depth, Y, 100.f);
-			SetLayer(SpawnUnit(Id, Loc, Facing, 1.f), Layer);
+			FVector Loc = O + FVector(BackStart + Row * Depth, Y, 100.f);
+			Loc.X = FMath::Max(Loc.X, MirrorX); // ne pas franchir la limite de son tiers
+			SetLayer(SpawnUnit(Id, Loc, Facing, 1.f), PickLayer(Cat));
 		}
 	};
 
-	// Chef en pointe vers le centre (miroir du chef joueur, à -Depth du centre côté ennemi).
-	SetLayer(SpawnUnit(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Chef),
-		O + FVector(-Depth, 0.f, 100.f), Facing, 1.f), L1);
+	FVector ChefLoc = O + FVector(-Depth, 0.f, 100.f);
+	ChefLoc.X = FMath::Max(ChefLoc.X, MirrorX);
+	SetLayer(SpawnUnit(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Chef), ChefLoc, Facing, 1.f),
+		PickLayer(EDemoUnitCategory::Chef));
 
-	// Infanterie en FRONT (près de l'origine), montées puis distance de plus en plus EN ARRIÈRE.
-	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Infanterie), InfantryCount, 0.f, L0, 8);
-	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Montee), MountedCount, Depth * 3.f, L1, 6);
-	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Distance), RangedCount, Depth * 5.f, L2, 8);
+	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Infanterie), EDemoUnitCategory::Infanterie, InfantryCount, 0.f, 8);
+	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Montee), EDemoUnitCategory::Montee, MountedCount, Depth * 3.f, 6);
+	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Distance), EDemoUnitCategory::Distance, RangedCount, Depth * 5.f, 8);
 }
 
 AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, const FRotator& Facing,
