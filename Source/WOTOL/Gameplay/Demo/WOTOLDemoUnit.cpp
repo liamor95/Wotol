@@ -101,6 +101,17 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	// de couche). On anime UNIQUEMENT la lente descente vers le fond + l'affalement.
 	if (!IsAlive())
 	{
+		// DÉRIVE DU CADAVRE dans le COURANT : tant que le corps traverse les couches
+		// hautes concernées par le courant, il est EMPORTÉ dans son sens -> descente EN
+		// DIAGONALE. Sous ces couches (GetFactorAt -> 0), la dérive cesse et il tombe droit.
+		if (UWorld* W = GetWorld())
+			if (UOceanCurrentSubsystem* Cur = W->GetSubsystem<UOceanCurrentSubsystem>())
+			{
+				const float F = Cur->GetFactorAt(CurLayer); // intensité à la hauteur ACTUELLE du corps
+				if (F > 0.01f)
+					AddActorWorldOffset(Cur->GetDirection() * (Cur->GetStrength() * F * 0.6f * DeltaSeconds), false);
+			}
+
 		AnimateBody(DeltaSeconds);
 		if (bArticulated) AnimateArticulated(DeltaSeconds);
 		AnimateWhips(DeltaSeconds);
