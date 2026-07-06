@@ -25,13 +25,19 @@ void AWOTOLInkZone::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UStaticMesh* Cyl = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+	// L'acteur est posé au SOL (Z fourni par le Kraken via trace). Le nuage est décrit en
+	// LOCAL au-dessus, à FogTopLocal, et redescend en local -> pas de "bloc" qui tombe.
+	FogTopLocal = FMath::Max(120.f, FloatHeight - GetActorLocation().Z);
+
+	UStaticMesh* Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 	UMaterialInterface* Base = LoadObject<UMaterialInterface>(
 		nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 
-	// Tache IRRÉGULIÈRE : plusieurs disques APLATIS de tailles/positions variées qui se
-	// chevauchent -> contour organique de flaque d'huile, pas un cercle propre.
-	const int32 N = 9;
+	// Nuage VOLUMÉTRIQUE : ~40 bulles réparties dans un ellipsoïde (large en XY, haut en Z)
+	// -> aspect fumée/encre, pas des disques plats.
+	const int32 N = 42;
+	const float CloudR = Radius * 0.60f; // rayon XY du nuage (~5 m² d'emprise visuelle)
+	const float CloudH = 340.f;          // hauteur du nuage (volume)
 	for (int32 i = 0; i < N; ++i)
 	{
 		UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
@@ -40,113 +46,106 @@ void AWOTOLInkZone::BeginPlay()
 		C->RegisterComponent();
 		C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		C->SetCanEverAffectNavigation(false);
-		if (Cyl) C->SetStaticMesh(Cyl);
+		if (Sphere) C->SetStaticMesh(Sphere);
 
+		// Position dans l'ellipsoïde (distribution vers le centre pour un noyau dense).
 		const float ang = InkRnd(i) * 6.283f;
-		const float dist = InkRnd(i + 20) * Radius * 0.55f;
-		const float bx = FMath::Cos(ang) * dist;
-		const float by = FMath::Sin(ang) * dist;
-		const float br = Radius * (0.35f + InkRnd(i + 40) * 0.5f);
-		// Départ en BROUILLARD : galette plus volumineuse (haute) ; elle s'aplatira au sol.
-		C->SetRelativeScale3D(FVector(br / 50.f, br / 50.f, 0.4f));
-		const FVector Base3(bx, by, InkRnd(i + 60) * 40.f);
-		C->SetRelativeLocation(Base3);
-		BlobBase.Add(Base3);
+		const float rr  = FMath::Pow(InkRnd(i + 7), 0.5f) * CloudR;
+		const float hx  = FMath::Cos(ang) * rr;
+		const float hy  = FMath::Sin(ang) * rr;
+		const float hz  = FogTopLocal + (InkRnd(i + 13) - 0.4f) * CloudH;
+		FBubble B;
+		B.Mesh   = C;
+		B.Home   = FVector(hx, hy, hz);
+		// Position finale au sol : étalée un peu plus large, aplatie (flaque).
+		const float gr = rr * 1.25f + 40.f;
+		B.Ground = FVector(FMath::Cos(ang) * gr, FMath::Sin(ang) * gr, 6.f + InkRnd(i + 31) * 6.f);
+		B.Size   = 26.f + InkRnd(i + 19) * 34.f;
+		B.Phase  = InkRnd(i + 23) * 6.283f;
+		B.Drip   = InkRnd(i + 29); // écoulement échelonné (gouttes)
+
+		const float s = B.Size / 50.f;
+		C->SetRelativeScale3D(FVector(s, s, s));
+		C->SetRelativeLocation(B.Home);
 
 		if (Base)
 			if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Base, this))
 			{
-				// Encre violet-noir bioluminescente (cohérent avec les abysses).
-				MID->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.06f, 0.02f, 0.10f, 1.f));
+				// Encre violet-noir bioluminescente, légèrement variable par bulle.
+				const float v = 0.02f + InkRnd(i + 37) * 0.06f;
+				MID->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.06f + v, 0.02f, 0.12f + v, 1.f));
 				C->SetMaterial(0, MID);
 			}
-		Blobs.Add(C);
+		Bubbles.Add(B);
 	}
-
-	// Démarre à la HAUTEUR du crachat (couche du Kraken) : le brouillard flotte là.
-	FVector L = GetActorLocation();
-	L.Z = FMath::Max(GroundZ, FloatHeight);
-	SetActorLocation(L);
 }
 
 void AWOTOLInkZone::Tick(float Dt)
 {
 	Super::Tick(Dt);
 	Elapsed += Dt;
-
 	UWorld* W = GetWorld();
 	if (!W) return;
 	const float Now = W->GetTimeSeconds();
 
-	// ── PHASES : brouillard flottant (FogTime) -> écoulement vers le sol (DescendTime)
-	// -> flaque au sol (le reste). Hauteur de l'acteur interpolée en conséquence. ──
-	const bool bAirborne = (Elapsed < FogTime);
+	for (int32 i = 0; i < Bubbles.Num(); ++i)
 	{
-		float z;
-		if (Elapsed < FogTime)                 z = FMath::Max(GroundZ, FloatHeight);
-		else if (Elapsed < FogTime + DescendTime)
+		FBubble& B = Bubbles[i];
+		if (!B.Mesh) continue;
+
+		// Ondulation permanente (fumée sous l'eau) : mouvement lent en tourbillon.
+		const FVector Swirl(
+			FMath::Sin(Now * 1.6f + B.Phase) * 22.f,
+			FMath::Cos(Now * 1.3f + B.Phase * 1.3f) * 22.f,
+			FMath::Sin(Now * 1.1f + B.Phase) * 16.f);
+
+		// Fraction d'ÉCOULEMENT propre à la bulle (gouttes échelonnées via Drip).
+		float fall = 0.f;
+		if (Elapsed > FogTime)
 		{
-			const float t = (Elapsed - FogTime) / DescendTime;
-			z = FMath::Lerp(FMath::Max(GroundZ, FloatHeight), GroundZ, t);
+			const float local = (Elapsed - FogTime) / DescendTime; // 0..1 global
+			// chaque bulle démarre à Drip*0.5 et met ~0.5 à couler -> écoulement progressif.
+			fall = FMath::Clamp((local - B.Drip * 0.55f) / 0.55f, 0.f, 1.f);
+			fall = fall * fall * (3.f - 2.f * fall); // lissage (smoothstep)
 		}
-		else                                   z = GroundZ;
-		FVector L = GetActorLocation(); L.Z = z; SetActorLocation(L);
+
+		// Interpolation nuage -> sol, avec un léger "étirement" de goutte pendant la chute.
+		FVector Pos = FMath::Lerp(B.Home, B.Ground, fall) + Swirl * (1.f - fall * 0.7f);
+		B.Mesh->SetRelativeLocation(Pos);
+
+		// Forme : sphère en l'air ; s'aplatit en galette une fois au sol (flaque).
+		const float flat = FMath::Lerp(1.f, 0.28f, fall);
+		const float widen = FMath::Lerp(1.f, 1.5f, fall);
+		const float s = B.Size / 50.f;
+		B.Mesh->SetRelativeScale3D(FVector(s * widen, s * widen, s * flat));
 	}
 
-	// ONDULATION type fumée sous-marine tant que c'est aérien, puis APLATISSEMENT au sol.
-	for (int32 i = 0; i < Blobs.Num(); ++i)
-	{
-		if (!Blobs[i] || !BlobBase.IsValidIndex(i)) continue;
-		const FVector B = BlobBase[i];
-		if (bAirborne)
-		{
-			const float w = FMath::Sin(Now * 2.5f + i * 1.3f);
-			Blobs[i]->SetRelativeLocation(B + FVector(w * 25.f, FMath::Cos(Now * 2.f + i) * 25.f, w * 20.f));
-			const float br = Blobs[i]->GetRelativeScale3D().X;
-			Blobs[i]->SetRelativeScale3D(FVector(br, br, 0.4f + 0.15f * w)); // volute qui respire
-		}
-		else
-		{
-			// s'aplatit progressivement en galette au sol
-			FVector S = Blobs[i]->GetRelativeScale3D();
-			S.Z = FMath::FInterpTo(S.Z, 0.03f, Dt, 6.f);
-			Blobs[i]->SetRelativeScale3D(S);
-			Blobs[i]->SetRelativeLocation(FVector(B.X, B.Y, 4.f));
-		}
-	}
-
-	// Dissipation : sur la dernière seconde, on rétrécit la tache (fondu).
+	// Dissipation : fondu (rétrécissement) sur la dernière seconde.
 	const float Remain = Lifetime - Elapsed;
 	if (Remain < 1.f)
-	{
-		const float s = FMath::Max(0.05f, Remain);
-		SetActorScale3D(FVector(s, s, 1.f));
-	}
+		SetActorScale3D(FVector(FMath::Max(0.06f, Remain)));
 
-	// EFFET sur les unités DANS la flaque (toutes factions, sauf le Kraken lui-même) :
-	// ralenti + précision réduite (aveuglement), rafraîchis en continu ; léger poison ~1/s.
+	// ── EFFET sur les unités DANS la zone (toutes factions sauf le Kraken) ──
+	// Ralenti + précision ~0 (aveuglement), rafraîchis en continu ; léger poison ~1/s.
 	DotAccum += Dt;
-	const bool bApplyDot = (DotAccum >= 1.f);
-	if (bApplyDot) DotAccum = 0.f;
+	const bool bDot = (DotAccum >= 1.f);
+	if (bDot) DotAccum = 0.f;
 
 	if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
 	{
-		const FVector C = GetActorLocation();
+		const FVector Cn = GetActorLocation();
 		const float R2 = Radius * Radius;
 		for (uint8 f = 1; f <= (uint8)EFactionID::PiratesAbyssaux; ++f)
-		{
 			for (AUnitBase* U : Reg->GetUnitsForFaction((EFactionID)f))
 			{
 				if (!U || !U->IsAlive()) continue;
 				if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U))
-					if (DU->bCreatureBrain) continue; // l'encre n'affecte pas le Kraken
-				if (FVector::DistSquared2D(U->GetActorLocation(), C) > R2) continue;
-
-				U->SlowUntil    = Now + 0.35f; // ralenti tant qu'on reste dedans
-				U->BlindedUntil = Now + 0.35f; // précision fortement réduite
-				if (bApplyDot) U->TakeDamageFromUnit(12.f, Caster.Get()); // poison d'encre léger
+					if (DU->bCreatureBrain) continue;
+				if (FVector::DistSquared2D(U->GetActorLocation(), Cn) > R2) continue;
+				U->SlowUntil    = Now + 0.35f;
+				U->BlindedUntil = Now + 0.35f;
+				if (bDot) U->TakeDamageFromUnit(12.f, Caster.Get());
 			}
-		}
 	}
 
 	if (Elapsed >= Lifetime) Destroy();

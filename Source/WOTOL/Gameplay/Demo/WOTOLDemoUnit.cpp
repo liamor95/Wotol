@@ -1496,9 +1496,20 @@ void AWOTOLDemoUnit::DoInkJet(AUnitBase* Target)
 	UWorld* W = GetWorld();
 	if (!W || !Target) return;
 
-	// Point d'impact au SOL sous la cible (là où l'encre se répand).
+	// Point d'impact au SOL sous la cible. On TRACE vers le bas pour trouver la vraie
+	// surface (sol OU relief central surélevé) -> la flaque se pose DESSUS, jamais cachée
+	// sous une bosse du terrain.
 	FVector Ground = Target->GetActorLocation();
-	Ground.Z = 6.f;
+	{
+		const FVector A = Ground + FVector(0, 0, 400.f);
+		const FVector Bt = Ground - FVector(0, 0, 2000.f);
+		FHitResult Hit;
+		FCollisionQueryParams Q; Q.AddIgnoredActor(this); Q.AddIgnoredActor(Target);
+		if (W->LineTraceSingleByObjectType(Hit, A, Bt, FCollisionObjectQueryParams(ECC_WorldStatic), Q))
+			Ground.Z = Hit.ImpactPoint.Z + 6.f;
+		else
+			Ground.Z = 6.f;
+	}
 
 	// ── VISUEL : jet d'encre depuis la gueule vers le point d'impact + éclaboussure ──
 	const FVector Mouth = (GetFloatingTextAnchor() ? GetFloatingTextAnchor()->GetComponentLocation()
@@ -1516,10 +1527,10 @@ void AWOTOLDemoUnit::DoInkJet(AUnitBase* Target)
 			AWOTOLInkZone::StaticClass(), Ground, FRotator::ZeroRotator, P))
 	{
 		Zone->Radius   = 400.f;
-		Zone->Lifetime = 8.f;
-		// Hauteur du crachat = couche visuelle du Kraken : le brouillard flotte là ~1 s
-		// puis s'écoule au sol (géré par la zone). Si le Kraken est haut, le fog est haut.
-		Zone->FloatHeight = FMath::Max(200.f, CurLayer + 200.f);
+		Zone->Lifetime = 9.5f;
+		// Hauteur MONDE du crachat = sol + couche visuelle du Kraken : le nuage flotte là
+		// ~1,5 s (ondulation) puis s'écoule goutte à goutte au sol (géré par la zone).
+		Zone->FloatHeight = Ground.Z + FMath::Max(280.f, CurLayer + 260.f);
 		Zone->Caster   = this;
 	}
 
