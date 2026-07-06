@@ -10,6 +10,7 @@
 #include "Gameplay/Demo/WOTOLProjectileTracer.h"
 #include "Gameplay/Demo/WOTOLDamageNumber.h"
 #include "Gameplay/Demo/WOTOLCoverStructure.h"
+#include "Gameplay/Demo/WOTOLDemoUnit.h"
 #include "Core/FactionRegistrySubsystem.h"
 #include "Gameplay/Factions/FactionSynergySubsystem.h"
 
@@ -212,6 +213,17 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 	{
 		const FSynergyBonus Bonus = Synergy->ComputeSynergyBonus(this);
 		BaseDamage *= Bonus.DamageMultiplier;
+	}
+
+	// ÉQUILIBRAGE PHASE 1 : les AQUILORIS manquaient de punch contre le Kraken (combat
+	// trop long -> défaite au chrono). On augmente LÉGÈREMENT leurs dégâts UNIQUEMENT
+	// contre le boss (n'affecte donc PAS la phase 2). Les Noxéens ne sont pas concernés.
+	if (GetFaction() == EFactionID::Aquiloris)
+	{
+		if (const AWOTOLDemoUnit* TDU = Cast<AWOTOLDemoUnit>(Target))
+		{
+			if (TDU->bCreatureBrain) BaseDamage *= 1.6f;
+		}
 	}
 
 	// ── COUP CRITIQUE (TOUTES les unités, pas seulement le boss) ──

@@ -452,7 +452,7 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 		if (CritCooldown <= 0.f && FMath::FRand() < 0.28f && Nearest->IsAlive())
 		{
 			CritCooldown = FMath::FRandRange(7.f, 11.f); // encore moins fréquent
-			Nearest->TakeDamageFromUnit(85.f, this);     // suit la baisse du rythme (140->85)
+			Nearest->TakeDamageFromUnit(120.f, this);    // relevé (85->120) : qq pertes côté Noxéens
 			const FVector CritLoc = Nearest->GetActorLocation() + FVector(0, 0, 90.f);
 			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(W, CritLoc, TEXT("CRITIQUE !"),
 					FLinearColor(1.f, 0.35f, 0.f, 1.f)))
@@ -1472,6 +1472,6 @@ void AWOTOLDemoUnit::DoWhipStrike()
 		// Balaie / repousse les unités (coup de fouet) + dégâts CONSÉQUENTS (colosse)
 		const FVector Push = To.GetSafeNormal() * 1300.f + FVector(0.f, 0.f, 400.f);
 		U->LaunchCharacter(Push, true, true);
-		U->TakeDamageFromUnit(42.f, this); // suit la baisse du rythme global (70->42)
+		U->TakeDamageFromUnit(60.f, this); // relevé (42->60) : les Noxéens doivent subir qq pertes
 	}
 }

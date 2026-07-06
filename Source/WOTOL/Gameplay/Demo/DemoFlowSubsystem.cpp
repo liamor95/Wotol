@@ -44,6 +44,9 @@ EBattleType UDemoFlowSubsystem::GetCurrentBattleType() const
 
 EFactionID UDemoFlowSubsystem::GetPlayerFaction() const
 {
+	// Source FIABLE : la faction choisie stockée ici (comme ResolvePlayerFaction du
+	// Director). Le repli GameInstance pouvait être périmé -> compteur allié/ennemi inversé.
+	if (SelectedFaction != EFactionID::None) return SelectedFaction;
 	if (const UWOTOLGameInstance* GI = Cast<UWOTOLGameInstance>(GetGameInstance()))
 	{
 		return GI->GetSelectedFaction();
