@@ -447,10 +447,12 @@ void AWOTOLDemoDirector::LaunchBattle()
 				// (cristaux de terraformation). Les Noxéens surclassaient trop la défense
 				// (35/35 pertes vs 8) : on donne un avantage FORT sur les deux fronts —
 				// encaisser beaucoup moins ET frapper plus fort. [Réglable]
+				// Calibrage : 0.7/1.0 -> défaite (35-8), 0.5/1.4 -> stomp (1-35). On vise le
+				// MILIEU pour un vrai combat disputé (~50/50, pertes des deux côtés).
 				if (CaptureObject != nullptr)
 				{
-					U->IncomingDamageMult = 0.5f;  // -50% de dégâts subis
-					U->OutgoingDamageMult = 1.4f;  // +40% de dégâts infligés
+					U->IncomingDamageMult = 0.6f;  // -40% de dégâts subis
+					U->OutgoingDamageMult = 1.2f;  // +20% de dégâts infligés
 				}
 			}
 
