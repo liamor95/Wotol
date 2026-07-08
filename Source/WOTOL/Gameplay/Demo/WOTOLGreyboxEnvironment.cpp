@@ -525,29 +525,21 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			const int32 GridN = 15;                 // 15x15 = 225 cellules (grille fine)
 			const float HalfSpan = 4400.f;          // demi-étendue couverte
 			const float CellSz = (2.f * HalfSpan) / GridN;
-			// ⛔ GRILLE BIOLUMINESCENTE DÉSACTIVÉE : c'est elle qui posait l'organisme
-			// (anémone) au milieu. On coupe TOUT tant que ce n'est pas confirmé absent, puis
-			// on la réactivera uniquement sur le pourtour. -> plus AUCUN organisme de grille.
-			const bool bGridBioEnabled = false;
-			for (int32 c = 0; bGridBioEnabled && c < GridN * GridN; ++c)
+			// GRILLE bioluminescente : organismes dispersés sur TOUT l'espace de combat,
+			// un par cellule (individuels, jamais en bloc). SEUL l'emplacement du bâtiment/
+			// objectif au centre (rayon 700) est dégagé -> rien ne pousse SUR le bâtiment.
+			for (int32 c = 0; c < GridN * GridN; ++c)
 			{
 				const int32 gx = c % GridN;
 				const int32 gy = c / GridN;
 				// Centre de la cellule + jitter (~40% de la cellule) = réparti mais naturel.
 				const float cx = -HalfSpan + (gx + 0.5f) * CellSz + Bs.FRandRange(-CellSz * 0.4f, CellSz * 0.4f);
 				const float cy = -HalfSpan + (gy + 0.5f) * CellSz + Bs.FRandRange(-CellSz * 0.4f, CellSz * 0.4f);
-				// Saute ~30% des cellules (aspect naturel). On dégage TOUT LE COULOIR DE
-				// COMBAT : les armées se déploient et s'affrontent le long de l'axe X à Y≈0,
-				// et la caméra regarde cette bande. On exclut donc |Y|<1400 (sur toute la
-				// longueur) -> AUCUN organisme dans le couloir/au milieu. Ils garnissent les
-				// FLANCS (|Y|>1400) et le fond, bien éparpillés.
+				// ~30% de cellules sautées (aspect naturel).
 				if (Bs.FRand() < 0.30f) continue;
-				// TOUT le bassin de combat central (disque rayon 3000 AUTOUR du centre ET
-				// bande du couloir) est VIDE de bioluminescent -> impossible d'avoir quoi que
-				// ce soit au milieu, quel que soit l'angle de la caméra. Ils garnissent le
-				// pourtour (récifs/reliefs), bien éparpillés.
-				if (FMath::Sqrt(cx * cx + cy * cy) < 3000.f) continue;
-				if (FMath::Abs(cy) < 2200.f) continue;
+				// On garde UNIQUEMENT l'emplacement du bâtiment de phase 2 dégagé (rayon 700
+				// autour du centre), là où se pose le Cristalliseur/Abyssalyseur.
+				if (FMath::Sqrt(cx * cx + cy * cy) < 700.f) continue;
 				const FVector PatchP = Center + FVector(cx, cy, -20.f);
 
 				FActorSpawnParameters LP; LP.Owner = this;
