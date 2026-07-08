@@ -47,6 +47,35 @@ void AWOTOLCurrentField::BeginPlay()
 		Streaks.Add(C);
 		Base.Add(P);
 	}
+
+	// ── BULLES portées par le courant : petites sphères qui avancent HORIZONTALEMENT
+	// le long du flux (elles ne remontent PAS à la surface) -> matérialise le courant. ──
+	UStaticMesh* Sph = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+	const int32 NB = 90;
+	for (int32 i = 0; i < NB; ++i)
+	{
+		UStaticMeshComponent* B = NewObject<UStaticMeshComponent>(this);
+		if (!B) continue;
+		B->SetupAttachment(SceneRoot);
+		B->RegisterComponent();
+		B->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		B->SetCanEverAffectNavigation(false);
+		if (Sph) B->SetStaticMesh(Sph);
+		const float s = FMath::FRandRange(0.05f, 0.16f);
+		B->SetRelativeScale3D(FVector(s, s, s));
+		const FVector P(
+			FMath::FRandRange(-Span, Span),
+			FMath::FRandRange(-Span, Span),
+			FMath::FRandRange(ZLow - 300.f, ZHigh)); // réparties sur les couches hautes
+		B->SetRelativeLocation(P);
+		if (Base_)
+			if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Base_, this))
+			{
+				MID->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.7f, 0.9f, 1.f, 1.f));
+				B->SetMaterial(0, MID);
+			}
+		Bubbles.Add(B);
+	}
 }
 
 void AWOTOLCurrentField::Tick(float Dt)
@@ -85,5 +114,29 @@ void AWOTOLCurrentField::Tick(float Dt)
 		// -> effet de virage/boucle plutôt qu'un simple trait droit.
 		const float Slope = FMath::Cos(Phase) * 38.f;
 		C->SetWorldRotation((Dir.Rotation() + FRotator(90.f, Slope, 0.f)).Quaternion());
+	}
+
+	// ── BULLES : avancent HORIZONTALEMENT dans le sens du courant (le Z reste constant :
+	// elles ne remontent pas). Léger dandinement latéral/vertical pour la vie. ──
+	for (int32 i = 0; i < Bubbles.Num(); ++i)
+	{
+		UStaticMeshComponent* B = Bubbles[i];
+		if (!B) continue;
+		if (!bActive) { B->SetVisibility(false); continue; }
+		B->SetVisibility(true);
+
+		const FVector Dir  = Cur->GetDirection();
+		const FVector Side = FVector::CrossProduct(FVector::UpVector, Dir).GetSafeNormal();
+		FVector P = B->GetRelativeLocation();
+		const float F = Cur->GetFactorAt(P.Z);
+		// Avance le long du courant (vitesse = force du courant).
+		P += Dir * (Cur->GetStrength() * (1.1f + F) * Dt);
+		// Menu dandinement (léger, ne change pas la couche moyenne).
+		const float Ph = T * 2.2f + (float)i * 0.9f;
+		P += Side * (FMath::Sin(Ph) * 12.f * Dt) + FVector(0, 0, FMath::Sin(Ph * 1.7f) * 8.f * Dt);
+		// Bouclage : quand la bulle sort par l'aval, elle réapparaît en amont.
+		const float Along = FVector::DotProduct(P, Dir);
+		if (Along > Span * 1.2f) P -= Dir * (Span * 2.2f);
+		B->SetRelativeLocation(P);
 	}
 }

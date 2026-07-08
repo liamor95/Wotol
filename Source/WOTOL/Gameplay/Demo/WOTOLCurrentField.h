@@ -23,6 +23,7 @@ protected:
 
 	UPROPERTY() TObjectPtr<USceneComponent> SceneRoot;
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> Streaks;
+	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> Bubbles; // bulles portées par le courant
 	TArray<FVector> Base; // positions locales de base (pour le bouclage)
 
 	float Span = 3600.f;   // étendue XY autour du centre

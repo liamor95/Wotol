@@ -234,13 +234,14 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 {
 	const FVector Center = GetActorLocation();
 
-	// ── Palette RÉCIF CORALLIEN LUMINEUX (nouvelle référence) ──
-	const FLinearColor FloorColor(0.42f, 0.40f, 0.30f, 1.f); // sable clair du fond
-	const FLinearColor SandBright(0.40f, 0.40f, 0.34f, 1.f); // canyon de sable (couloir de combat, assombri anti-halo)
-	const FLinearColor RockColor (0.28f, 0.31f, 0.25f, 1.f); // roche récifale tan-verdâtre
-	const FLinearColor FarColor  (0.12f, 0.22f, 0.30f, 1.f); // spires/silhouettes lointaines
+	// ── Palette FOND MARIN ROCHEUX : couleurs VARIÉES et TERREUSES (plus de bleu partout).
+	// Chaque type d'élément a SA teinte pour qu'ils ne se confondent pas entre eux. ──
+	const FLinearColor FloorColor(0.46f, 0.42f, 0.32f, 1.f); // sable tan du fond
+	const FLinearColor SandBright(0.52f, 0.47f, 0.35f, 1.f); // canyon de sable (couloir de combat)
+	const FLinearColor RockColor (0.36f, 0.30f, 0.25f, 1.f); // roche brun-rougeâtre (récif)
+	const FLinearColor FarColor  (0.30f, 0.28f, 0.27f, 1.f); // MONTAGNES rocheuses gris-brun (PAS bleu)
 	const FLinearColor SurfColor (0.28f, 0.58f, 0.72f, 1.f); // surface éclairée (rayons)
-	const FLinearColor KelpColor (0.45f, 0.55f, 0.18f, 1.f); // algues jaune-vert
+	const FLinearColor KelpColor (0.42f, 0.55f, 0.16f, 1.f); // algues jaune-vert
 
 	const FRotator NoRot = FRotator::ZeroRotator;
 
@@ -271,20 +272,21 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			PPV->bUnbound = true;
 			PPV->Priority = 100.f;
 			FPostProcessSettings& S = PPV->Settings;
-			// ABYSSE CONTRASTÉ (réf. corail bioluminescent) : sombre mais TRÈS coloré et
-			// TRÈS contrasté -> les amas lumineux vifs claquent sur la roche sombre.
-			S.bOverride_ColorGain = true;        S.ColorGain = FVector4(0.80f, 0.92f, 1.15f, 1.f);
-			S.bOverride_ColorSaturation = true;  S.ColorSaturation = FVector4(1.60f, 1.55f, 1.55f, 1.f); // couleurs franches
-			S.bOverride_ColorContrast   = true;  S.ColorContrast   = FVector4(1.30f, 1.28f, 1.26f, 1.f); // ombres profondes = contraste
-			// Exposition auto NON verrouillée mais légèrement remontée : image lisible
-			// (fini le trop-sombre) ; le sable ayant été assombri, plus de halo blanc.
-			S.bOverride_AutoExposureBias = true; S.AutoExposureBias = 0.25f;
-			S.bOverride_AutoExposureMinBrightness = true; S.AutoExposureMinBrightness = 0.30f;
-			S.bOverride_AutoExposureMaxBrightness = true; S.AutoExposureMaxBrightness = 1.60f;
-			S.bOverride_VignetteIntensity  = true; S.VignetteIntensity = 0.38f;
-			S.bOverride_SceneFringeIntensity = true; S.SceneFringeIntensity = 0.6f;
-			// Bloom marqué -> le halo des cristaux/coraux/rayons rayonne joliment.
-			S.bOverride_BloomIntensity = true; S.BloomIntensity = 1.6f;
+			// JUSTE MILIEU : ni délavé-clair ni noir. Teinte à peine bleutée (l'ambiance
+			// vient surtout du brouillard), couleurs saturées mais NEUTRES en gain pour que
+			// chaque élément garde SA couleur (pas de dominante bleue qui uniformise tout).
+			S.bOverride_ColorGain = true;        S.ColorGain = FVector4(0.94f, 0.98f, 1.06f, 1.f);
+			S.bOverride_ColorSaturation = true;  S.ColorSaturation = FVector4(1.45f, 1.42f, 1.42f, 1.f); // couleurs franches
+			S.bOverride_ColorContrast   = true;  S.ColorContrast   = FVector4(1.20f, 1.19f, 1.18f, 1.f); // relief sans écraser
+			// Exposition modérée : lisible mais pas surexposée (fini l'effet "plein soleil").
+			S.bOverride_AutoExposureBias = true; S.AutoExposureBias = -0.10f;
+			S.bOverride_AutoExposureMinBrightness = true; S.AutoExposureMinBrightness = 0.35f;
+			S.bOverride_AutoExposureMaxBrightness = true; S.AutoExposureMaxBrightness = 1.10f;
+			S.bOverride_VignetteIntensity  = true; S.VignetteIntensity = 0.36f;
+			S.bOverride_SceneFringeIntensity = true; S.SceneFringeIntensity = 0.5f;
+			// Bloom DISCRET : assez pour un léger halo bioluminescent, PAS assez pour cramer
+			// un gros blob blanc au centre (les parties vives des unités ne bavent plus).
+			S.bOverride_BloomIntensity = true; S.BloomIntensity = 0.55f;
 		}
 
 		// Nuages masqués + SOLEIL adouci (lumière directionnelle atténuée et bleutée
@@ -300,11 +302,12 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			{
 				if (ULightComponent* LC = It->FindComponentByClass<ULightComponent>())
 				{
-					// Key light REMONTÉE (0.32 -> 0.55) : elle crée de vraies ombres/reliefs
-					// sur la roche et les unités = du CONTRASTE (fini le rendu plat). Bleu
-					// froid mais assez clair pour lire comme de la lumière de surface.
-					LC->SetIntensity(LC->Intensity * 0.55f);
-					LC->SetLightColor(FLinearColor(0.34f, 0.52f, 0.85f));
+					// Key light PRESQUE BLANCHE (légèrement froide) : une lumière BLEUE
+					// repeignait TOUT en bleu -> tout se confondait. Avec une lumière neutre,
+					// CHAQUE matériau montre sa VRAIE couleur (roche brune, acier, sable tan,
+					// couleurs de faction). L'ambiance bleue vient du BROUILLARD, pas de la lampe.
+					LC->SetIntensity(LC->Intensity * 0.60f);
+					LC->SetLightColor(FLinearColor(0.82f, 0.88f, 1.00f));
 				}
 			}
 		}

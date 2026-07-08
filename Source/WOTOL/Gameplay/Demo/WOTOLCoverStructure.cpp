@@ -80,8 +80,10 @@ static UStaticMeshComponent* AddCoverPiece(AActor* Owner, USceneComponent* Root,
 	C->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	C->SetCollisionObjectType(ECC_WorldStatic);
 	C->SetCollisionResponseToAllChannels(ECR_Block);
-	// Décor MAT rugueux (fini le plastique lisse).
-	if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeMatte(Owner, Color))
+	// Couleur vive (cristaux/conduits) -> émissif (brille) ; sinon -> mat rugueux.
+	const bool bEmissive = (Color.R > 1.2f || Color.G > 1.2f || Color.B > 1.2f);
+	if (UMaterialInstanceDynamic* MID = bEmissive
+			? WOTOLGlow::MakeGlow(Owner, Color) : WOTOLGlow::MakeMatte(Owner, Color))
 		C->SetMaterial(0, MID);
 	return C;
 }
@@ -92,10 +94,15 @@ void AWOTOLCoverStructure::BuildVisual()
 	const TCHAR* M_CYL  = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
 	const TCHAR* M_CONE = TEXT("/Engine/BasicShapes/Cone.Cone");
 
-	// Pierre Éthérienne : gris-bleu patiné + lisérés cyan (technologie ancienne).
-	const FLinearColor Stone(0.32f, 0.36f, 0.42f, 1.f);
-	const FLinearColor Dark (0.18f, 0.21f, 0.26f, 1.f);
-	const FLinearColor Glow (0.25f, 0.75f, 0.95f, 1.f);
+	// Ruines de pierre ENCROÛTÉES (fond marin) : pierre chaude patinée + algues, PAS bleu.
+	// Une pointe de variété par instance pour qu'elles ne soient pas toutes identiques.
+	const float Tint = ((Variant * 37 + 13) % 100) / 100.f; // 0..1 déterministe par variante
+	const FLinearColor Stone = FMath::Lerp(
+		FLinearColor(0.44f, 0.38f, 0.30f, 1.f),  // grès brun chaud
+		FLinearColor(0.34f, 0.40f, 0.26f, 1.f),  // pierre verdie par les algues
+		Tint);
+	const FLinearColor Dark (0.24f, 0.22f, 0.18f, 1.f); // pierre humide sombre
+	const FLinearColor Glow (0.35f, 1.60f, 1.20f, 1.f); // cristal/conduit bioluminescent (émissif)
 
 	auto Add = [&](const TCHAR* Mesh, const FVector& L, const FVector& S, const FRotator& R, const FLinearColor& Col)
 	{
