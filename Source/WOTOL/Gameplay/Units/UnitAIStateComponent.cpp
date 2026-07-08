@@ -152,7 +152,7 @@ void UUnitAIStateComponent::EvaluateIdle()
 	{
 		if (AAIAdaptiveController* AIC = GetAIController())
 		{
-			AIC->MoveToLocation(AttackMoveDestination, 100.f);
+			AIC->MoveToLocation(AttackMoveDestination, 100.f, true, /*bUsePathfinding=*/false);
 		}
 		return;
 	}
@@ -195,7 +195,7 @@ void UUnitAIStateComponent::EvaluatePatrolling()
 			if (NavSys && NavSys->GetRandomReachablePointInRadius(SpawnLocation, 600.f, NavLoc))
 			{
 				PatrolDestination = NavLoc.Location;
-				AIC->MoveToLocation(PatrolDestination, 100.f);
+				AIC->MoveToLocation(PatrolDestination, 100.f, true, /*bUsePathfinding=*/false);
 			}
 		}
 	}
@@ -233,9 +233,9 @@ void UUnitAIStateComponent::EvaluateSeeking()
 		// le bloqueur de corps, elles glissent autour au lieu de traverser.
 		FVector Slot;
 		if (ComputeEncircleSlot(Target, Slot))
-			AIC->MoveToLocation(Slot, 60.f);
+			AIC->MoveToLocation(Slot, 60.f, true, /*bUsePathfinding=*/false);
 		else
-			AIC->MoveToActor(Target, 50.f);
+			AIC->MoveToActor(Target, 50.f, true, /*bUsePathfinding=*/false);
 	}
 }
 
@@ -315,7 +315,7 @@ void UUnitAIStateComponent::EvaluateAttacking()
 			FVector Slot;
 			if (ComputeEncircleSlot(Target, Slot))
 				if (AAIAdaptiveController* AIC = GetAIController())
-					AIC->MoveToLocation(Slot, 40.f);
+					AIC->MoveToLocation(Slot, 40.f, true, /*bUsePathfinding=*/false);
 		}
 	}
 }
@@ -337,7 +337,7 @@ void UUnitAIStateComponent::EvaluateRetreating()
 		const float DistToSpawn = FVector::Dist2D(Owner->GetActorLocation(), SpawnLocation);
 		if (DistToSpawn > 200.f)
 		{
-			AIC->MoveToLocation(SpawnLocation, 100.f);
+			AIC->MoveToLocation(SpawnLocation, 100.f, true, /*bUsePathfinding=*/false);
 		}
 	}
 }

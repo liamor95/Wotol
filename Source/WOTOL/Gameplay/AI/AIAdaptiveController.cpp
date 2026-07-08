@@ -67,7 +67,7 @@ void AAIAdaptiveController::IssueOrder_Move(FVector TargetLocation)
 		State->ForceTarget           = nullptr;
 	}
 
-	MoveToLocation(TargetLocation, 50.f);
+	MoveToLocation(TargetLocation, 50.f, true, /*bUsePathfinding=*/false);
 }
 
 void AAIAdaptiveController::IssueOrder_AttackMove(FVector TargetLocation)
@@ -81,7 +81,7 @@ void AAIAdaptiveController::IssueOrder_AttackMove(FVector TargetLocation)
 		State->bAttackMoveActive     = true;
 	}
 
-	MoveToLocation(TargetLocation, 50.f);
+	MoveToLocation(TargetLocation, 50.f, true, /*bUsePathfinding=*/false);
 }
 
 void AAIAdaptiveController::IssueOrder_AttackTarget(AUnitBase* Target)
@@ -98,7 +98,7 @@ void AAIAdaptiveController::IssueOrder_AttackTarget(AUnitBase* Target)
 		State->bAttackMoveActive     = false;
 	}
 
-	MoveToActor(Target, 50.f);
+	MoveToActor(Target, 50.f, true, /*bUsePathfinding=*/false);
 }
 
 void AAIAdaptiveController::IssueOrder_HoldPosition()
