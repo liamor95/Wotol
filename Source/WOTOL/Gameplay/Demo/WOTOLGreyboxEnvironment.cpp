@@ -525,7 +525,11 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			const int32 GridN = 15;                 // 15x15 = 225 cellules (grille fine)
 			const float HalfSpan = 4400.f;          // demi-étendue couverte
 			const float CellSz = (2.f * HalfSpan) / GridN;
-			for (int32 c = 0; c < GridN * GridN; ++c)
+			// ⛔ GRILLE BIOLUMINESCENTE DÉSACTIVÉE : c'est elle qui posait l'organisme
+			// (anémone) au milieu. On coupe TOUT tant que ce n'est pas confirmé absent, puis
+			// on la réactivera uniquement sur le pourtour. -> plus AUCUN organisme de grille.
+			const bool bGridBioEnabled = false;
+			for (int32 c = 0; bGridBioEnabled && c < GridN * GridN; ++c)
 			{
 				const int32 gx = c % GridN;
 				const int32 gy = c / GridN;
