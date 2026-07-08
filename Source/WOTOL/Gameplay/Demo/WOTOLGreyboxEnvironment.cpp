@@ -416,7 +416,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 	};
 
 	// UN champignon/organisme bioluminescent (tige + chapeau, OU anémone à doigts). Émissif.
-	const FLinearColor BioCols[5] = {
+	const FLinearColor MushCols[5] = {
 		FLinearColor(0.20f, 0.95f, 1.00f, 1.f), // cyan
 		FLinearColor(0.30f, 1.00f, 0.45f, 1.f), // vert
 		FLinearColor(0.75f, 0.35f, 1.00f, 1.f), // violet
@@ -426,7 +426,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 	auto SpawnMushroom = [&](const FVector& Pos, int32 InSeed)
 	{
 		FRandomStream R(InSeed);
-		const FLinearColor Col = BioCols[R.RandRange(0, 4)];
+		const FLinearColor Col = MushCols[R.RandRange(0, 4)];
 		const float Sc = R.FRandRange(0.8f, 1.6f);
 		if (R.FRand() < 0.5f)
 		{
