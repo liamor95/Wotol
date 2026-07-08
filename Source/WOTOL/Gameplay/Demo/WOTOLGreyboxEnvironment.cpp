@@ -538,6 +538,11 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 				// longueur) -> AUCUN organisme dans le couloir/au milieu. Ils garnissent les
 				// FLANCS (|Y|>1400) et le fond, bien éparpillés.
 				if (Bs.FRand() < 0.30f) continue;
+				// TOUT le bassin de combat central (disque rayon 3000 AUTOUR du centre ET
+				// bande du couloir) est VIDE de bioluminescent -> impossible d'avoir quoi que
+				// ce soit au milieu, quel que soit l'angle de la caméra. Ils garnissent le
+				// pourtour (récifs/reliefs), bien éparpillés.
+				if (FMath::Sqrt(cx * cx + cy * cy) < 3000.f) continue;
 				if (FMath::Abs(cy) < 2200.f) continue;
 				const FVector PatchP = Center + FVector(cx, cy, -20.f);
 
