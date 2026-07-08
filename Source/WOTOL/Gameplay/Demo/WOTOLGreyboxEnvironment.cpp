@@ -524,21 +524,21 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			// ── RÉPARTITION GARANTIE : une GRILLE jitterée qui couvre TOUTE l'arène.
 			// Chaque cellule pose une touffe (avec un peu d'aléa) -> IMPOSSIBLE de
 			// s'agglutiner au centre. On saute juste la zone de déploiement centrale. ──
-			const int32 GridN = 11;                 // 11x11 = 121 cellules
-			const float HalfSpan = 4300.f;          // demi-étendue couverte
+			const int32 GridN = 15;                 // 15x15 = 225 cellules (grille fine)
+			const float HalfSpan = 4400.f;          // demi-étendue couverte
 			const float CellSz = (2.f * HalfSpan) / GridN;
 			for (int32 c = 0; c < GridN * GridN; ++c)
 			{
 				const int32 gx = c % GridN;
 				const int32 gy = c / GridN;
-				// Centre de la cellule + jitter (jusqu'à ~40% de la cellule) = naturel mais réparti.
+				// Centre de la cellule + jitter (~40% de la cellule) = réparti mais naturel.
 				const float cx = -HalfSpan + (gx + 0.5f) * CellSz + Bs.FRandRange(-CellSz * 0.4f, CellSz * 0.4f);
 				const float cy = -HalfSpan + (gy + 0.5f) * CellSz + Bs.FRandRange(-CellSz * 0.4f, CellSz * 0.4f);
-				// Saute ~25% des cellules (aspect naturel) ET TOUTE la zone de bataille
-				// centrale (rayon 2200) -> AUCUN décor bio au milieu (c'est l'arène de combat) ;
-				// les organismes garnissent la périphérie et les reliefs.
-				if (Bs.FRand() < 0.25f) continue;
-				if (FMath::Sqrt(cx * cx + cy * cy) < 2200.f) continue;
+				// Saute ~30% des cellules (aspect naturel). PAS de grande zone vide : juste
+				// l'emplacement EXACT de spawn des unités (rayon 350). Un ou deux organismes
+				// au centre sont OK -> ce qui compte c'est qu'ils soient ÉPARPILLÉS, jamais en paquet.
+				if (Bs.FRand() < 0.30f) continue;
+				if (FMath::Sqrt(cx * cx + cy * cy) < 350.f) continue;
 				const FVector PatchP = Center + FVector(cx, cy, -20.f);
 
 				FActorSpawnParameters LP; LP.Owner = this;
@@ -567,15 +567,14 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 						M->SetMaterial(0, MID);
 				};
 
-				// Quelques organismes serrés dans la touffe (rayon ~180) -> petit point net.
-				const int32 Organisms = Bs.RandRange(3, 6);
+				// UN SEUL organisme par cellule -> un POINT individuel espacé (jamais un paquet).
+				const int32 Organisms = 1;
 				FLinearColor PatchCol = BioCols[Bs.RandRange(0, 4)];
 				for (int32 o = 0; o < Organisms; ++o)
 				{
-					// Couleur : surtout la teinte du massif, parfois une autre (mélange naturel).
-					const FLinearColor Col = (Bs.FRand() < 0.3f) ? BioCols[Bs.RandRange(0, 4)] : PatchCol;
-					const float Sc = Bs.FRandRange(0.6f, 1.3f);
-					const FVector O(Bs.FRandRange(-180.f, 180.f), Bs.FRandRange(-180.f, 180.f), 0.f);
+					const FLinearColor Col = PatchCol;
+					const float Sc = Bs.FRandRange(0.7f, 1.4f);
+					const FVector O(0.f, 0.f, 0.f);
 
 					if (Bs.FRand() < 0.45f)
 					{
@@ -607,15 +606,18 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 					}
 				}
 
-				// Lumière bioluminescente NATURELLE de la touffe : éclaire le fond autour
-				// (halo doux) sans tout inonder -> l'organisme habille ET éclaire le décor.
-				UPointLightComponent* PC = NewObject<UPointLightComponent>(CoralAct);
-				PC->SetupAttachment(Root); PC->RegisterComponent();
-				PC->SetRelativeLocation(FVector(0, 0, 130.f));
-				PC->SetLightColor(PatchCol);
-				PC->SetIntensity(1500.f);
-				PC->SetAttenuationRadius(500.f);
-				PC->SetCastShadows(false);
+				// Lumière bioluminescente NATURELLE (halo doux) : ~1 organisme sur 2 en porte
+				// (ils sont nombreux et dispersés -> inutile d'en mettre partout, ça sur-éclairerait).
+				if (Bs.FRand() < 0.55f)
+				{
+					UPointLightComponent* PC = NewObject<UPointLightComponent>(CoralAct);
+					PC->SetupAttachment(Root); PC->RegisterComponent();
+					PC->SetRelativeLocation(FVector(0, 0, 120.f));
+					PC->SetLightColor(PatchCol);
+					PC->SetIntensity(1200.f);
+					PC->SetAttenuationRadius(450.f);
+					PC->SetCastShadows(false);
+				}
 			}
 		}
 
