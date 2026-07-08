@@ -177,14 +177,9 @@ void AWOTOLCaptureObject::BuildVisual()
 		if (UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, MeshPath)) C->SetStaticMesh(M);
 		C->SetRelativeLocationAndRotation(Loc, Rot);
 		C->SetRelativeScale3D(Scale);
-		if (BaseMat)
-		{
-			if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, this))
-			{
-				MID->SetVectorParameterValue(TEXT("Color"), Color);
-				C->SetMaterial(0, MID);
-			}
-		}
+		// Corps du bâtiment MAT rugueux (fini le plastique lisse).
+		if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeMatte(this, Color))
+			C->SetMaterial(0, MID);
 		return C;
 	};
 

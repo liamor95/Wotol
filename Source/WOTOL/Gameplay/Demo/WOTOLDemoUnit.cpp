@@ -21,6 +21,7 @@
 #include "WOTOLCoverStructure.h"
 #include "WOTOLInkZone.h"
 #include "WOTOLBeam.h"
+#include "WOTOLGlow.h"
 #include "WOTOLProjectileTracer.h"
 #include "DemoFlowSubsystem.h"
 #include "OceanCurrentSubsystem.h"
@@ -817,16 +818,16 @@ UStaticMeshComponent* AWOTOLDemoUnit::AddPart(const TCHAR* MeshPath, const FVect
 	C->SetRelativeLocationAndRotation(RelLoc, RelRot);
 	C->SetRelativeScale3D(RelScale);
 
-	if (UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
-			nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
+	// Couleur VIVE (énergie, yeux, épée, cristaux) -> matériau ÉMISSIF (ça brille).
+	// Couleur normale (chair, cuirasse, roche) -> matériau MAT rugueux (fini le plastique
+	// lisse : la lumière crée du relief/ombrage sur la peau et la carapace).
+	const bool bEmissive = (Color.R > 1.2f || Color.G > 1.2f || Color.B > 1.2f);
+	if (UMaterialInstanceDynamic* MID = bEmissive
+			? WOTOLGlow::MakeGlow(this, Color) : WOTOLGlow::MakeMatte(this, Color))
 	{
-		if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, this))
-		{
-			MID->SetVectorParameterValue(TEXT("Color"), Color);
-			C->SetMaterial(0, MID);
-			PartMIDs.Add(MID);
-			PartBaseColors.Add(Color);
-		}
+		C->SetMaterial(0, MID);
+		PartMIDs.Add(MID);
+		PartBaseColors.Add(Color);
 	}
 	Parts.Add(C);
 	return C;
@@ -843,17 +844,14 @@ void AWOTOLDemoUnit::SetupMainPart(const TCHAR* MeshPath, const FVector& RelLoc,
 	ShapeMesh->SetRelativeLocationAndRotation(RelLoc, RelRot);
 	ShapeMesh->SetRelativeScale3D(RelScale);
 
-	if (UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
-			nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
+	const bool bEmissive = (Color.R > 1.2f || Color.G > 1.2f || Color.B > 1.2f);
+	if (UMaterialInstanceDynamic* MID = bEmissive
+			? WOTOLGlow::MakeGlow(this, Color) : WOTOLGlow::MakeMatte(this, Color))
 	{
-		if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, this))
-		{
-			MID->SetVectorParameterValue(TEXT("Color"), Color);
-			ShapeMesh->SetMaterial(0, MID);
-			ShapeMID = MID;
-			PartMIDs.Add(MID);
-			PartBaseColors.Add(Color);
-		}
+		ShapeMesh->SetMaterial(0, MID);
+		ShapeMID = MID;
+		PartMIDs.Add(MID);
+		PartBaseColors.Add(Color);
 	}
 }
 
@@ -1220,16 +1218,16 @@ UStaticMeshComponent* AWOTOLDemoUnit::MakeBone(USceneComponent* Joint, const TCH
 	}
 	C->SetRelativeLocationAndRotation(Offset, Rot);
 	C->SetRelativeScale3D(Scale);
-	if (UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
-			nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
+	// Couleur VIVE (énergie, yeux, épée, cristaux) -> matériau ÉMISSIF (ça brille).
+	// Couleur normale (chair, cuirasse, roche) -> matériau MAT rugueux (fini le plastique
+	// lisse : la lumière crée du relief/ombrage sur la peau et la carapace).
+	const bool bEmissive = (Color.R > 1.2f || Color.G > 1.2f || Color.B > 1.2f);
+	if (UMaterialInstanceDynamic* MID = bEmissive
+			? WOTOLGlow::MakeGlow(this, Color) : WOTOLGlow::MakeMatte(this, Color))
 	{
-		if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, this))
-		{
-			MID->SetVectorParameterValue(TEXT("Color"), Color);
-			C->SetMaterial(0, MID);
-			PartMIDs.Add(MID);
-			PartBaseColors.Add(Color);
-		}
+		C->SetMaterial(0, MID);
+		PartMIDs.Add(MID);
+		PartBaseColors.Add(Color);
 	}
 	Parts.Add(C);
 	return C;

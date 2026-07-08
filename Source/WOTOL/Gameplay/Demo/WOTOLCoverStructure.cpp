@@ -2,6 +2,7 @@
 #include "Gameplay/Units/UnitBase.h"
 #include "Core/FactionRegistrySubsystem.h"
 #include "WOTOLBubbleBurst.h"
+#include "WOTOLGlow.h"
 #include "WOTOLDamageNumber.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -79,13 +80,9 @@ static UStaticMeshComponent* AddCoverPiece(AActor* Owner, USceneComponent* Root,
 	C->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	C->SetCollisionObjectType(ECC_WorldStatic);
 	C->SetCollisionResponseToAllChannels(ECR_Block);
-	if (UMaterialInterface* Base = LoadObject<UMaterialInterface>(
-			nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
-		if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Base, Owner))
-		{
-			MID->SetVectorParameterValue(TEXT("Color"), Color);
-			C->SetMaterial(0, MID);
-		}
+	// Décor MAT rugueux (fini le plastique lisse).
+	if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeMatte(Owner, Color))
+		C->SetMaterial(0, MID);
 	return C;
 }
 

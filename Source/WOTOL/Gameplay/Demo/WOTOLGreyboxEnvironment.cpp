@@ -78,14 +78,11 @@ AStaticMeshActor* AWOTOLGreyboxEnvironment::SpawnBlock(
 	}
 	SMA->SetActorScale3D(Scale);
 
-	if (UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
-			nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
+	// Décor MAT rugueux (roche/sable/montagnes) : plus de reflet plastique lisse -> la
+	// lumière crée des ombres/reliefs = du contraste sur les parois.
+	if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeMatte(this, Color))
 	{
-		if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, this))
-		{
-			MID->SetVectorParameterValue(TEXT("Color"), Color);
-			Comp->SetMaterial(0, MID);
-		}
+		Comp->SetMaterial(0, MID);
 	}
 	return SMA;
 }
@@ -114,6 +111,22 @@ void AWOTOLGreyboxEnvironment::SpawnRock(const FVector& Center, float Size, cons
 		SpawnBlock(bRound ? MESH_SPH : MESH_CUBE, Center + Off,
 			FVector(ChunkS / 100.f), Vary(Color, R.FRandRange(-0.02f, 0.02f)),
 			FRotator(R.FRandRange(0.f, 360.f), R.FRandRange(0.f, 360.f), R.FRandRange(0.f, 360.f)), false);
+	}
+
+	// ── ASPÉRITÉS : pointes/arêtes rocheuses qui hérissent la surface (silhouette
+	// accidentée, pas un galet lisse) -> la lumière rasante crée des ombres portées. ──
+	const int32 Spikes = R.RandRange(6, 11);
+	for (int32 i = 0; i < Spikes; ++i)
+	{
+		const float SpikeS = Size * R.FRandRange(0.18f, 0.45f);
+		const FVector Off(
+			R.FRandRange(-Size, Size) * 0.55f,
+			R.FRandRange(-Size, Size) * 0.55f,
+			R.FRandRange(Size * 0.1f, Size * 0.7f));
+		SpawnBlock(MESH_CONE, Center + Off,
+			FVector(SpikeS / 130.f, SpikeS / 130.f, SpikeS / 55.f),
+			Vary(Color, R.FRandRange(-0.03f, 0.01f)),
+			FRotator(R.FRandRange(-40.f, 40.f), R.FRandRange(0.f, 360.f), R.FRandRange(-40.f, 40.f)), false);
 	}
 }
 

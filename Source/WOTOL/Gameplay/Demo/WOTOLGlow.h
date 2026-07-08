@@ -22,4 +22,11 @@ namespace WOTOLGlow
 
 	/** MID émissif prêt à l'emploi : le mesh rayonne à la couleur HDR donnée. */
 	UMaterialInstanceDynamic* MakeGlow(UObject* Outer, const FLinearColor& EmissiveHDR);
+
+	/** Matériau parent MAT (rugueux, spéculaire ~0) : supprime l'aspect plastique/lisse
+	 *  -> la roche, le sable et les unités accrochent la lumière en relief (contraste). */
+	UMaterialInterface* GetMatteParent();
+
+	/** MID mat prêt à l'emploi (couleur de base donnée, surface rugueuse non brillante). */
+	UMaterialInstanceDynamic* MakeMatte(UObject* Outer, const FLinearColor& BaseColor);
 }
