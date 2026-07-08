@@ -254,15 +254,17 @@ bool UUnitAIStateComponent::ComputeEncircleSlot(AUnitBase* Target, FVector& OutS
 	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
 	float Ang = ((float)(Id % 360)) * (PI / 180.f);
 
-	// Les MONTÉES (Aquilances), rapides et mobiles, ne restent pas plantées : elles
-	// TOURNENT AUTOUR du Kraken pour l'attaquer sur TOUTES ses faces (avant/flancs/arrière).
-	// Sens d'orbite ALTERNÉ selon l'unité -> effet "mâchoire" : un groupe contourne par la
-	// gauche, l'autre par la droite, et ils se rejoignent sur les flancs/l'arrière.
+	// Les MONTÉES (Aquilances), rapides et mobiles, CONTOURNENT : elles visent l'ARRIÈRE
+	// et les FLANCS du Kraken (là où il est à découvert), PAS son avant (bec/tentacules).
+	// "Avant" = la direction que regarde la créature (vers l'ennemi qu'elle affronte).
+	// On place donc les montées dans l'hémisphère ARRIÈRE, en sweep (elles font le tour).
 	if (Owner->GetUnitData() && Owner->GetUnitData()->Role == EUnitRole::Montee)
 	{
-		const float Sector = ((float)(Id % 6) / 6.f) * (2.f * PI); // secteur de départ réparti
-		const float Spin   = (Id % 2 == 0) ? 0.9f : -0.9f;         // sens d'orbite alterné
-		Ang = Sector + Now * Spin;                                  // orbite continue -> dynamique
+		const FVector Fwd = Target->GetActorForwardVector().GetSafeNormal2D();
+		const float RearBase = FMath::Atan2(Fwd.Y, Fwd.X) + PI;    // direction OPPOSÉE au regard
+		const float Spread   = ((float)(Id % 5) - 2.f) * 0.55f;    // réparti sur l'arc arrière (±110°)
+		const float Spin     = (Id % 2 == 0) ? 0.5f : -0.5f;       // léger sweep alterné (mâchoire)
+		Ang = RearBase + Spread + FMath::Sin(Now * Spin) * 0.5f;   // reste vers l'arrière + oscille
 	}
 
 	const FVector Dir(FMath::Cos(Ang), FMath::Sin(Ang), 0.f);
@@ -305,6 +307,16 @@ void UUnitAIStateComponent::EvaluateAttacking()
 	if (AUnitBase* Owner = Cast<AUnitBase>(GetOwner()))
 	{
 		Owner->PerformAttack(Target);
+
+		// MONTÉES vs GROSSE cible : elles NE se figent PAS de face — elles continuent de
+		// CONTOURNER (glisser vers l'arrière/les flancs) tout en frappant -> vrai tour.
+		if (Owner->GetUnitData() && Owner->GetUnitData()->Role == EUnitRole::Montee)
+		{
+			FVector Slot;
+			if (ComputeEncircleSlot(Target, Slot))
+				if (AAIAdaptiveController* AIC = GetAIController())
+					AIC->MoveToLocation(Slot, 40.f);
+		}
 	}
 }
 

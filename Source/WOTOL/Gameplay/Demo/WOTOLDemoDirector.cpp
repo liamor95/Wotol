@@ -1361,6 +1361,13 @@ void AWOTOLDemoDirector::SpawnCoverStructures()
 		{ FVector(  850.f, -1200.f, 0.f), 1, false, 1100.f}, // pan de mur (destructible)
 		{ FVector(-1000.f, -900.f, 0.f), 2, false, 1400.f}, // arche brisée (destructible)
 		{ FVector(-1100.f, 1100.f, 0.f), 0, false, 1300.f}, // pilier (destructible)
+		// Éléments SUPPLÉMENTAIRES répartis plus large dans l'arène (obstacles + couverture) :
+		{ FVector( 2100.f, -300.f, 0.f), 1, true,  0.f    }, // gros bloc rocheux INDESTRUCTIBLE
+		{ FVector(-2200.f,  400.f, 0.f), 2, true,  0.f    }, // massif INDESTRUCTIBLE
+		{ FVector(  300.f, 2200.f, 0.f), 0, false, 1200.f}, // pilier (destructible)
+		{ FVector( -400.f,-2200.f, 0.f), 1, false, 1500.f}, // pan de mur (destructible)
+		{ FVector( 1700.f, 1700.f, 0.f), 2, false, 1300.f}, // arche (destructible)
+		{ FVector(-1800.f,-1700.f, 0.f), 0, true,  0.f    }, // pilier INDESTRUCTIBLE
 	};
 	for (const FCover& S : Layout)
 	{

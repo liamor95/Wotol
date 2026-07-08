@@ -226,14 +226,15 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	NameTag->SetText(TagText);
 	if (NameTagShadow) NameTagShadow->SetText(TagText); // même texte, en noir, derrière
 
-	// Couleur d'étiquette : violet "calamar" pour le kraken, sinon couleur de faction
-	// (éclaircie pour ressortir sur l'ombre noire = fort contraste).
-	FLinearColor TagColor = (bCreatureBrain || bIsBoss)
-		? FLinearColor(0.9f, 0.5f, 1.f, 1.f)
-		: FFactionColors::Get(GetFaction());
-	TagColor = FLinearColor(FMath::Min(1.f, TagColor.R + 0.35f),
-		FMath::Min(1.f, TagColor.G + 0.35f), FMath::Min(1.f, TagColor.B + 0.35f), 1.f);
-	NameTag->SetTextRenderColor(TagColor.ToFColor(true));
+	// Couleur d'étiquette VIVE et LUMINEUSE, distincte par camp (survoltée pour "briller"
+	// sur l'ombre noire = fort contraste, lisible dans l'ambiance sous-marine sombre) :
+	// BLEU Aquiloris, VERT Noxéens, VIOLET Kraken.
+	FLinearColor TagColor;
+	if (bCreatureBrain || bIsBoss)                 TagColor = FLinearColor(1.10f, 0.45f, 1.60f, 1.f); // violet
+	else if (GetFaction() == EFactionID::Aquiloris) TagColor = FLinearColor(0.35f, 0.85f, 1.70f, 1.f); // bleu
+	else if (GetFaction() == EFactionID::Noxeens)   TagColor = FLinearColor(0.40f, 1.70f, 0.60f, 1.f); // vert
+	else                                            TagColor = FFactionColors::Get(GetFaction()) * 1.5f;
+	NameTag->SetTextRenderColor(TagColor.ToFColor(false)); // false = pas de clamp sRGB -> plus lumineux
 
 	// L'étiquette + son ombre font face à la caméra ; l'ombre est décalée derrière et
 	// en bas-droite (en espace écran) pour créer un fort contraste (liseré noir).

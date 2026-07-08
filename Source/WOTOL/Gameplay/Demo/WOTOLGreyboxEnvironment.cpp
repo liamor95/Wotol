@@ -489,6 +489,24 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			}
 		}
 
+	// ── ARÈNE FERMÉE : MUR DE COLLISION INVISIBLE (anneau) au pied des montagnes ──
+	// Les chaînes de montagnes forment l'arène ; ce mur les rend TANGIBLES : aucune unité
+	// ni le Kraken ne peut sortir de l'enceinte -> l'action reste concentrée à l'intérieur.
+	{
+		const float WallR = 4700.f;   // rayon de l'enceinte (juste devant les reliefs proches)
+		const int32 Seg   = 32;       // segments qui se chevauchent -> paroi continue
+		for (int32 i = 0; i < Seg; ++i)
+		{
+			const float Ang = 2.f * PI * i / Seg;
+			const FVector Pos = Center + FVector(FMath::Cos(Ang) * WallR, FMath::Sin(Ang) * WallR, 1400.f);
+			const FRotator Rot(0.f, FMath::RadiansToDegrees(Ang), 0.f); // face tournée vers le centre
+			// Dalle HAUTE (couvre toutes les couches de verticalité) et LARGE (chevauche la voisine).
+			if (AStaticMeshActor* Wseg = SpawnBlock(MESH_CUBE, Pos, FVector(1.2f, 11.f, 34.f), FarColor, Rot, /*bBlocking=*/true))
+				if (UStaticMeshComponent* Wc = Wseg->GetStaticMeshComponent())
+					Wc->SetVisibility(false); // invisible : seule la collision compte (les montagnes font le visuel)
+		}
+	}
+
 	// ── FAUNE AMBIANTE : bancs de poissons qui nagent en boucle (décoratif) ──
 	if (UWorld* W = GetWorld())
 	{
