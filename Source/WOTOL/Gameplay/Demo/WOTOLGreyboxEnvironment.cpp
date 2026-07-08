@@ -453,38 +453,61 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 				USceneComponent* Root = NewObject<USceneComponent>(CoralAct);
 				Root->RegisterComponent(); CoralAct->SetRootComponent(Root);
 
-				// Grappe de pousses de corail (cônes/bulbes) colorées.
-				const int32 Shoots = Bs.RandRange(4, 7);
-				const float Sc = Bs.FRandRange(0.7f, 1.6f);
-				for (int32 sIdx = 0; sIdx < Shoots; ++sIdx)
+				// ── Amas de corail bioluminescent : un socle bulbeux + des polypes trapus
+				// coiffés d'un bulbe LUMINEUX (c'est le bulbe qui « fait » la lumière). ──
+				const float Sc = Bs.FRandRange(1.0f, 1.9f);
+
+				// Fabrique une pièce de corail (mesh + matériau émissif).
+				auto MakePiece = [&](UStaticMesh* Mesh, const FVector& Loc, const FVector& Scale,
+					const FRotator& Rot, const FLinearColor& Emissive) -> void
 				{
+					if (!Mesh) return;
 					UStaticMeshComponent* M = NewObject<UStaticMeshComponent>(CoralAct);
-					if (!M) continue;
+					if (!M) return;
 					M->SetupAttachment(Root); M->RegisterComponent();
 					M->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 					M->SetCanEverAffectNavigation(false);
-					const bool bBulb = (sIdx % 3 == 0);
-					if (bBulb && Sph) M->SetStaticMesh(Sph);
-					else if (Cone)    M->SetStaticMesh(Cone);
-					const float hh = Bs.FRandRange(1.4f, 3.4f) * Sc;
-					M->SetRelativeScale3D(bBulb ? FVector(0.5f * Sc, 0.5f * Sc, 0.5f * Sc)
-						: FVector(0.3f * Sc, 0.3f * Sc, hh));
-					M->SetRelativeLocation(FVector(Bs.FRandRange(-60.f, 60.f), Bs.FRandRange(-60.f, 60.f), bBulb ? hh * 40.f : 0.f) * Sc);
-					M->SetRelativeRotation(FRotator(Bs.FRandRange(-16.f, 16.f), 0.f, Bs.FRandRange(-16.f, 16.f)));
+					M->SetStaticMesh(Mesh);
+					M->SetRelativeScale3D(Scale);
+					M->SetRelativeLocation(Loc);
+					M->SetRelativeRotation(Rot);
 					if (BaseMat)
 						if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, CoralAct))
 						{
-							MID->SetVectorParameterValue(TEXT("Color"), Col * 1.6f); // vif (paraît luminescent)
+							MID->SetVectorParameterValue(TEXT("Color"), Emissive);
 							M->SetMaterial(0, MID);
 						}
+				};
+
+				// 1) Socle bulbeux (base charnue du corail), teinte sombre du corail.
+				MakePiece(Sph, FVector(0, 0, 12.f * Sc), FVector(1.2f * Sc, 1.2f * Sc, 0.55f * Sc),
+					FRotator::ZeroRotator, Col * 0.9f);
+
+				// 2) Polypes : cône trapu (tige) coiffé d'un bulbe qui BRILLE fort.
+				const int32 Polyps = Bs.RandRange(4, 6);
+				for (int32 sIdx = 0; sIdx < Polyps; ++sIdx)
+				{
+					const float A   = Bs.FRandRange(0.f, 2.f * PI);
+					const float Rad = Bs.FRandRange(0.f, 55.f) * Sc;
+					const FVector Base(FMath::Cos(A) * Rad, FMath::Sin(A) * Rad, 0.f);
+					const float Hp  = Bs.FRandRange(80.f, 170.f) * Sc;   // hauteur du polype (unités monde)
+					const float Wp  = Bs.FRandRange(0.45f, 0.75f) * Sc;  // trapu, pas un cure-dent
+					const FRotator Tilt(Bs.FRandRange(-14.f, 14.f), 0.f, Bs.FRandRange(-14.f, 14.f));
+					// tige (cône) : base au sol, centre à mi-hauteur
+					MakePiece(Cone, Base + FVector(0, 0, Hp * 0.5f), FVector(Wp, Wp, Hp / 100.f),
+						Tilt, Col * 1.8f);
+					// bulbe lumineux au sommet de la tige
+					MakePiece(Sph, Base + FVector(0, 0, Hp), FVector(Wp * 0.9f, Wp * 0.9f, Wp * 0.9f),
+						FRotator::ZeroRotator, Col * 3.6f); // survolté -> lit comme luminescent
 				}
-				// Lampe accrochée au corail (la bioluminescence qu'il émet).
+
+				// Lampe accrochée au corail (la bioluminescence qu'il émet), au cœur de l'amas.
 				UPointLightComponent* PC = NewObject<UPointLightComponent>(CoralAct);
 				PC->SetupAttachment(Root); PC->RegisterComponent();
-				PC->SetRelativeLocation(FVector(0, 0, 120.f * Sc));
+				PC->SetRelativeLocation(FVector(0, 0, 90.f * Sc));
 				PC->SetLightColor(Col);
-				PC->SetIntensity(Bs.FRandRange(2600.f, 5600.f));
-				PC->SetAttenuationRadius(Bs.FRandRange(550.f, 1000.f));
+				PC->SetIntensity(Bs.FRandRange(3200.f, 6000.f));
+				PC->SetAttenuationRadius(Bs.FRandRange(480.f, 820.f));
 				PC->SetCastShadows(false);
 			}
 		}
