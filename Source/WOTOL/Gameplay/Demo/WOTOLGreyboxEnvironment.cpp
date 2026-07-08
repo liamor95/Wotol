@@ -459,10 +459,8 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 	{
 		const float MX = Mid.FRandRange(-6500.f, 6500.f);
 		const FVector P = Center + FVector(MX, Mid.FRandRange(-1100.f, 1100.f), -30.f);
-		if (FMath::Abs(MX) > 2500.f && Mid.FRand() < 0.5f)
-			SpawnCoral(P, Mid.RandRange(1, 9999)); // buissons colorés seulement sur les côtés
-		else
-			SpawnRock(P, Mid.FRandRange(90.f, 200.f), RockColor, Mid.RandRange(1, 9999)); // galets
+		// Couloir de combat : UNIQUEMENT des galets (rochers), AUCUN corail bioluminescent.
+		SpawnRock(P, Mid.FRandRange(90.f, 200.f), RockColor, Mid.RandRange(1, 9999));
 	}
 
 	// ── HORIZON : chaînes de reliefs de TAILLES VARIÉES tout autour (pas un mur droit) ──
@@ -534,11 +532,13 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 				// Centre de la cellule + jitter (~40% de la cellule) = réparti mais naturel.
 				const float cx = -HalfSpan + (gx + 0.5f) * CellSz + Bs.FRandRange(-CellSz * 0.4f, CellSz * 0.4f);
 				const float cy = -HalfSpan + (gy + 0.5f) * CellSz + Bs.FRandRange(-CellSz * 0.4f, CellSz * 0.4f);
-				// Saute ~30% des cellules (aspect naturel). Le MILIEU du champ de bataille
-				// (rayon 2000) reste VIDE de tout organisme bioluminescent -> plus aucun amas
-				// au centre. Ils restent éparpillés partout ailleurs (grille).
+				// Saute ~30% des cellules (aspect naturel). On dégage TOUT LE COULOIR DE
+				// COMBAT : les armées se déploient et s'affrontent le long de l'axe X à Y≈0,
+				// et la caméra regarde cette bande. On exclut donc |Y|<1400 (sur toute la
+				// longueur) -> AUCUN organisme dans le couloir/au milieu. Ils garnissent les
+				// FLANCS (|Y|>1400) et le fond, bien éparpillés.
 				if (Bs.FRand() < 0.30f) continue;
-				if (FMath::Sqrt(cx * cx + cy * cy) < 2000.f) continue;
+				if (FMath::Abs(cy) < 1400.f) continue;
 				const FVector PatchP = Center + FVector(cx, cy, -20.f);
 
 				FActorSpawnParameters LP; LP.Owner = this;
