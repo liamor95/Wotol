@@ -519,14 +519,23 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			// ── ÉPARPILLÉ = de NOMBREUSES TOUFFES réparties sur TOUTE l'arène (réf.).
 			// Chaque touffe = un actor posé au sol, contenant PLUSIEURS organismes proches
 			// (comme les massifs de corail qui poussent en bouquet sur les roches). ──
-			const int32 Patches = 55;                       // BEAUCOUP de foyers, partout
-			for (int32 p = 0; p < Patches; ++p)
+			// ── RÉPARTITION GARANTIE : une GRILLE jitterée qui couvre TOUTE l'arène.
+			// Chaque cellule pose une touffe (avec un peu d'aléa) -> IMPOSSIBLE de
+			// s'agglutiner au centre. On saute juste la zone de déploiement centrale. ──
+			const int32 GridN = 11;                 // 11x11 = 121 cellules
+			const float HalfSpan = 4300.f;          // demi-étendue couverte
+			const float CellSz = (2.f * HalfSpan) / GridN;
+			for (int32 c = 0; c < GridN * GridN; ++c)
 			{
-				const float Ang  = Bs.FRandRange(0.f, 2.f * PI);
-				// Répartition UNIFORME EN SURFACE (sqrt) -> ils couvrent TOUT le sol également,
-				// au lieu de s'agglutiner au centre (fini le "amas au milieu").
-				const float Dist = 350.f + FMath::Sqrt(Bs.FRand()) * 4200.f;
-				const FVector PatchP = Center + FVector(FMath::Cos(Ang) * Dist, FMath::Sin(Ang) * Dist, -20.f);
+				const int32 gx = c % GridN;
+				const int32 gy = c / GridN;
+				// Centre de la cellule + jitter (jusqu'à ~40% de la cellule) = naturel mais réparti.
+				const float cx = -HalfSpan + (gx + 0.5f) * CellSz + Bs.FRandRange(-CellSz * 0.4f, CellSz * 0.4f);
+				const float cy = -HalfSpan + (gy + 0.5f) * CellSz + Bs.FRandRange(-CellSz * 0.4f, CellSz * 0.4f);
+				// Saute ~25% des cellules (aspect naturel) et la zone de déploiement centrale.
+				if (Bs.FRand() < 0.25f) continue;
+				if (FMath::Sqrt(cx * cx + cy * cy) < 650.f) continue;
+				const FVector PatchP = Center + FVector(cx, cy, -20.f);
 
 				FActorSpawnParameters LP; LP.Owner = this;
 				LP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -600,8 +609,8 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 				PC->SetupAttachment(Root); PC->RegisterComponent();
 				PC->SetRelativeLocation(FVector(0, 0, 130.f));
 				PC->SetLightColor(PatchCol);
-				PC->SetIntensity(2200.f);
-				PC->SetAttenuationRadius(620.f);
+				PC->SetIntensity(1500.f);
+				PC->SetAttenuationRadius(500.f);
 				PC->SetCastShadows(false);
 			}
 		}
