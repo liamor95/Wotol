@@ -421,7 +421,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 	{
 		for (int32 side = 0; side < 2; ++side)
 		{
-			const float Y = (side == 0 ? 1.f : -1.f) * Reef.FRandRange(2100.f, 2900.f);
+			const float Y = (side == 0 ? 1.f : -1.f) * Reef.FRandRange(2600.f, 3400.f);
 			// masse rocheuse récifale (kitbash)
 			SpawnRock(Center + FVector(X + Reef.FRandRange(-200.f, 200.f), Y, -40.f),
 				Reef.FRandRange(360.f, 620.f), RockColor, Reef.RandRange(1, 9999));
@@ -538,7 +538,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 				// longueur) -> AUCUN organisme dans le couloir/au milieu. Ils garnissent les
 				// FLANCS (|Y|>1400) et le fond, bien éparpillés.
 				if (Bs.FRand() < 0.30f) continue;
-				if (FMath::Abs(cy) < 1400.f) continue;
+				if (FMath::Abs(cy) < 2200.f) continue;
 				const FVector PatchP = Center + FVector(cx, cy, -20.f);
 
 				FActorSpawnParameters LP; LP.Owner = this;
