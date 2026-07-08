@@ -453,8 +453,21 @@ void AWOTOLDemoDirector::LaunchBattle()
 				// MILIEU pour un vrai combat disputé (~50/50, pertes des deux côtés).
 				if (CaptureObject != nullptr)
 				{
-					U->IncomingDamageMult = 0.6f;  // -40% de dégâts subis
-					U->OutgoingDamageMult = 1.2f;  // +20% de dégâts infligés
+					// AVANTAGE DE ZONE dépendant de la FACTION du joueur : les Noxéens sont
+					// déjà plus forts (DPS + bonus bioluminescent) -> avec un avantage FORT ils
+					// gagnaient sans AUCUNE perte. On leur donne un avantage MODÉRÉ pour que les
+					// Aquiloris leur causent quand même quelques pertes. Les Aquiloris (plus
+					// fragiles en attaque adverse) gardent l'avantage FORT dont ils ont besoin.
+					if (CachedPlayerFaction == EFactionID::Noxeens)
+					{
+						U->IncomingDamageMult = 0.82f; // -18% seulement -> l'ennemi fait des pertes
+						U->OutgoingDamageMult = 1.08f;
+					}
+					else
+					{
+						U->IncomingDamageMult = 0.6f;  // -40% : les Aquiloris tiennent la défense
+						U->OutgoingDamageMult = 1.2f;
+					}
 				}
 			}
 
