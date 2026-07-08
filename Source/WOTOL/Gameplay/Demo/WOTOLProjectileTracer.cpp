@@ -19,10 +19,10 @@ AWOTOLProjectileTracer::AWOTOLProjectileTracer()
 	Glow = CreateDefaultSubobject<UPointLightComponent>(TEXT("Glow"));
 	Glow->SetupAttachment(Ball);
 	Glow->SetCastShadows(false);
-	// Lampe DISCRÈTE : le projectile lui-même est émissif (il rayonne) ; cette lampe
-	// ne sert qu'à un léger halo local, PAS à éclairer le sol.
-	Glow->SetAttenuationRadius(150.f);
-	Glow->SetIntensity(700.f);
+	// HALO LUMINEUX qui ÉMANE du projectile (même logique que le rayon de Noxar) : on
+	// voit la lumière colorée se dégager du projectile pendant tout son vol jusqu'à la cible.
+	Glow->SetAttenuationRadius(420.f);
+	Glow->SetIntensity(2600.f);
 
 	// Halo plus large autour du cœur = boule bien plus repérable à l'écran.
 	Halo = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Halo"));
@@ -64,24 +64,22 @@ void AWOTOLProjectileTracer::Fire(UWorld* World, const FVector& From, const FVec
 		const float S = 0.22f * Size;
 		T->Ball->SetRelativeScale3D(FVector(S, S, S));
 	}
-	// Cœur du projectile ÉMISSIF (couleur survoltée >1 -> il rayonne, ce n'est plus
-	// le sol qui s'éclaire mais bien la boule/le trait qu'on voit briller).
+	(void)BaseMat;
+	// Cœur du projectile ÉMISSIF au MÊME niveau que le rayon de Noxar (×3.2 +0.3) : il
+	// RAYONNE fort, on voit la lumière colorée émaner du projectile pendant tout son vol.
 	if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeGlow(T,
-			FLinearColor(Core.R * 2.4f + 0.2f, Core.G * 2.4f + 0.2f, Core.B * 2.4f + 0.2f, 1.f)))
+			FLinearColor(Core.R * 3.2f + 0.3f, Core.G * 3.2f + 0.3f, Core.B * 3.2f + 0.3f, 1.f)))
 		T->Ball->SetMaterial(0, MID);
-	// Lumière à la couleur du tir (bleu Aquisphères / violet Noxeblast, etc.).
-	if (T->Glow) T->Glow->SetLightColor(FLinearColor(FMath::Min(1.f, Color.R + 0.2f),
-		FMath::Min(1.f, Color.G + 0.2f), FMath::Min(1.f, Color.B + 0.2f)));
+	// Lampe = couleur SATURÉE du tir -> le halo qui émane est bien coloré (bleu Aquisphères,
+	// violet Noxeblast, etc.).
+	if (T->Glow) T->Glow->SetLightColor(Core);
 
-	// Halo DISCRET (juste un léger nimbe), pas une grosse boule.
+	// HALO lumineux autour du cœur (émissif plus doux) -> nimbe coloré bien visible.
 	if (Sphere) T->Halo->SetStaticMesh(Sphere);
-	T->Halo->SetRelativeScale3D(bBolt ? FVector(1.15f, 1.5f, 1.5f) : FVector(1.4f, 1.4f, 1.4f));
-	if (BaseMat)
-		if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, T))
-		{
-			MID->SetVectorParameterValue(TEXT("Color"), FLinearColor(Color.R, Color.G, Color.B, 0.4f));
-			T->Halo->SetMaterial(0, MID);
-		}
+	T->Halo->SetRelativeScale3D(bBolt ? FVector(1.3f, 1.8f, 1.8f) : FVector(1.7f, 1.7f, 1.7f));
+	if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeGlow(T,
+			FLinearColor(Core.R * 1.6f, Core.G * 1.6f, Core.B * 1.6f, 1.f)))
+		T->Halo->SetMaterial(0, MID);
 }
 
 void AWOTOLProjectileTracer::Tick(float DeltaSeconds)
