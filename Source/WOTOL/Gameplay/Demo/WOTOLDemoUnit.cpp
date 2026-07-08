@@ -1061,18 +1061,29 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 
 	// ───────────────── NOXÉENS (corps sombre + lumens) ─────────────────
 	// NB : identité Noxéenne = VERT/abyssal bioluminescent (distinct du Kraken violet).
-	if (Id == TEXT("Noxar")) // Chef : ARTICULÉ vert-abyssal + tentacules dorsales
+	if (Id == TEXT("Noxar")) // Chef : humanoïde sombre à VEINES D'ÉNERGIE BLEUES + 2 tentacules (réf 124)
 	{
-		BuildArticulatedHumanoid(H, FLinearColor(0.05f, 0.11f, 0.10f, 1.f), 0.34f);
-		AddPart(M_SPH, FVector(10, 0, H * 0.33f), FVector(0.13f, 0.10f, 0.10f), NoRot, NoxGreen); // yeux verts
-		// Tentacules dorsales (attachées au torse via VisualRoot) qui ondulent
-		for (int32 i = 0; i < 4; ++i)
+		const FLinearColor BlueGlow(0.30f, 0.85f, 1.80f, 1.f); // énergie bleue LUMINEUSE (émissif)
+		BuildArticulatedHumanoid(H, NoxDark, 0.40f);           // chef : carrure plus large
+		// Deux yeux bleus lumineux
+		AddPart(M_SPH, FVector(12, 7, H * 0.33f), FVector(0.08f, 0.08f, 0.09f), NoRot, BlueGlow);
+		AddPart(M_SPH, FVector(12, -7, H * 0.33f), FVector(0.08f, 0.08f, 0.09f), NoRot, BlueGlow);
+		// VEINES D'ÉNERGIE bleues ramifiées sur le torse (motif éclair)
+		AddPart(M_CONE, FVector(H * 0.18f, 0, H * 0.12f), FVector(0.05f, 0.05f, h * 0.22f), NoRot, BlueGlow);
+		for (int32 v = 0; v < 6; ++v)
 		{
-			const float Side = (i % 2 == 0) ? 1.f : -1.f;
-			const float Up   = (i < 2) ? 0.28f : 0.16f;
-			RegisterWiggle(AddPart(M_CONE, FVector(-12, Side * 22, H * Up),
-				FVector(0.06f, 0.06f, h * 0.42f), FRotator(0, 0, Side * 50.f), NoxGreen), i * 1.3f);
+			const float a = -1.5f + v * 0.6f;
+			AddPart(M_CONE, FVector(H * 0.19f, FMath::Sin(a) * 16.f, H * (0.02f + 0.04f * v)),
+				FVector(0.035f, 0.035f, h * 0.12f), FRotator(0, 0, FMath::RadiansToDegrees(a)), BlueGlow);
 		}
+		// Avant-bras hérissés de pics
+		for (int32 side = -1; side <= 1; side += 2)
+			for (int32 k = 0; k < 3; ++k)
+				MakeBone(side < 0 ? JLElbow : JRElbow, M_CONE, FVector(0.05f, side * 4.f, -H * (0.04f + k * 0.05f)),
+					FVector(0.045f, 0.045f, h * 0.11f), FRotator(0, 0, side * 60.f), NoxDark);
+		// 2 longues TENTACULES bleues lumineuses dans le dos, qui ondulent
+		RegisterWiggle(AddPart(M_CONE, FVector(-16, 18, H * 0.32f), FVector(0.055f, 0.055f, h * 1.0f), FRotator(-42.f, 0, 42.f), BlueGlow), 0.f);
+		RegisterWiggle(AddPart(M_CONE, FVector(-16, -18, H * 0.32f), FVector(0.055f, 0.055f, h * 1.0f), FRotator(-42.f, 0, -42.f), BlueGlow), 3.14f);
 		return;
 	}
 	if (Id == TEXT("Noxeflare")) // Infanterie : ARTICULÉ vert-abyssal, amas d'yeux verts
@@ -1083,41 +1094,103 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		AddPart(M_CONE, FVector(2, -14, H * 0.42f), FVector(0.07f, 0.07f, h * 0.16f), FRotator(0, 0, -30.f), NoxGreen);
 		return;
 	}
-	if (Id == TEXT("Noxeblast")) // Distance : ARTICULÉ sombre + 2 tentacules dorsales BLEUES
+	if (Id == TEXT("Noxeblast")) // Distance : humanoïde VIOLET à taches bioluminescentes + PLUSIEURS tentacules (réf 123)
 	{
-		BuildArticulatedHumanoid(H, NoxDark, 0.32f);
-		AddPart(M_SPH, FVector(10, 0, H * 0.33f), FVector(0.11f, 0.09f, 0.09f), NoRot, NoxBlue); // yeux bleus
-		RegisterWiggle(AddPart(M_CONE, FVector(-16, 16, H * 0.28f), FVector(0.055f, 0.055f, h * 0.6f), FRotator(-30.f, 0, 35.f), NoxBlue), 0.f);
-		RegisterWiggle(AddPart(M_CONE, FVector(-16, -16, H * 0.28f), FVector(0.055f, 0.055f, h * 0.6f), FRotator(-30.f, 0, -35.f), NoxBlue), 3.14f);
+		const FLinearColor Violet(0.10f, 0.05f, 0.16f, 1.f);   // corps violet sombre
+		const FLinearColor VioGlow(0.75f, 0.30f, 1.70f, 1.f);  // taches/énergie violettes LUMINEUSES
+		const FLinearColor BlueEye(0.35f, 0.75f, 1.80f, 1.f);  // yeux bleus lumineux
+		BuildArticulatedHumanoid(H, Violet, 0.36f);
+		// Deux grands yeux bleus lumineux
+		AddPart(M_SPH, FVector(12, 8, H * 0.33f), FVector(0.09f, 0.09f, 0.10f), NoRot, BlueEye);
+		AddPart(M_SPH, FVector(12, -8, H * 0.33f), FVector(0.09f, 0.09f, 0.10f), NoRot, BlueEye);
+		// TACHES bioluminescentes violettes réparties sur le torse (comme la réf)
+		for (int32 t = 0; t < 6; ++t)
+		{
+			const float a = t * 1.05f;
+			AddPart(M_SPH, FVector(H * 0.17f, FMath::Sin(a) * 16.f, H * (0.16f - t * 0.045f)),
+				FVector(0.05f, 0.05f, 0.05f), NoRot, VioGlow);
+		}
+		// Avant-bras hérissés de pics + griffes
+		for (int32 side = -1; side <= 1; side += 2)
+			for (int32 k = 0; k < 3; ++k)
+				MakeBone(side < 0 ? JLElbow : JRElbow, M_CONE, FVector(0.05f, side * 4.f, -H * (0.04f + k * 0.05f)),
+					FVector(0.045f, 0.045f, h * 0.11f), FRotator(0, 0, side * 60.f), Violet);
+		// PLUSIEURS tentacules (6) qui rayonnent du dos/épaules, longues et ondulantes
+		for (int32 i = 0; i < 6; ++i)
+		{
+			const float Side = (i % 2 == 0) ? 1.f : -1.f;
+			const float Up   = 0.34f - (i / 2) * 0.12f;
+			const float Spread = 35.f + (i / 2) * 18.f;
+			RegisterWiggle(AddPart(M_CONE, FVector(-14, Side * 20.f, H * Up),
+				FVector(0.05f, 0.05f, h * (0.95f - (i / 2) * 0.12f)), FRotator(-30.f, 0, Side * Spread), VioGlow), i * 1.0f);
+		}
 		return;
 	}
-	if (Id == TEXT("Noxebeast")) // Montée : QUADRUPÈDE cuirassé bronze (4 pattes + queue animées)
+	if (Id == TEXT("Noxebeast")) // Montée : QUADRUPÈDE cuirassé façon réf (dos hérissé, défenses, griffes)
 	{
-		// Corps arrondi (sphère allongée = plus doux qu'un cube)
-		SetupMainPart(M_SPH, FVector(0, 0, -H * 0.16f),
-			FVector(h * 1.35f, h * 0.90f, h * 0.60f), NoRot, NoxBronze);
-		AddPart(M_SPH, FVector(H * 0.60f, 0, -H * 0.06f), FVector(h * 0.5f, h * 0.55f, h * 0.45f), NoRot, NoxBronze); // tête (arrondie)
-		AddPart(M_SPH, FVector(H * 0.80f, 14, -H * 0.02f), FVector(0.08f, 0.08f, 0.08f), NoRot, NoxGreen);            // œil vert
-		AddPart(M_SPH, FVector(H * 0.80f, -14, -H * 0.02f), FVector(0.08f, 0.08f, 0.08f), NoRot, NoxGreen);
-		AddPart(M_CONE, FVector(H * 0.72f, 22, -H * 0.20f), FVector(0.08f, 0.08f, h * 0.25f), FRotator(120.f, 0, 0), Tusk); // défenses
-		AddPart(M_CONE, FVector(H * 0.72f, -22, -H * 0.20f), FVector(0.08f, 0.08f, h * 0.25f), FRotator(120.f, 0, 0), Tusk);
+		const FLinearColor Scale2(0.14f, 0.12f, 0.09f, 1.f);       // écailles bronze un peu plus claires
+		const FLinearColor EyeGlow(0.35f, 1.60f, 0.55f, 1.f);      // yeux verts LUMINEUX (émissif)
+		const FLinearColor TuskC(0.55f, 0.42f, 0.20f, 1.f);
 
-		// 4 PATTES articulées (hanches) — avant vs arrière, animées en marche
-		const float LegX = H * 0.34f, LegY = H * 0.34f;
-		JRShoulder = MakeJoint(VisualRoot, FVector(LegX, LegY, -H * 0.12f));   // avant droit
-		MakeBone(JRShoulder, M_CYL, FVector(0, 0, -H * 0.13f), FVector(0.18f, 0.18f, h * 0.26f), NoRot, NoxBronze);
-		JLShoulder = MakeJoint(VisualRoot, FVector(LegX, -LegY, -H * 0.12f));  // avant gauche
-		MakeBone(JLShoulder, M_CYL, FVector(0, 0, -H * 0.13f), FVector(0.18f, 0.18f, h * 0.26f), NoRot, NoxBronze);
-		JRHip = MakeJoint(VisualRoot, FVector(-LegX, LegY, -H * 0.12f));       // arrière droit
-		MakeBone(JRHip, M_CYL, FVector(0, 0, -H * 0.13f), FVector(0.18f, 0.18f, h * 0.26f), NoRot, NoxBronze);
-		JLHip = MakeJoint(VisualRoot, FVector(-LegX, -LegY, -H * 0.12f));      // arrière gauche
-		MakeBone(JLHip, M_CYL, FVector(0, 0, -H * 0.13f), FVector(0.18f, 0.18f, h * 0.26f), NoRot, NoxBronze);
+		// ── CORPS massif, épaules HAUTES à l'avant qui redescendent vers l'arrière (posture voûtée) ──
+		SetupMainPart(M_SPH, FVector(H * 0.05f, 0, -H * 0.06f), FVector(h * 1.05f, h * 0.95f, h * 0.78f), NoRot, NoxBronze); // poitrail bombé
+		AddPart(M_SPH, FVector(-H * 0.55f, 0, -H * 0.18f), FVector(h * 0.85f, h * 0.80f, h * 0.55f), NoRot, NoxBronze);      // croupe plus basse
+		AddPart(M_CYL, FVector(-H * 0.28f, 0, -H * 0.14f), FVector(h * 0.80f, h * 0.80f, h * 0.9f), FRotator(90.f, 0, 0), NoxBronze); // tronc
 
-		// QUEUE qui remue (registre wiggle)
-		RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.75f, 0, -H * 0.10f),
-			FVector(0.14f, 0.14f, h * 0.4f), FRotator(-100.f, 0, 0), NoxBronze), 0.f);
-		AddPart(M_CONE, FVector(-H * 0.1f, 0, H * 0.06f), FVector(0.12f, 0.12f, h * 0.2f), NoRot, NoxBronze); // épine dorsale
-		bArticulated = true; // fait bouger les 4 pattes (démarche quadrupède)
+		// ── PLAQUES D'ÉCAILLES sur le dos et les flancs (relief cuirassé) ──
+		for (int32 p = 0; p < 6; ++p)
+		{
+			const float px = H * (0.35f - p * 0.16f);
+			AddPart(M_CUBE, FVector(px, 0, H * 0.30f - p * 1.f), FVector(0.16f, 0.42f, 0.05f), FRotator(0, 0, 0), Scale2);      // dalle dorsale
+			AddPart(M_CUBE, FVector(px, H * 0.30f, -H * 0.10f), FVector(0.12f, 0.10f, 0.06f), FRotator(0, 0, 20.f), Scale2);   // écaille flanc D
+			AddPart(M_CUBE, FVector(px, -H * 0.30f, -H * 0.10f), FVector(0.12f, 0.10f, 0.06f), FRotator(0, 0, -20.f), Scale2); // écaille flanc G
+		}
+
+		// ── RANGÉE DE PICS DORSAUX (de la nuque à la queue), taille décroissante ──
+		for (int32 s = 0; s < 7; ++s)
+		{
+			const float sx = H * (0.30f - s * 0.16f);
+			const float sh = h * (0.34f - s * 0.03f);
+			AddPart(M_CONE, FVector(sx, 0, H * 0.34f), FVector(0.10f, 0.10f, sh), FRotator(-18.f, 0, 0), Scale2);
+		}
+		// PICS D'ÉPAULES (deux gros bouquets à l'avant, comme la réf)
+		for (int32 side = -1; side <= 1; side += 2)
+		{
+			for (int32 k = 0; k < 3; ++k)
+				AddPart(M_CONE, FVector(H * (0.10f + k * 0.05f), side * H * 0.34f, H * (0.05f + k * 0.06f)),
+					FVector(0.09f, 0.09f, h * (0.34f - k * 0.05f)), FRotator(0, 0, side * (55.f - k * 12.f)), Scale2);
+		}
+
+		// ── TÊTE basse + gueule + défenses recourbées + yeux verts lumineux ──
+		AddPart(M_SPH, FVector(H * 0.62f, 0, -H * 0.06f), FVector(h * 0.50f, h * 0.52f, h * 0.44f), NoRot, NoxBronze);   // crâne
+		AddPart(M_CONE, FVector(H * 0.86f, 0, -H * 0.14f), FVector(h * 0.34f, h * 0.30f, h * 0.30f), FRotator(78.f, 0, 0), NoxBronze); // museau
+		AddPart(M_SPH, FVector(H * 0.74f, 15, H * 0.06f), FVector(0.10f, 0.10f, 0.10f), NoRot, EyeGlow);                 // œil vert G
+		AddPart(M_SPH, FVector(H * 0.74f, -15, H * 0.06f), FVector(0.10f, 0.10f, 0.10f), NoRot, EyeGlow);                // œil vert D
+		AddPart(M_CONE, FVector(H * 0.70f, 12, H * 0.16f), FVector(0.06f, 0.06f, h * 0.14f), FRotator(0, 0, 40.f), Scale2);  // corne sourcil
+		AddPart(M_CONE, FVector(H * 0.70f, -12, H * 0.16f), FVector(0.06f, 0.06f, h * 0.14f), FRotator(0, 0, -40.f), Scale2);
+		// deux GRANDES défenses qui remontent (recourbées)
+		AddPart(M_CONE, FVector(H * 0.80f, 20, -H * 0.24f), FVector(0.10f, 0.10f, h * 0.40f), FRotator(150.f, 0, 12.f), TuskC);
+		AddPart(M_CONE, FVector(H * 0.80f, -20, -H * 0.24f), FVector(0.10f, 0.10f, h * 0.40f), FRotator(150.f, 0, -12.f), TuskC);
+
+		// ── 4 PATTES ÉPAISSES SEGMENTÉES (cuisse + tibia + pied à 3 griffes), animées ──
+		const float LegX = H * 0.40f, LegY = H * 0.36f;
+		auto BuildLeg = [&](USceneComponent* Joint)
+		{
+			MakeBone(Joint, M_CYL, FVector(0, 0, -H * 0.12f), FVector(0.22f, 0.22f, h * 0.24f), NoRot, NoxBronze);     // cuisse épaisse
+			MakeBone(Joint, M_CYL, FVector(H * 0.02f, 0, -H * 0.30f), FVector(0.17f, 0.17f, h * 0.22f), NoRot, NoxBronze); // tibia
+			MakeBone(Joint, M_SPH, FVector(H * 0.04f, 0, -H * 0.42f), FVector(0.20f, 0.24f, 0.14f), NoRot, NoxBronze);  // patte
+			for (int32 cclaw = -1; cclaw <= 1; ++cclaw) // 3 griffes vers l'avant
+				MakeBone(Joint, M_CONE, FVector(H * 0.12f, cclaw * 9.f, -H * 0.44f), FVector(0.05f, 0.05f, h * 0.12f), FRotator(70.f, 0, 0), TuskC);
+		};
+		JRShoulder = MakeJoint(VisualRoot, FVector(LegX, LegY, -H * 0.08f));   BuildLeg(JRShoulder);  // avant droit
+		JLShoulder = MakeJoint(VisualRoot, FVector(LegX, -LegY, -H * 0.08f));  BuildLeg(JLShoulder);  // avant gauche
+		JRHip = MakeJoint(VisualRoot, FVector(-LegX, LegY, -H * 0.12f));       BuildLeg(JRHip);       // arrière droit
+		JLHip = MakeJoint(VisualRoot, FVector(-LegX, -LegY, -H * 0.12f));      BuildLeg(JLHip);       // arrière gauche
+
+		// ── QUEUE épaisse segmentée à pics, qui remue ──
+		RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.85f, 0, -H * 0.10f), FVector(0.18f, 0.18f, h * 0.45f), FRotator(-105.f, 0, 0), NoxBronze), 0.f);
+		RegisterWiggle(AddPart(M_CONE, FVector(-H * 1.15f, 0, -H * 0.02f), FVector(0.10f, 0.10f, h * 0.30f), FRotator(-100.f, 0, 0), Scale2), 0.6f);
+		bArticulated = true; // démarche quadrupède (les 4 pattes s'animent)
 		return;
 	}
 	if (Id == TEXT("Noxeons")) // Spéciale : organisme bioluminescent vert
