@@ -48,8 +48,8 @@ void AWOTOLProjectileTracer::Fire(UWorld* World, const FVector& From, const FVec
 	UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
 		nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 
-	const FLinearColor Core(FMath::Min(1.f, Color.R + 0.3f),
-		FMath::Min(1.f, Color.G + 0.3f), FMath::Min(1.f, Color.B + 0.3f), 1.f);
+	// Couleur SATURÉE de base (on garde la dominante -> pas de délavage vers le blanc).
+	const FLinearColor Sat(Color.R, Color.G, Color.B, 1.f);
 
 	// Taille de VRAI projectile (bien plus petit que les unités). Rayon ~15-25 cm.
 	if (Sphere) T->Ball->SetStaticMesh(Sphere);
@@ -65,20 +65,20 @@ void AWOTOLProjectileTracer::Fire(UWorld* World, const FVector& From, const FVec
 		T->Ball->SetRelativeScale3D(FVector(S, S, S));
 	}
 	(void)BaseMat;
-	// Cœur du projectile ÉMISSIF au MÊME niveau que le rayon de Noxar (×3.2 +0.3) : il
-	// RAYONNE fort, on voit la lumière colorée émaner du projectile pendant tout son vol.
+	// Cœur ÉMISSIF = couleur BRUTE ×3 (comme le rayon de Noxar : Color*3+0.2). On NE
+	// relève PAS tous les canaux (ce qui délavait en blanc) -> la DOMINANTE reste visible
+	// (cyan Aquisphères, violet Noxeblast) au lieu de paraître blanc.
 	if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeGlow(T,
-			FLinearColor(Core.R * 3.2f + 0.3f, Core.G * 3.2f + 0.3f, Core.B * 3.2f + 0.3f, 1.f)))
+			FLinearColor(Sat.R * 3.0f + 0.15f, Sat.G * 3.0f + 0.15f, Sat.B * 3.0f + 0.15f, 1.f)))
 		T->Ball->SetMaterial(0, MID);
-	// Lampe = couleur SATURÉE du tir -> le halo qui émane est bien coloré (bleu Aquisphères,
-	// violet Noxeblast, etc.).
-	if (T->Glow) T->Glow->SetLightColor(Core);
+	// Lampe = couleur SATURÉE brute du tir -> halo bien coloré (pas blanc).
+	if (T->Glow) T->Glow->SetLightColor(Sat);
 
-	// HALO lumineux autour du cœur (émissif plus doux) -> nimbe coloré bien visible.
+	// HALO autour du cœur (émissif doux, couleur brute) -> nimbe coloré, pas un voile blanc.
 	if (Sphere) T->Halo->SetStaticMesh(Sphere);
 	T->Halo->SetRelativeScale3D(bBolt ? FVector(1.3f, 1.8f, 1.8f) : FVector(1.7f, 1.7f, 1.7f));
 	if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeGlow(T,
-			FLinearColor(Core.R * 1.6f, Core.G * 1.6f, Core.B * 1.6f, 1.f)))
+			FLinearColor(Sat.R * 1.5f, Sat.G * 1.5f, Sat.B * 1.5f, 1.f)))
 		T->Halo->SetMaterial(0, MID);
 }
 
