@@ -130,11 +130,11 @@ void AWOTOLGreyboxEnvironment::SpawnRock(const FVector& Center, float Size, cons
 {
 	FRandomStream R(Seed);
 
-	// Bloc central
+	// Bloc central : BLOQUANT (les unités/le Kraken contournent le rocher, n'y rentrent pas).
 	const float CoreS = Size * R.FRandRange(0.7f, 0.9f);
 	SpawnBlock(MESH_CUBE, Center + FVector(0, 0, CoreS * 0.4f),
 		FVector(CoreS / 100.f), Vary(Color, R.FRandRange(-0.01f, 0.02f)),
-		FRotator(R.FRandRange(0.f, 40.f), R.FRandRange(0.f, 360.f), R.FRandRange(0.f, 40.f)), false);
+		FRotator(R.FRandRange(0.f, 40.f), R.FRandRange(0.f, 360.f), R.FRandRange(0.f, 40.f)), /*bBlocking=*/true);
 
 	// Éclats autour
 	const int32 Chunks = R.RandRange(5, 9);
@@ -184,7 +184,7 @@ void AWOTOLGreyboxEnvironment::SpawnRidge(const FVector& Start, const FVector& E
 		SpawnBlock(MESH_CONE, Pos + FVector(0, 0, H * 0.5f),
 			FVector(Wd / 50.f, Wd / 50.f, H / 100.f),
 			Vary(Color, R.FRandRange(-0.015f, 0.015f)),
-			FRotator(0.f, R.FRandRange(0.f, 360.f), 0.f), false);
+			FRotator(0.f, R.FRandRange(0.f, 360.f), 0.f), /*bBlocking=*/true); // montagnes = mur (unités/Kraken bloqués)
 	}
 }
 

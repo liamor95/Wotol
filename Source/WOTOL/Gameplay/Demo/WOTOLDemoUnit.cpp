@@ -1341,19 +1341,19 @@ void AWOTOLDemoUnit::BuildArticulatedHumanoid(float H, const FLinearColor& Col, 
 	MakeBone(JLElbow, M_SPH, FVector(0, 0, -H * 0.15f), FVector(ArmW * 1.1f, ArmW * 1.1f, ArmW * 1.1f), NoRot, Col);
 
 	// Jambe DROITE : hanche → cuisse → genou → tibia → pied
-	const float LegW = FMath::Max(0.09f, BodyW * 0.30f);
+	const float LegW = FMath::Max(0.14f, BodyW * 0.44f); // pattes plus épaisses (fini les mini-pattes)
 	JRHip = MakeJoint(VisualRoot, FVector(0, H * 0.08f, -H * 0.05f));
 	MakeBone(JRHip, M_CYL, FVector(0, 0, -H * 0.10f), FVector(LegW, LegW, h * 0.20f), NoRot, Col);
 	JRKnee = MakeJoint(JRHip, FVector(0, 0, -H * 0.20f));
-	MakeBone(JRKnee, M_CYL, FVector(0, 0, -H * 0.10f), FVector(LegW * 0.9f, LegW * 0.9f, h * 0.20f), NoRot, Col);
-	MakeBone(JRKnee, M_CUBE, FVector(H * 0.03f, 0, -H * 0.20f), FVector(0.14f, LegW, 0.05f), NoRot, Col); // pied
+	MakeBone(JRKnee, M_CYL, FVector(0, 0, -H * 0.10f), FVector(LegW * 0.9f, LegW * 0.9f, h * 0.22f), NoRot, Col);
+	MakeBone(JRKnee, M_CUBE, FVector(-H * 0.07f, 0, -H * 0.21f), FVector(0.24f, LegW * 1.15f, 0.06f), NoRot, Col); // pied vers l'AVANT (compense le flip 180 deg)
 
 	// Jambe GAUCHE
 	JLHip = MakeJoint(VisualRoot, FVector(0, -H * 0.08f, -H * 0.05f));
 	MakeBone(JLHip, M_CYL, FVector(0, 0, -H * 0.10f), FVector(LegW, LegW, h * 0.20f), NoRot, Col);
 	JLKnee = MakeJoint(JLHip, FVector(0, 0, -H * 0.20f));
-	MakeBone(JLKnee, M_CYL, FVector(0, 0, -H * 0.10f), FVector(LegW * 0.9f, LegW * 0.9f, h * 0.20f), NoRot, Col);
-	MakeBone(JLKnee, M_CUBE, FVector(H * 0.03f, 0, -H * 0.20f), FVector(0.14f, LegW, 0.05f), NoRot, Col);
+	MakeBone(JLKnee, M_CYL, FVector(0, 0, -H * 0.10f), FVector(LegW * 0.9f, LegW * 0.9f, h * 0.22f), NoRot, Col);
+	MakeBone(JLKnee, M_CUBE, FVector(-H * 0.07f, 0, -H * 0.21f), FVector(0.24f, LegW * 1.15f, 0.06f), NoRot, Col); // pied vers l'AVANT
 
 	bArticulated = true;
 	// Ces humanoïdes étaient construits dos-devant : on retourne tout le visuel de 180°.
@@ -1386,12 +1386,21 @@ void AWOTOLDemoUnit::AnimateArticulated(float Dt)
 {
 	if (!bArticulated) return;
 
-	// ACTION-BASED : l'anim d'ATTAQUE ne joue QUE dans la courte fenêtre après un vrai coup
-	// (AttackAnimTimer), PAS pendant tout l'état Attacking (où l'unité se repositionne/contourne).
-	// La NAGE joue dès qu'il y a un vrai déplacement (vitesse), sinon idle.
+	// ACTION-BASED : l'anim d'ATTAQUE ne joue QUE dans la courte fenêtre après un vrai coup.
+	// La NAGE joue dès que l'unité SE DÉPLACE : soit elle bouge vraiment (vélocité), soit
+	// elle est dans un état de déplacement (va vers l'ennemi / patrouille / repli / ordre
+	// joueur). -> fini le "glisse sans animation" pendant les déplacements ordonnés.
+	EUnitAIState St = EUnitAIState::Idle; bool bOrderMove = false;
+	if (UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>())
+	{
+		St = S->GetCurrentState();
+		bOrderMove = S->bFollowingPlayerOrder || S->bAttackMoveActive;
+	}
 	const float Speed = GetVelocity().Size2D();
 	const bool bAttacking = (AttackAnimTimer > 0.f);
-	const bool bMoving = !bAttacking && (Speed > 12.f);
+	const bool bInMoveState = (St == EUnitAIState::Seeking || St == EUnitAIState::Patrolling
+		|| St == EUnitAIState::Retreating || bOrderMove);
+	const bool bMoving = !bAttacking && (Speed > 6.f || bInMoveState);
 	const bool bDead = !IsAlive();
 
 	AnimPhase += Dt * (bMoving ? 9.f : 2.5f);
@@ -1478,11 +1487,19 @@ void AWOTOLDemoUnit::AnimateBody(float Dt)
 	// unités, une fois par frame -> point unique de décompte).
 	if (AttackAnimTimer > 0.f) AttackAnimTimer = FMath::Max(0.f, AttackAnimTimer - Dt);
 
-	// ACTION-BASED : à-coup d'attaque SEULEMENT après un vrai coup ; nage seulement si
-	// l'unité se déplace réellement ; sinon flottement idle.
+	// ACTION-BASED : à-coup d'attaque SEULEMENT après un vrai coup ; nage dès que l'unité
+	// se déplace (vélocité OU état de déplacement) -> animation fluide pendant les ordres.
+	EUnitAIState St2 = EUnitAIState::Idle; bool bOrderMove2 = false;
+	if (UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>())
+	{
+		St2 = S->GetCurrentState();
+		bOrderMove2 = S->bFollowingPlayerOrder || S->bAttackMoveActive;
+	}
 	const float Speed  = GetVelocity().Size2D();
 	const bool  bAttacking = (AttackAnimTimer > 0.f);
-	const bool  bMoving = !bAttacking && (Speed > 12.f);
+	const bool  bInMoveState2 = (St2 == EUnitAIState::Seeking || St2 == EUnitAIState::Patrolling
+		|| St2 == EUnitAIState::Retreating || bOrderMove2);
+	const bool  bMoving = !bAttacking && (Speed > 6.f || bInMoveState2);
 
 	// MORT : l'unité ne nage plus -> elle COULE lentement vers le fond (couche 0) et s'y
 	// immobilise. On force la couche cible au sol et on descend TRÈS doucement.
