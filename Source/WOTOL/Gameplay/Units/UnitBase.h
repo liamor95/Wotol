@@ -115,6 +115,10 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Combat")
 	void OnAttackPerformed(AUnitBase* Target);
 
+	// Hook C++ déclenché à CHAQUE coup réellement porté (après le cooldown) : sert à ne
+	// jouer l'animation d'attaque qu'au MOMENT du coup (pas pendant tout l'état Attacking).
+	virtual void OnAttackAnimTrigger() {}
+
 	// Événement Blueprint pour l'indicateur de sélection (décal, cercle, etc.)
 	UFUNCTION(BlueprintImplementableEvent, Category = "Selection")
 	void OnSelectionChanged(bool bNewSelected);

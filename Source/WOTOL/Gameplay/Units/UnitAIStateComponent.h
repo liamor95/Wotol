@@ -52,10 +52,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Config")
 	float RetreatHealthRatio = 0.25f;
 
-	// Autorise la FUITE à bas PV (repli vers le spawn). Mis à FALSE pour les unités
-	// du joueur : elles tiennent leur poste/ordre et se battent jusqu'à la mort.
+	// Autorise la FUITE AUTOMATIQUE à bas PV. FALSE PAR DÉFAUT pour TOUT LE MONDE :
+	// ni l'armée du joueur ni l'armée IA (Noxéens) ne fuient d'elles-mêmes -> elles
+	// combattent jusqu'à la mort. SEUL le joueur peut ordonner un repli MANUEL
+	// (IssueOrder_Retreat), qui ne passe pas par ce drapeau.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Config")
-	bool bAllowRetreat = true;
+	bool bAllowRetreat = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Config")
 	float TickInterval = 0.25f;  // évaluation toutes les 250ms

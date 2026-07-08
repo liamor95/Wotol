@@ -1298,19 +1298,23 @@ void AWOTOLDemoUnit::BuildArticulatedAquiloryons(float H, const FLinearColor& Ar
 }
 
 // ─── Animation procédurale (pilotée par l'état IA + la vitesse) ─────────────
+void AWOTOLDemoUnit::OnAttackAnimTrigger()
+{
+	// Un coup vient d'être porté : arme la fenêtre d'anim d'attaque et (re)démarre le swing.
+	AttackAnimTimer = 0.55f;
+	SwingProgress = 0.f;
+}
+
 void AWOTOLDemoUnit::AnimateArticulated(float Dt)
 {
 	if (!bArticulated) return;
 
-	EUnitAIState St = EUnitAIState::Idle;
-	if (UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>())
-	{
-		St = S->GetCurrentState();
-	}
+	// ACTION-BASED : l'anim d'ATTAQUE ne joue QUE dans la courte fenêtre après un vrai coup
+	// (AttackAnimTimer), PAS pendant tout l'état Attacking (où l'unité se repositionne/contourne).
+	// La NAGE joue dès qu'il y a un vrai déplacement (vitesse), sinon idle.
 	const float Speed = GetVelocity().Size2D();
-	const bool bMoving = (Speed > 10.f) || St == EUnitAIState::Seeking
-		|| St == EUnitAIState::Patrolling || St == EUnitAIState::Retreating;
-	const bool bAttacking = (St == EUnitAIState::Attacking);
+	const bool bAttacking = (AttackAnimTimer > 0.f);
+	const bool bMoving = !bAttacking && (Speed > 12.f);
 	const bool bDead = !IsAlive();
 
 	AnimPhase += Dt * (bMoving ? 9.f : 2.5f);
@@ -1325,8 +1329,7 @@ void AWOTOLDemoUnit::AnimateArticulated(float Dt)
 	}
 	else if (bAttacking)
 	{
-		SwingProgress += Dt * 3.0f;                            // frappe plus VIVE
-		if (SwingProgress > 1.f) SwingProgress -= 1.f;
+		SwingProgress = FMath::Min(1.f, SwingProgress + Dt * 3.0f); // UN coup net par attaque
 		// Armé LENT (recul) puis ABATTAGE SEC : deux phases nettes pour un coup lisible.
 		const float Wind  = FMath::Clamp(SwingProgress / 0.45f, 0.f, 1.f);      // 0..1 wind-up
 		const float Strike= FMath::Clamp((SwingProgress - 0.45f) / 0.35f, 0.f, 1.f); // abattage
@@ -1394,15 +1397,15 @@ void AWOTOLDemoUnit::AnimateBody(float Dt)
 	AnimClock += Dt;
 	const bool bDead = !IsAlive();
 
-	EUnitAIState St = EUnitAIState::Idle;
-	if (UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>())
-	{
-		St = S->GetCurrentState();
-	}
+	// Décrément de la fenêtre d'anim d'attaque (AnimateBody est appelée pour TOUTES les
+	// unités, une fois par frame -> point unique de décompte).
+	if (AttackAnimTimer > 0.f) AttackAnimTimer = FMath::Max(0.f, AttackAnimTimer - Dt);
+
+	// ACTION-BASED : à-coup d'attaque SEULEMENT après un vrai coup ; nage seulement si
+	// l'unité se déplace réellement ; sinon flottement idle.
 	const float Speed  = GetVelocity().Size2D();
-	const bool  bMoving = (Speed > 10.f) || St == EUnitAIState::Seeking
-		|| St == EUnitAIState::Patrolling || St == EUnitAIState::Retreating;
-	const bool  bAttacking = (St == EUnitAIState::Attacking);
+	const bool  bAttacking = (AttackAnimTimer > 0.f);
+	const bool  bMoving = !bAttacking && (Speed > 12.f);
 
 	// MORT : l'unité ne nage plus -> elle COULE lentement vers le fond (couche 0) et s'y
 	// immobilise. On force la couche cible au sol et on descend TRÈS doucement.

@@ -190,6 +190,7 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 	if (Now - LastAttackTime < UnitData->Stats.AttackCooldown) return;
 
 	LastAttackTime = Now;
+	OnAttackAnimTrigger(); // déclenche l'ANIM d'attaque UNIQUEMENT au moment d'un vrai coup
 
 	// AVEUGLÉ (flash Noxeflare) : précision quasi nulle -> rate le plus souvent.
 	if (Now < BlindedUntil && FMath::FRand() < 0.75f)

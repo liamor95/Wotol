@@ -178,6 +178,10 @@ private:
 	bool  bVisualYawFlip = false;
 	float AnimPhase    = 0.f;
 	float SwingProgress = 0.f; // 0..1 avancement d'un coup d'épée
+	float AttackAnimTimer = 0.f; // >0 = un coup vient d'être porté -> jouer l'anim d'attaque
+
+	// Déclenché à chaque coup réellement porté -> arme l'anim d'attaque (fenêtre courte).
+	virtual void OnAttackAnimTrigger() override;
 
 	// ─── Animation générique (toutes unités) : nage + inclinaison + appendices ──
 	// Conteneur visuel : on le fait flotter/incliner pour animer TOUTE la silhouette.
