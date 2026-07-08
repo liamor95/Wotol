@@ -465,30 +465,30 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			UStaticMesh* Sph  = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 			UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
 				nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+			(void)BaseMat;
 			FRandomStream Bs(77);
-			// Nombreux amas RÉPARTIS sur TOUTE l'arène (réf. bioluminescence dispersée) :
-			// moitié dispersés dans l'arène, moitié plaqués contre les reliefs.
-			for (int32 i = 0; i < 40; ++i)
+
+			// ── ÉPARPILLÉ = de NOMBREUSES TOUFFES réparties sur TOUTE l'arène (réf.).
+			// Chaque touffe = un actor posé au sol, contenant PLUSIEURS organismes proches
+			// (comme les massifs de corail qui poussent en bouquet sur les roches). ──
+			const int32 Patches = 55;                       // BEAUCOUP de foyers, partout
+			for (int32 p = 0; p < Patches; ++p)
 			{
-				const float Ang = Bs.FRandRange(0.f, 2.f * PI);
-				const float Dist = (i % 2 == 0)
-					? Bs.FRandRange(700.f, 3200.f)
-					: Bs.FRandRange(3400.f, 4600.f);
-				const FVector P = Center + FVector(FMath::Cos(Ang) * Dist, FMath::Sin(Ang) * Dist, -20.f);
-				const FLinearColor Col = BioCols[Bs.RandRange(0, 4)];
+				const float Ang  = Bs.FRandRange(0.f, 2.f * PI);
+				// Répartition UNIFORME EN SURFACE (sqrt) -> ils couvrent TOUT le sol également,
+				// au lieu de s'agglutiner au centre (fini le "amas au milieu").
+				const float Dist = 350.f + FMath::Sqrt(Bs.FRand()) * 4200.f;
+				const FVector PatchP = Center + FVector(FMath::Cos(Ang) * Dist, FMath::Sin(Ang) * Dist, -20.f);
 
 				FActorSpawnParameters LP; LP.Owner = this;
 				LP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-				AActor* CoralAct = Wl->SpawnActor<AActor>(AActor::StaticClass(), P, FRotator(0, Bs.FRandRange(0.f, 360.f), 0.f), LP);
+				AActor* CoralAct = Wl->SpawnActor<AActor>(AActor::StaticClass(), PatchP, FRotator(0, Bs.FRandRange(0.f, 360.f), 0.f), LP);
 				if (!CoralAct) continue;
 				USceneComponent* Root = NewObject<USceneComponent>(CoralAct);
 				Root->RegisterComponent(); CoralAct->SetRootComponent(Root);
 
-				// ── Amas de corail bioluminescent : un socle bulbeux + des polypes trapus
-				// coiffés d'un bulbe LUMINEUX (c'est le bulbe qui « fait » la lumière). ──
-				const float Sc = Bs.FRandRange(1.0f, 1.9f);
-
-				// Fabrique une pièce de corail (mesh + matériau émissif).
+				// Pièce émissive (l'organisme rayonne LUI-MÊME, comme le cristal du Cristalliseur).
+				// Émissif ATTÉNUÉ -> couleur FRANCHE (fini le blanc cramé).
 				auto MakePiece = [&](UStaticMesh* Mesh, const FVector& Loc, const FVector& Scale,
 					const FRotator& Rot, const FLinearColor& Emissive) -> void
 				{
@@ -502,56 +502,57 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 					M->SetRelativeScale3D(Scale);
 					M->SetRelativeLocation(Loc);
 					M->SetRelativeRotation(Rot);
-					// L'OBJET LUI-MÊME émet la lumière (matériau émissif, comme le cristal du
-					// Cristalliseur qui marche bien) -> PAS de flaque au sol : c'est l'organisme
-					// bioluminescent qu'on voit briller. Couleur HDR (>1) pour qu'il rayonne.
 					if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeGlow(CoralAct, Emissive))
 						M->SetMaterial(0, MID);
 				};
-				(void)BaseMat;
 
-				// 1) Socle bulbeux (base charnue du corail), teinte sombre du corail.
-				MakePiece(Sph, FVector(0, 0, 12.f * Sc), FVector(1.2f * Sc, 1.2f * Sc, 0.55f * Sc),
-					FRotator::ZeroRotator, Col * 0.9f);
-
-				// 2) Polypes : cône trapu (tige) coiffé d'un bulbe qui BRILLE fort.
-				const int32 Polyps = Bs.RandRange(4, 6);
-				for (int32 sIdx = 0; sIdx < Polyps; ++sIdx)
+				// Quelques organismes serrés dans la touffe (rayon ~180) -> petit point net.
+				const int32 Organisms = Bs.RandRange(3, 6);
+				FLinearColor PatchCol = BioCols[Bs.RandRange(0, 4)];
+				for (int32 o = 0; o < Organisms; ++o)
 				{
-					const float A   = Bs.FRandRange(0.f, 2.f * PI);
-					const float Rad = Bs.FRandRange(0.f, 55.f) * Sc;
-					const FVector Base(FMath::Cos(A) * Rad, FMath::Sin(A) * Rad, 0.f);
-					const float Hp  = Bs.FRandRange(80.f, 170.f) * Sc;   // hauteur du polype (unités monde)
-					const float Wp  = Bs.FRandRange(0.45f, 0.75f) * Sc;  // trapu, pas un cure-dent
-					const FRotator Tilt(Bs.FRandRange(-14.f, 14.f), 0.f, Bs.FRandRange(-14.f, 14.f));
-					// tige (cône) : base au sol, centre à mi-hauteur
-					MakePiece(Cone, Base + FVector(0, 0, Hp * 0.5f), FVector(Wp, Wp, Hp / 100.f),
-						Tilt, Col * 1.8f);
-					// bulbe lumineux au sommet de la tige
-					MakePiece(Sph, Base + FVector(0, 0, Hp), FVector(Wp * 0.9f, Wp * 0.9f, Wp * 0.9f),
-						FRotator::ZeroRotator, Col * 3.6f); // survolté -> lit comme luminescent
+					// Couleur : surtout la teinte du massif, parfois une autre (mélange naturel).
+					const FLinearColor Col = (Bs.FRand() < 0.3f) ? BioCols[Bs.RandRange(0, 4)] : PatchCol;
+					const float Sc = Bs.FRandRange(0.6f, 1.3f);
+					const FVector O(Bs.FRandRange(-180.f, 180.f), Bs.FRandRange(-180.f, 180.f), 0.f);
+
+					if (Bs.FRand() < 0.45f)
+					{
+						// CHAMPIGNON / MÉDUSE : tige fine + chapeau en dôme lumineux.
+						const float StalkH = Bs.FRandRange(150.f, 300.f) * Sc;
+						MakePiece(Cone, O + FVector(0, 0, StalkH * 0.5f), FVector(0.09f * Sc, 0.09f * Sc, StalkH / 100.f),
+							FRotator::ZeroRotator, Col * 1.1f);
+						MakePiece(Sph, O + FVector(0, 0, StalkH), FVector(0.55f * Sc, 0.55f * Sc, 0.24f * Sc),
+							FRotator::ZeroRotator, Col * 2.0f);
+					}
+					else
+					{
+						// TOUFFE DE CORAIL : petit socle + quelques polypes à bulbe lumineux.
+						MakePiece(Sph, O + FVector(0, 0, 10.f * Sc), FVector(0.7f * Sc, 0.7f * Sc, 0.4f * Sc),
+							FRotator::ZeroRotator, Col * 0.7f);
+						const int32 Polyps = Bs.RandRange(3, 5);
+						for (int32 sIdx = 0; sIdx < Polyps; ++sIdx)
+						{
+							const float A   = Bs.FRandRange(0.f, 2.f * PI);
+							const float Rad = Bs.FRandRange(0.f, 45.f) * Sc;
+							const FVector Base = O + FVector(FMath::Cos(A) * Rad, FMath::Sin(A) * Rad, 0.f);
+							const float Hp  = Bs.FRandRange(70.f, 150.f) * Sc;
+							const float Wp  = Bs.FRandRange(0.40f, 0.65f) * Sc;
+							const FRotator Tilt(Bs.FRandRange(-16.f, 16.f), 0.f, Bs.FRandRange(-16.f, 16.f));
+							MakePiece(Cone, Base + FVector(0, 0, Hp * 0.5f), FVector(Wp, Wp, Hp / 100.f), Tilt, Col * 1.1f);
+							MakePiece(Sph, Base + FVector(0, 0, Hp), FVector(Wp * 0.9f, Wp * 0.9f, Wp * 0.9f),
+								FRotator::ZeroRotator, Col * 2.0f); // bulbe coloré (pas blanc)
+						}
+					}
 				}
 
-				// Variante CHAMPIGNON / MÉDUSE (réf.) : longue tige fine + CHAPEAU lumineux
-				// en dôme -> silhouette organique variée qui rayonne d'elle-même.
-				if (Bs.FRand() < 0.5f)
-				{
-					const float StalkH = Bs.FRandRange(190.f, 340.f) * Sc;
-					MakePiece(Cone, FVector(0, 0, StalkH * 0.5f), FVector(0.10f * Sc, 0.10f * Sc, StalkH / 100.f),
-						FRotator::ZeroRotator, Col * 1.6f);                                   // tige
-					MakePiece(Sph, FVector(0, 0, StalkH), FVector(0.60f * Sc, 0.60f * Sc, 0.26f * Sc),
-						FRotator::ZeroRotator, Col * 4.0f);                                   // chapeau lumineux
-				}
-
-				// PAS de grosse lampe qui inonde le sol : c'est l'OBJET émissif qui brille
-				// (comme le cristal du Cristalliseur). On ajoute juste une lampe TRÈS FAIBLE
-				// et TRÈS COURTE (~2 m) pour un léger nimbe à la base, pas un rayon de 10 m.
+				// Une SEULE micro-lampe par touffe (halo serré ~3 m), pas une flaque de 10 m.
 				UPointLightComponent* PC = NewObject<UPointLightComponent>(CoralAct);
 				PC->SetupAttachment(Root); PC->RegisterComponent();
-				PC->SetRelativeLocation(FVector(0, 0, 70.f * Sc));
-				PC->SetLightColor(Col);
-				PC->SetIntensity(600.f);
-				PC->SetAttenuationRadius(230.f); // ~2,3 m : halo serré autour de l'organisme
+				PC->SetRelativeLocation(FVector(0, 0, 120.f));
+				PC->SetLightColor(PatchCol);
+				PC->SetIntensity(900.f);
+				PC->SetAttenuationRadius(320.f);
 				PC->SetCastShadows(false);
 			}
 		}
