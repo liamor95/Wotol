@@ -85,6 +85,13 @@ public:
 	// Temps immobile accumulé pendant un ordre de déplacement (détection d'arrivée).
 	float PlayerOrderStillTime = 0.f;
 
+	// ANTI-BLOCAGE : détecte une unité coincée (veut avancer mais ne bouge pas) et la
+	// débloque par une petite poussée latérale pour contourner l'obstacle.
+	FVector StuckLastPos = FVector::ZeroVector;
+	float   StuckTime    = 0.f;
+	bool    bStuckInit   = false;
+	void TickAntiStuck();
+
 	UPROPERTY(BlueprintAssignable, Category = "AI")
 	FOnAIStateChanged OnAIStateChanged;
 

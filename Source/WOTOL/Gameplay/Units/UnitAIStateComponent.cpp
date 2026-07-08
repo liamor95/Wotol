@@ -55,8 +55,49 @@ void UUnitAIStateComponent::SetAIActive(bool bActive)
 	}
 }
 
+void UUnitAIStateComponent::TickAntiStuck()
+{
+	AUnitBase* Owner = Cast<AUnitBase>(GetOwner());
+	if (!Owner) return;
+
+	// L'unité VEUT-ELLE avancer ? (elle poursuit, exécute un ordre, ou fait un attack-move)
+	const bool bWantsMove = bFollowingPlayerOrder || bAttackMoveActive
+		|| CurrentState == EUnitAIState::Seeking
+		|| CurrentState == EUnitAIState::Patrolling
+		|| CurrentState == EUnitAIState::Retreating;
+
+	if (!bWantsMove) { StuckTime = 0.f; bStuckInit = false; return; }
+
+	const FVector Pos = Owner->GetActorLocation();
+	if (!bStuckInit) { StuckLastPos = Pos; bStuckInit = true; StuckTime = 0.f; return; }
+
+	const float Moved = FVector::Dist2D(Pos, StuckLastPos);
+	StuckLastPos = Pos;
+
+	if (Moved < 12.f) // n'a quasiment pas bougé sur l'intervalle
+	{
+		StuckTime += TickInterval;
+		if (StuckTime > 1.0f)
+		{
+			StuckTime = 0.f;
+			// Poussée LATÉRALE (perpendiculaire à son cap) pour contourner l'obstacle.
+			const FVector Fwd = Owner->GetActorForwardVector();
+			FVector Side = FVector::CrossProduct(FVector::UpVector, Fwd).GetSafeNormal();
+			if (Side.IsNearlyZero()) Side = FVector(0, 1, 0);
+			const float Sign = (FMath::FRand() < 0.5f) ? 1.f : -1.f;
+			Owner->AddActorWorldOffset(Side * Sign * 90.f + Fwd * 20.f, true); // sweep = respecte le décor
+		}
+	}
+	else
+	{
+		StuckTime = 0.f;
+	}
+}
+
 void UUnitAIStateComponent::AITick()
 {
+	TickAntiStuck(); // débloque les unités coincées contre le décor / les autres
+
 	// Ordre de déplacement simple en cours : l'ordre du joueur PRIME, l'unité ne s'arrête
 	// pas pour engager. On détecte l'ARRIVÉE (immobile un court instant) pour reprendre
 	// ensuite le comportement autonome (elle se défend là où on l'a envoyée).
