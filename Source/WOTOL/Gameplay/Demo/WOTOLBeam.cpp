@@ -7,6 +7,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Components/PointLightComponent.h"
+#include "WOTOLGlow.h"
 
 AWOTOLBeam::AWOTOLBeam()
 {
@@ -21,13 +22,15 @@ AWOTOLBeam::AWOTOLBeam()
 	Glow = CreateDefaultSubobject<UPointLightComponent>(TEXT("Glow"));
 	Glow->SetupAttachment(Pivot);
 	Glow->SetCastShadows(false);
-	Glow->SetAttenuationRadius(700.f);
-	Glow->SetIntensity(9000.f);
+	// Lampes DISCRÈTES : le trait lui-même est émissif (il brille sur toute sa longueur) ;
+	// ces lampes ne font qu'un léger halo, elles n'inondent plus le sol.
+	Glow->SetAttenuationRadius(260.f);
+	Glow->SetIntensity(1500.f);
 	Glow2 = CreateDefaultSubobject<UPointLightComponent>(TEXT("Glow2"));
 	Glow2->SetupAttachment(Pivot);
 	Glow2->SetCastShadows(false);
-	Glow2->SetAttenuationRadius(700.f);
-	Glow2->SetIntensity(9000.f);
+	Glow2->SetAttenuationRadius(260.f);
+	Glow2->SetIntensity(1500.f);
 }
 
 AWOTOLBeam* AWOTOLBeam::Fire(UWorld* World, const FVector& Origin, float YawStart, float YawEnd,
@@ -44,23 +47,20 @@ AWOTOLBeam* AWOTOLBeam::Fire(UWorld* World, const FVector& Origin, float YawStar
 	B->CasterUnit = Caster; B->Damage = SweepDamage;
 
 	UStaticMesh* Cyl = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
-	UMaterialInterface* Base = LoadObject<UMaterialInterface>(
-		nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 	if (Cyl) B->Beam->SetStaticMesh(Cyl);
 	// Cylindre couché le long de +X (le mesh est vertical à la base -> pitch +90),
 	// fin et long = trait laser. Ancré à l'origine, s'étend vers l'avant.
 	B->Beam->SetRelativeRotation(FRotator(90.f, 0.f, 0.f));
 	B->Beam->SetRelativeScale3D(FVector(0.10f, 0.10f, Length / 100.f));
 	B->Beam->SetRelativeLocation(FVector(Length * 0.5f, 0.f, 0.f));
-	if (Base)
-		if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Base, B))
-		{
-			// Couleur SURVOLTÉE (>1) -> le trait paraît lumineux fluo sur toute sa longueur.
-			const FLinearColor Bright(Color.R * 2.2f + 0.2f, Color.G * 2.2f + 0.2f, Color.B * 2.2f + 0.2f, 1.f);
-			MID->SetVectorParameterValue(TEXT("Color"), Bright);
-			B->Beam->SetMaterial(0, MID);
-			B->BeamMID = MID;
-		}
+	// Trait ÉMISSIF sur TOUTE sa longueur : c'est le rayon qui rayonne (couleur >1),
+	// pas le sol. Matériau unlit -> le cylindre entier brille fluo à l'écran.
+	if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeGlow(B,
+			FLinearColor(Color.R * 3.0f + 0.3f, Color.G * 3.0f + 0.3f, Color.B * 3.0f + 0.3f, 1.f)))
+	{
+		B->Beam->SetMaterial(0, MID);
+		B->BeamMID = MID;
+	}
 	B->Pivot->SetWorldRotation(FRotator(0.f, YawStart, 0.f));
 	// DEUX lampes fluo réparties sur le rayon -> TOUT le trait est illuminé (pas juste
 	// le milieu), à la couleur de l'attaque (vert pour Noxar, cyan pour Aquis).

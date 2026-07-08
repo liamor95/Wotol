@@ -4,6 +4,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Components/PointLightComponent.h"
+#include "WOTOLGlow.h"
 
 AWOTOLProjectileTracer::AWOTOLProjectileTracer()
 {
@@ -18,8 +19,10 @@ AWOTOLProjectileTracer::AWOTOLProjectileTracer()
 	Glow = CreateDefaultSubobject<UPointLightComponent>(TEXT("Glow"));
 	Glow->SetupAttachment(Ball);
 	Glow->SetCastShadows(false);
-	Glow->SetAttenuationRadius(360.f);
-	Glow->SetIntensity(4200.f);
+	// Lampe DISCRÈTE : le projectile lui-même est émissif (il rayonne) ; cette lampe
+	// ne sert qu'à un léger halo local, PAS à éclairer le sol.
+	Glow->SetAttenuationRadius(150.f);
+	Glow->SetIntensity(700.f);
 
 	// Halo plus large autour du cœur = boule bien plus repérable à l'écran.
 	Halo = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Halo"));
@@ -61,12 +64,11 @@ void AWOTOLProjectileTracer::Fire(UWorld* World, const FVector& From, const FVec
 		const float S = 0.22f * Size;
 		T->Ball->SetRelativeScale3D(FVector(S, S, S));
 	}
-	if (BaseMat)
-		if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, T))
-		{
-			MID->SetVectorParameterValue(TEXT("Color"), Core);
-			T->Ball->SetMaterial(0, MID);
-		}
+	// Cœur du projectile ÉMISSIF (couleur survoltée >1 -> il rayonne, ce n'est plus
+	// le sol qui s'éclaire mais bien la boule/le trait qu'on voit briller).
+	if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeGlow(T,
+			FLinearColor(Core.R * 2.4f + 0.2f, Core.G * 2.4f + 0.2f, Core.B * 2.4f + 0.2f, 1.f)))
+		T->Ball->SetMaterial(0, MID);
 	// Lumière à la couleur du tir (bleu Aquisphères / violet Noxeblast, etc.).
 	if (T->Glow) T->Glow->SetLightColor(FLinearColor(FMath::Min(1.f, Color.R + 0.2f),
 		FMath::Min(1.f, Color.G + 0.2f), FMath::Min(1.f, Color.B + 0.2f)));

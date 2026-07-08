@@ -12,6 +12,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "Components/LightComponent.h"
+#include "WOTOLGlow.h"
 #include "Math/RandomStream.h"
 #include "WOTOLAmbientFish.h"
 #include "Data/WOTOLTypes.h"
@@ -475,13 +476,12 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 					M->SetRelativeScale3D(Scale);
 					M->SetRelativeLocation(Loc);
 					M->SetRelativeRotation(Rot);
-					if (BaseMat)
-						if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, CoralAct))
-						{
-							MID->SetVectorParameterValue(TEXT("Color"), Emissive);
-							M->SetMaterial(0, MID);
-						}
+					// Corail ÉMISSIF : c'est le mesh du corail qui RAYONNE (la lumière vient
+					// de l'organisme, pas d'une flaque au sol).
+					if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeGlow(CoralAct, Emissive))
+						M->SetMaterial(0, MID);
 				};
+				(void)BaseMat;
 
 				// 1) Socle bulbeux (base charnue du corail), teinte sombre du corail.
 				MakePiece(Sph, FVector(0, 0, 12.f * Sc), FVector(1.2f * Sc, 1.2f * Sc, 0.55f * Sc),
@@ -510,8 +510,8 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 				PC->SetupAttachment(Root); PC->RegisterComponent();
 				PC->SetRelativeLocation(FVector(0, 0, 90.f * Sc));
 				PC->SetLightColor(Col);
-				PC->SetIntensity(Bs.FRandRange(3200.f, 6000.f));
-				PC->SetAttenuationRadius(Bs.FRandRange(480.f, 820.f));
+				PC->SetIntensity(Bs.FRandRange(1400.f, 2400.f));
+				PC->SetAttenuationRadius(Bs.FRandRange(360.f, 560.f));
 				PC->SetCastShadows(false);
 			}
 		}

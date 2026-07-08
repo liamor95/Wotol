@@ -2,6 +2,7 @@
 #include "WOTOLDemoUnit.h"
 #include "WOTOLCaptureObject.h"
 #include "DemoFlowSubsystem.h"
+#include "WOTOLGlow.h"
 #include "OceanCurrentSubsystem.h"
 #include "WOTOLCoverStructure.h"
 #include "WOTOLCurrentField.h"
@@ -1405,8 +1406,7 @@ void AWOTOLDemoDirector::SpawnZoneCrystals()
 	const FVector C = GetActorLocation();
 
 	UStaticMesh* Cone = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cone.Cone"));
-	UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
-		nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+	// (Cristaux désormais ÉMISSIFS via WOTOLGlow -> plus besoin du BasicShapeMaterial ici.)
 	// Couleur du camp qui possède la zone (le joueur défenseur).
 	const FLinearColor Col = FFactionColors::Get(CachedPlayerFaction);
 
@@ -1442,13 +1442,10 @@ void AWOTOLDemoDirector::SpawnZoneCrystals()
 			M->SetRelativeScale3D(FVector(w, w, h));
 			M->SetRelativeLocation(FVector(FMath::FRandRange(-80.f, 80.f), FMath::FRandRange(-80.f, 80.f), 0.f));
 			M->SetRelativeRotation(FRotator(FMath::FRandRange(-12.f, 12.f), 0.f, FMath::FRandRange(-12.f, 12.f)));
-			if (BaseMat)
-				if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, Cluster))
-				{
-					// CRISTAUX = énergie BLEUE lumineuse (survoltée pour paraître illuminée).
-					MID->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.4f, 1.2f, 2.4f, 1.f));
-					M->SetMaterial(0, MID);
-				}
+			// CRISTAUX ÉMISSIFS = énergie BLEUE qui RAYONNE (c'est le cristal qui brille,
+			// pas le sol autour).
+			if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeGlow(Cluster, FLinearColor(0.4f * 3.f, 1.2f * 3.f, 2.4f * 3.f, 1.f)))
+				M->SetMaterial(0, MID);
 		}
 		// Lumière BLEUE accrochée à l'amas (le cristal illumine son environnement).
 		if (UPointLightComponent* PC = NewObject<UPointLightComponent>(Cluster))
@@ -1456,8 +1453,8 @@ void AWOTOLDemoDirector::SpawnZoneCrystals()
 			PC->SetupAttachment(Root); PC->RegisterComponent();
 			PC->SetRelativeLocation(FVector(0, 0, 140.f));
 			PC->SetLightColor(FLinearColor(0.30f, 0.65f, 1.0f));
-			PC->SetIntensity(4200.f);
-			PC->SetAttenuationRadius(650.f);
+			PC->SetIntensity(1600.f);
+			PC->SetAttenuationRadius(420.f);
 			PC->SetCastShadows(false);
 		}
 		ZoneCrystals.Add(Cluster);

@@ -8,6 +8,7 @@
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "WOTOLGlow.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerController.h"
 #include "Camera/PlayerCameraManager.h"
@@ -187,6 +188,18 @@ void AWOTOLCaptureObject::BuildVisual()
 		return C;
 	};
 
+	// Variante ÉMISSIVE : la pièce (cristal/noyau) RAYONNE d'elle-même (matériau unlit),
+	// ce n'est plus la lampe qui éclaire le sol mais le mesh qu'on voit briller.
+	auto AddGlow = [&](const TCHAR* MeshPath, const FVector& Loc, const FVector& Scale,
+		const FRotator& Rot, const FLinearColor& EmissiveHDR) -> UStaticMeshComponent*
+	{
+		UStaticMeshComponent* C = AddPiece(MeshPath, Loc, Scale, Rot, FLinearColor::White);
+		if (C)
+			if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeGlow(this, EmissiveHDR))
+				C->SetMaterial(0, MID);
+		return C;
+	};
+
 	// L'acteur est spawné à +200 Z : la base du bâtiment est posée vers Z relatif -200 (sol).
 	if (OwnerFaction == EFactionID::Noxeens)
 	{
@@ -209,13 +222,24 @@ void AWOTOLCaptureObject::BuildVisual()
 			}
 		}
 		AddPiece(M_CONE, FVector(0, 0, 210), FVector(1.3f, 1.3f, 3.0f), FRotator::ZeroRotator, Shell);     // flèche
-		AddPiece(M_SPH,  FVector(0, 0, 130), FVector(1.1f, 1.1f, 1.1f), FRotator::ZeroRotator, Glow);      // noyau lumineux
-		// Tentacules bioluminescents autour de la base
+		AddGlow(M_SPH,  FVector(0, 0, 130), FVector(1.1f, 1.1f, 1.1f), FRotator::ZeroRotator, Glow * 3.2f); // noyau ÉMISSIF
+		// Tentacules bioluminescents (émissifs) autour de la base
 		for (int32 i = 0; i < 6; ++i)
 		{
 			const float A = 2.f * PI * i / 6.f;
-			AddPiece(M_CONE, FVector(FMath::Cos(A) * 150.f, FMath::Sin(A) * 150.f, -120.f),
-				FVector(0.4f, 0.4f, 1.6f), FRotator(20.f, FMath::RadiansToDegrees(A), 0.f), Glow);
+			AddGlow(M_CONE, FVector(FMath::Cos(A) * 150.f, FMath::Sin(A) * 150.f, -120.f),
+				FVector(0.4f, 0.4f, 1.6f), FRotator(20.f, FMath::RadiansToDegrees(A), 0.f), Glow * 2.4f);
+		}
+		// Lampe VERTE discrète (léger halo, pas une flaque au sol) au cœur bulbeux.
+		if (UPointLightComponent* PC = NewObject<UPointLightComponent>(this))
+		{
+			PC->SetupAttachment(RootComponent);
+			PC->RegisterComponent();
+			PC->SetRelativeLocation(FVector(0, 0, 130));
+			PC->SetLightColor(FLinearColor(0.30f, 1.0f, 0.45f));
+			PC->SetIntensity(2600.f);
+			PC->SetAttenuationRadius(700.f);
+			PC->SetCastShadows(false);
 		}
 	}
 	else
@@ -239,23 +263,25 @@ void AWOTOLCaptureObject::BuildVisual()
 			}
 		}
 		AddPiece(M_CYL,  FVector(0, 0, 70),  FVector(3.0f, 3.0f, 0.3f), FRotator::ZeroRotator, Gold);      // anneau or
-		// GRAND CRISTAL central = énergie BLEUE survoltée (paraît illuminé).
-		AddPiece(M_CONE, FVector(0, 0, 240), FVector(1.5f, 1.5f, 3.2f), FRotator::ZeroRotator, FLinearColor(0.5f, 1.4f, 2.8f, 1.f));
+		// GRAND CRISTAL central ÉMISSIF = énergie BLEUE qui RAYONNE (c'est le cristal
+		// qu'on voit briller, pas le sol autour).
+		const FLinearColor CrystalHDR(0.5f * 3.0f, 1.4f * 3.0f, 2.8f * 3.0f, 1.f);
+		AddGlow(M_CONE, FVector(0, 0, 240), FVector(1.5f, 1.5f, 3.2f), FRotator::ZeroRotator, CrystalHDR);
 		for (int32 i = 0; i < 4; ++i)
 		{
 			const float A = 2.f * PI * i / 4.f + PI / 4.f;
-			AddPiece(M_CONE, FVector(FMath::Cos(A) * 130.f, FMath::Sin(A) * 130.f, 30.f),
-				FVector(0.5f, 0.5f, 1.8f), FRotator(-15.f, FMath::RadiansToDegrees(A), 0.f), FLinearColor(0.5f, 1.4f, 2.8f, 1.f));
+			AddGlow(M_CONE, FVector(FMath::Cos(A) * 130.f, FMath::Sin(A) * 130.f, 30.f),
+				FVector(0.5f, 0.5f, 1.8f), FRotator(-15.f, FMath::RadiansToDegrees(A), 0.f), CrystalHDR * 0.85f);
 		}
-		// Lumière BLEUE du cristal central (illumine le bâtiment et ses alentours).
+		// Lampe BLEUE DISCRÈTE : léger halo autour du cristal, PAS une flaque au sol.
 		if (UPointLightComponent* PC = NewObject<UPointLightComponent>(this))
 		{
 			PC->SetupAttachment(RootComponent);
 			PC->RegisterComponent();
 			PC->SetRelativeLocation(FVector(0, 0, 240));
 			PC->SetLightColor(FLinearColor(0.30f, 0.65f, 1.0f));
-			PC->SetIntensity(9000.f);
-			PC->SetAttenuationRadius(1400.f);
+			PC->SetIntensity(3000.f);
+			PC->SetAttenuationRadius(800.f);
 			PC->SetCastShadows(false);
 		}
 	}
