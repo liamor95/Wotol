@@ -3,6 +3,7 @@
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Components/PointLightComponent.h"
 
 AWOTOLProjectileTracer::AWOTOLProjectileTracer()
 {
@@ -12,6 +13,13 @@ AWOTOLProjectileTracer::AWOTOLProjectileTracer()
 	RootComponent = Ball;
 	Ball->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Ball->SetCanEverAffectNavigation(false);
+
+	// Source de lumière RATTACHÉE au projectile (il éclaire ce qu'il traverse).
+	Glow = CreateDefaultSubobject<UPointLightComponent>(TEXT("Glow"));
+	Glow->SetupAttachment(Ball);
+	Glow->SetCastShadows(false);
+	Glow->SetAttenuationRadius(360.f);
+	Glow->SetIntensity(4200.f);
 
 	// Halo plus large autour du cœur = boule bien plus repérable à l'écran.
 	Halo = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Halo"));
@@ -59,6 +67,9 @@ void AWOTOLProjectileTracer::Fire(UWorld* World, const FVector& From, const FVec
 			MID->SetVectorParameterValue(TEXT("Color"), Core);
 			T->Ball->SetMaterial(0, MID);
 		}
+	// Lumière à la couleur du tir (bleu Aquisphères / violet Noxeblast, etc.).
+	if (T->Glow) T->Glow->SetLightColor(FLinearColor(FMath::Min(1.f, Color.R + 0.2f),
+		FMath::Min(1.f, Color.G + 0.2f), FMath::Min(1.f, Color.B + 0.2f)));
 
 	// Halo DISCRET (juste un léger nimbe), pas une grosse boule.
 	if (Sphere) T->Halo->SetStaticMesh(Sphere);

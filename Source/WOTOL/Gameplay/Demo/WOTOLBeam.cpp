@@ -23,6 +23,11 @@ AWOTOLBeam::AWOTOLBeam()
 	Glow->SetCastShadows(false);
 	Glow->SetAttenuationRadius(700.f);
 	Glow->SetIntensity(9000.f);
+	Glow2 = CreateDefaultSubobject<UPointLightComponent>(TEXT("Glow2"));
+	Glow2->SetupAttachment(Pivot);
+	Glow2->SetCastShadows(false);
+	Glow2->SetAttenuationRadius(700.f);
+	Glow2->SetIntensity(9000.f);
 }
 
 AWOTOLBeam* AWOTOLBeam::Fire(UWorld* World, const FVector& Origin, float YawStart, float YawEnd,
@@ -50,21 +55,20 @@ AWOTOLBeam* AWOTOLBeam::Fire(UWorld* World, const FVector& Origin, float YawStar
 	if (Base)
 		if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Base, B))
 		{
-			const FLinearColor Bright(FMath::Min(1.f, Color.R + 0.3f), FMath::Min(1.f, Color.G + 0.3f),
-				FMath::Min(1.f, Color.B + 0.3f), 1.f);
+			// Couleur SURVOLTÉE (>1) -> le trait paraît lumineux fluo sur toute sa longueur.
+			const FLinearColor Bright(Color.R * 2.2f + 0.2f, Color.G * 2.2f + 0.2f, Color.B * 2.2f + 0.2f, 1.f);
 			MID->SetVectorParameterValue(TEXT("Color"), Bright);
 			B->Beam->SetMaterial(0, MID);
 			B->BeamMID = MID;
 		}
 	B->Pivot->SetWorldRotation(FRotator(0.f, YawStart, 0.f));
-	// Lampe fluo positionnée au milieu du rayon, à sa couleur.
-	if (B->Glow)
-	{
-		B->Glow->SetLightColor(FLinearColor(FMath::Min(1.f, Color.R + 0.2f),
-			FMath::Min(1.f, Color.G + 0.2f), FMath::Min(1.f, Color.B + 0.2f)));
-		B->Glow->SetRelativeLocation(FVector(Length * 0.5f, 0.f, 0.f));
-		B->Glow->SetAttenuationRadius(FMath::Clamp(Length * 0.6f, 500.f, 1400.f));
-	}
+	// DEUX lampes fluo réparties sur le rayon -> TOUT le trait est illuminé (pas juste
+	// le milieu), à la couleur de l'attaque (vert pour Noxar, cyan pour Aquis).
+	const FLinearColor LCol(FMath::Min(1.f, Color.R + 0.25f),
+		FMath::Min(1.f, Color.G + 0.25f), FMath::Min(1.f, Color.B + 0.25f));
+	const float LRad = FMath::Clamp(Length * 0.55f, 500.f, 1400.f);
+	if (B->Glow)  { B->Glow->SetLightColor(LCol);  B->Glow->SetRelativeLocation(FVector(Length * 0.28f, 0.f, 0.f));  B->Glow->SetAttenuationRadius(LRad); }
+	if (B->Glow2) { B->Glow2->SetLightColor(LCol); B->Glow2->SetRelativeLocation(FVector(Length * 0.72f, 0.f, 0.f)); B->Glow2->SetAttenuationRadius(LRad); }
 	return B;
 }
 

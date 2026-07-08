@@ -3,6 +3,7 @@
 #include "Gameplay/Battle/TerritoryStateManager.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
@@ -238,13 +239,24 @@ void AWOTOLCaptureObject::BuildVisual()
 			}
 		}
 		AddPiece(M_CYL,  FVector(0, 0, 70),  FVector(3.0f, 3.0f, 0.3f), FRotator::ZeroRotator, Gold);      // anneau or
-		AddPiece(M_CONE, FVector(0, 0, 240), FVector(1.5f, 1.5f, 3.2f), FRotator::ZeroRotator, Energy);    // grand cristal
-		// Cristaux secondaires autour de la tour
+		// GRAND CRISTAL central = énergie BLEUE survoltée (paraît illuminé).
+		AddPiece(M_CONE, FVector(0, 0, 240), FVector(1.5f, 1.5f, 3.2f), FRotator::ZeroRotator, FLinearColor(0.5f, 1.4f, 2.8f, 1.f));
 		for (int32 i = 0; i < 4; ++i)
 		{
 			const float A = 2.f * PI * i / 4.f + PI / 4.f;
 			AddPiece(M_CONE, FVector(FMath::Cos(A) * 130.f, FMath::Sin(A) * 130.f, 30.f),
-				FVector(0.5f, 0.5f, 1.8f), FRotator(-15.f, FMath::RadiansToDegrees(A), 0.f), Energy);
+				FVector(0.5f, 0.5f, 1.8f), FRotator(-15.f, FMath::RadiansToDegrees(A), 0.f), FLinearColor(0.5f, 1.4f, 2.8f, 1.f));
+		}
+		// Lumière BLEUE du cristal central (illumine le bâtiment et ses alentours).
+		if (UPointLightComponent* PC = NewObject<UPointLightComponent>(this))
+		{
+			PC->SetupAttachment(RootComponent);
+			PC->RegisterComponent();
+			PC->SetRelativeLocation(FVector(0, 0, 240));
+			PC->SetLightColor(FLinearColor(0.30f, 0.65f, 1.0f));
+			PC->SetIntensity(9000.f);
+			PC->SetAttenuationRadius(1400.f);
+			PC->SetCastShadows(false);
 		}
 	}
 }

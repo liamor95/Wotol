@@ -16,6 +16,7 @@
 #include "EngineUtils.h"
 #include "Engine/StaticMeshActor.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -1434,11 +1435,20 @@ void AWOTOLDemoDirector::SpawnZoneCrystals()
 			if (BaseMat)
 				if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, Cluster))
 				{
-					const FLinearColor Glow(FMath::Min(1.f, Col.R + 0.25f), FMath::Min(1.f, Col.G + 0.25f),
-						FMath::Min(1.f, Col.B + 0.25f), 1.f);
-					MID->SetVectorParameterValue(TEXT("Color"), Glow);
+					// CRISTAUX = énergie BLEUE lumineuse (survoltée pour paraître illuminée).
+					MID->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.4f, 1.2f, 2.4f, 1.f));
 					M->SetMaterial(0, MID);
 				}
+		}
+		// Lumière BLEUE accrochée à l'amas (le cristal illumine son environnement).
+		if (UPointLightComponent* PC = NewObject<UPointLightComponent>(Cluster))
+		{
+			PC->SetupAttachment(Root); PC->RegisterComponent();
+			PC->SetRelativeLocation(FVector(0, 0, 140.f));
+			PC->SetLightColor(FLinearColor(0.30f, 0.65f, 1.0f));
+			PC->SetIntensity(4200.f);
+			PC->SetAttenuationRadius(650.f);
+			PC->SetCastShadows(false);
 		}
 		ZoneCrystals.Add(Cluster);
 	}

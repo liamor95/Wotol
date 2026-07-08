@@ -422,35 +422,70 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			const float Dist = Hor.FRandRange(3800.f, 5600.f);
 			SpawnRock(Center + FVector(FMath::Cos(Ang) * Dist, FMath::Sin(Ang) * Dist, -40.f), Hor.FRandRange(500.f, 1200.f), RockColor, 820 + i);
 		}
-		// ── SOURCES DE LUMIÈRE BIOLUMINESCENTES (contraste + ambiance) : petites lampes
-		// colorées posées près du fond, comme du corail/plancton luminescent. Elles
-		// re-créent du CONTRASTE et de la couleur locale dans l'obscurité bleue. ──
+		// ── CORAUX/ORGANISMES BIOLUMINESCENTS : chaque source de lumière est JUSTIFIÉE par
+		// un élément de décor bio-organique (amas de corail/champignon marin luminescent).
+		// Le corail est une grappe de pousses colorées + une lampe accrochée à sa base. ──
 		if (UWorld* Wl = GetWorld())
 		{
 			const FLinearColor BioCols[5] = {
 				FLinearColor(0.20f, 0.95f, 1.00f), // cyan
 				FLinearColor(0.30f, 1.00f, 0.45f), // vert
 				FLinearColor(0.75f, 0.35f, 1.00f), // violet
-				FLinearColor(0.20f, 0.55f, 1.00f), // bleu
+				FLinearColor(0.25f, 0.60f, 1.00f), // bleu
 				FLinearColor(1.00f, 0.55f, 0.20f), // ambre (rare)
 			};
+			UStaticMesh* Cone = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cone.Cone"));
+			UStaticMesh* Sph  = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+			UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
+				nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 			FRandomStream Bs(77);
-			for (int32 i = 0; i < 22; ++i)
+			for (int32 i = 0; i < 24; ++i)
 			{
 				const float Ang = Bs.FRandRange(0.f, 2.f * PI);
-				const float Dist = Bs.FRandRange(600.f, 4200.f);
-				const FVector P = Center + FVector(FMath::Cos(Ang) * Dist, FMath::Sin(Ang) * Dist, Bs.FRandRange(30.f, 180.f));
+				const float Dist = Bs.FRandRange(600.f, 4400.f);
+				const FVector P = Center + FVector(FMath::Cos(Ang) * Dist, FMath::Sin(Ang) * Dist, -20.f);
+				const FLinearColor Col = BioCols[Bs.RandRange(0, 4)];
+
 				FActorSpawnParameters LP; LP.Owner = this;
-				if (APointLight* L = Wl->SpawnActor<APointLight>(APointLight::StaticClass(), P, FRotator::ZeroRotator, LP))
+				LP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+				AActor* Coral = Wl->SpawnActor<AActor>(AActor::StaticClass(), P, FRotator(0, Bs.FRandRange(0.f, 360.f), 0.f), LP);
+				if (!Coral) continue;
+				USceneComponent* Root = NewObject<USceneComponent>(Coral);
+				Root->RegisterComponent(); Coral->SetRootComponent(Root);
+
+				// Grappe de pousses de corail (cônes/bulbes) colorées.
+				const int32 Shoots = Bs.RandRange(4, 7);
+				const float Sc = Bs.FRandRange(0.7f, 1.6f);
+				for (int32 sIdx = 0; sIdx < Shoots; ++sIdx)
 				{
-					if (UPointLightComponent* PC = Cast<UPointLightComponent>(L->GetLightComponent()))
-					{
-						PC->SetLightColor(BioCols[Bs.RandRange(0, 4)]);
-						PC->SetIntensity(Bs.FRandRange(2200.f, 5200.f));
-						PC->SetAttenuationRadius(Bs.FRandRange(500.f, 950.f));
-						PC->SetCastShadows(false); // léger : pas d'ombres (perf)
-					}
+					UStaticMeshComponent* M = NewObject<UStaticMeshComponent>(Coral);
+					if (!M) continue;
+					M->SetupAttachment(Root); M->RegisterComponent();
+					M->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+					M->SetCanEverAffectNavigation(false);
+					const bool bBulb = (sIdx % 3 == 0);
+					if (bBulb && Sph) M->SetStaticMesh(Sph);
+					else if (Cone)    M->SetStaticMesh(Cone);
+					const float hh = Bs.FRandRange(1.4f, 3.4f) * Sc;
+					M->SetRelativeScale3D(bBulb ? FVector(0.5f * Sc, 0.5f * Sc, 0.5f * Sc)
+						: FVector(0.3f * Sc, 0.3f * Sc, hh));
+					M->SetRelativeLocation(FVector(Bs.FRandRange(-60.f, 60.f), Bs.FRandRange(-60.f, 60.f), bBulb ? hh * 40.f : 0.f) * Sc);
+					M->SetRelativeRotation(FRotator(Bs.FRandRange(-16.f, 16.f), 0.f, Bs.FRandRange(-16.f, 16.f)));
+					if (BaseMat)
+						if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, Coral))
+						{
+							MID->SetVectorParameterValue(TEXT("Color"), Col * 1.6f); // vif (paraît luminescent)
+							M->SetMaterial(0, MID);
+						}
 				}
+				// Lampe accrochée au corail (la bioluminescence qu'il émet).
+				UPointLightComponent* PC = NewObject<UPointLightComponent>(Coral);
+				PC->SetupAttachment(Root); PC->RegisterComponent();
+				PC->SetRelativeLocation(FVector(0, 0, 120.f * Sc));
+				PC->SetLightColor(Col);
+				PC->SetIntensity(Bs.FRandRange(2600.f, 5600.f));
+				PC->SetAttenuationRadius(Bs.FRandRange(550.f, 1000.f));
+				PC->SetCastShadows(false);
 			}
 		}
 

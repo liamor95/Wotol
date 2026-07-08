@@ -30,7 +30,8 @@ protected:
 	UPROPERTY() TObjectPtr<USceneComponent> Pivot;   // tourne (balayage)
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> Beam; // le trait
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> BeamMID;
-	UPROPERTY() TObjectPtr<class UPointLightComponent> Glow; // lumière fluo accrochée au rayon
+	UPROPERTY() TObjectPtr<class UPointLightComponent> Glow;  // lumière fluo (quart proche)
+	UPROPERTY() TObjectPtr<class UPointLightComponent> Glow2; // lumière fluo (quart lointain)
 
 	FVector OriginLoc = FVector::ZeroVector;
 	float Yaw0 = 0.f, Yaw1 = 0.f, Len = 1000.f, Life = 0.f, Duration = 0.9f, Damage = 0.f;

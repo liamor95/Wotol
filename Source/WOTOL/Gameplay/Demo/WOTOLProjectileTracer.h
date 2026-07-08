@@ -27,6 +27,7 @@ public:
 private:
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> Ball; // cœur lumineux
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> Halo; // halo plus large (meilleure visibilité)
+	UPROPERTY() TObjectPtr<class UPointLightComponent> Glow; // source de lumière rattachée
 	FVector Target = FVector::ZeroVector;
 	float Speed = 2600.f; // plus lent = mieux suivi à l'œil
 	float Life = 0.f;
