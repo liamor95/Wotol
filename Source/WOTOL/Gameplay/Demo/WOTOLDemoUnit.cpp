@@ -890,8 +890,11 @@ UStaticMeshComponent* AWOTOLDemoUnit::AddPart(const TCHAR* MeshPath, const FVect
 	// Couleur normale (chair, cuirasse, roche) -> matériau MAT rugueux (fini le plastique
 	// lisse : la lumière crée du relief/ombrage sur la peau et la carapace).
 	const bool bEmissive = (Color.R > 1.2f || Color.G > 1.2f || Color.B > 1.2f);
+	// Émissif des unités PLAFONNÉ (~1.15) : les parties vives restent colorées/brillantes
+	// mais ne « bloomment » plus en gros pâté lumineux quand l'armée est massée (déploiement).
+	const FLinearColor UnitEmissive(FMath::Min(Color.R, 1.15f), FMath::Min(Color.G, 1.15f), FMath::Min(Color.B, 1.15f), 1.f);
 	if (UMaterialInstanceDynamic* MID = bEmissive
-			? WOTOLGlow::MakeGlow(this, Color) : WOTOLGlow::MakeMatte(this, Color))
+			? WOTOLGlow::MakeGlow(this, UnitEmissive) : WOTOLGlow::MakeMatte(this, Color))
 	{
 		C->SetMaterial(0, MID);
 		PartMIDs.Add(MID);
@@ -913,8 +916,11 @@ void AWOTOLDemoUnit::SetupMainPart(const TCHAR* MeshPath, const FVector& RelLoc,
 	ShapeMesh->SetRelativeScale3D(RelScale);
 
 	const bool bEmissive = (Color.R > 1.2f || Color.G > 1.2f || Color.B > 1.2f);
+	// Émissif des unités PLAFONNÉ (~1.15) : les parties vives restent colorées/brillantes
+	// mais ne « bloomment » plus en gros pâté lumineux quand l'armée est massée (déploiement).
+	const FLinearColor UnitEmissive(FMath::Min(Color.R, 1.15f), FMath::Min(Color.G, 1.15f), FMath::Min(Color.B, 1.15f), 1.f);
 	if (UMaterialInstanceDynamic* MID = bEmissive
-			? WOTOLGlow::MakeGlow(this, Color) : WOTOLGlow::MakeMatte(this, Color))
+			? WOTOLGlow::MakeGlow(this, UnitEmissive) : WOTOLGlow::MakeMatte(this, Color))
 	{
 		ShapeMesh->SetMaterial(0, MID);
 		ShapeMID = MID;
@@ -1290,8 +1296,11 @@ UStaticMeshComponent* AWOTOLDemoUnit::MakeBone(USceneComponent* Joint, const TCH
 	// Couleur normale (chair, cuirasse, roche) -> matériau MAT rugueux (fini le plastique
 	// lisse : la lumière crée du relief/ombrage sur la peau et la carapace).
 	const bool bEmissive = (Color.R > 1.2f || Color.G > 1.2f || Color.B > 1.2f);
+	// Émissif des unités PLAFONNÉ (~1.15) : les parties vives restent colorées/brillantes
+	// mais ne « bloomment » plus en gros pâté lumineux quand l'armée est massée (déploiement).
+	const FLinearColor UnitEmissive(FMath::Min(Color.R, 1.15f), FMath::Min(Color.G, 1.15f), FMath::Min(Color.B, 1.15f), 1.f);
 	if (UMaterialInstanceDynamic* MID = bEmissive
-			? WOTOLGlow::MakeGlow(this, Color) : WOTOLGlow::MakeMatte(this, Color))
+			? WOTOLGlow::MakeGlow(this, UnitEmissive) : WOTOLGlow::MakeMatte(this, Color))
 	{
 		C->SetMaterial(0, MID);
 		PartMIDs.Add(MID);

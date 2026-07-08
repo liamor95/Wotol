@@ -452,13 +452,15 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 		SpawnKelp(Center + FVector(X, Y, -30.f), Kel.RandRange(1, 9999));
 	}
 
-	// ── Petits coraux/rochers BAS dispersés DANS le couloir central (vie, sans gêner) ──
+	// ── Petits rochers BAS dans le couloir (galets). PAS de corail au centre : la zone
+	// de combat centrale (|X|<2500) reste dégagée -> plus de pâté bioluminescent au milieu.
 	FRandomStream Mid(151);
 	for (int32 i = 0; i < 16; ++i)
 	{
-		const FVector P = Center + FVector(Mid.FRandRange(-6500.f, 6500.f), Mid.FRandRange(-1100.f, 1100.f), -30.f);
-		if (Mid.FRand() < 0.5f)
-			SpawnCoral(P, Mid.RandRange(1, 9999)); // petits buissons colorés
+		const float MX = Mid.FRandRange(-6500.f, 6500.f);
+		const FVector P = Center + FVector(MX, Mid.FRandRange(-1100.f, 1100.f), -30.f);
+		if (FMath::Abs(MX) > 2500.f && Mid.FRand() < 0.5f)
+			SpawnCoral(P, Mid.RandRange(1, 9999)); // buissons colorés seulement sur les côtés
 		else
 			SpawnRock(P, Mid.FRandRange(90.f, 200.f), RockColor, Mid.RandRange(1, 9999)); // galets
 	}
@@ -532,9 +534,11 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 				// Centre de la cellule + jitter (jusqu'à ~40% de la cellule) = naturel mais réparti.
 				const float cx = -HalfSpan + (gx + 0.5f) * CellSz + Bs.FRandRange(-CellSz * 0.4f, CellSz * 0.4f);
 				const float cy = -HalfSpan + (gy + 0.5f) * CellSz + Bs.FRandRange(-CellSz * 0.4f, CellSz * 0.4f);
-				// Saute ~25% des cellules (aspect naturel) et la zone de déploiement centrale.
+				// Saute ~25% des cellules (aspect naturel) ET TOUTE la zone de bataille
+				// centrale (rayon 2200) -> AUCUN décor bio au milieu (c'est l'arène de combat) ;
+				// les organismes garnissent la périphérie et les reliefs.
 				if (Bs.FRand() < 0.25f) continue;
-				if (FMath::Sqrt(cx * cx + cy * cy) < 650.f) continue;
+				if (FMath::Sqrt(cx * cx + cy * cy) < 2200.f) continue;
 				const FVector PatchP = Center + FVector(cx, cy, -20.f);
 
 				FActorSpawnParameters LP; LP.Owner = this;
