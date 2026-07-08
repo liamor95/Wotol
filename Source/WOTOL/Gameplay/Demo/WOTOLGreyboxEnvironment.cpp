@@ -448,17 +448,17 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 
 				FActorSpawnParameters LP; LP.Owner = this;
 				LP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-				AActor* Coral = Wl->SpawnActor<AActor>(AActor::StaticClass(), P, FRotator(0, Bs.FRandRange(0.f, 360.f), 0.f), LP);
-				if (!Coral) continue;
-				USceneComponent* Root = NewObject<USceneComponent>(Coral);
-				Root->RegisterComponent(); Coral->SetRootComponent(Root);
+				AActor* CoralAct = Wl->SpawnActor<AActor>(AActor::StaticClass(), P, FRotator(0, Bs.FRandRange(0.f, 360.f), 0.f), LP);
+				if (!CoralAct) continue;
+				USceneComponent* Root = NewObject<USceneComponent>(CoralAct);
+				Root->RegisterComponent(); CoralAct->SetRootComponent(Root);
 
 				// Grappe de pousses de corail (cônes/bulbes) colorées.
 				const int32 Shoots = Bs.RandRange(4, 7);
 				const float Sc = Bs.FRandRange(0.7f, 1.6f);
 				for (int32 sIdx = 0; sIdx < Shoots; ++sIdx)
 				{
-					UStaticMeshComponent* M = NewObject<UStaticMeshComponent>(Coral);
+					UStaticMeshComponent* M = NewObject<UStaticMeshComponent>(CoralAct);
 					if (!M) continue;
 					M->SetupAttachment(Root); M->RegisterComponent();
 					M->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -472,14 +472,14 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 					M->SetRelativeLocation(FVector(Bs.FRandRange(-60.f, 60.f), Bs.FRandRange(-60.f, 60.f), bBulb ? hh * 40.f : 0.f) * Sc);
 					M->SetRelativeRotation(FRotator(Bs.FRandRange(-16.f, 16.f), 0.f, Bs.FRandRange(-16.f, 16.f)));
 					if (BaseMat)
-						if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, Coral))
+						if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, CoralAct))
 						{
 							MID->SetVectorParameterValue(TEXT("Color"), Col * 1.6f); // vif (paraît luminescent)
 							M->SetMaterial(0, MID);
 						}
 				}
 				// Lampe accrochée au corail (la bioluminescence qu'il émet).
-				UPointLightComponent* PC = NewObject<UPointLightComponent>(Coral);
+				UPointLightComponent* PC = NewObject<UPointLightComponent>(CoralAct);
 				PC->SetupAttachment(Root); PC->RegisterComponent();
 				PC->SetRelativeLocation(FVector(0, 0, 120.f * Sc));
 				PC->SetLightColor(Col);
