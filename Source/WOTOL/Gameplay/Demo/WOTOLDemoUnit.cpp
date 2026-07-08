@@ -890,21 +890,39 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		BuildArticulatedAquiloryons(H, AqArmor, AqEnergy);
 		return;
 	}
-	if (Id == TEXT("Aquilances")) // Montée : cavalier sur monture + lance
+	if (Id == TEXT("Aquilances")) // Montée : CAVALIER (avec jambes) sur MONTURE marine + lance
 	{
-		SetupMainPart(M_SPH, FVector(10, 0, -H * 0.22f),
-			FVector(h * 1.4f, h * 0.7f, h * 0.55f), NoRot, AqArmor);                                      // corps de la monture (poisson)
-		AddPart(M_CONE, FVector(70, 0, -H * 0.20f), FVector(0.5f, 0.5f, h * 0.3f), FRotator(70.f, 0, 0), AqArmor); // tête monture
-		// Nageoires latérales
-		AddPart(M_CONE, FVector(10, 55, -H * 0.22f), FVector(0.3f, 0.3f, h * 0.25f), FRotator(0, 0, 80.f), AqArmor);
-		AddPart(M_CONE, FVector(10, -55, -H * 0.22f), FVector(0.3f, 0.3f, h * 0.25f), FRotator(0, 0, -80.f), AqArmor);
-		// QUEUE (nageoire caudale) qui bat — registre wiggle
-		RegisterWiggle(AddPart(M_CONE, FVector(-70, 0, -H * 0.20f), FVector(0.45f, 0.10f, h * 0.5f),
-			FRotator(90.f, 0, 0), AqArmor), 0.f);
-		// Cavalier
-		AddPart(M_CYL, FVector(-10, 0, H * 0.10f), FVector(0.26f, 0.26f, h * 0.3f), NoRot, AqArmor);      // cavalier corps
-		AddPart(M_SPH, FVector(-10, 0, H * 0.34f), FVector(0.26f, 0.26f, 0.26f), NoRot, AqArmor);         // cavalier tête
-		AddPart(M_CYL, FVector(20, 22, H * 0.18f), FVector(0.05f, 0.05f, h * 0.9f), FRotator(20.f, 0, 60.f), AqEnergy); // lance
+		// ── MONTURE : corps de créature marine effilé (poisson-raie cuirassé) ──
+		SetupMainPart(M_SPH, FVector(10, 0, -H * 0.24f),
+			FVector(h * 1.5f, h * 0.72f, h * 0.52f), NoRot, AqArmor);                                   // corps
+		AddPart(M_SPH, FVector(72, 0, -H * 0.22f), FVector(h * 0.55f, h * 0.5f, h * 0.42f), NoRot, AqArmor); // tête arrondie
+		AddPart(M_CONE, FVector(96, 0, -H * 0.24f), FVector(0.34f, 0.34f, h * 0.24f), FRotator(80.f, 0, 0), AqArmor); // museau
+		// Yeux bioluminescents de la monture
+		AddPart(M_SPH, FVector(80, 26, -H * 0.16f), FVector(0.13f, 0.13f, 0.13f), NoRot, AqEnergy);
+		AddPart(M_SPH, FVector(80, -26, -H * 0.16f), FVector(0.13f, 0.13f, 0.13f), NoRot, AqEnergy);
+		// Grandes nageoires latérales (ailes de raie) qui ondulent
+		RegisterWiggle(AddPart(M_CONE, FVector(6, 62, -H * 0.24f), FVector(0.34f, 0.10f, h * 0.34f), FRotator(0, 0, 88.f), AqArmor), 0.4f);
+		RegisterWiggle(AddPart(M_CONE, FVector(6, -62, -H * 0.24f), FVector(0.34f, 0.10f, h * 0.34f), FRotator(0, 0, -88.f), AqArmor), 3.5f);
+		// Nageoire dorsale + QUEUE caudale qui bat
+		AddPart(M_CONE, FVector(0, 0, -H * 0.02f), FVector(0.10f, 0.30f, h * 0.22f), FRotator(0, 0, 0), AqEnergy);
+		RegisterWiggle(AddPart(M_CONE, FVector(-74, 0, -H * 0.22f), FVector(0.42f, 0.10f, h * 0.5f), FRotator(90.f, 0, 0), AqArmor), 0.f);
+
+		// ── CAVALIER : buste + tête + DEUX JAMBES qui enfourchent la monture + bras ──
+		const FVector Seat(-8, 0, H * 0.02f); // assise sur le dos de la monture
+		AddPart(M_CYL, Seat + FVector(0, 0, H * 0.14f), FVector(0.24f, 0.20f, h * 0.26f), FRotator(6.f, 0, 0), AqGold); // torse cuirassé
+		AddPart(M_SPH, Seat + FVector(2, 0, H * 0.32f), FVector(0.22f, 0.22f, 0.22f), NoRot, AqArmor);                  // tête (casque)
+		AddPart(M_SPH, Seat + FVector(12, 0, H * 0.33f), FVector(0.10f, 0.16f, 0.10f), NoRot, AqEnergy);               // visière lumineuse
+		// Jambes : de part et d'autre du corps de la monture, pliées vers le bas (enfourchement)
+		AddPart(M_CYL, Seat + FVector(2, 20, -H * 0.02f), FVector(0.09f, 0.09f, h * 0.30f), FRotator(24.f, 0, 20.f), AqArmor);  // cuisse D
+		AddPart(M_CYL, Seat + FVector(2, -20, -H * 0.02f), FVector(0.09f, 0.09f, h * 0.30f), FRotator(24.f, 0, -20.f), AqArmor); // cuisse G
+		AddPart(M_CYL, Seat + FVector(18, 26, -H * 0.16f), FVector(0.08f, 0.08f, h * 0.24f), FRotator(60.f, 0, 10.f), AqArmor);  // tibia D
+		AddPart(M_CYL, Seat + FVector(18, -26, -H * 0.16f), FVector(0.08f, 0.08f, h * 0.24f), FRotator(60.f, 0, -10.f), AqArmor);// tibia G
+		// Bras droit tendu qui tient la LANCE, bras gauche sur les rênes
+		AddPart(M_CYL, Seat + FVector(16, 16, H * 0.18f), FVector(0.07f, 0.07f, h * 0.22f), FRotator(70.f, 0, 40.f), AqArmor);  // bras D
+		AddPart(M_CYL, Seat + FVector(14, -14, H * 0.14f), FVector(0.07f, 0.07f, h * 0.16f), FRotator(50.f, 0, -30.f), AqArmor);// bras G
+		// LANCE longue effilée, pointe énergétique en avant
+		AddPart(M_CYL, FVector(55, 22, H * 0.12f), FVector(0.05f, 0.05f, h * 1.05f), FRotator(78.f, 0, 0), AqArmor);
+		AddPart(M_CONE, FVector(120, 22, H * 0.10f), FVector(0.09f, 0.09f, h * 0.3f), FRotator(80.f, 0, 0), AqEnergy);          // pointe
 		return;
 	}
 	if (Id == TEXT("Aquipheres") || Id == TEXT("Aquispheres")) // Distance : ARTICULÉ + canon
@@ -1271,23 +1289,28 @@ void AWOTOLDemoUnit::AnimateArticulated(float Dt)
 	}
 	else if (bAttacking)
 	{
-		SwingProgress += Dt * 2.4f;
+		SwingProgress += Dt * 3.0f;                            // frappe plus VIVE
 		if (SwingProgress > 1.f) SwingProgress -= 1.f;
-		const float Sw = FMath::Sin(SwingProgress * PI);       // 0→1→0 : armer puis frapper
-		rSho     = FMath::Lerp(45.f, -85.f, Sw);               // épaule : arme puis abat
-		rEl      = FMath::Lerp(-70.f, 10.f, Sw);               // coude : replie puis déploie
-		lShoRoll = -55.f;                                      // bras gauche levé en travers
-		lEl      = -55.f;
-		torsoPitch = -6.f - 8.f * Sw;                          // le buste accompagne le coup
-		rKnee = 25.f; lKnee = 18.f;                            // appui/transfert de poids
+		// Armé LENT (recul) puis ABATTAGE SEC : deux phases nettes pour un coup lisible.
+		const float Wind  = FMath::Clamp(SwingProgress / 0.45f, 0.f, 1.f);      // 0..1 wind-up
+		const float Strike= FMath::Clamp((SwingProgress - 0.45f) / 0.35f, 0.f, 1.f); // abattage
+		const float Sw = (SwingProgress < 0.45f) ? Wind : (1.f - Strike);
+		rSho     = FMath::Lerp(75.f, -110.f, 1.f - Sw);       // AMPLE : lève haut puis abat bas
+		rEl      = FMath::Lerp(-95.f, 15.f, 1.f - Sw);        // coude armé serré puis déployé
+		lShoRoll = -60.f;                                      // bras gauche/bouclier en travers
+		lSho     = 20.f; lEl = -70.f;                          // bouclier LEVÉ devant (garde)
+		torsoPitch = -8.f - 16.f * (1.f - Sw);                // gros accompagnement du buste
+		torsoRoll  = -14.f * (1.f - Sw);                      // épaule qui pivote dans le coup
+		rKnee = 30.f; lKnee = 20.f;                            // fente/appui marqué
+		rHip = 14.f; lHip = -10.f;
 	}
 	else if (bMoving)
 	{
 		const float s = FMath::Sin(AnimPhase);
-		rHip =  s * 30.f;  lHip = -s * 30.f;                   // jambes alternées
-		rKnee = 15.f + FMath::Max(0.f, -s) * 45.f;             // genou plie en fin de foulée
-		lKnee = 15.f + FMath::Max(0.f,  s) * 45.f;
-		rSho = -s * 24.f;  lSho =  s * 24.f;                   // bras opposés
+		rHip =  s * 42.f;  lHip = -s * 42.f;                   // jambes bien alternées (nage)
+		rKnee = 15.f + FMath::Max(0.f, -s) * 55.f;             // genou plie en fin de foulée
+		lKnee = 15.f + FMath::Max(0.f,  s) * 55.f;
+		rSho = -s * 38.f;  lSho =  s * 38.f;                   // bras opposés amples
 		rEl  = -20.f - FMath::Max(0.f, -s) * 25.f;             // coudes fléchis à la marche
 		lEl  = -20.f - FMath::Max(0.f,  s) * 25.f;
 		torsoRoll = FMath::Sin(AnimPhase * 2.f) * 2.5f;
@@ -1400,15 +1423,23 @@ void AWOTOLDemoUnit::BuildKrakenCephalopod(float H)
 	const FLinearColor KrakPurple(0.30f, 0.20f, 0.42f, 1.f);
 	const FLinearColor Beak      (0.04f, 0.04f, 0.05f, 1.f);
 
-	// ── MANTEAU / CAPUCHON pointu, incliné vers l'arrière ──
-	AddPart(M_CONE, FVector(-H * 0.16f, 0, H * 0.34f), FVector(h * 0.50f, h * 0.42f, h * 0.95f),
-		FRotator(-16.f, 0, 0), KrakArmor);
-	// Crête dorsale (arête du capuchon) : quelques épines vers le haut/arrière
+	// ── MANTEAU (corps arrière) : masse BULBEUSE effilée et COUCHÉE vers l'arrière
+	// (comme un vrai calmar), pas un cône pointu dressé vers le haut. ──
+	// Grosse poche arrondie inclinée en arrière (le "sac" du céphalopode).
+	AddPart(M_SPH, FVector(-H * 0.30f, 0, H * 0.16f), FVector(h * 1.05f, h * 0.62f, h * 0.66f),
+		FRotator(-22.f, 0, 0), KrakArmor);
+	// Pointe arrière effilée (fuseau) qui prolonge le manteau vers l'arrière.
+	AddPart(M_CONE, FVector(-H * 0.62f, 0, H * 0.26f), FVector(h * 0.34f, h * 0.34f, h * 0.6f),
+		FRotator(-70.f, 0, 0), KrakArmor);
+	// Deux petites nageoires du manteau (comme les ailerons d'un calmar) à l'arrière.
+	AddPart(M_CONE, FVector(-H * 0.5f, H * 0.24f, H * 0.22f), FVector(h * 0.28f, h * 0.08f, h * 0.4f), FRotator(0, 20.f, 80.f), KrakPlate);
+	AddPart(M_CONE, FVector(-H * 0.5f, -H * 0.24f, H * 0.22f), FVector(h * 0.28f, h * 0.08f, h * 0.4f), FRotator(0, -20.f, -80.f), KrakPlate);
+	// Crête dorsale DOUCE (bosses arrondies) le long du dos, plus d'épines dressées.
 	for (int32 i = 0; i < 4; ++i)
 	{
 		const float u = i / 3.f;
-		AddPart(M_CONE, FVector(-H * (0.02f + 0.16f * u), 0, H * (0.40f + 0.14f * u)),
-			FVector(0.10f, 0.10f, h * (0.22f - 0.03f * i)), FRotator(-40.f, 0, 0), KrakPlate);
+		AddPart(M_SPH, FVector(-H * (0.05f + 0.14f * u), 0, H * (0.34f - 0.02f * u)),
+			FVector(h * (0.16f - 0.02f * i), h * 0.14f, h * 0.12f), NoRot, KrakPlate);
 	}
 
 	// ── GRANDS AILERONS latéraux pointus (silhouette "bat-wing" de la réf) ──

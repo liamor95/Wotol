@@ -7,6 +7,8 @@
 #include "Engine/ExponentialHeightFog.h"
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Engine/PostProcessVolume.h"
+#include "Engine/PointLight.h"
+#include "Components/PointLightComponent.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "Components/LightComponent.h"
@@ -240,7 +242,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			if (UExponentialHeightFogComponent* FC = Fog->GetComponent())
 			{
 				// Brume ABYSSALE bleu sombre : PROFONDEUR, l'horizon se perd dans le bleu.
-				FC->SetFogDensity(0.028f);
+				FC->SetFogDensity(0.020f);
 				FC->SetFogHeightFalloff(0.06f);
 				FC->SetFogInscatteringColor(FLinearColor(0.02f, 0.08f, 0.18f, 1.f));
 				FC->SetStartDistance(900.f);
@@ -256,10 +258,11 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			PPV->Priority = 100.f;
 			FPostProcessSettings& S = PPV->Settings;
 			// Récif LUMINEUX : dominante bleue douce mais scène claire, coraux qui ressortent
-			S.bOverride_ColorGain = true;        S.ColorGain = FVector4(0.58f, 0.80f, 1.20f, 1.f);
-			S.bOverride_ColorSaturation = true;  S.ColorSaturation = FVector4(1.15f, 1.12f, 1.10f, 1.f);
-			S.bOverride_AutoExposureBias = true; S.AutoExposureBias = -0.9f;
-				S.bOverride_VignetteIntensity  = true; S.VignetteIntensity = 0.45f;
+			S.bOverride_ColorGain = true;        S.ColorGain = FVector4(0.85f, 0.95f, 1.12f, 1.f);
+			S.bOverride_ColorSaturation = true;  S.ColorSaturation = FVector4(1.45f, 1.40f, 1.35f, 1.f);
+			S.bOverride_AutoExposureBias = true; S.AutoExposureBias = -0.35f;
+				S.bOverride_ColorContrast = true; S.ColorContrast = FVector4(1.14f, 1.13f, 1.12f, 1.f);
+				S.bOverride_VignetteIntensity  = true; S.VignetteIntensity = 0.32f;
 			S.bOverride_SceneFringeIntensity = true; S.SceneFringeIntensity = 0.6f;
 		}
 
@@ -276,7 +279,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			{
 				if (ULightComponent* LC = It->FindComponentByClass<ULightComponent>())
 				{
-					LC->SetIntensity(LC->Intensity * 0.22f);          // soleil atténué
+					LC->SetIntensity(LC->Intensity * 0.32f);          // soleil atténué
 					LC->SetLightColor(FLinearColor(0.20f, 0.42f, 0.78f)); // bleu profond d'abysse
 				}
 			}
@@ -404,6 +407,52 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 	SpawnRock(Center + FVector(6800.f, 5200.f, -40.f), 1100.f, RockColor, 812);
 	SpawnRock(Center + FVector(-6000.f, 6500.f, -40.f), 700.f, RockColor, 813);
 	SpawnRock(Center + FVector(7200.f, -5800.f, -40.f), 800.f, RockColor, 814);
+		for (int32 i = 0; i < 16; ++i)
+		{
+			const float Ang = 2.f * PI * i / 16 + (PI / 16.f) + Hor.FRandRange(-0.12f, 0.12f);
+			const float Dist = Hor.FRandRange(5200.f, 6800.f);
+			const FVector A = Center + FVector(FMath::Cos(Ang) * Dist, FMath::Sin(Ang) * Dist, 0.f);
+			const float Ang2 = Ang + (2.f * PI / 16.f) * 0.6f;
+			const FVector B = Center + FVector(FMath::Cos(Ang2) * Dist, FMath::Sin(Ang2) * Dist, 0.f);
+			SpawnRidge(A, B, Hor.FRandRange(700.f, 1900.f), Hor.FRandRange(500.f, 1100.f), FarColor, 460 + i);
+		}
+		for (int32 i = 0; i < 10; ++i)
+		{
+			const float Ang = Hor.FRandRange(0.f, 2.f * PI);
+			const float Dist = Hor.FRandRange(3800.f, 5600.f);
+			SpawnRock(Center + FVector(FMath::Cos(Ang) * Dist, FMath::Sin(Ang) * Dist, -40.f), Hor.FRandRange(500.f, 1200.f), RockColor, 820 + i);
+		}
+		// ── SOURCES DE LUMIÈRE BIOLUMINESCENTES (contraste + ambiance) : petites lampes
+		// colorées posées près du fond, comme du corail/plancton luminescent. Elles
+		// re-créent du CONTRASTE et de la couleur locale dans l'obscurité bleue. ──
+		if (UWorld* Wl = GetWorld())
+		{
+			const FLinearColor BioCols[5] = {
+				FLinearColor(0.20f, 0.95f, 1.00f), // cyan
+				FLinearColor(0.30f, 1.00f, 0.45f), // vert
+				FLinearColor(0.75f, 0.35f, 1.00f), // violet
+				FLinearColor(0.20f, 0.55f, 1.00f), // bleu
+				FLinearColor(1.00f, 0.55f, 0.20f), // ambre (rare)
+			};
+			FRandomStream Bs(77);
+			for (int32 i = 0; i < 22; ++i)
+			{
+				const float Ang = Bs.FRandRange(0.f, 2.f * PI);
+				const float Dist = Bs.FRandRange(600.f, 4200.f);
+				const FVector P = Center + FVector(FMath::Cos(Ang) * Dist, FMath::Sin(Ang) * Dist, Bs.FRandRange(30.f, 180.f));
+				FActorSpawnParameters LP; LP.Owner = this;
+				if (APointLight* L = Wl->SpawnActor<APointLight>(APointLight::StaticClass(), P, FRotator::ZeroRotator, LP))
+				{
+					if (UPointLightComponent* PC = Cast<UPointLightComponent>(L->GetLightComponent()))
+					{
+						PC->SetLightColor(BioCols[Bs.RandRange(0, 4)]);
+						PC->SetIntensity(Bs.FRandRange(2200.f, 5200.f));
+						PC->SetAttenuationRadius(Bs.FRandRange(500.f, 950.f));
+						PC->SetCastShadows(false); // léger : pas d'ombres (perf)
+					}
+				}
+			}
+		}
 
 	// ── FAUNE AMBIANTE : bancs de poissons qui nagent en boucle (décoratif) ──
 	if (UWorld* W = GetWorld())

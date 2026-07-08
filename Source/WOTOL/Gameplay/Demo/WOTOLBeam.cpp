@@ -6,6 +6,7 @@
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Components/PointLightComponent.h"
 
 AWOTOLBeam::AWOTOLBeam()
 {
@@ -16,6 +17,12 @@ AWOTOLBeam::AWOTOLBeam()
 	Beam->SetupAttachment(Pivot);
 	Beam->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Beam->SetCanEverAffectNavigation(false);
+	// Lumière FLUO accrochée au rayon (éclaire la scène à la couleur de l'attaque).
+	Glow = CreateDefaultSubobject<UPointLightComponent>(TEXT("Glow"));
+	Glow->SetupAttachment(Pivot);
+	Glow->SetCastShadows(false);
+	Glow->SetAttenuationRadius(700.f);
+	Glow->SetIntensity(9000.f);
 }
 
 AWOTOLBeam* AWOTOLBeam::Fire(UWorld* World, const FVector& Origin, float YawStart, float YawEnd,
@@ -50,6 +57,14 @@ AWOTOLBeam* AWOTOLBeam::Fire(UWorld* World, const FVector& Origin, float YawStar
 			B->BeamMID = MID;
 		}
 	B->Pivot->SetWorldRotation(FRotator(0.f, YawStart, 0.f));
+	// Lampe fluo positionnée au milieu du rayon, à sa couleur.
+	if (B->Glow)
+	{
+		B->Glow->SetLightColor(FLinearColor(FMath::Min(1.f, Color.R + 0.2f),
+			FMath::Min(1.f, Color.G + 0.2f), FMath::Min(1.f, Color.B + 0.2f)));
+		B->Glow->SetRelativeLocation(FVector(Length * 0.5f, 0.f, 0.f));
+		B->Glow->SetAttenuationRadius(FMath::Clamp(Length * 0.6f, 500.f, 1400.f));
+	}
 	return B;
 }
 
