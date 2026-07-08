@@ -576,16 +576,20 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 					const float Sc = Bs.FRandRange(0.7f, 1.4f);
 					const FVector O(0.f, 0.f, 0.f);
 
-					if (Bs.FRand() < 0.45f)
+					// 5 TYPES d'organismes bioluminescents tirés au hasard (variété façon réf) :
+					// 0 méduse/champignon, 1 corail à polypes, 2 anémone à doigts, 3 herbe en
+					// éventail, 4 grappe de bulbes. Répartis par la grille -> jamais groupés.
+					const int32 Type = Bs.RandRange(0, 4);
+					if (Type == 0)
 					{
 						// CHAMPIGNON / MÉDUSE : tige fine + chapeau en dôme lumineux.
 						const float StalkH = Bs.FRandRange(150.f, 300.f) * Sc;
 						MakePiece(Cone, O + FVector(0, 0, StalkH * 0.5f), FVector(0.09f * Sc, 0.09f * Sc, StalkH / 100.f),
 							FRotator::ZeroRotator, Col * 1.8f);
 						MakePiece(Sph, O + FVector(0, 0, StalkH), FVector(0.55f * Sc, 0.55f * Sc, 0.24f * Sc),
-							FRotator::ZeroRotator, Col * 3.2f); // brille comme le cristal du Cristalliseur
+							FRotator::ZeroRotator, Col * 3.2f);
 					}
-					else
+					else if (Type == 1)
 					{
 						// TOUFFE DE CORAIL : petit socle + quelques polypes à bulbe lumineux.
 						MakePiece(Sph, O + FVector(0, 0, 10.f * Sc), FVector(0.7f * Sc, 0.7f * Sc, 0.4f * Sc),
@@ -601,7 +605,54 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 							const FRotator Tilt(Bs.FRandRange(-16.f, 16.f), 0.f, Bs.FRandRange(-16.f, 16.f));
 							MakePiece(Cone, Base + FVector(0, 0, Hp * 0.5f), FVector(Wp, Wp, Hp / 100.f), Tilt, Col * 1.8f);
 							MakePiece(Sph, Base + FVector(0, 0, Hp), FVector(Wp * 0.9f, Wp * 0.9f, Wp * 0.9f),
-								FRotator::ZeroRotator, Col * 3.2f); // bulbe qui BRILLE (coloré, pas blanc)
+								FRotator::ZeroRotator, Col * 3.2f);
+						}
+					}
+					else if (Type == 2)
+					{
+						// ANÉMONE À DOIGTS : bouquet de tubes charnus dressés, à bout lumineux
+						// (les gros massifs cyan de la réf). Les doigts s'évasent vers le haut.
+						const int32 Fingers = Bs.RandRange(6, 10);
+						for (int32 f = 0; f < Fingers; ++f)
+						{
+							const float A   = Bs.FRandRange(0.f, 2.f * PI);
+							const float Rad = Bs.FRandRange(10.f, 70.f) * Sc;
+							const FVector Base = O + FVector(FMath::Cos(A) * Rad, FMath::Sin(A) * Rad, 0.f);
+							const float Hp  = Bs.FRandRange(110.f, 220.f) * Sc;
+							const float Wp  = Bs.FRandRange(0.30f, 0.5f) * Sc;
+							// évasement : le doigt penche vers l'extérieur
+							const FRotator Tilt(FMath::Cos(A) * 18.f, 0.f, FMath::Sin(A) * -18.f);
+							MakePiece(Cone, Base + FVector(0, 0, Hp * 0.5f), FVector(Wp, Wp, Hp / 100.f), Tilt, Col * 1.5f);
+							MakePiece(Sph, Base + FVector(FMath::Cos(A) * Hp * 0.14f, FMath::Sin(A) * Hp * 0.14f, Hp),
+								FVector(Wp * 1.1f, Wp * 1.1f, Wp * 1.3f), FRotator::ZeroRotator, Col * 3.2f); // bout lumineux
+						}
+					}
+					else if (Type == 3)
+					{
+						// HERBE BIOLUMINESCENTE EN ÉVENTAIL : brins fins qui rayonnent d'un point
+						// (les plantes-étoiles vert-cyan de la réf).
+						const int32 Blades = Bs.RandRange(9, 16);
+						for (int32 b = 0; b < Blades; ++b)
+						{
+							const float A   = Bs.FRandRange(0.f, 2.f * PI);
+							const float Hb  = Bs.FRandRange(120.f, 260.f) * Sc;
+							const float Lean = Bs.FRandRange(20.f, 55.f); // très ouvert = éventail
+							const FRotator Tilt(FMath::Cos(A) * Lean, 0.f, FMath::Sin(A) * -Lean);
+							MakePiece(Cone, O + FVector(0, 0, Hb * 0.42f), FVector(0.05f * Sc, 0.05f * Sc, Hb / 100.f),
+								Tilt, Col * 2.2f);
+						}
+					}
+					else
+					{
+						// GRAPPE DE BULBES / ŒUFS lumineux posés bas au sol.
+						const int32 Eggs = Bs.RandRange(3, 6);
+						for (int32 e = 0; e < Eggs; ++e)
+						{
+							const float A   = Bs.FRandRange(0.f, 2.f * PI);
+							const float Rad = Bs.FRandRange(0.f, 55.f) * Sc;
+							const float R2  = Bs.FRandRange(0.25f, 0.5f) * Sc;
+							const FVector Base = O + FVector(FMath::Cos(A) * Rad, FMath::Sin(A) * Rad, R2 * 55.f);
+							MakePiece(Sph, Base, FVector(R2, R2, R2), FRotator::ZeroRotator, Col * 2.6f);
 						}
 					}
 				}
