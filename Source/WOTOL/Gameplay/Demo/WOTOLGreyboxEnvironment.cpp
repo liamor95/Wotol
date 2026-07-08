@@ -525,10 +525,11 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			const int32 GridN = 15;                 // 15x15 = 225 cellules (grille fine)
 			const float HalfSpan = 4400.f;          // demi-étendue couverte
 			const float CellSz = (2.f * HalfSpan) / GridN;
-			// GRILLE bioluminescente : organismes dispersés sur TOUT l'espace de combat,
-			// un par cellule (individuels, jamais en bloc). SEUL l'emplacement du bâtiment/
-			// objectif au centre (rayon 700) est dégagé -> rien ne pousse SUR le bâtiment.
-			for (int32 c = 0; c < GridN * GridN; ++c)
+			// ⛔ GRILLE BIOLUMINESCENTE DÉFINITIVEMENT DÉSACTIVÉE (demande du joueur).
+			// Elle reposait un organisme à l'emplacement du bâtiment central -> plus JAMAIS
+			// aucun organisme de grille, nulle part.
+			const bool bGridBioEnabled = false;
+			for (int32 c = 0; bGridBioEnabled && c < GridN * GridN; ++c)
 			{
 				const int32 gx = c % GridN;
 				const int32 gy = c / GridN;
