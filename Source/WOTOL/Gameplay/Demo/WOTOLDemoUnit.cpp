@@ -727,9 +727,11 @@ void AWOTOLDemoUnit::Ability_Laser()
 	else
 	{
 		// RAYON FIXE sur la cible unique (bâtiment ou ennemi le plus proche).
-		FVector D = To - From; D.Z = 0.f;
-		const float Y = D.Rotation().Yaw;
-		AWOTOLBeam::Fire(W, From, Y, Y, FMath::Max(600.f, D.Size() + 100.f), BeamCol, this, 0.f);
+		// Visée 3D COMPLÈTE : le rayon s'incline vers la couche de la cible (Kraken en
+		// lévitation au-dessus -> le rayon MONTE vraiment jusqu'à lui, il ne part plus à plat).
+		const FVector D3 = To - From;                 // delta RÉEL (From/To = centres des mesh flottants)
+		const FRotator Aim = D3.Rotation();           // yaw + pitch
+		AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, D3.Size() + 100.f), BeamCol, this, 0.f, Aim.Pitch);
 		AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 120.f), TEXT("Rayon Laser"), BeamCol);
 	}
 }
@@ -1124,7 +1126,15 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	if (NameTag)       NameTag->SetRelativeLocation(FVector(0.f, 0.f, CapH + 50.f));
 	if (NameTagShadow) NameTagShadow->SetRelativeLocation(FVector(0.f, 0.f, CapH + 50.f));
-	if (ClickProxy) ClickProxy->SetSphereRadius(FMath::Max(CapR, CapH * 0.8f));
+	// Proxy de clic RECENTRÉ à mi-hauteur du corps et dimensionné pour couvrir TOUTE la
+	// silhouette (le mesh monte depuis VisualRoot ; une sphère aux pieds ratait le haut du
+	// corps -> on cliquait le mesh sans rien sélectionner). Comme il est attaché à VisualRoot,
+	// il suit la couche de verticalité : la cible reste cliquable même en lévitation.
+	if (ClickProxy)
+	{
+		ClickProxy->SetSphereRadius(FMath::Max(CapR * 1.15f, HeightU * 0.6f));
+		ClickProxy->SetRelativeLocation(FVector(0.f, 0.f, HeightU * 0.35f));
+	}
 
 	// Déphasage d'animation propre à chaque unité (désync le flottement)
 	BobSeed = FMath::Fmod(GetActorLocation().X * 0.021f + GetActorLocation().Y * 0.013f, 6.283f);

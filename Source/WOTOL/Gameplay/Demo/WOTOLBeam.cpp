@@ -34,7 +34,7 @@ AWOTOLBeam::AWOTOLBeam()
 }
 
 AWOTOLBeam* AWOTOLBeam::Fire(UWorld* World, const FVector& Origin, float YawStart, float YawEnd,
-	float Length, const FLinearColor& Color, AUnitBase* Caster, float SweepDamage)
+	float Length, const FLinearColor& Color, AUnitBase* Caster, float SweepDamage, float Pitch)
 {
 	if (!World) return nullptr;
 	FActorSpawnParameters P;
@@ -43,7 +43,7 @@ AWOTOLBeam* AWOTOLBeam::Fire(UWorld* World, const FVector& Origin, float YawStar
 	if (!B) return nullptr;
 
 	B->OriginLoc = Origin;
-	B->Yaw0 = YawStart; B->Yaw1 = YawEnd; B->Len = Length;
+	B->Yaw0 = YawStart; B->Yaw1 = YawEnd; B->PitchAngle = Pitch; B->Len = Length;
 	B->CasterUnit = Caster; B->Damage = SweepDamage;
 
 	UStaticMesh* Cyl = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
@@ -61,7 +61,7 @@ AWOTOLBeam* AWOTOLBeam::Fire(UWorld* World, const FVector& Origin, float YawStar
 		B->Beam->SetMaterial(0, MID);
 		B->BeamMID = MID;
 	}
-	B->Pivot->SetWorldRotation(FRotator(0.f, YawStart, 0.f));
+	B->Pivot->SetWorldRotation(FRotator(Pitch, YawStart, 0.f));
 	// DEUX lampes fluo réparties sur le rayon -> TOUT le trait est illuminé (pas juste
 	// le milieu), à la couleur de l'attaque (vert pour Noxar, cyan pour Aquis).
 	const FLinearColor LCol(FMath::Min(1.f, Color.R + 0.25f),
@@ -78,9 +78,10 @@ void AWOTOLBeam::Tick(float Dt)
 	Life += Dt;
 	const float a = FMath::Clamp(Life / Duration, 0.f, 1.f);
 
-	// Balayage : interpole le yaw du départ vers l'arrivée.
+	// Balayage : interpole le yaw du départ vers l'arrivée. Le pitch (visée verticale
+	// vers une couche différente) est conservé pendant tout le rayon.
 	const float Yaw = FMath::Lerp(Yaw0, Yaw1, a);
-	Pivot->SetWorldRotation(FRotator(0.f, Yaw, 0.f));
+	Pivot->SetWorldRotation(FRotator(PitchAngle, Yaw, 0.f));
 
 	// Léger fondu en fin de vie.
 	if (BeamMID) BeamMID->SetScalarParameterValue(TEXT("Opacity"), 1.f - a);

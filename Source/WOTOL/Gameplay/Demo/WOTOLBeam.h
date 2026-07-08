@@ -21,8 +21,11 @@ public:
 	AWOTOLBeam();
 
 	// Origine, orientation de départ/fin (degrés yaw monde), longueur, couleur.
+	// Pitch (degrés) : inclinaison VERTICALE du rayon -> il peut viser une cible sur une
+	// couche de verticalité DIFFÉRENTE (Kraken en lévitation au-dessus, etc.).
 	static AWOTOLBeam* Fire(UWorld* World, const FVector& Origin, float YawStart, float YawEnd,
-		float Length, const FLinearColor& Color, AUnitBase* Caster, float SweepDamage);
+		float Length, const FLinearColor& Color, AUnitBase* Caster, float SweepDamage,
+		float Pitch = 0.f);
 
 protected:
 	virtual void Tick(float DeltaSeconds) override;
@@ -34,7 +37,7 @@ protected:
 	UPROPERTY() TObjectPtr<class UPointLightComponent> Glow2; // lumière fluo (quart lointain)
 
 	FVector OriginLoc = FVector::ZeroVector;
-	float Yaw0 = 0.f, Yaw1 = 0.f, Len = 1000.f, Life = 0.f, Duration = 0.9f, Damage = 0.f;
+	float Yaw0 = 0.f, Yaw1 = 0.f, PitchAngle = 0.f, Len = 1000.f, Life = 0.f, Duration = 0.9f, Damage = 0.f;
 	TWeakObjectPtr<AUnitBase> CasterUnit;
 	TSet<TWeakObjectPtr<AUnitBase>> AlreadyHit;
 };
