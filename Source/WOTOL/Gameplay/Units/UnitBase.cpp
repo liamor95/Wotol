@@ -19,7 +19,10 @@
 // Rythme global des dégâts (frottement de l'eau). PLUS BAS = échanges plus lents
 // = batailles PLUS LONGUES, sans changer l'issue ni les pertes (tout le monde frappe
 // ET encaisse proportionnellement moins). 0.20 vise des batailles de ~4-5 min.
-float AUnitBase::GlobalDamageScale = 0.20f;
+// 0.20 -> 0.18 : combats un peu plus longs => l'ennemi a le temps de riposter avant
+// de mourir => le joueur encaisse de VRAIES pertes (fini le ~0 perte) sans que ce
+// soit disproportionné (il gagne toujours). Rééquilibrage LÉGER post-amélioration IA.
+float AUnitBase::GlobalDamageScale = 0.18f;
 float AUnitBase::GlobalSpeedScale  = 0.55f;
 
 AUnitBase::AUnitBase()

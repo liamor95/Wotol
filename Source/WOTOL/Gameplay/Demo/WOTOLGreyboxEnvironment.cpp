@@ -258,17 +258,20 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			PPV->bUnbound = true;
 			PPV->Priority = 100.f;
 			FPostProcessSettings& S = PPV->Settings;
-			// Récif LUMINEUX : dominante bleue douce mais scène claire, coraux qui ressortent
-			S.bOverride_ColorGain = true;        S.ColorGain = FVector4(0.85f, 0.95f, 1.12f, 1.f);
-			S.bOverride_ColorSaturation = true;  S.ColorSaturation = FVector4(1.45f, 1.40f, 1.35f, 1.f);
-			// EXPOSITION VERROUILLÉE : min=max => l'auto-expo ne « crame » plus le sable
-			// clair au centre (fini le gros halo blanc qui noyait les lumières colorées).
-			S.bOverride_AutoExposureMinBrightness = true; S.AutoExposureMinBrightness = 1.0f;
-			S.bOverride_AutoExposureMaxBrightness = true; S.AutoExposureMaxBrightness = 1.0f;
-			S.bOverride_AutoExposureBias = true; S.AutoExposureBias = -0.20f;
-				S.bOverride_ColorContrast = true; S.ColorContrast = FVector4(1.14f, 1.13f, 1.12f, 1.f);
-				S.bOverride_VignetteIntensity  = true; S.VignetteIntensity = 0.32f;
+			// ABYSSE CONTRASTÉ (réf. corail bioluminescent) : sombre mais TRÈS coloré et
+			// TRÈS contrasté -> les amas lumineux vifs claquent sur la roche sombre.
+			S.bOverride_ColorGain = true;        S.ColorGain = FVector4(0.80f, 0.92f, 1.15f, 1.f);
+			S.bOverride_ColorSaturation = true;  S.ColorSaturation = FVector4(1.60f, 1.55f, 1.55f, 1.f); // couleurs franches
+			S.bOverride_ColorContrast   = true;  S.ColorContrast   = FVector4(1.30f, 1.28f, 1.26f, 1.f); // ombres profondes = contraste
+			// Exposition auto NON verrouillée mais légèrement remontée : image lisible
+			// (fini le trop-sombre) ; le sable ayant été assombri, plus de halo blanc.
+			S.bOverride_AutoExposureBias = true; S.AutoExposureBias = 0.25f;
+			S.bOverride_AutoExposureMinBrightness = true; S.AutoExposureMinBrightness = 0.30f;
+			S.bOverride_AutoExposureMaxBrightness = true; S.AutoExposureMaxBrightness = 1.60f;
+			S.bOverride_VignetteIntensity  = true; S.VignetteIntensity = 0.38f;
 			S.bOverride_SceneFringeIntensity = true; S.SceneFringeIntensity = 0.6f;
+			// Bloom marqué -> le halo des cristaux/coraux/rayons rayonne joliment.
+			S.bOverride_BloomIntensity = true; S.BloomIntensity = 1.6f;
 		}
 
 		// Nuages masqués + SOLEIL adouci (lumière directionnelle atténuée et bleutée
@@ -284,8 +287,11 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			{
 				if (ULightComponent* LC = It->FindComponentByClass<ULightComponent>())
 				{
-					LC->SetIntensity(LC->Intensity * 0.32f);          // soleil atténué
-					LC->SetLightColor(FLinearColor(0.20f, 0.42f, 0.78f)); // bleu profond d'abysse
+					// Key light REMONTÉE (0.32 -> 0.55) : elle crée de vraies ombres/reliefs
+					// sur la roche et les unités = du CONTRASTE (fini le rendu plat). Bleu
+					// froid mais assez clair pour lire comme de la lumière de surface.
+					LC->SetIntensity(LC->Intensity * 0.55f);
+					LC->SetLightColor(FLinearColor(0.34f, 0.52f, 0.85f));
 				}
 			}
 		}
@@ -444,10 +450,14 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
 				nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 			FRandomStream Bs(77);
-			for (int32 i = 0; i < 24; ++i)
+			// Nombreux amas RÉPARTIS sur TOUTE l'arène (réf. bioluminescence dispersée) :
+			// moitié dispersés dans l'arène, moitié plaqués contre les reliefs.
+			for (int32 i = 0; i < 40; ++i)
 			{
 				const float Ang = Bs.FRandRange(0.f, 2.f * PI);
-				const float Dist = Bs.FRandRange(600.f, 4400.f);
+				const float Dist = (i % 2 == 0)
+					? Bs.FRandRange(700.f, 3200.f)
+					: Bs.FRandRange(3400.f, 4600.f);
 				const FVector P = Center + FVector(FMath::Cos(Ang) * Dist, FMath::Sin(Ang) * Dist, -20.f);
 				const FLinearColor Col = BioCols[Bs.RandRange(0, 4)];
 

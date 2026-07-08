@@ -482,7 +482,10 @@ void AWOTOLDemoDirector::LaunchBattle()
 					}
 					if (ArmyHP > 0.f && Boss->GetUnitData())
 					{
-						const float TargetHP = FMath::Clamp(ArmyHP * 0.42f, 12000.f, 34000.f);
+						// 0.42 -> 0.50 : le Kraken tient plus longtemps face à une armée qui,
+						// mieux pilotée, le focalise très efficacement -> il a le temps
+						// d'infliger des pertes au joueur (rééquilibrage léger).
+						const float TargetHP = FMath::Clamp(ArmyHP * 0.50f, 12000.f, 40000.f);
 						const int32 BaseMax  = FMath::Max(1, Boss->GetUnitData()->Stats.MaxHealth);
 						Boss->HealthScale    = FMath::Max(1.f, TargetHP / (float)BaseMax);
 						Boss->SetHealthToFull(); // applique PV = HealthScale * base
@@ -509,6 +512,11 @@ void AWOTOLDemoDirector::LaunchBattle()
 				if (!U) continue;
 				AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U);
 				if (DU && DU->bCreatureBrain) continue; // le boss a son propre cerveau
+				// Léger avantage de survie/mordant à l'IA rivale : elle encaisse ~10% de
+				// moins et frappe ~12% de plus -> elle riposte assez pour faire des pertes
+				// au joueur, sans renverser l'issue (le joueur gagne toujours).
+				U->IncomingDamageMult *= 0.90f;
+				U->OutgoingDamageMult *= 1.12f;
 				const bool bSieger = bSiege && (RivalIndex++ % 5 < 2); // ~40% assiégeurs
 				if (AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(U->GetController()))
 				{
