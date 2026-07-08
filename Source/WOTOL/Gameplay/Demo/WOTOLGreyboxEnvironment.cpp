@@ -222,7 +222,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 
 	// ── Palette RÉCIF CORALLIEN LUMINEUX (nouvelle référence) ──
 	const FLinearColor FloorColor(0.42f, 0.40f, 0.30f, 1.f); // sable clair du fond
-	const FLinearColor SandBright(0.58f, 0.55f, 0.42f, 1.f); // canyon de sable (couloir de combat)
+	const FLinearColor SandBright(0.40f, 0.40f, 0.34f, 1.f); // canyon de sable (couloir de combat, assombri anti-halo)
 	const FLinearColor RockColor (0.28f, 0.31f, 0.25f, 1.f); // roche récifale tan-verdâtre
 	const FLinearColor FarColor  (0.12f, 0.22f, 0.30f, 1.f); // spires/silhouettes lointaines
 	const FLinearColor SurfColor (0.28f, 0.58f, 0.72f, 1.f); // surface éclairée (rayons)
@@ -260,7 +260,11 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			// Récif LUMINEUX : dominante bleue douce mais scène claire, coraux qui ressortent
 			S.bOverride_ColorGain = true;        S.ColorGain = FVector4(0.85f, 0.95f, 1.12f, 1.f);
 			S.bOverride_ColorSaturation = true;  S.ColorSaturation = FVector4(1.45f, 1.40f, 1.35f, 1.f);
-			S.bOverride_AutoExposureBias = true; S.AutoExposureBias = -0.35f;
+			// EXPOSITION VERROUILLÉE : min=max => l'auto-expo ne « crame » plus le sable
+			// clair au centre (fini le gros halo blanc qui noyait les lumières colorées).
+			S.bOverride_AutoExposureMinBrightness = true; S.AutoExposureMinBrightness = 1.0f;
+			S.bOverride_AutoExposureMaxBrightness = true; S.AutoExposureMaxBrightness = 1.0f;
+			S.bOverride_AutoExposureBias = true; S.AutoExposureBias = -0.20f;
 				S.bOverride_ColorContrast = true; S.ColorContrast = FVector4(1.14f, 1.13f, 1.12f, 1.f);
 				S.bOverride_VignetteIntensity  = true; S.VignetteIntensity = 0.32f;
 			S.bOverride_SceneFringeIntensity = true; S.SceneFringeIntensity = 0.6f;
@@ -295,7 +299,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 
 	// ── CANYON DE SABLE CENTRAL (couloir de combat dégagé le long de X) ──
 	SpawnPlaza(Center, 7500.f, 1350.f, SandBright);
-	SpawnPlaza(Center + FVector(0.f, 0.f, 0.f), 3200.f, 900.f, FLinearColor(0.64f, 0.60f, 0.47f, 1.f));
+	SpawnPlaza(Center + FVector(0.f, 0.f, 0.f), 3200.f, 900.f, FLinearColor(0.44f, 0.44f, 0.38f, 1.f));
 
 	// ── Palette de coraux VIFS ──
 	const FLinearColor Coral[6] = {
