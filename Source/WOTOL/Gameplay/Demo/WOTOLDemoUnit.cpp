@@ -649,10 +649,19 @@ void AWOTOLDemoUnit::Ability_Shockwave()
 		U->TakeDamageFromUnit(70.f, this);
 		++Hit;
 	}
-	AWOTOLBubbleBurst::Burst(W, Origin + FVector(0, 0, 30.f), FLinearColor(0.5f, 0.9f, 1.f, 1.f), 24);
+	// ── ONDE DE CHOC blanc-bleu : éclat central + FRONT circulaire (anneau de jaillissements
+	// au bord du rayon) -> lecture d'une onde qui se propage et REPOUSSE tout autour. ──
+	const FLinearColor Wave(0.75f, 0.95f, 1.f, 1.f);
+	AWOTOLBubbleBurst::Burst(W, Origin + FVector(0, 0, 30.f), FLinearColor(1.f, 1.f, 1.f, 1.f), 30); // flash central blanc
+	const int32 Ring = 14;
+	for (int32 i = 0; i < Ring; ++i)
+	{
+		const float A = 2.f * PI * i / Ring;
+		const FVector P = Origin + FVector(FMath::Cos(A), FMath::Sin(A), 0.f) * (Radius * 0.72f) + FVector(0, 0, 25.f);
+		AWOTOLBubbleBurst::Burst(W, P, Wave, 6); // front de l'onde
+	}
 	if (Hit > 0)
-		AWOTOLDamageNumber::SpawnText(W, Origin + FVector(0, 0, 160.f), TEXT("Lame Photonique"),
-			FLinearColor(0.5f, 0.9f, 1.f, 1.f));
+		AWOTOLDamageNumber::SpawnText(W, Origin + FVector(0, 0, 160.f), TEXT("Lame Photonique"), Wave);
 }
 
 // NOXAR — Rayon laser : cible l'OBJECTIF (bâtiment adverse) si présent, sinon l'ennemi
@@ -880,7 +889,7 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 	if (Id == TEXT("Aquis")) // Chef : ARTICULÉ + épée + cape + crête
 	{
 		BuildArticulatedHumanoid(H, AqArmor, 0.36f);
-		MakeBone(JRElbow, M_CONE, FVector(0, 0, -H * 0.34f), FVector(0.06f, 0.06f, h * 0.55f), FRotator(180.f, 0, 0), AqEnergy); // épée
+		MakeBone(JRElbow, M_CONE, FVector(0, 0, -H * 0.34f), FVector(0.06f, 0.06f, h * 0.55f), FRotator(180.f, 0, 0), FLinearColor(0.45f, 1.3f, 2.6f, 1.f)); // épée énergie bleue lumineuse
 		AddPart(M_CUBE, FVector(-16, 0, H * 0.05f), FVector(0.05f, 0.55f, h * 0.45f), FRotator(8.f, 0, 0), AqArmor); // cape
 		AddPart(M_CONE, FVector(0, 0, H * 0.46f), FVector(0.18f, 0.18f, h * 0.12f), NoRot, AqGold);                  // crête or
 		return;
@@ -1255,10 +1264,12 @@ void AWOTOLDemoUnit::BuildArticulatedAquiloryons(float H, const FLinearColor& Ar
 {
 	const float h = H / 100.f;
 	BuildArticulatedHumanoid(H, Armor, 0.34f);
+	// Énergie BLEUE survoltée (>1) -> épée + bouclier paraissent LUMINEUX (énergétiques).
+	const FLinearColor BlueGlow(0.45f, 1.30f, 2.60f, 1.f);
 	// Épée dans la main droite (prolonge l'avant-bras)
-	MakeBone(JRElbow, M_CONE, FVector(0, 0, -H * 0.30f), FVector(0.06f, 0.06f, h * 0.42f), FRotator(180.f, 0, 0), Energy);
-	// Bouclier au bras gauche
-	MakeBone(JLElbow, M_CUBE, FVector(H * 0.10f, 0, -H * 0.10f), FVector(0.07f, 0.42f, h * 0.40f), FRotator::ZeroRotator, Energy);
+	MakeBone(JRElbow, M_CONE, FVector(0, 0, -H * 0.30f), FVector(0.06f, 0.06f, h * 0.42f), FRotator(180.f, 0, 0), BlueGlow);
+	// Bouclier au bras gauche (plaque de cristal-énergie lumineuse)
+	MakeBone(JLElbow, M_CUBE, FVector(H * 0.10f, 0, -H * 0.10f), FVector(0.07f, 0.42f, h * 0.40f), FRotator::ZeroRotator, BlueGlow);
 }
 
 // ─── Animation procédurale (pilotée par l'état IA + la vitesse) ─────────────
