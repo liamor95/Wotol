@@ -261,6 +261,12 @@ private:
 	void TickAttackCover(float DeltaSeconds);
 	float CoverAttackTimer = 0.f;
 
+	// ── IA TACTIQUE : utiliser le décor destructible (faire s'effondrer une structure
+	// sur un groupe d'ennemis placés derrière). ──
+	float CoverTacticTimer = 0.f;
+	bool  bCoverTactic = false; // le TargetCover courant est un choix TACTIQUE de l'IA
+	class AWOTOLCoverStructure* FindTacticalCover() const;
+
 	float LastKnownHealth = -1.f;
 	bool  bCreatureStyled = false;
 };

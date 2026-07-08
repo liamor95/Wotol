@@ -45,6 +45,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Cover")
 	bool IsDestroyed() const { return bDestroyed; }
 
+	bool IsIndestructible() const { return bIndestructible; }
+	float GetPillarLen() const { return PillarLen; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;

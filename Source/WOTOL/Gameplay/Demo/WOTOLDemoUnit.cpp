@@ -19,6 +19,7 @@
 #include "WOTOLBubbleBurst.h"
 #include "WOTOLCaptureObject.h"
 #include "WOTOLCoverStructure.h"
+#include "EngineUtils.h"
 #include "WOTOLInkZone.h"
 #include "WOTOLBeam.h"
 #include "WOTOLGlow.h"
@@ -126,7 +127,28 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	else
 	{
 		TickAbility(DeltaSeconds); // compétence active périodique (unités normales)
-		if (TargetCover.IsValid()) TickAttackCover(DeltaSeconds); // attaque de décor ordonnée
+
+		// IA TACTIQUE (décor destructible) : périodiquement, si l'unité n'a pas déjà une
+		// cible de couverture, elle cherche une structure à faire tomber sur un groupe
+		// d'ennemis derrière. Vaut pour les DEUX armées (choix autonome), sans écraser un
+		// ordre EXPLICITE du joueur (TargetCover posé par OrderAttackCover, bCoverTactic=false).
+		bool bUnderPlayerOrder = false;
+		if (UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>())
+			bUnderPlayerOrder = S->bFollowingPlayerOrder;
+		// Un ordre explicite du joueur reprend la main sur un choix tactique automatique.
+		if (bUnderPlayerOrder && bCoverTactic) { TargetCover = nullptr; bCoverTactic = false; }
+
+		CoverTacticTimer -= DeltaSeconds;
+		if (!bUnderPlayerOrder && !TargetCover.IsValid() && CoverTacticTimer <= 0.f)
+		{
+			CoverTacticTimer = FMath::FRandRange(1.5f, 3.5f);
+			if (AWOTOLCoverStructure* Tac = FindTacticalCover())
+			{
+				TargetCover = Tac;
+				bCoverTactic = true;
+			}
+		}
+		if (TargetCover.IsValid()) TickAttackCover(DeltaSeconds); // attaque de décor (ordre OU tactique)
 	}
 
 	// Sur ORDRE d'attaque (cible imposée), l'unité se cale sur la couche de sa cible.
@@ -546,10 +568,56 @@ void AWOTOLDemoUnit::OrderAttackCover(AWOTOLCoverStructure* Cover)
 		S->bFollowingPlayerOrder = false;
 }
 
+// IA TACTIQUE : cherche une structure DESTRUCTIBLE derrière laquelle des ennemis sont
+// groupés -> l'abattre la fera tomber SUR eux (elle bascule dans le sens du tir). Retourne
+// la meilleure cible, ou nullptr. Utilisé par les DEUX armées quand elles ne sont pas
+// micro-gérées par le joueur.
+AWOTOLCoverStructure* AWOTOLDemoUnit::FindTacticalCover() const
+{
+	UWorld* W = GetWorld();
+	if (!W || !UnitData) return nullptr;
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>();
+	if (!Reg) return nullptr;
+
+	const EFactionID EnemyFac = (GetFaction() == EFactionID::Aquiloris)
+		? EFactionID::Noxeens : EFactionID::Aquiloris;
+	const FVector Me = GetActorLocation();
+
+	AWOTOLCoverStructure* Best = nullptr;
+	int32 BestCount = 1; // il faut AU MOINS 2 ennemis derrière pour que ça vaille le coup
+
+	for (TActorIterator<AWOTOLCoverStructure> It(W); It; ++It)
+	{
+		AWOTOLCoverStructure* Cov = *It;
+		if (!Cov || Cov->IsDestroyed() || Cov->IsIndestructible()) continue;
+
+		FVector ToCov = Cov->GetActorLocation() - Me; ToCov.Z = 0.f;
+		const float DCov = ToCov.Size();
+		if (DCov < 200.f || DCov > 3000.f) continue;         // ni collée ni trop loin
+		const FVector FallDir = ToCov.GetSafeNormal();        // sens où la structure tombera
+
+		// Compte les ennemis situés DERRIÈRE la structure, dans le cône de chute, à portée
+		// de la longueur qui balaiera le sol.
+		int32 Count = 0;
+		const float Reach = Cov->GetPillarLen() + 350.f;
+		for (AUnitBase* U : Reg->GetUnitsForFaction(EnemyFac))
+		{
+			if (!U || !U->IsAlive()) continue;
+			FVector ToU = U->GetActorLocation() - Cov->GetActorLocation(); ToU.Z = 0.f;
+			const float DU = ToU.Size();
+			if (DU > Reach) continue;
+			if (FVector::DotProduct(ToU.GetSafeNormal(), FallDir) < 0.55f) continue; // bien derrière
+			++Count;
+		}
+		if (Count > BestCount) { BestCount = Count; Best = Cov; }
+	}
+	return Best;
+}
+
 void AWOTOLDemoUnit::TickAttackCover(float Dt)
 {
 	AWOTOLCoverStructure* Cov = TargetCover.Get();
-	if (!Cov || Cov->IsDestroyed()) { TargetCover = nullptr; return; }
+	if (!Cov || Cov->IsDestroyed()) { TargetCover = nullptr; bCoverTactic = false; return; }
 	if (!IsAlive() || !UnitData) return;
 
 	FVector To = Cov->GetActorLocation() - GetActorLocation(); To.Z = 0.f;

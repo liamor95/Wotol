@@ -502,8 +502,9 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 					M->SetRelativeScale3D(Scale);
 					M->SetRelativeLocation(Loc);
 					M->SetRelativeRotation(Rot);
-					// Corail ÉMISSIF : c'est le mesh du corail qui RAYONNE (la lumière vient
-					// de l'organisme, pas d'une flaque au sol).
+					// L'OBJET LUI-MÊME émet la lumière (matériau émissif, comme le cristal du
+					// Cristalliseur qui marche bien) -> PAS de flaque au sol : c'est l'organisme
+					// bioluminescent qu'on voit briller. Couleur HDR (>1) pour qu'il rayonne.
 					if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeGlow(CoralAct, Emissive))
 						M->SetMaterial(0, MID);
 				};
@@ -531,13 +532,26 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 						FRotator::ZeroRotator, Col * 3.6f); // survolté -> lit comme luminescent
 				}
 
-				// Lampe accrochée au corail (la bioluminescence qu'il émet), au cœur de l'amas.
+				// Variante CHAMPIGNON / MÉDUSE (réf.) : longue tige fine + CHAPEAU lumineux
+				// en dôme -> silhouette organique variée qui rayonne d'elle-même.
+				if (Bs.FRand() < 0.5f)
+				{
+					const float StalkH = Bs.FRandRange(190.f, 340.f) * Sc;
+					MakePiece(Cone, FVector(0, 0, StalkH * 0.5f), FVector(0.10f * Sc, 0.10f * Sc, StalkH / 100.f),
+						FRotator::ZeroRotator, Col * 1.6f);                                   // tige
+					MakePiece(Sph, FVector(0, 0, StalkH), FVector(0.60f * Sc, 0.60f * Sc, 0.26f * Sc),
+						FRotator::ZeroRotator, Col * 4.0f);                                   // chapeau lumineux
+				}
+
+				// PAS de grosse lampe qui inonde le sol : c'est l'OBJET émissif qui brille
+				// (comme le cristal du Cristalliseur). On ajoute juste une lampe TRÈS FAIBLE
+				// et TRÈS COURTE (~2 m) pour un léger nimbe à la base, pas un rayon de 10 m.
 				UPointLightComponent* PC = NewObject<UPointLightComponent>(CoralAct);
 				PC->SetupAttachment(Root); PC->RegisterComponent();
-				PC->SetRelativeLocation(FVector(0, 0, 90.f * Sc));
+				PC->SetRelativeLocation(FVector(0, 0, 70.f * Sc));
 				PC->SetLightColor(Col);
-				PC->SetIntensity(Bs.FRandRange(1400.f, 2400.f));
-				PC->SetAttenuationRadius(Bs.FRandRange(360.f, 560.f));
+				PC->SetIntensity(600.f);
+				PC->SetAttenuationRadius(230.f); // ~2,3 m : halo serré autour de l'organisme
 				PC->SetCastShadows(false);
 			}
 		}
