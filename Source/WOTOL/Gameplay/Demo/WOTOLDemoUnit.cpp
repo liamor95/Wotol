@@ -539,11 +539,11 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 		// TOUTES les unités proches de la cible (celles massées autour en MEURENT). C'est ce
 		// qui inflige de VRAIES pertes au joueur pendant qu'il abat le Kraken.
 		CritCooldown -= DeltaSeconds;
-		if (CritCooldown <= 0.f && FMath::FRand() < 0.5f && Nearest->IsAlive())
+		if (CritCooldown <= 0.f && FMath::FRand() < 0.35f && Nearest->IsAlive())
 		{
-			CritCooldown = FMath::FRandRange(5.f, 8.f); // plus fréquent
+			CritCooldown = FMath::FRandRange(8.f, 12.f); // modéré (pas de wipe)
 			const FVector CritLoc = Nearest->GetActorLocation();
-			const float SlamR = 420.f;
+			const float SlamR = 300.f;                    // zone plus serrée
 			if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
 			{
 				const EFactionID Foe = (GetFaction() == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
@@ -551,7 +551,7 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 				{
 					if (!U || !U->IsAlive()) continue;
 					if (FVector::DistSquared2D(U->GetActorLocation(), CritLoc) > SlamR * SlamR) continue;
-					U->TakeDamageFromUnit(360.f, this); // lourd -> tue les unités affaiblies/fragiles
+					U->TakeDamageFromUnit(170.f, this); // modéré -> quelques pertes, pas un wipe
 				}
 			}
 			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(W, CritLoc + FVector(0, 0, 90.f),
