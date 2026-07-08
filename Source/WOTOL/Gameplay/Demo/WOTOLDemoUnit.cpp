@@ -535,20 +535,31 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 	{
 		PerformAttack(Nearest);   // throttlé par le cooldown interne de l'unité
 
-		// ATTAQUE CRITIQUE (boss) : de temps en temps, aléatoirement, le colosse assène un
-		// coup dévastateur -> gros dégâts bonus + libellé "CRITIQUE". Cadencé par un cooldown.
+		// CLAQUE DE TENTACULE EN ZONE (boss) : le colosse écrase le sol -> gros dégâts à
+		// TOUTES les unités proches de la cible (celles massées autour en MEURENT). C'est ce
+		// qui inflige de VRAIES pertes au joueur pendant qu'il abat le Kraken.
 		CritCooldown -= DeltaSeconds;
-		if (CritCooldown <= 0.f && FMath::FRand() < 0.28f && Nearest->IsAlive())
+		if (CritCooldown <= 0.f && FMath::FRand() < 0.5f && Nearest->IsAlive())
 		{
-			CritCooldown = FMath::FRandRange(7.f, 11.f); // encore moins fréquent
-			Nearest->TakeDamageFromUnit(95.f, this);     // 120->95 : le Kraken reste dangereux mais battable
-			const FVector CritLoc = Nearest->GetActorLocation() + FVector(0, 0, 90.f);
-			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(W, CritLoc, TEXT("CRITIQUE !"),
-					FLinearColor(1.f, 0.35f, 0.f, 1.f)))
+			CritCooldown = FMath::FRandRange(5.f, 8.f); // plus fréquent
+			const FVector CritLoc = Nearest->GetActorLocation();
+			const float SlamR = 420.f;
+			if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
+			{
+				const EFactionID Foe = (GetFaction() == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
+				for (AUnitBase* U : Reg->GetUnitsForFaction(Foe))
+				{
+					if (!U || !U->IsAlive()) continue;
+					if (FVector::DistSquared2D(U->GetActorLocation(), CritLoc) > SlamR * SlamR) continue;
+					U->TakeDamageFromUnit(360.f, this); // lourd -> tue les unités affaiblies/fragiles
+				}
+			}
+			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(W, CritLoc + FVector(0, 0, 90.f),
+					TEXT("ÉCRASEMENT !"), FLinearColor(1.f, 0.35f, 0.f, 1.f)))
 			{
 				N->SetFollow(Nearest->GetFloatingTextAnchor(), FVector(0, 0, 140.f));
 			}
-			AWOTOLBubbleBurst::Burst(W, CritLoc, FLinearColor(1.f, 0.5f, 0.2f, 1.f), 12);
+			AWOTOLBubbleBurst::Burst(W, CritLoc + FVector(0, 0, 30.f), FLinearColor(1.f, 0.5f, 0.2f, 1.f), 24);
 		}
 	}
 	else

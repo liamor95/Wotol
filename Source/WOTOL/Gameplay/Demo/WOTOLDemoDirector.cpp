@@ -495,10 +495,11 @@ void AWOTOLDemoDirector::LaunchBattle()
 					}
 					if (ArmyHP > 0.f && Boss->GetUnitData())
 					{
-						// PHASE 1 rééquilibrée : 0.50 rendait le Kraken IMBATTABLE (Aquiloris
-						// perdaient 2x). Retour à 0.42 (VICTOIRE avec quelques pertes) car le
-						// joueur tape déjà moins (0.20->0.18) -> le Kraken reste assez coriace.
-						const float TargetHP = FMath::Clamp(ArmyHP * 0.42f, 12000.f, 34000.f);
+						// PHASE 1 : 0.42 donnait 0 perte + combat trop court (2min10) une fois
+						// le déplacement direct en place (les unités focalisent mieux le Kraken).
+						// 0.50 -> combat plus long, le Kraken a le temps de placer ses ÉCRASEMENTS
+						// de zone (qui, eux, infligent enfin de vraies pertes). Reste battable.
+						const float TargetHP = FMath::Clamp(ArmyHP * 0.50f, 12000.f, 38000.f);
 						const int32 BaseMax  = FMath::Max(1, Boss->GetUnitData()->Stats.MaxHealth);
 						Boss->HealthScale    = FMath::Max(1.f, TargetHP / (float)BaseMax);
 						Boss->SetHealthToFull(); // applique PV = HealthScale * base
