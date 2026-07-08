@@ -1075,18 +1075,19 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 
 	AssembleSilhouette(UnitID, UnitRole, HeightU, Base, Accent);
 
-	// COLLISION : capsule dimensionnée selon le gabarit du rôle (empêche les
-	// chevauchements et les unités qui rentrent dans la créature géante).
-	float WidthFactor = 0.40f; // humanoïde par défaut
+	// COLLISION "SECONDE PEAU" : capsule serrée au plus près du gabarit RÉEL de l'unité
+	// (largeur ≈ celle du corps, pas 1 m de rab). Ça permet aux unités de s'approcher au
+	// CONTACT les unes des autres et du Kraken sans se chevaucher. Rayon = demi-largeur.
+	float WidthFactor = 0.28f; // humanoïde svelte par défaut (torse ~0.28×hauteur)
 	switch (UnitRole)
 	{
-		case EUnitRole::Montee:   WidthFactor = 0.80f; break;
-		case EUnitRole::Mythique: WidthFactor = 1.60f; break;
-		case EUnitRole::Chef:     WidthFactor = 0.45f; break;
+		case EUnitRole::Montee:   WidthFactor = 0.42f; break; // monture : un peu plus large
+		case EUnitRole::Mythique: WidthFactor = 1.05f; break; // gros mythique (mais resserré)
+		case EUnitRole::Chef:     WidthFactor = 0.32f; break;
 		default: break;
 	}
 	const float CapH = FMath::Max(40.f, HeightU * 0.5f);
-	const float CapR = FMath::Max(24.f, HeightU * WidthFactor * 0.5f);
+	const float CapR = FMath::Max(18.f, HeightU * WidthFactor * 0.5f);
 	GetCapsuleComponent()->SetCapsuleSize(CapR, CapH);
 	// La verticalité est VISUELLE : le corps physique reste au sol. Pour ne pas bloquer
 	// une unité montée en hauteur derrière un obstacle au sol, les unités ne se bloquent

@@ -210,18 +210,23 @@ bool UUnitAIStateComponent::ComputeEncircleSlot(AUnitBase* Target, FVector& OutS
 
 	// Angle STABLE par unité (réparti sur tout le cercle) -> répartition autour du corps.
 	const uint32 Id = GetOwner() ? GetOwner()->GetUniqueID() : 0;
+	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
 	float Ang = ((float)(Id % 360)) * (PI / 180.f);
-	// Les unités MONTÉES (Aquilances), rapides, sont poussées vers l'ARRIÈRE/les flancs :
-	// elles font le tour pour frapper là où le Kraken est à découvert.
+
+	// Les MONTÉES (Aquilances), rapides et mobiles, ne restent pas plantées : elles
+	// TOURNENT AUTOUR du Kraken pour l'attaquer sur TOUTES ses faces (avant/flancs/arrière).
+	// Sens d'orbite ALTERNÉ selon l'unité -> effet "mâchoire" : un groupe contourne par la
+	// gauche, l'autre par la droite, et ils se rejoignent sur les flancs/l'arrière.
 	if (Owner->GetUnitData() && Owner->GetUnitData()->Role == EUnitRole::Montee)
 	{
-		const FVector ToOwner = (Owner->GetActorLocation() - Target->GetActorLocation()).GetSafeNormal2D();
-		const float Base = FMath::Atan2(ToOwner.Y, ToOwner.X);
-		Ang = Base + PI + ((Id % 2 == 0) ? 0.6f : -0.6f); // opposé au point d'approche + biais latéral
+		const float Sector = ((float)(Id % 6) / 6.f) * (2.f * PI); // secteur de départ réparti
+		const float Spin   = (Id % 2 == 0) ? 0.9f : -0.9f;         // sens d'orbite alterné
+		Ang = Sector + Now * Spin;                                  // orbite continue -> dynamique
 	}
 
 	const FVector Dir(FMath::Cos(Ang), FMath::Sin(Ang), 0.f);
-	const float ApproachR = TgtR + 40.f + Owner->GetSimpleCollisionRadius();
+	// Rayon d'approche SERRÉ (collision "seconde peau") -> vraiment au contact du corps.
+	const float ApproachR = TgtR + 20.f + Owner->GetSimpleCollisionRadius();
 	OutSlot = Target->GetActorLocation() + Dir * ApproachR;
 	OutSlot.Z = Owner->GetActorLocation().Z;
 	return true;
