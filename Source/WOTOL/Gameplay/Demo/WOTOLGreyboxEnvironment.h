@@ -40,6 +40,16 @@ private:
 		const FVector& Scale, const FLinearColor& Color,
 		const FRotator& Rot = FRotator::ZeroRotator, bool bBlocking = true);
 
+	// Mesh ÉMISSIF (l'objet RAYONNE lui-même) : pour le décor bioluminescent (coraux,
+	// algues) -> il brille et n'a plus l'air éteint. EmissiveColor en HDR (>1 = glow).
+	AStaticMeshActor* SpawnGlowBlock(const TCHAR* MeshPath, const FVector& Loc,
+		const FVector& Scale, const FLinearColor& EmissiveColor,
+		const FRotator& Rot = FRotator::ZeroRotator);
+
+	// Petite lampe bioluminescente « naturelle » (halo doux qui éclaire le fond autour
+	// de l'organisme). Rayon modéré : ça éclaire le décor sans tout inonder.
+	void SpawnBioLight(const FVector& Loc, const FLinearColor& Color, float Intensity, float Radius);
+
 	// ─── Kitbash : assemblage de primitives pour un rendu crédible ────────────
 	// Rocher = amas de cubes/sphères de tailles/rotations variées (graine = variété).
 	void SpawnRock(const FVector& Center, float Size, const FLinearColor& Color, int32 Seed);

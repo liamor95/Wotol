@@ -541,7 +541,7 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 		if (CritCooldown <= 0.f && FMath::FRand() < 0.28f && Nearest->IsAlive())
 		{
 			CritCooldown = FMath::FRandRange(7.f, 11.f); // encore moins fréquent
-			Nearest->TakeDamageFromUnit(120.f, this);    // relevé (85->120) : qq pertes côté Noxéens
+			Nearest->TakeDamageFromUnit(95.f, this);     // 120->95 : le Kraken reste dangereux mais battable
 			const FVector CritLoc = Nearest->GetActorLocation() + FVector(0, 0, 90.f);
 			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(W, CritLoc, TEXT("CRITIQUE !"),
 					FLinearColor(1.f, 0.35f, 0.f, 1.f)))

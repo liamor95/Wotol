@@ -87,6 +87,44 @@ AStaticMeshActor* AWOTOLGreyboxEnvironment::SpawnBlock(
 	return SMA;
 }
 
+// Mesh ÉMISSIF (décor bioluminescent : coraux, algues) -> il brille de lui-même.
+AStaticMeshActor* AWOTOLGreyboxEnvironment::SpawnGlowBlock(const TCHAR* MeshPath, const FVector& Loc,
+	const FVector& Scale, const FLinearColor& EmissiveColor, const FRotator& Rot)
+{
+	UWorld* W = GetWorld(); if (!W) return nullptr;
+	FActorSpawnParameters P; P.Owner = this;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AStaticMeshActor* SMA = W->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Loc, Rot, P);
+	if (!SMA) return nullptr;
+	UStaticMeshComponent* Comp = SMA->GetStaticMeshComponent();
+	if (!Comp) return SMA;
+	Comp->SetMobility(EComponentMobility::Movable);
+	Comp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Comp->SetCanEverAffectNavigation(false);
+	if (UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, MeshPath)) Comp->SetStaticMesh(Mesh);
+	SMA->SetActorScale3D(Scale);
+	if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeGlow(this, EmissiveColor))
+		Comp->SetMaterial(0, MID);
+	return SMA;
+}
+
+// Lampe bioluminescente « naturelle » : halo doux qui éclaire le fond autour de l'organisme.
+void AWOTOLGreyboxEnvironment::SpawnBioLight(const FVector& Loc, const FLinearColor& Color, float Intensity, float Radius)
+{
+	UWorld* W = GetWorld(); if (!W) return;
+	FActorSpawnParameters P; P.Owner = this;
+	AActor* A = W->SpawnActor<AActor>(AActor::StaticClass(), Loc, FRotator::ZeroRotator, P);
+	if (!A) return;
+	USceneComponent* Root = NewObject<USceneComponent>(A);
+	Root->RegisterComponent(); A->SetRootComponent(Root);
+	UPointLightComponent* PC = NewObject<UPointLightComponent>(A);
+	PC->SetupAttachment(Root); PC->RegisterComponent();
+	PC->SetLightColor(Color);
+	PC->SetIntensity(Intensity);
+	PC->SetAttenuationRadius(Radius);
+	PC->SetCastShadows(false);
+}
+
 // ─── Kitbash : rocher = amas de cubes/sphères ───────────────────────────────
 void AWOTOLGreyboxEnvironment::SpawnRock(const FVector& Center, float Size, const FLinearColor& Color, int32 Seed)
 {
@@ -281,15 +319,16 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			S.bOverride_ColorGain = true;        S.ColorGain = FVector4(0.86f, 0.97f, 1.12f, 1.f); // teinte EAU bleu-vert
 			S.bOverride_ColorSaturation = true;  S.ColorSaturation = FVector4(1.48f, 1.45f, 1.45f, 1.f); // couleurs franches
 			S.bOverride_ColorContrast   = true;  S.ColorContrast   = FVector4(1.22f, 1.21f, 1.20f, 1.f); // relief sans écraser
-			// Un cran plus SOMBRE = profondeur/immersion sous-marine (fini l'effet "plein soleil").
-			S.bOverride_AutoExposureBias = true; S.AutoExposureBias = -0.30f;
-			S.bOverride_AutoExposureMinBrightness = true; S.AutoExposureMinBrightness = 0.35f;
-			S.bOverride_AutoExposureMaxBrightness = true; S.AutoExposureMaxBrightness = 1.10f;
+			// Ambiance MODÉRÉMENT SOMBRE (pas noir) : c'est le CONTRASTE avec la pénombre qui
+			// fait ressortir les organismes bioluminescents ET les attaques lumineuses.
+			S.bOverride_AutoExposureBias = true; S.AutoExposureBias = -0.60f;
+			S.bOverride_AutoExposureMinBrightness = true; S.AutoExposureMinBrightness = 0.30f;
+			S.bOverride_AutoExposureMaxBrightness = true; S.AutoExposureMaxBrightness = 0.85f;
 			S.bOverride_VignetteIntensity  = true; S.VignetteIntensity = 0.36f;
 			S.bOverride_SceneFringeIntensity = true; S.SceneFringeIntensity = 0.5f;
 			// Bloom DISCRET : assez pour un léger halo bioluminescent, PAS assez pour cramer
 			// un gros blob blanc au centre (les parties vives des unités ne bavent plus).
-			S.bOverride_BloomIntensity = true; S.BloomIntensity = 0.55f;
+			S.bOverride_BloomIntensity = true; S.BloomIntensity = 0.85f;
 		}
 
 		// Nuages masqués + SOLEIL adouci (lumière directionnelle atténuée et bleutée
@@ -308,8 +347,8 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 					// Key light FROIDE (bleu-vert léger) : assez de teinte pour lire « sous
 					// l'eau », mais PAS au point de repeindre tout en bleu -> chaque matériau
 					// garde sa couleur (roche brune, sable tan, factions). Juste milieu.
-					LC->SetIntensity(LC->Intensity * 0.58f);
-					LC->SetLightColor(FLinearColor(0.60f, 0.76f, 0.96f));
+					LC->SetIntensity(LC->Intensity * 0.46f);
+					LC->SetLightColor(FLinearColor(0.58f, 0.74f, 0.96f));
 				}
 			}
 		}
@@ -336,7 +375,8 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 		FLinearColor(0.85f, 0.28f, 0.28f, 1.f), // rouge
 	};
 
-	// Buisson de corail = coraux-tubes (cylindres) + branches (cônes) + cerveau (sphère)
+	// Buisson de corail BIOLUMINESCENT = coraux-tubes/branches/cerveau qui RAYONNENT
+	// (émissif) + une lampe douce -> ils habillent le fond ET l'éclairent naturellement.
 	auto SpawnCoral = [&](const FVector& Pos, int32 InSeed)
 	{
 		FRandomStream R(InSeed);
@@ -349,9 +389,12 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			const int32 Kind = R.RandRange(0, 2);
 			const TCHAR* M = (Kind == 0) ? MESH_CYL : (Kind == 1) ? MESH_CONE : MESH_SPH;
 			const FLinearColor C = (R.FRand() < 0.4f) ? Coral[R.RandRange(0, 5)] : Col; // variété
-			SpawnBlock(M, Pos + Off, FVector(0.16f, 0.16f, Hgt / 100.f), C,
-				FRotator(R.FRandRange(-14.f, 14.f), R.FRandRange(0.f, 360.f), R.FRandRange(-14.f, 14.f)), false);
+			// Émissif HDR (×3, comme le cristal du Cristalliseur qui brille bien).
+			SpawnGlowBlock(M, Pos + Off, FVector(0.16f, 0.16f, Hgt / 100.f), C * 3.0f,
+				FRotator(R.FRandRange(-14.f, 14.f), R.FRandRange(0.f, 360.f), R.FRandRange(-14.f, 14.f)));
 		}
+		// Lumière bioluminescente NATURELLE du buisson (éclaire le fond autour, halo doux).
+		SpawnBioLight(Pos + FVector(0, 0, 90.f), Col, 2600.f, 700.f);
 	};
 
 	// Touffe d'algues = grands brins fins jaune-vert qui montent
@@ -363,10 +406,13 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 		{
 			const float Hgt = R.FRandRange(300.f, 700.f);
 			const FVector Off(R.FRandRange(-90.f, 90.f), R.FRandRange(-90.f, 90.f), Hgt * 0.5f);
-			SpawnBlock(MESH_CYL, Pos + Off, FVector(0.07f, 0.07f, Hgt / 100.f),
-				Vary(KelpColor, R.FRandRange(-0.05f, 0.05f)),
-				FRotator(R.FRandRange(-10.f, 10.f), R.FRandRange(0.f, 360.f), R.FRandRange(-10.f, 10.f)), false);
+			// Algues BIOLUMINESCENTES (émissif) : brins jaune-vert qui rayonnent.
+			SpawnGlowBlock(MESH_CYL, Pos + Off, FVector(0.07f, 0.07f, Hgt / 100.f),
+				Vary(KelpColor, R.FRandRange(-0.05f, 0.05f)) * 2.6f,
+				FRotator(R.FRandRange(-10.f, 10.f), R.FRandRange(0.f, 360.f), R.FRandRange(-10.f, 10.f)));
 		}
+		// Halo bioluminescent de la touffe d'algues.
+		SpawnBioLight(Pos + FVector(0, 0, 260.f), KelpColor, 2200.f, 650.f);
 	};
 
 	// ── DEUX RÉCIFS ROCHEUX bordant le canyon (côtés +Y et -Y), couverts de coraux ──
@@ -523,15 +569,15 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 						// CHAMPIGNON / MÉDUSE : tige fine + chapeau en dôme lumineux.
 						const float StalkH = Bs.FRandRange(150.f, 300.f) * Sc;
 						MakePiece(Cone, O + FVector(0, 0, StalkH * 0.5f), FVector(0.09f * Sc, 0.09f * Sc, StalkH / 100.f),
-							FRotator::ZeroRotator, Col * 1.1f);
+							FRotator::ZeroRotator, Col * 1.8f);
 						MakePiece(Sph, O + FVector(0, 0, StalkH), FVector(0.55f * Sc, 0.55f * Sc, 0.24f * Sc),
-							FRotator::ZeroRotator, Col * 2.0f);
+							FRotator::ZeroRotator, Col * 3.2f); // brille comme le cristal du Cristalliseur
 					}
 					else
 					{
 						// TOUFFE DE CORAIL : petit socle + quelques polypes à bulbe lumineux.
 						MakePiece(Sph, O + FVector(0, 0, 10.f * Sc), FVector(0.7f * Sc, 0.7f * Sc, 0.4f * Sc),
-							FRotator::ZeroRotator, Col * 0.7f);
+							FRotator::ZeroRotator, Col * 1.2f);
 						const int32 Polyps = Bs.RandRange(3, 5);
 						for (int32 sIdx = 0; sIdx < Polyps; ++sIdx)
 						{
@@ -541,20 +587,21 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 							const float Hp  = Bs.FRandRange(70.f, 150.f) * Sc;
 							const float Wp  = Bs.FRandRange(0.40f, 0.65f) * Sc;
 							const FRotator Tilt(Bs.FRandRange(-16.f, 16.f), 0.f, Bs.FRandRange(-16.f, 16.f));
-							MakePiece(Cone, Base + FVector(0, 0, Hp * 0.5f), FVector(Wp, Wp, Hp / 100.f), Tilt, Col * 1.1f);
+							MakePiece(Cone, Base + FVector(0, 0, Hp * 0.5f), FVector(Wp, Wp, Hp / 100.f), Tilt, Col * 1.8f);
 							MakePiece(Sph, Base + FVector(0, 0, Hp), FVector(Wp * 0.9f, Wp * 0.9f, Wp * 0.9f),
-								FRotator::ZeroRotator, Col * 2.0f); // bulbe coloré (pas blanc)
+								FRotator::ZeroRotator, Col * 3.2f); // bulbe qui BRILLE (coloré, pas blanc)
 						}
 					}
 				}
 
-				// Une SEULE micro-lampe par touffe (halo serré ~3 m), pas une flaque de 10 m.
+				// Lumière bioluminescente NATURELLE de la touffe : éclaire le fond autour
+				// (halo doux) sans tout inonder -> l'organisme habille ET éclaire le décor.
 				UPointLightComponent* PC = NewObject<UPointLightComponent>(CoralAct);
 				PC->SetupAttachment(Root); PC->RegisterComponent();
-				PC->SetRelativeLocation(FVector(0, 0, 120.f));
+				PC->SetRelativeLocation(FVector(0, 0, 130.f));
 				PC->SetLightColor(PatchCol);
-				PC->SetIntensity(900.f);
-				PC->SetAttenuationRadius(320.f);
+				PC->SetIntensity(2200.f);
+				PC->SetAttenuationRadius(620.f);
 				PC->SetCastShadows(false);
 			}
 		}
