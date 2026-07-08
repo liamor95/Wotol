@@ -239,11 +239,11 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 		{
 			if (UExponentialHeightFogComponent* FC = Fog->GetComponent())
 			{
-				// Brume bleu CLAIR de récif : de la profondeur, mais lumineux
-				FC->SetFogDensity(0.012f);
-				FC->SetFogHeightFalloff(0.09f);
-				FC->SetFogInscatteringColor(FLinearColor(0.10f, 0.32f, 0.45f, 1.f));
-				FC->SetStartDistance(1800.f);
+				// Brume ABYSSALE bleu sombre : PROFONDEUR, l'horizon se perd dans le bleu.
+				FC->SetFogDensity(0.028f);
+				FC->SetFogHeightFalloff(0.06f);
+				FC->SetFogInscatteringColor(FLinearColor(0.02f, 0.08f, 0.18f, 1.f));
+				FC->SetStartDistance(900.f);
 			}
 		}
 
@@ -256,9 +256,10 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			PPV->Priority = 100.f;
 			FPostProcessSettings& S = PPV->Settings;
 			// Récif LUMINEUX : dominante bleue douce mais scène claire, coraux qui ressortent
-			S.bOverride_ColorGain = true;        S.ColorGain = FVector4(0.92f, 1.02f, 1.15f, 1.f);
-			S.bOverride_ColorSaturation = true;  S.ColorSaturation = FVector4(1.08f, 1.06f, 1.05f, 1.f);
-			S.bOverride_VignetteIntensity  = true; S.VignetteIntensity = 0.25f;
+			S.bOverride_ColorGain = true;        S.ColorGain = FVector4(0.58f, 0.80f, 1.20f, 1.f);
+			S.bOverride_ColorSaturation = true;  S.ColorSaturation = FVector4(1.15f, 1.12f, 1.10f, 1.f);
+			S.bOverride_AutoExposureBias = true; S.AutoExposureBias = -0.9f;
+				S.bOverride_VignetteIntensity  = true; S.VignetteIntensity = 0.45f;
 			S.bOverride_SceneFringeIntensity = true; S.SceneFringeIntensity = 0.6f;
 		}
 
@@ -275,8 +276,8 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			{
 				if (ULightComponent* LC = It->FindComponentByClass<ULightComponent>())
 				{
-					LC->SetIntensity(LC->Intensity * 0.45f);          // soleil atténué
-					LC->SetLightColor(FLinearColor(0.35f, 0.6f, 0.8f)); // teinte bleu-vert d'eau
+					LC->SetIntensity(LC->Intensity * 0.22f);          // soleil atténué
+					LC->SetLightColor(FLinearColor(0.20f, 0.42f, 0.78f)); // bleu profond d'abysse
 				}
 			}
 		}
