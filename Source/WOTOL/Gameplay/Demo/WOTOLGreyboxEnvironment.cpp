@@ -256,11 +256,14 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 		{
 			if (UExponentialHeightFogComponent* FC = Fog->GetComponent())
 			{
-				// Brume ABYSSALE bleu sombre : PROFONDEUR, l'horizon se perd dans le bleu.
-				FC->SetFogDensity(0.020f);
-				FC->SetFogHeightFalloff(0.06f);
-				FC->SetFogInscatteringColor(FLinearColor(0.02f, 0.08f, 0.18f, 1.f));
-				FC->SetStartDistance(900.f);
+				// Brume SOUS-MARINE bleu-vert PRÉSENTE : c'est ELLE qui donne le sentiment
+				// d'être sous l'eau (l'eau qui diffuse), pendant que les objets proches gardent
+				// LEUR couleur. Plus dense + démarre plus près -> profondeur bleutée, halos
+				// bioluminescents qui « bavent » dans l'eau, silhouettes lointaines noyées.
+				FC->SetFogDensity(0.032f);
+				FC->SetFogHeightFalloff(0.05f);
+				FC->SetFogInscatteringColor(FLinearColor(0.03f, 0.11f, 0.16f, 1.f));
+				FC->SetStartDistance(500.f);
 			}
 		}
 
@@ -275,11 +278,11 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			// JUSTE MILIEU : ni délavé-clair ni noir. Teinte à peine bleutée (l'ambiance
 			// vient surtout du brouillard), couleurs saturées mais NEUTRES en gain pour que
 			// chaque élément garde SA couleur (pas de dominante bleue qui uniformise tout).
-			S.bOverride_ColorGain = true;        S.ColorGain = FVector4(0.94f, 0.98f, 1.06f, 1.f);
-			S.bOverride_ColorSaturation = true;  S.ColorSaturation = FVector4(1.45f, 1.42f, 1.42f, 1.f); // couleurs franches
-			S.bOverride_ColorContrast   = true;  S.ColorContrast   = FVector4(1.20f, 1.19f, 1.18f, 1.f); // relief sans écraser
-			// Exposition modérée : lisible mais pas surexposée (fini l'effet "plein soleil").
-			S.bOverride_AutoExposureBias = true; S.AutoExposureBias = -0.10f;
+			S.bOverride_ColorGain = true;        S.ColorGain = FVector4(0.86f, 0.97f, 1.12f, 1.f); // teinte EAU bleu-vert
+			S.bOverride_ColorSaturation = true;  S.ColorSaturation = FVector4(1.48f, 1.45f, 1.45f, 1.f); // couleurs franches
+			S.bOverride_ColorContrast   = true;  S.ColorContrast   = FVector4(1.22f, 1.21f, 1.20f, 1.f); // relief sans écraser
+			// Un cran plus SOMBRE = profondeur/immersion sous-marine (fini l'effet "plein soleil").
+			S.bOverride_AutoExposureBias = true; S.AutoExposureBias = -0.30f;
 			S.bOverride_AutoExposureMinBrightness = true; S.AutoExposureMinBrightness = 0.35f;
 			S.bOverride_AutoExposureMaxBrightness = true; S.AutoExposureMaxBrightness = 1.10f;
 			S.bOverride_VignetteIntensity  = true; S.VignetteIntensity = 0.36f;
@@ -302,12 +305,11 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			{
 				if (ULightComponent* LC = It->FindComponentByClass<ULightComponent>())
 				{
-					// Key light PRESQUE BLANCHE (légèrement froide) : une lumière BLEUE
-					// repeignait TOUT en bleu -> tout se confondait. Avec une lumière neutre,
-					// CHAQUE matériau montre sa VRAIE couleur (roche brune, acier, sable tan,
-					// couleurs de faction). L'ambiance bleue vient du BROUILLARD, pas de la lampe.
-					LC->SetIntensity(LC->Intensity * 0.60f);
-					LC->SetLightColor(FLinearColor(0.82f, 0.88f, 1.00f));
+					// Key light FROIDE (bleu-vert léger) : assez de teinte pour lire « sous
+					// l'eau », mais PAS au point de repeindre tout en bleu -> chaque matériau
+					// garde sa couleur (roche brune, sable tan, factions). Juste milieu.
+					LC->SetIntensity(LC->Intensity * 0.58f);
+					LC->SetLightColor(FLinearColor(0.60f, 0.76f, 0.96f));
 				}
 			}
 		}
