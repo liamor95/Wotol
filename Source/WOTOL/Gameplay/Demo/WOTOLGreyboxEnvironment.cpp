@@ -415,6 +415,45 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 		SpawnBioLight(Pos + FVector(0, 0, 260.f), KelpColor, 2200.f, 650.f);
 	};
 
+	// UN champignon/organisme bioluminescent (tige + chapeau, OU anémone à doigts). Émissif.
+	const FLinearColor BioCols[5] = {
+		FLinearColor(0.20f, 0.95f, 1.00f, 1.f), // cyan
+		FLinearColor(0.30f, 1.00f, 0.45f, 1.f), // vert
+		FLinearColor(0.75f, 0.35f, 1.00f, 1.f), // violet
+		FLinearColor(0.25f, 0.60f, 1.00f, 1.f), // bleu
+		FLinearColor(1.00f, 0.55f, 0.20f, 1.f), // ambre
+	};
+	auto SpawnMushroom = [&](const FVector& Pos, int32 InSeed)
+	{
+		FRandomStream R(InSeed);
+		const FLinearColor Col = BioCols[R.RandRange(0, 4)];
+		const float Sc = R.FRandRange(0.8f, 1.6f);
+		if (R.FRand() < 0.5f)
+		{
+			// Champignon / méduse : tige fine + chapeau en dôme lumineux.
+			const float StalkH = R.FRandRange(160.f, 320.f) * Sc;
+			SpawnGlowBlock(MESH_CONE, Pos + FVector(0, 0, StalkH * 0.5f), FVector(0.09f * Sc, 0.09f * Sc, StalkH / 100.f), Col * 1.8f);
+			SpawnGlowBlock(MESH_SPH, Pos + FVector(0, 0, StalkH), FVector(0.55f * Sc, 0.55f * Sc, 0.24f * Sc), Col * 3.0f);
+		}
+		else
+		{
+			// Anémone à doigts : quelques tubes charnus à bout lumineux.
+			const int32 F = R.RandRange(5, 8);
+			for (int32 f = 0; f < F; ++f)
+			{
+				const float A = R.FRandRange(0.f, 2.f * PI);
+				const float Rad = R.FRandRange(10.f, 60.f) * Sc;
+				const FVector Base = Pos + FVector(FMath::Cos(A) * Rad, FMath::Sin(A) * Rad, 0.f);
+				const float Hp = R.FRandRange(100.f, 200.f) * Sc;
+				const float Wp = R.FRandRange(0.30f, 0.5f) * Sc;
+				SpawnGlowBlock(MESH_CONE, Base + FVector(0, 0, Hp * 0.5f), FVector(Wp, Wp, Hp / 100.f), Col * 1.8f,
+					FRotator(FMath::Cos(A) * 16.f, 0.f, FMath::Sin(A) * -16.f));
+				SpawnGlowBlock(MESH_SPH, Base + FVector(0, 0, Hp), FVector(Wp * 1.1f, Wp * 1.1f, Wp * 1.3f), Col * 3.0f);
+			}
+		}
+		SpawnBioLight(Pos + FVector(0, 0, 130.f * Sc), Col, 1800.f, 560.f);
+	};
+
 	// ── DEUX RÉCIFS ROCHEUX bordant le canyon (côtés +Y et -Y), couverts de coraux ──
 	FRandomStream Reef(4242);
 	for (float X = -6500.f; X <= 6500.f; X += 1300.f)
@@ -441,6 +480,18 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			SpawnCoral(Center + FVector(X, Y, -20.f), Side.RandRange(1, 9999));
 		else
 			SpawnRock(Center + FVector(X, Y, -40.f), Side.FRandRange(160.f, 420.f), RockColor, Side.RandRange(1, 9999));
+	}
+
+	// ── CHAMPIGNONS / ORGANISMES BIOLUMINESCENTS dispersés ALÉATOIREMENT sur toute la
+	// carte (même principe que les rochers), un par un. Le CENTRE (emplacement du bâtiment,
+	// rayon 1600) est STRICTEMENT exclu -> jamais rien au milieu. ──
+	FRandomStream Shr(555);
+	for (int32 i = 0; i < 40; ++i)
+	{
+		const float x = Shr.FRandRange(-6200.f, 6200.f);
+		const float y = Shr.FRandRange(-6200.f, 6200.f);
+		if (FMath::Sqrt(x * x + y * y) < 1600.f) continue; // JAMAIS au centre / sur le bâtiment
+		SpawnMushroom(Center + FVector(x, y, -20.f), Shr.RandRange(1, 9999));
 	}
 
 	// ── ALGUES (côté droit surtout, comme la réf) ──
