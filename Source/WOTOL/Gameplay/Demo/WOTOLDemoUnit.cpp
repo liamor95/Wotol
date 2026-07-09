@@ -1065,15 +1065,16 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 	{
 		const FLinearColor BlueGlow(0.30f, 0.85f, 1.80f, 1.f); // énergie bleue LUMINEUSE (émissif)
 		BuildArticulatedHumanoid(H, NoxDark, 0.40f);           // chef : carrure plus large
-		// Deux yeux bleus lumineux
-		AddPart(M_SPH, FVector(12, 7, H * 0.33f), FVector(0.08f, 0.08f, 0.09f), NoRot, BlueGlow);
-		AddPart(M_SPH, FVector(12, -7, H * 0.33f), FVector(0.08f, 0.08f, 0.09f), NoRot, BlueGlow);
-		// VEINES D'ÉNERGIE bleues ramifiées sur le torse (motif éclair)
-		AddPart(M_CONE, FVector(H * 0.18f, 0, H * 0.12f), FVector(0.05f, 0.05f, h * 0.22f), NoRot, BlueGlow);
+		// AVANT du corps = -X (après le flip 180°). Visage/veines DEVANT, tentacules DERRIÈRE.
+		// Deux yeux bleus lumineux (sur le VISAGE, devant)
+		AddPart(M_SPH, FVector(-12, 7, H * 0.33f), FVector(0.08f, 0.08f, 0.09f), NoRot, BlueGlow);
+		AddPart(M_SPH, FVector(-12, -7, H * 0.33f), FVector(0.08f, 0.08f, 0.09f), NoRot, BlueGlow);
+		// VEINES D'ÉNERGIE bleues sur le TORSE (devant = -X)
+		AddPart(M_CONE, FVector(-H * 0.18f, 0, H * 0.12f), FVector(0.05f, 0.05f, h * 0.22f), NoRot, BlueGlow);
 		for (int32 v = 0; v < 6; ++v)
 		{
 			const float a = -1.5f + v * 0.6f;
-			AddPart(M_CONE, FVector(H * 0.19f, FMath::Sin(a) * 16.f, H * (0.02f + 0.04f * v)),
+			AddPart(M_CONE, FVector(-H * 0.19f, FMath::Sin(a) * 16.f, H * (0.02f + 0.04f * v)),
 				FVector(0.035f, 0.035f, h * 0.12f), FRotator(0, 0, FMath::RadiansToDegrees(a)), BlueGlow);
 		}
 		// Avant-bras hérissés de pics
@@ -1081,17 +1082,18 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 			for (int32 k = 0; k < 3; ++k)
 				MakeBone(side < 0 ? JLElbow : JRElbow, M_CONE, FVector(0.05f, side * 4.f, -H * (0.04f + k * 0.05f)),
 					FVector(0.045f, 0.045f, h * 0.11f), FRotator(0, 0, side * 60.f), NoxDark);
-		// 2 longues TENTACULES bleues lumineuses dans le dos, qui ondulent
-		RegisterWiggle(AddPart(M_CONE, FVector(-16, 18, H * 0.32f), FVector(0.055f, 0.055f, h * 1.0f), FRotator(-42.f, 0, 42.f), BlueGlow), 0.f);
-		RegisterWiggle(AddPart(M_CONE, FVector(-16, -18, H * 0.32f), FVector(0.055f, 0.055f, h * 1.0f), FRotator(-42.f, 0, -42.f), BlueGlow), 3.14f);
+		// 2 longues TENTACULES bleues dans le DOS (+X = derrière après le flip), qui ondulent
+		RegisterWiggle(AddPart(M_CONE, FVector(16, 18, H * 0.32f), FVector(0.055f, 0.055f, h * 1.0f), FRotator(42.f, 0, 42.f), BlueGlow), 0.f);
+		RegisterWiggle(AddPart(M_CONE, FVector(16, -18, H * 0.32f), FVector(0.055f, 0.055f, h * 1.0f), FRotator(42.f, 0, -42.f), BlueGlow), 3.14f);
 		return;
 	}
 	if (Id == TEXT("Noxeflare")) // Infanterie : ARTICULÉ vert-abyssal, amas d'yeux verts
 	{
 		BuildArticulatedHumanoid(H, FLinearColor(0.06f, 0.13f, 0.11f, 1.f), 0.32f);
-		AddPart(M_SPH, FVector(10, 0, H * 0.33f), FVector(0.14f, 0.11f, 0.11f), NoRot, NoxGreen); // amas d'yeux
-		AddPart(M_CONE, FVector(2, 14, H * 0.42f), FVector(0.07f, 0.07f, h * 0.16f), FRotator(0, 0, 30.f), NoxGreen);
-		AddPart(M_CONE, FVector(2, -14, H * 0.42f), FVector(0.07f, 0.07f, h * 0.16f), FRotator(0, 0, -30.f), NoxGreen);
+		// Visage DEVANT (-X après le flip) : amas d'yeux verts + antennes
+		AddPart(M_SPH, FVector(-10, 0, H * 0.33f), FVector(0.14f, 0.11f, 0.11f), NoRot, NoxGreen); // amas d'yeux
+		AddPart(M_CONE, FVector(-2, 14, H * 0.42f), FVector(0.07f, 0.07f, h * 0.16f), FRotator(0, 0, 30.f), NoxGreen);
+		AddPart(M_CONE, FVector(-2, -14, H * 0.42f), FVector(0.07f, 0.07f, h * 0.16f), FRotator(0, 0, -30.f), NoxGreen);
 		return;
 	}
 	if (Id == TEXT("Noxeblast")) // Distance : humanoïde VIOLET à taches bioluminescentes + PLUSIEURS tentacules (réf 123)
@@ -1100,14 +1102,15 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		const FLinearColor VioGlow(0.75f, 0.30f, 1.70f, 1.f);  // taches/énergie violettes LUMINEUSES
 		const FLinearColor BlueEye(0.35f, 0.75f, 1.80f, 1.f);  // yeux bleus lumineux
 		BuildArticulatedHumanoid(H, Violet, 0.36f);
-		// Deux grands yeux bleus lumineux
-		AddPart(M_SPH, FVector(12, 8, H * 0.33f), FVector(0.09f, 0.09f, 0.10f), NoRot, BlueEye);
-		AddPart(M_SPH, FVector(12, -8, H * 0.33f), FVector(0.09f, 0.09f, 0.10f), NoRot, BlueEye);
-		// TACHES bioluminescentes violettes réparties sur le torse (comme la réf)
+		// AVANT = -X (après flip). Visage/taches DEVANT, tentacules DERRIÈRE (+X).
+		// Deux grands yeux bleus lumineux (sur le visage)
+		AddPart(M_SPH, FVector(-12, 8, H * 0.33f), FVector(0.09f, 0.09f, 0.10f), NoRot, BlueEye);
+		AddPart(M_SPH, FVector(-12, -8, H * 0.33f), FVector(0.09f, 0.09f, 0.10f), NoRot, BlueEye);
+		// TACHES bioluminescentes violettes sur le TORSE (devant = -X)
 		for (int32 t = 0; t < 6; ++t)
 		{
 			const float a = t * 1.05f;
-			AddPart(M_SPH, FVector(H * 0.17f, FMath::Sin(a) * 16.f, H * (0.16f - t * 0.045f)),
+			AddPart(M_SPH, FVector(-H * 0.17f, FMath::Sin(a) * 16.f, H * (0.16f - t * 0.045f)),
 				FVector(0.05f, 0.05f, 0.05f), NoRot, VioGlow);
 		}
 		// Avant-bras hérissés de pics + griffes
@@ -1115,14 +1118,14 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 			for (int32 k = 0; k < 3; ++k)
 				MakeBone(side < 0 ? JLElbow : JRElbow, M_CONE, FVector(0.05f, side * 4.f, -H * (0.04f + k * 0.05f)),
 					FVector(0.045f, 0.045f, h * 0.11f), FRotator(0, 0, side * 60.f), Violet);
-		// PLUSIEURS tentacules (6) qui rayonnent du dos/épaules, longues et ondulantes
+		// PLUSIEURS tentacules (6) qui rayonnent du DOS (+X = derrière), longues et ondulantes
 		for (int32 i = 0; i < 6; ++i)
 		{
 			const float Side = (i % 2 == 0) ? 1.f : -1.f;
 			const float Up   = 0.34f - (i / 2) * 0.12f;
 			const float Spread = 35.f + (i / 2) * 18.f;
-			RegisterWiggle(AddPart(M_CONE, FVector(-14, Side * 20.f, H * Up),
-				FVector(0.05f, 0.05f, h * (0.95f - (i / 2) * 0.12f)), FRotator(-30.f, 0, Side * Spread), VioGlow), i * 1.0f);
+			RegisterWiggle(AddPart(M_CONE, FVector(14, Side * 20.f, H * Up),
+				FVector(0.05f, 0.05f, h * (0.95f - (i / 2) * 0.12f)), FRotator(30.f, 0, Side * Spread), VioGlow), i * 1.0f);
 		}
 		return;
 	}
