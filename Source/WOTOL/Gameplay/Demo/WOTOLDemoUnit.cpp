@@ -969,20 +969,56 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 			FVector(BodyW * 0.95f, BodyW * 0.95f, BodyW * 0.95f), NoRot, Col); // tête
 	};
 
+	// ── CHEVALIER AQUILORIS (réf.) : armure bleu+or, crête de pics, YEUX BLEUS devant,
+	// pauldrons/gemme dorés, cape flottante derrière. Avant = -X (flip 180°). ──
+	const FLinearColor AqEyeGlow(0.35f, 0.75f, 1.80f, 1.f);   // yeux bleus lumineux
+	const FLinearColor AqEnergyHi(0.55f, 1.30f, 2.60f, 1.f);  // énergie bleue (épée/bouclier/pointe)
+	const FLinearColor AqCrest(0.55f, 0.78f, 1.00f, 1.f);     // crête blanc-bleu
+	const FLinearColor AqCape(0.06f, 0.11f, 0.26f, 1.f);      // cape bleu sombre
+	auto BuildAquiKnight = [&](float BodyW)
+	{
+		BuildArticulatedHumanoid(H, AqArmor, BodyW);
+		// Yeux bleus lumineux DEVANT (-X)
+		AddPart(M_SPH, FVector(-11, 6, H * 0.34f), FVector(0.06f, 0.06f, 0.07f), NoRot, AqEyeGlow);
+		AddPart(M_SPH, FVector(-11, -6, H * 0.34f), FVector(0.06f, 0.06f, 0.07f), NoRot, AqEyeGlow);
+		// Crête de pics sur le crâne (du front -X vers l'arrière +X), la plus haute au milieu
+		for (int32 cc = 0; cc < 5; ++cc)
+		{
+			const float cx = -H * 0.05f + cc * H * 0.045f;
+			const float mid = 1.f - FMath::Abs(cc - 2) * 0.28f;
+			AddPart(M_CONE, FVector(cx, 0, H * 0.44f), FVector(0.06f, 0.11f, h * 0.20f * mid), FRotator(-28.f, 0, 0), AqCrest);
+		}
+		// Pauldrons dorés (épaules) + gemme losange dorée sur le torse (devant)
+		AddPart(M_SPH, FVector(0, H * 0.17f, H * 0.22f), FVector(BodyW * 0.5f, BodyW * 0.5f, BodyW * 0.42f), NoRot, AqGold);
+		AddPart(M_SPH, FVector(0, -H * 0.17f, H * 0.22f), FVector(BodyW * 0.5f, BodyW * 0.5f, BodyW * 0.42f), NoRot, AqGold);
+		AddPart(M_CONE, FVector(-H * 0.14f, 0, H * 0.16f), FVector(0.10f, 0.10f, h * 0.10f), FRotator(-90.f, 0, 0), AqGold);
+		// Lisérés dorés verticaux sur le torse (devant)
+		AddPart(M_CUBE, FVector(-H * 0.15f, 0, H * 0.02f), FVector(0.02f, 0.05f, h * 0.30f), NoRot, AqGold);
+		// Cape sombre flottante DERRIÈRE (+X)
+		RegisterWiggle(AddPart(M_CUBE, FVector(H * 0.13f, 0, -H * 0.06f), FVector(0.04f, BodyW * 1.7f, h * 0.55f), FRotator(10.f, 0, 0), AqCape), 0.f);
+	};
+
 	const FString Id = UnitID.ToString();
 
 	// ───────────────── AQUILORIS (bleu acier + or + énergie cyan) ─────────────
-	if (Id == TEXT("Aquis")) // Chef : ARTICULÉ + épée + cape + crête
+	if (Id == TEXT("Aquis")) // Chef (réf 4077) : chevalier bleu+or + GRANDE épée d'énergie
 	{
-		BuildArticulatedHumanoid(H, AqArmor, 0.36f);
-		MakeBone(JRElbow, M_CONE, FVector(0, 0, -H * 0.34f), FVector(0.06f, 0.06f, h * 0.55f), FRotator(180.f, 0, 0), FLinearColor(0.45f, 1.3f, 2.6f, 1.f)); // épée énergie bleue lumineuse
-		AddPart(M_CUBE, FVector(-16, 0, H * 0.05f), FVector(0.05f, 0.55f, h * 0.45f), FRotator(8.f, 0, 0), AqArmor); // cape
-		AddPart(M_CONE, FVector(0, 0, H * 0.46f), FVector(0.18f, 0.18f, h * 0.12f), NoRot, AqGold);                  // crête or
+		BuildAquiKnight(0.40f);
+		// Grande lame d'énergie photonique tenue main droite (garde dorée + longue lame bleue)
+		MakeBone(JRElbow, M_CYL, FVector(0, H * 0.02f, -H * 0.18f), FVector(0.06f, 0.06f, h * 0.10f), NoRot, AqGold);        // poignée
+		MakeBone(JRElbow, M_CUBE, FVector(0, H * 0.02f, -H * 0.24f), FVector(0.05f, 0.22f, 0.05f), NoRot, AqGold);           // garde
+		MakeBone(JRElbow, M_CONE, FVector(0, H * 0.02f, -H * 0.58f), FVector(0.10f, 0.10f, h * 0.62f), FRotator(180.f, 0, 0), AqEnergyHi); // longue lame
 		return;
 	}
-	if (Id == TEXT("Aquiloryons")) // Infanterie : ARTICULÉ (épée + bouclier)
+	if (Id == TEXT("Aquiloryons")) // Infanterie (réf 4079) : chevalier bleu+or + épée + BOUCLIER d'énergie
 	{
-		BuildArticulatedAquiloryons(H, AqArmor, AqEnergy);
+		BuildAquiKnight(0.34f);
+		// Épée d'énergie (main droite)
+		MakeBone(JRElbow, M_CYL, FVector(0, 0, -H * 0.18f), FVector(0.05f, 0.05f, h * 0.09f), NoRot, AqGold);            // poignée
+		MakeBone(JRElbow, M_CONE, FVector(0, 0, -H * 0.46f), FVector(0.08f, 0.08f, h * 0.46f), FRotator(180.f, 0, 0), AqEnergyHi); // lame
+		// BOUCLIER d'énergie bleu (bras gauche) : losange plat lumineux devant l'avant-bras
+		MakeBone(JLElbow, M_CONE, FVector(-H * 0.10f, 0, -H * 0.14f), FVector(0.55f, 0.03f, h * 0.5f), FRotator(0, 0, 0), AqEnergyHi);
+		MakeBone(JLElbow, M_CONE, FVector(-H * 0.10f, 0, -H * 0.14f), FVector(0.55f, 0.03f, h * 0.5f), FRotator(180.f, 0, 0), AqEnergyHi);
 		return;
 	}
 	if (Id == TEXT("Aquilances")) // Montée : CAVALIER (avec jambes) sur MONTURE marine + lance
@@ -1033,15 +1069,17 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		AddPart(M_CYL, Seat + FVector(14, -16, H * 0.26f), FVector(0.07f, 0.07f, h * 0.18f), FRotator(50.f, 0, -30.f), AqArmor);// bras G
 		// LANCE longue effilée, pointe énergétique lumineuse en avant
 		AddPart(M_CYL, FVector(58, 22, H * 0.24f), FVector(0.05f, 0.05f, h * 1.10f), FRotator(78.f, 0, 0), AqGold);
-		AddPart(M_CONE, FVector(126, 22, H * 0.20f), FVector(0.10f, 0.10f, h * 0.32f), FRotator(80.f, 0, 0), AqEnergy);         // pointe énergie
+		AddPart(M_CONE, FVector(126, 22, H * 0.20f), FVector(0.11f, 0.11f, h * 0.40f), FRotator(80.f, 0, 0), AqEnergyHi);       // pointe énergie bleue lumineuse
 		return;
 	}
-	if (Id == TEXT("Aquipheres") || Id == TEXT("Aquispheres")) // Distance : ARTICULÉ + canon
+	if (Id == TEXT("Aquipheres") || Id == TEXT("Aquispheres")) // Distance (réf 4080) : chevalier + CANON à orbe bleu
 	{
-		BuildArticulatedHumanoid(H, AqArmor, 0.32f);
-		// Canon tenu par la main droite (prolonge l'avant-bras vers l'avant)
-		MakeBone(JRElbow, M_CYL, FVector(H * 0.22f, 0, -H * 0.15f), FVector(0.15f, 0.15f, h * 0.34f), FRotator(90.f, 0, 0), AqGold);
-		MakeBone(JRElbow, M_SPH, FVector(H * 0.40f, 0, -H * 0.15f), FVector(0.20f, 0.20f, 0.20f), NoRot, AqEnergy); // sphère d'énergie
+		BuildAquiKnight(0.32f);
+		// Gros canon tenu à deux mains, pointé vers l'AVANT (-X après le flip)
+		MakeBone(JRElbow, M_CYL, FVector(-H * 0.24f, 0, -H * 0.14f), FVector(0.16f, 0.16f, h * 0.38f), FRotator(90.f, 0, 0), AqArmor); // fût
+		MakeBone(JRElbow, M_CYL, FVector(-H * 0.10f, 0, -H * 0.14f), FVector(0.19f, 0.19f, h * 0.12f), FRotator(90.f, 0, 0), AqGold);  // culasse or
+		MakeBone(JRElbow, M_CONE, FVector(-H * 0.44f, 0, -H * 0.14f), FVector(0.20f, 0.20f, h * 0.14f), FRotator(-90.f, 0, 0), AqGold); // bouche
+		MakeBone(JRElbow, M_SPH, FVector(-H * 0.52f, 0, -H * 0.14f), FVector(0.22f, 0.22f, 0.22f), NoRot, AqEnergyHi); // ORBE bleu tourbillonnant
 		return;
 	}
 	if (Id == TEXT("Aquilombres")) // Spéciale : ARTICULÉ furtif (bleu nuit) + dague
@@ -1087,13 +1125,43 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		RegisterWiggle(AddPart(M_CONE, FVector(16, -18, H * 0.32f), FVector(0.055f, 0.055f, h * 1.0f), FRotator(42.f, 0, -42.f), BlueGlow), 3.14f);
 		return;
 	}
-	if (Id == TEXT("Noxeflare")) // Infanterie : ARTICULÉ vert-abyssal, amas d'yeux verts
+	if (Id == TEXT("Noxeflare")) // Infanterie (réf 4082) : humanoïde VIOLET, AMAS D'YEUX + couronne de cornes
 	{
-		BuildArticulatedHumanoid(H, FLinearColor(0.06f, 0.13f, 0.11f, 1.f), 0.32f);
-		// Visage DEVANT (-X après le flip) : amas d'yeux verts + antennes
-		AddPart(M_SPH, FVector(-10, 0, H * 0.33f), FVector(0.14f, 0.11f, 0.11f), NoRot, NoxGreen); // amas d'yeux
-		AddPart(M_CONE, FVector(-2, 14, H * 0.42f), FVector(0.07f, 0.07f, h * 0.16f), FRotator(0, 0, 30.f), NoxGreen);
-		AddPart(M_CONE, FVector(-2, -14, H * 0.42f), FVector(0.07f, 0.07f, h * 0.16f), FRotator(0, 0, -30.f), NoxGreen);
+		const FLinearColor Violet(0.10f, 0.05f, 0.16f, 1.f);   // corps violet sombre
+		const FLinearColor VioGlow(0.80f, 0.30f, 1.75f, 1.f);  // yeux/taches violets LUMINEUX
+		BuildArticulatedHumanoid(H, Violet, 0.34f);
+		// AMAS D'YEUX violets sur le VISAGE (-X = devant) : plusieurs petits yeux groupés
+		for (int32 e = 0; e < 8; ++e)
+		{
+			const float ey = FMath::Sin(e * 2.0f) * 9.f;
+			const float ez = H * 0.33f + FMath::Cos(e * 1.7f) * H * 0.05f;
+			AddPart(M_SPH, FVector(-11, ey, ez), FVector(0.045f, 0.045f, 0.05f), NoRot, VioGlow);
+		}
+		// COURONNE DE CORNES recourbées autour de la tête (crâne)
+		for (int32 c = 0; c < 7; ++c)
+		{
+			const float a = -1.4f + c * 0.47f;
+			AddPart(M_CONE, FVector(FMath::Cos(a) * 4.f, FMath::Sin(a) * 16.f, H * 0.44f),
+				FVector(0.05f, 0.05f, h * 0.20f), FRotator(-35.f, 0, FMath::RadiansToDegrees(a) * 0.5f), Violet);
+		}
+		// TACHES violettes lumineuses sur le torse (devant)
+		for (int32 t = 0; t < 5; ++t)
+			AddPart(M_SPH, FVector(-H * 0.17f, FMath::Sin(t * 1.3f) * 14.f, H * (0.14f - t * 0.05f)), FVector(0.05f, 0.05f, 0.05f), NoRot, VioGlow);
+		// Avant-bras à pics + longues griffes
+		for (int32 side = -1; side <= 1; side += 2)
+		{
+			for (int32 k = 0; k < 3; ++k)
+				MakeBone(side < 0 ? JLElbow : JRElbow, M_CONE, FVector(0.05f, side * 4.f, -H * (0.04f + k * 0.05f)),
+					FVector(0.045f, 0.045f, h * 0.11f), FRotator(0, 0, side * 60.f), Violet);
+			MakeBone(side < 0 ? JLElbow : JRElbow, M_CONE, FVector(-0.04f, side * 3.f, -H * 0.24f), FVector(0.04f, 0.04f, h * 0.16f), FRotator(150.f, 0, 0), Violet); // longue griffe
+		}
+		// Quelques tentacules dans le DOS (+X)
+		for (int32 i = 0; i < 4; ++i)
+		{
+			const float Side = (i % 2 == 0) ? 1.f : -1.f;
+			RegisterWiggle(AddPart(M_CONE, FVector(14, Side * 18.f, H * (0.30f - (i / 2) * 0.12f)),
+				FVector(0.045f, 0.045f, h * 0.7f), FRotator(30.f, 0, Side * 45.f), Violet), i * 1.1f);
+		}
 		return;
 	}
 	if (Id == TEXT("Noxeblast")) // Distance : humanoïde VIOLET à taches bioluminescentes + PLUSIEURS tentacules (réf 123)
