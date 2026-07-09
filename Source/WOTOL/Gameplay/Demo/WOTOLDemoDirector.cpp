@@ -44,6 +44,21 @@ void AWOTOLDemoDirector::BeginPlay()
 	CachedPlayerFaction = ResolvePlayerFaction();
 	CachedRivalFaction  = RivalOf(CachedPlayerFaction);
 
+	// ── MUSIQUE : si un slot n'est pas rempli dans l'éditeur, on tente de charger
+	// automatiquement un son portant le bon NOM dans le dossier Content/Audio.
+	// -> il suffit d'importer tes musiques dans Content/Audio et de les nommer
+	//    exactement : PreparationMusic, BattleMusic, VictoryMusic, DefeatMusic.
+	auto TryLoadMusic = [](TObjectPtr<USoundBase>& Slot, const TCHAR* AssetName)
+	{
+		if (Slot) return; // déjà assigné dans l'éditeur -> on n'écrase pas
+		const FString Path = FString::Printf(TEXT("/Game/Audio/%s.%s"), AssetName, AssetName);
+		Slot = LoadObject<USoundBase>(nullptr, *Path);
+	};
+	TryLoadMusic(PreparationMusic, TEXT("PreparationMusic"));
+	TryLoadMusic(BattleMusic,      TEXT("BattleMusic"));
+	TryLoadMusic(VictoryMusic,     TEXT("VictoryMusic"));
+	TryLoadMusic(DefeatMusic,      TEXT("DefeatMusic"));
+
 	// Visualisation du courant (traînées dérivantes sur les couches hautes) — persistante.
 	if (UWorld* W = GetWorld())
 	{
