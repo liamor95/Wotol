@@ -72,6 +72,30 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
 	TSubclassOf<AWOTOLCaptureObject> CaptureObjectClass;
 
+	// ── MUSIQUE / BANDE-SON ── Dépose simplement tes sons (Sound Wave ou Sound Cue) dans
+	// ces cases dans l'éditeur : la musique se déclenche/arrête toute seule aux bons moments.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Audio")
+	TObjectPtr<class USoundBase> PreparationMusic; // pendant le placement des unités (boucle)
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Audio")
+	TObjectPtr<class USoundBase> BattleMusic;      // pendant le combat (boucle)
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Audio")
+	TObjectPtr<class USoundBase> VictoryMusic;     // stinger de victoire (one-shot)
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Audio")
+	TObjectPtr<class USoundBase> DefeatMusic;      // stinger de défaite (one-shot)
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Audio", meta = (ClampMin = "0.0", ClampMax = "2.0"))
+	float MusicVolume = 0.7f;                       // volume global de la musique
+
+	// Composant audio courant (musique en boucle) -> pour l'arrêter en fondu.
+	UPROPERTY(Transient)
+	TObjectPtr<class UAudioComponent> CurrentMusic;
+
+	// Lance une musique (arrête l'ancienne en fondu). bLoop=false pour un stinger.
+	void PlayMusic(class USoundBase* Music, bool bLoop);
+
 	// Messages narratifs (le HUD/BP peut s'y abonner pour les afficher à l'écran)
 	UPROPERTY(BlueprintAssignable, Category = "Demo")
 	FOnDemoMessage OnDemoMessage;

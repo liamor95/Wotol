@@ -26,6 +26,8 @@
 #include "Engine/GameInstance.h"
 #include "Engine/Engine.h"
 #include "Kismet/GameplayStatics.h"
+#include "Components/AudioComponent.h"
+#include "Sound/SoundBase.h"
 #include "TimerManager.h"
 
 AWOTOLDemoDirector::AWOTOLDemoDirector()
@@ -60,10 +62,36 @@ void AWOTOLDemoDirector::BeginPlay()
 	}
 }
 
+// ── MUSIQUE ── Joue une musique (arrête l'ancienne en fondu). bLoop=true = boucle
+// (préparation/combat), bLoop=false = stinger ponctuel (victoire/défaite).
+void AWOTOLDemoDirector::PlayMusic(USoundBase* Music, bool bLoop)
+{
+	// Fondu de sortie de la musique en cours.
+	if (CurrentMusic)
+	{
+		CurrentMusic->FadeOut(1.2f, 0.f);
+		CurrentMusic = nullptr;
+	}
+	if (!Music) return;
+
+	// SpawnSound2D : joue un son "2D" (non spatialisé) = parfait pour de la musique.
+	// bAutoDestroy = false pour une boucle (on la garde pour l'arrêter plus tard),
+	// true pour un stinger (il se détruit tout seul à la fin).
+	UAudioComponent* AC = UGameplayStatics::SpawnSound2D(
+		this, Music, MusicVolume, 1.f, 0.f, nullptr, false, /*bAutoDestroy=*/!bLoop);
+	if (AC && bLoop)
+	{
+		CurrentMusic = AC; // on ne garde que les boucles (pour le fondu de sortie)
+	}
+}
+
 // Monte les armées en PRÉPARATION (placement libre), SANS lancer le combat.
 // Fonctionne pour LES DEUX phases (créature ou défense rivale) selon la phase courante.
 void AWOTOLDemoDirector::BeginPreparation()
 {
+	// Musique de PRÉPARATION (boucle) dès qu'on entre en placement.
+	PlayMusic(PreparationMusic, /*bLoop=*/true);
+
 	CachedPlayerFaction = ResolvePlayerFaction();
 	CachedRivalFaction  = RivalOf(CachedPlayerFaction);
 
@@ -417,6 +445,9 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 
 void AWOTOLDemoDirector::LaunchBattle()
 {
+	// Musique de COMBAT (boucle) : remplace la musique de préparation en fondu.
+	PlayMusic(BattleMusic, /*bLoop=*/true);
+
 	if (URTSBattleManager* RTS = GetWorld()->GetSubsystem<URTSBattleManager>())
 	{
 		RTS->StartBattlePhase(600.f);
@@ -629,6 +660,7 @@ void AWOTOLDemoDirector::CheckBattleEnd()
 
 void AWOTOLDemoDirector::OnPlayerVictory()
 {
+	PlayMusic(VictoryMusic, /*bLoop=*/false); // stinger de victoire (coupe la musique de combat)
 	GetWorldTimerManager().ClearTimer(SiegeHandle);
 	GetWorldTimerManager().ClearTimer(TacticalHandle);
 	UGameInstance* GI = GetGameInstance();
@@ -670,6 +702,7 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 
 void AWOTOLDemoDirector::OnPlayerDefeat()
 {
+	PlayMusic(DefeatMusic, /*bLoop=*/false); // stinger de défaite (coupe la musique de combat)
 	GetWorldTimerManager().ClearTimer(SiegeHandle);
 	GetWorldTimerManager().ClearTimer(TacticalHandle);
 	if (URTSBattleManager* RTS = GetWorld()->GetSubsystem<URTSBattleManager>())
