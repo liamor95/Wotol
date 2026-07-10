@@ -231,6 +231,20 @@ private:
 	// BANQUE l'énergie bloquée ici ; l'onde de choc la relâche (dégâts proportionnels).
 	float ImpactGauge = 0.f;
 
+	// AQUILORYONS — bouclier énergétique : l'unité PORTE un bouclier (pose de garde,
+	// blocage renforcé). L'efficacité dépend de l'ANCRAGE AU SOL (voir GetGroundedFactor).
+	bool  bHasShield = false;
+	float ShieldGuardTimer = 0.f; // >0 = vient de bloquer -> tient le bouclier levé un court instant
+
+	// Facteur d'ancrage au sol : 1 = bien planté au sol (couche 0), 0 = en pleine hauteur.
+	// Sert au blocage (meilleur au sol) et au recul (part plus loin en l'air).
+	float GetGroundedFactor() const;
+	// Échelle de recul (knockback) subie : les unités bien ancrées au sol reculent MOINS
+	// (bouclier planté) ; en hauteur elles sont projetées PLUS loin (pas d'appui).
+	float GetKnockbackScale() const;
+	// Nombre d'Aquiloryons alliés proches (mur de boucliers) -> bonus de synergie de faction.
+	int32 CountNearbyShieldAllies(float Radius) const;
+
 	// SÉPARATION DOUCE (lisibilité) : écarte gentiment les unités d'une MÊME couche
 	// verticale pour éviter l'amas illisible, sans bloquer les couches différentes.
 	void ApplySoftSeparation(float DeltaSeconds);

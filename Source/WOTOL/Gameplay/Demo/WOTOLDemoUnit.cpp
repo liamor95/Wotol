@@ -185,6 +185,10 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 			const float Dist = To.Size();
 			const float AtkRange = UnitData ? UnitData->Stats.AttackRange * 200.f : 200.f;
 			if (Dist > 1.f && Dist < AtkRange + 500.f) { Desired = To.Rotation(); bWant = true; }
+			// BOUCLIER : garde PROACTIVE — dès qu'un ennemi est au contact et que l'unité ne
+			// frappe pas, elle LÈVE le bouclier (rempart / formation tortue devant les lignes).
+			if (bHasShield && AttackAnimTimer <= 0.f && Dist < AtkRange + 350.f && GetVelocity().Size2D() < 40.f)
+				ShieldGuardTimer = FMath::Max(ShieldGuardTimer, 0.25f);
 		}
 		// 2) Sinon, on regarde la direction de DÉPLACEMENT.
 		if (!bWant)
@@ -784,7 +788,9 @@ bool AWOTOLDemoUnit::Ability_Shockwave()
 			if (!U || !U->IsAlive()) continue;
 			FVector To = U->GetActorLocation() - Origin; To.Z = 0.f;
 			if (To.Size() > Radius) continue;
-			U->LaunchCharacter(To.GetSafeNormal() * 1200.f + FVector(0, 0, 300.f), true, true); // expulsion ~2-3 m
+			// Recul modulé par l'ancrage au sol de la CIBLE (bouclier planté = recule peu).
+			const float KB = Cast<AWOTOLDemoUnit>(U) ? Cast<AWOTOLDemoUnit>(U)->GetKnockbackScale() : 1.f;
+			U->LaunchCharacter(To.GetSafeNormal() * (1200.f * KB) + FVector(0, 0, 300.f * KB), true, true);
 			U->TakeDamageFromUnit(Damage * 0.7f, this); // réparti sur le groupe
 		}
 		// VISUEL : flash central au sol + FRONT circulaire d'anneaux qui se propage (~3 m).
@@ -804,7 +810,8 @@ bool AWOTOLDemoUnit::Ability_Shockwave()
 	if (Nearest)
 	{
 		FVector To = Nearest->GetActorLocation() - Origin; To.Z = 0.f;
-		Nearest->LaunchCharacter(To.GetSafeNormal() * 1500.f + FVector(0, 0, 350.f), true, true); // expulse la cible
+		const float KB = Cast<AWOTOLDemoUnit>(Nearest) ? Cast<AWOTOLDemoUnit>(Nearest)->GetKnockbackScale() : 1.f;
+		Nearest->LaunchCharacter(To.GetSafeNormal() * (1500.f * KB) + FVector(0, 0, 350.f * KB), true, true); // expulse la cible
 		Nearest->TakeDamageFromUnit(Damage, this);
 		// VISUEL : impact concentré SUR l'ennemi (pas au sol).
 		const FVector Hit = (Nearest->GetFloatingTextAnchor() ? Nearest->GetFloatingTextAnchor()->GetComponentLocation()
@@ -948,20 +955,82 @@ bool AWOTOLDemoUnit::Ability_BlindFlash()
 // énergie est relâchée par l'onde de choc (dégâts proportionnels à ce qui a été bloqué).
 float AWOTOLDemoUnit::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit)
 {
-	if (Damage > 0.f && IsAlive() && UnitData && UnitData->GetFName() == TEXT("Aquis"))
+	if (Damage > 0.f && IsAlive() && UnitData)
 	{
-		const float Blocked = Damage * 0.35f;                    // 35% paré par la lame
-		ImpactGauge = FMath::Min(ImpactGauge + Blocked, 900.f);  // banque plafonnée
-		Damage     -= Blocked;                                   // dégâts réellement subis réduits
-		// Éclat de parade cyan sur la lame (lecture visuelle du blocage).
-		if (UWorld* W = GetWorld())
+		const FName Id = UnitData->GetFName();
+
+		// AQUIS — parade + jauge d'impact (relâchée par l'onde de choc).
+		if (Id == TEXT("Aquis"))
 		{
-			const FVector At = (GetFloatingTextAnchor() ? GetFloatingTextAnchor()->GetComponentLocation()
-				: GetActorLocation()) + FVector(0, 0, 60.f);
-			AWOTOLBubbleBurst::Burst(W, At, FLinearColor(0.4f, 0.9f, 1.f, 1.f), 4);
+			const float Blocked = Damage * 0.35f;
+			ImpactGauge = FMath::Min(ImpactGauge + Blocked, 900.f);
+			Damage     -= Blocked;
+			if (UWorld* W = GetWorld())
+			{
+				const FVector At = (GetFloatingTextAnchor() ? GetFloatingTextAnchor()->GetComponentLocation()
+					: GetActorLocation()) + FVector(0, 0, 60.f);
+				AWOTOLBubbleBurst::Burst(W, At, FLinearColor(0.4f, 0.9f, 1.f, 1.f), 4);
+			}
+		}
+		// AQUILORYONS — BOUCLIER : blocage frontal dont l'efficacité dépend de l'ANCRAGE AU
+		// SOL (planté = bloque bien ; en hauteur = peu d'appui) et de la SYNERGIE (mur de
+		// boucliers : plus il y a d'Aquiloryons proches, plus le rempart est solide).
+		else if (bHasShield && InstigatorUnit)
+		{
+			FVector ToAtk = InstigatorUnit->GetActorLocation() - GetActorLocation(); ToAtk.Z = 0.f;
+			const bool bFront = FVector::DotProduct(ToAtk.GetSafeNormal(), GetActorForwardVector()) > 0.15f;
+			if (bFront)
+			{
+				const float Grounded = GetGroundedFactor();               // 1 au sol .. 0 en hauteur
+				const int32 Allies   = CountNearbyShieldAllies(360.f);     // mur de boucliers
+				const float Synergy  = FMath::Min(Allies, 3) * 0.06f;      // +0..18% de blocage
+				// Blocage : 12% en pleine hauteur -> 45% bien ancré au sol, + synergie (max ~60%).
+				const float Block = FMath::Min(FMath::Lerp(0.12f, 0.45f, Grounded) + Synergy, 0.60f);
+				Damage *= (1.f - Block);
+				ShieldGuardTimer = 0.6f;                                   // pose de garde (bouclier levé)
+				if (UWorld* W = GetWorld())
+				{
+					const FVector At = GetActorLocation() + GetActorForwardVector() * 45.f + FVector(0, 0, 90.f);
+					AWOTOLBubbleBurst::Burst(W, At, FLinearColor(0.45f, 1.f, 1.6f, 1.f), 3);
+				}
+			}
 		}
 	}
 	return Super::TakeDamageFromUnit(Damage, InstigatorUnit);
+}
+
+// Facteur d'ancrage au sol : 1 quand l'unité est au fond (couche 0), tend vers 0 à mesure
+// qu'elle s'élève (elle perd son appui). Basé sur la couche visuelle courante.
+float AWOTOLDemoUnit::GetGroundedFactor() const
+{
+	const float Grade = 800.f; // hauteur d'une couche de référence
+	return 1.f - FMath::Clamp(CurLayer / Grade, 0.f, 1.f);
+}
+
+// Recul subi : bien ancré au sol (bouclier) = recule peu ; en hauteur = projeté plus loin.
+float AWOTOLDemoUnit::GetKnockbackScale() const
+{
+	const float Air = 1.f - GetGroundedFactor(); // 0 au sol .. 1 en hauteur
+	if (bHasShield) return FMath::Lerp(0.45f, 1.5f, Air); // planté = encaisse, en l'air = valdingue
+	return FMath::Lerp(0.9f, 1.3f, Air);
+}
+
+// Compte les Aquiloryons alliés VIVANTS proches (mur de boucliers) -> synergie Aquiloris.
+int32 AWOTOLDemoUnit::CountNearbyShieldAllies(float Radius) const
+{
+	UWorld* W = GetWorld(); if (!W) return 0;
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return 0;
+	const FVector MyLoc = GetActorLocation();
+	const float R2 = Radius * Radius;
+	int32 Count = 0;
+	for (AUnitBase* U : Reg->GetUnitsForFaction(GetFaction()))
+	{
+		if (!U || U == this || !U->IsAlive()) continue;
+		AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U);
+		if (!D || !D->bHasShield) continue;
+		if (FVector::DistSquared(MyLoc, U->GetActorLocation()) < R2) ++Count;
+	}
+	return Count;
 }
 
 // SÉPARATION DOUCE (lisibilité) : écarte gentiment les unités qui se chevauchent sur une
@@ -1163,13 +1232,25 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 	}
 	if (Id == TEXT("Aquiloryons")) // Infanterie (réf 4079) : chevalier bleu+or + épée + BOUCLIER d'énergie
 	{
+		bHasShield = true; // porte-bouclier : pose de garde + blocage renforcé (cerveau défensif)
 		BuildAquiKnight(0.34f);
 		// Épée d'énergie (main droite)
 		MakeBone(JRElbow, M_CYL, FVector(0, 0, -H * 0.18f), FVector(0.05f, 0.05f, h * 0.09f), NoRot, AqGold);            // poignée
 		MakeBone(JRElbow, M_CONE, FVector(0, 0, -H * 0.46f), FVector(0.08f, 0.08f, h * 0.46f), FRotator(180.f, 0, 0), AqEnergyHi); // lame
-		// BOUCLIER d'énergie bleu (bras gauche) : losange plat lumineux devant l'avant-bras
-		MakeBone(JLElbow, M_CONE, FVector(-H * 0.10f, 0, -H * 0.14f), FVector(0.55f, 0.03f, h * 0.5f), FRotator(0, 0, 0), AqEnergyHi);
-		MakeBone(JLElbow, M_CONE, FVector(-H * 0.10f, 0, -H * 0.14f), FVector(0.55f, 0.03f, h * 0.5f), FRotator(180.f, 0, 0), AqEnergyHi);
+		// ── BOUCLIER ÉNERGÉTIQUE (bras gauche) fidèle à la réf : grand ÉCU bombé bleu-cyan
+		// lumineux (bloom), porté DEVANT l'avant-bras. Disque légèrement bombé + bord renforcé
+		// + croix d'énergie centrale + cadre doré. Face plate tournée vers l'AVANT (-X après flip).
+		const FLinearColor ShieldGlow(0.55f, 1.35f, 2.70f, 1.f); // énergie cyan HDR (bloom)
+		// Corps de l'écu : cylindre TRÈS plat (disque) présenté de face devant l'avant-bras.
+		MakeBone(JLElbow, M_CYL, FVector(-H * 0.09f, 0, -H * 0.13f), FVector(h * 0.42f, h * 0.30f, 0.03f), FRotator(0, 0, 90.f), ShieldGlow);
+		// Bombé central (dôme) pour le volume + reflet.
+		MakeBone(JLElbow, M_SPH, FVector(-H * 0.11f, 0, -H * 0.13f), FVector(0.16f, h * 0.24f, h * 0.30f), NoRot, ShieldGlow);
+		// Cadre doré (bord de l'écu) : 4 arêtes fines encadrant le disque.
+		MakeBone(JLElbow, M_CUBE, FVector(-H * 0.085f, 0,  h * 20.f - H * 0.13f), FVector(0.02f, h * 0.42f, 0.02f), NoRot, AqGold);
+		MakeBone(JLElbow, M_CUBE, FVector(-H * 0.085f, 0, -h * 20.f - H * 0.13f), FVector(0.02f, h * 0.42f, 0.02f), NoRot, AqGold);
+		// Croix d'énergie centrale (nervure verticale + horizontale) qui marque l'écu.
+		MakeBone(JLElbow, M_CUBE, FVector(-H * 0.10f, 0, -H * 0.13f), FVector(0.02f, 0.03f, h * 0.30f), NoRot, AqGold);
+		MakeBone(JLElbow, M_CUBE, FVector(-H * 0.10f, 0, -H * 0.13f), FVector(0.02f, h * 0.26f, 0.03f), NoRot, AqGold);
 		return;
 	}
 	if (Id == TEXT("Aquilances")) // Montée : CAVALIER (avec jambes) sur MONTURE marine + lance
@@ -1861,6 +1942,15 @@ void AWOTOLDemoUnit::OnAttackAnimTrigger()
 	// Un coup vient d'être porté : arme la fenêtre d'anim d'attaque et (re)démarre le swing.
 	AttackAnimTimer = 0.55f;
 	SwingProgress = 0.f;
+
+	// FRÉMISSEMENT DE L'EAU : traînée de bulles à la POINTE DE L'ARME (main droite) qui suit
+	// le geste -> le coup "brasse" l'eau (cohérence sous-marine), pas des particules figées.
+	if (UWorld* W = GetWorld())
+	{
+		FVector Tip = GetActorLocation() + GetActorForwardVector() * 90.f + FVector(0, 0, 70.f);
+		if (JRElbow) Tip = JRElbow->GetComponentLocation() + GetActorForwardVector() * 40.f;
+		AWOTOLBubbleBurst::Burst(W, Tip, FLinearColor(0.7f, 0.9f, 1.f, 1.f), 6);
+	}
 }
 
 void AWOTOLDemoUnit::AnimateArticulated(float Dt)
@@ -1883,6 +1973,9 @@ void AWOTOLDemoUnit::AnimateArticulated(float Dt)
 		|| St == EUnitAIState::Retreating || bOrderMove);
 	const bool bMoving = !bAttacking && (Speed > 6.f || bInMoveState);
 	const bool bDead = !IsAlive();
+	// NAGE vs MARCHE : dès que l'unité est décollée du sol (couche haute), elle NAGE (corps
+	// projeté vers l'avant, brasse + battement de jambes) au lieu de "marcher dans le vide".
+	const bool bSwim = (CurLayer > 60.f);
 
 	AnimPhase += Dt * (bMoving ? 9.f : 2.5f);
 
@@ -1910,10 +2003,25 @@ void AWOTOLDemoUnit::AnimateArticulated(float Dt)
 		rKnee = 30.f; lKnee = 20.f;                            // fente/appui marqué
 		rHip = 14.f; lHip = -10.f;
 	}
+	else if (bMoving && bSwim)
+	{
+		// NAGE (en hauteur) : buste incliné vers l'avant, bras en BRASSE symétrique, jambes
+		// en battement souple. Fini la "marche dans le vide" sur les couches verticales.
+		const float s = FMath::Sin(AnimPhase);
+		rHip =  s * 20.f;  lHip = -s * 20.f;                   // battement de jambes doux
+		rKnee = 16.f + FMath::Abs(s) * 22.f;
+		lKnee = 16.f + FMath::Abs(s) * 22.f;
+		rSho = -52.f + s * 26.f;  lSho = -52.f - s * 26.f;     // bras tendus devant, brasse
+		rEl  = -32.f - FMath::Max(0.f,  s) * 30.f;
+		lEl  = -32.f - FMath::Max(0.f, -s) * 30.f;
+		torsoPitch = 22.f;                                     // colonne inclinée vers l'avant (nage)
+		torsoRoll  = FMath::Sin(AnimPhase * 1.5f) * 3.f;
+	}
 	else if (bMoving)
 	{
+		// MARCHE au sol (appui des pieds) : foulée alternée, buste légèrement penché.
 		const float s = FMath::Sin(AnimPhase);
-		rHip =  s * 42.f;  lHip = -s * 42.f;                   // jambes bien alternées (nage)
+		rHip =  s * 42.f;  lHip = -s * 42.f;                   // jambes bien alternées
 		rKnee = 15.f + FMath::Max(0.f, -s) * 55.f;             // genou plie en fin de foulée
 		lKnee = 15.f + FMath::Max(0.f,  s) * 55.f;
 		rSho = -s * 38.f;  lSho =  s * 38.f;                   // bras opposés amples
@@ -1922,12 +2030,20 @@ void AWOTOLDemoUnit::AnimateArticulated(float Dt)
 		torsoRoll = FMath::Sin(AnimPhase * 2.f) * 2.5f;
 		torsoPitch = 4.f;                                      // légèrement penché en avant
 	}
-	else // idle : léger flottement
+	else // idle : léger flottement + frémissement sous-marin permanent
 	{
 		const float s = FMath::Sin(AnimPhase);
 		rSho = 6.f + s * 4.f;  lSho = 6.f - s * 4.f;
-		rEl = -12.f; lEl = -12.f;
+		rEl = -12.f + FMath::Cos(AnimPhase * 1.3f) * 3.f; lEl = -12.f - FMath::Cos(AnimPhase * 1.3f) * 3.f; // bras qui frémissent dans le courant
 		torsoRoll = s * 1.5f;
+	}
+
+	// ── BOUCLIER : pose de GARDE (écu levé en travers devant) quand l'unité vient de bloquer
+	// (ShieldGuardTimer) — lecture claire du blocage. Prime sur la pose de bras gauche.
+	if (bHasShield && !bAttacking && !bDead && ShieldGuardTimer > 0.f)
+	{
+		lShoRoll = -58.f; lSho = 22.f; lEl = -80.f;           // avant-bras en travers, écu haut
+		torsoPitch = FMath::Max(torsoPitch, 2.f);
 	}
 
 	auto Set = [&](USceneComponent* J, const FRotator& Target)
@@ -1964,9 +2080,10 @@ void AWOTOLDemoUnit::AnimateBody(float Dt)
 	AnimClock += Dt;
 	const bool bDead = !IsAlive();
 
-	// Décrément de la fenêtre d'anim d'attaque (AnimateBody est appelée pour TOUTES les
-	// unités, une fois par frame -> point unique de décompte).
-	if (AttackAnimTimer > 0.f) AttackAnimTimer = FMath::Max(0.f, AttackAnimTimer - Dt);
+	// Décrément des fenêtres d'anim (AnimateBody est appelée pour TOUTES les unités, une
+	// fois par frame -> point unique de décompte) : attaque + garde au bouclier.
+	if (AttackAnimTimer  > 0.f) AttackAnimTimer  = FMath::Max(0.f, AttackAnimTimer - Dt);
+	if (ShieldGuardTimer > 0.f) ShieldGuardTimer = FMath::Max(0.f, ShieldGuardTimer - Dt);
 
 	// ACTION-BASED : à-coup d'attaque SEULEMENT après un vrai coup ; nage dès que l'unité
 	// se déplace (vélocité OU état de déplacement) -> animation fluide pendant les ordres.
