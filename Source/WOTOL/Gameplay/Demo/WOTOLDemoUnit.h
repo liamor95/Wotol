@@ -73,6 +73,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Demo|Greybox")
 	float GetDesiredZ() const { return DesiredZ; }
 
+	// Vrai si l'unité porte un bouclier (Aquiloryons) : le cerveau tactique du Director s'en
+	// sert pour la placer en MUR DE BOUCLIERS / TORTUE (ligne serrée ancrée au sol).
+	UFUNCTION(BlueprintPure, Category = "Demo|Greybox")
+	bool HasShield() const { return bHasShield; }
+
 	// Ordonne à cette unité d'ATTAQUER une structure de décor (jusqu'à sa destruction).
 	UFUNCTION(BlueprintCallable, Category = "Demo|Greybox")
 	void OrderAttackCover(class AWOTOLCoverStructure* Cover);

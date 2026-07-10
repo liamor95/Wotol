@@ -1029,6 +1029,12 @@ void AWOTOLDemoDirector::TacticalTick()
 		const FVector EnemyRangedC = RoleCentroid(EnemyFac, EUnitRole::Distance, EnemyC);
 		const FVector ToEnemyFromObj = (EnemyC - ObjLoc).GetSafeNormal2D();
 		int32 idx = 0, infCol = 0, disCol = 0, monCol = 0;                    // colonnes / anneau par rôle
+		// MUR DE BOUCLIERS : nombre de porte-boucliers vivants (pour CENTRER la ligne de
+		// tortue et la garder serrée quelles que soient les pertes).
+		int32 ShieldCount = 0;
+		for (AUnitBase* U : Reg->GetUnitsForFaction(Fac))
+			if (AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U))
+				if (D->IsAlive() && D->HasShield()) ++ShieldCount;
 		for (AUnitBase* U : Reg->GetUnitsForFaction(Fac))
 		{
 			if (!U || !U->IsAlive()) continue;
@@ -1120,12 +1126,26 @@ void AWOTOLDemoDirector::TacticalTick()
 				{
 					case EUnitRole::Infanterie:
 					{
-						// Anneau de boucliers TOUT AUTOUR du bâtiment (dos au centre) :
-						// bloque le corps-à-corps ET les tirs à distance venant de dehors.
+						// ANNEAU DE BOUCLIERS (tortue autour du bâtiment), ANCRÉ AU SOL : bloque
+						// le corps-à-corps ET les tirs venant de dehors. Pour un rempart dense,
+						// les porte-boucliers s'étagent sur 2 rangs (intérieur/extérieur décalés)
+						// -> pas de trou dans la muraille. Toujours couche 0 (blocage optimal).
 						const int32 c = infCol++;
-						const float Ang = (2.f * PI) * ((float)c / 8.f);
-						const FVector RD(FMath::Cos(Ang), FMath::Sin(Ang), 0.f);
-						Dest  = ObjLoc + RD * 360.f;
+						if (DU && DU->HasShield())
+						{
+							const int32 Rank = (c % 2);                  // 0 = rang extérieur, 1 = rang intérieur
+							const float Radius = Rank ? 300.f : 380.f;
+							const float Ang = (2.f * PI) * ((float)(c / 2) / FMath::Max(1.f, ShieldCount * 0.5f))
+								+ (Rank ? (PI / FMath::Max(1.f, ShieldCount)) : 0.f); // rang intérieur décalé (couvre les jointures)
+							const FVector RD(FMath::Cos(Ang), FMath::Sin(Ang), 0.f);
+							Dest  = ObjLoc + RD * Radius;
+						}
+						else
+						{
+							const float Ang = (2.f * PI) * ((float)c / 8.f);
+							const FVector RD(FMath::Cos(Ang), FMath::Sin(Ang), 0.f);
+							Dest  = ObjLoc + RD * 360.f;
+						}
 						Layer = 0.f;
 						break;
 					}
@@ -1163,7 +1183,8 @@ void AWOTOLDemoDirector::TacticalTick()
 				AIC->IssueOrder_AttackMove(Dest);
 				if (UUnitAIStateComponent* St = U->FindComponentByClass<UUnitAIStateComponent>())
 				{
-					St->SightRange = 60000.f;
+					// Porte-boucliers : tiennent l'anneau (vue réduite) ; les autres, vue large.
+					St->SightRange = (DU && DU->HasShield()) ? 1100.f : 60000.f;
 					// Tireurs et montures VERROUILLENT le tireur ennemi qui menace le
 					// bâtiment (cible imposée) au lieu de taper le mêlée le plus proche
 					// -> ils contrent réellement ce qui fait baisser les PV du Cristalliseur.
@@ -1249,11 +1270,28 @@ void AWOTOLDemoDirector::TacticalTick()
 			{
 				case EUnitRole::Infanterie:
 				{
-					// MUR défensif sur 2 couches (sol + 1re hauteur) au front : bloque et
-					// protège les lignes arrière. Se tient en ligne, ne charge pas.
 					const int32 c = infCol++;
-					Dest  = Front + Lateral * ((float)(c / 2 - 2) * 240.f);
-					Layer = (bCanLayer && (c % 2 == 1)) ? 800.f : 0.f;
+					if (DU && DU->HasShield())
+					{
+						// ── MUR DE BOUCLIERS (TORTUE) : ligne SERRÉE et ANCRÉE AU SOL, placée
+						// DEVANT les lignes arrière et FACE à l'ennemi. Reste au sol (couche 0)
+						// car le blocage du bouclier est BIEN plus efficace ancré au sol qu'en
+						// hauteur. Ligne centrée + 2e rang pour un bloc dense et impénétrable. ──
+						const float Center = (float)(ShieldCount - 1) * 0.5f;
+						const int32 Rank   = (c % 2);                    // 0 = 1er rang, 1 = 2e rang (tortue)
+						const int32 Col    = c / 2;
+						const float LateralOff = ((float)Col - Center * 0.5f) * 200.f
+							+ (Rank ? 100.f : 0.f);                       // 2e rang décalé (couvre les jointures)
+						const FVector WallLine = Front - Fwd * (Rank ? 130.f : 0.f); // 2e rang un peu en retrait
+						Dest  = WallLine + Lateral * LateralOff;
+						Layer = 0.f;                                     // TORTUE toujours ancrée au sol
+					}
+					else
+					{
+						// Infanterie SANS bouclier (ex. Noxeflare) : mur classique sur 2 couches.
+						Dest  = Front + Lateral * ((float)(c / 2 - 2) * 240.f);
+						Layer = (bCanLayer && (c % 2 == 1)) ? 800.f : 0.f;
+					}
 					break;
 				}
 				case EUnitRole::Distance:
@@ -1303,7 +1341,12 @@ void AWOTOLDemoDirector::TacticalTick()
 			AIC->ActivateRTSBehavior();
 			AIC->IssueOrder_AttackMove(Dest);
 			if (UUnitAIStateComponent* St = U->FindComponentByClass<UUnitAIStateComponent>())
-				St->SightRange = 60000.f;
+			{
+				// MUR DE BOUCLIERS : les porte-boucliers TIENNENT la ligne (portée de vue
+				// réduite) -> ils n'abandonnent pas la formation pour poursuivre au loin ;
+				// ils n'engagent que les menaces au contact. Les autres gardent la vue large.
+				St->SightRange = (DU && DU->HasShield()) ? 1100.f : 60000.f;
+			}
 			++idx;
 		}
 	};
