@@ -81,9 +81,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	EFactionID GetFaction() const { return Faction; }
 
-	// Inflige des dégâts ; valeur négative = soin
+	// Inflige des dégâts ; valeur négative = soin.
+	// VIRTUEL : certaines unités (ex. Aquis) interceptent les dégâts entrants (parade/
+	// absorption par la lame photonique) avant d'appliquer le calcul de base.
 	UFUNCTION(BlueprintCallable, Category = "Combat")
-	float TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit);
+	virtual float TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit);
 
 	// Déclenche une attaque vers la cible (appelé par l'IA ou le joueur)
 	UFUNCTION(BlueprintCallable, Category = "Combat")

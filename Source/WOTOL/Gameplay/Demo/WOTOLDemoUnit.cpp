@@ -151,6 +151,13 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		if (TargetCover.IsValid()) TickAttackCover(DeltaSeconds); // attaque de décor (ordre OU tactique)
 	}
 
+	// LISIBILITÉ : séparation douce entre unités d'une même couche (anti-amas illisible
+	// autour du Cristalliseur / en mêlée). Ne concerne PAS le boss (créature géante).
+	if (!bCreatureBrain && !bIsBoss)
+	{
+		ApplySoftSeparation(DeltaSeconds);
+	}
+
 	// Sur ORDRE d'attaque (cible imposée), l'unité se cale sur la couche de sa cible.
 	// Sinon le joueur garde le contrôle TOTAL de la couche (boutons Monter/Descendre).
 	UpdateCombatLayer(DeltaSeconds);
@@ -252,12 +259,15 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	// Couleur d'étiquette VIVE et LUMINEUSE, distincte par camp (survoltée pour "briller"
 	// sur l'ombre noire = fort contraste, lisible dans l'ambiance sous-marine sombre) :
 	// BLEU Aquiloris, VERT Noxéens, VIOLET Kraken.
+	// Teintes poussées au MAXIMUM de luminance non-éclairée (le TextRender est un matériau
+	// UNLIT : la couleur = émissif direct). Sur l'ambiance sombre du fond, ça donne des
+	// lettres/chiffres qui BRILLENT comme les cristaux/yeux (même lecture lumineuse).
 	FLinearColor TagColor;
-	if (bCreatureBrain || bIsBoss)                 TagColor = FLinearColor(1.10f, 0.45f, 1.60f, 1.f); // violet
-	else if (GetFaction() == EFactionID::Aquiloris) TagColor = FLinearColor(0.35f, 0.85f, 1.70f, 1.f); // bleu
-	else if (GetFaction() == EFactionID::Noxeens)   TagColor = FLinearColor(0.40f, 1.70f, 0.60f, 1.f); // vert
+	if (bCreatureBrain || bIsBoss)                 TagColor = FLinearColor(1.00f, 0.55f, 1.00f, 1.f); // violet vif
+	else if (GetFaction() == EFactionID::Aquiloris) TagColor = FLinearColor(0.55f, 1.00f, 1.00f, 1.f); // cyan éclatant
+	else if (GetFaction() == EFactionID::Noxeens)   TagColor = FLinearColor(0.55f, 1.00f, 0.65f, 1.f); // vert éclatant
 	else                                            TagColor = FFactionColors::Get(GetFaction()) * 1.5f;
-	NameTag->SetTextRenderColor(TagColor.ToFColor(false)); // false = pas de clamp sRGB -> plus lumineux
+	NameTag->SetTextRenderColor(TagColor.ToFColor(false)); // false = pas de clamp sRGB -> lettres au max de brillance
 
 	// L'étiquette + son ombre font face à la caméra ; l'ombre est décalée derrière et
 	// en bas-droite (en espace écran) pour créer un fort contraste (liseré noir).
@@ -380,6 +390,12 @@ void AWOTOLDemoUnit::HandleDeath(AUnitBase* /*Unit*/)
 	}
 	// Retire l'anneau/disque de sélection s'il était affiché.
 	SetSelected(false);
+
+	// NETTOYAGE HUD : l'unité morte ne sert plus au combat -> on RETIRE son nom et ses PV
+	// (plus de surcharge d'infos). Seul le mesh reste, qui coule au fond. Comme le Tick
+	// sort en amont pour les unités mortes, l'étiquette ne sera plus jamais ré-affichée.
+	if (NameTag)       NameTag->SetVisibility(false);
+	if (NameTagShadow) NameTagShadow->SetVisibility(false);
 }
 
 void AWOTOLDemoUnit::HandleSelected(bool bSel)
@@ -696,60 +712,122 @@ void AWOTOLDemoUnit::TickAbility(float Dt)
 
 	AbilityCooldown -= Dt;
 	if (AbilityCooldown > 0.f) return;
-	AbilityCooldown = GetAbilityCooldownFor(UnitData->GetFName());
-	UseAbility();
+
+	// LECTURE DU CHAMP DE BATAILLE : on ne lance la compétence QUE si elle est légitime
+	// (UseAbility renvoie false s'il n'y a aucune cible/motif réel). Dans ce cas l'unité
+	// GARDE sa capacité et retente très vite -> elle ne frappe jamais dans le vide.
+	if (UseAbility())
+		AbilityCooldown = GetAbilityCooldownFor(UnitData->GetFName()); // lancée -> plein cooldown
+	else
+		AbilityCooldown = 0.4f; // pas de cible légitime : on garde la capacité, on retente bientôt
 }
 
-void AWOTOLDemoUnit::UseAbility()
+bool AWOTOLDemoUnit::UseAbility()
 {
 	const FString Id = UnitData ? UnitData->GetFName().ToString() : FString();
-	if (Id == TEXT("Aquis"))        Ability_Shockwave();
-	else if (Id == TEXT("Noxar"))   Ability_Laser();
-	else if (Id == TEXT("Noxeblast")) Ability_ProjectileBurst();
-	else if (Id == TEXT("Noxeflare")) Ability_BlindFlash();
+	if (Id == TEXT("Aquis"))          return Ability_Shockwave();
+	else if (Id == TEXT("Noxar"))     return Ability_Laser();
+	else if (Id == TEXT("Noxeblast")) return Ability_ProjectileBurst();
+	else if (Id == TEXT("Noxeflare")) return Ability_BlindFlash();
 	// (Aquiloryons/Aquilances/Aquispheres/Noxebeast : leur "compétence" est leur
 	//  comportement de formation/charge géré par le cerveau tactique.)
+	return false;
 }
 
-// AQUIS — Lame Photonique : frappe le sol -> onde de choc qui REPOUSSE et blesse les
-// ennemis autour (répit). N'agit que s'il y a des ennemis proches.
-void AWOTOLDemoUnit::Ability_Shockwave()
+// AQUIS — Lame Photonique (2 MODES, l'IA choisit selon la lecture du champ de bataille) :
+//   • DÉFENSIF (agglutiné par PLUSIEURS ennemis) : frappe le SOL -> onde de choc CIRCULAIRE
+//     courte (~2-3 m) qui REPOUSSE tout autour + zone marquée au sol (répit).
+//   • ATTAQUE (1 ou peu d'ennemis) : frappe la CIBLE -> onde de choc SUR l'ennemi (expulsion
+//     + dégâts sur lui seul).
+// Dégâts amplifiés par la JAUGE D'IMPACT (énergie parée accumulée), consommée à l'usage.
+// Renvoie false si aucune cible légitime (capacité gardée).
+bool AWOTOLDemoUnit::Ability_Shockwave()
 {
-	UWorld* W = GetWorld(); if (!W) return;
-	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return;
+	UWorld* W = GetWorld(); if (!W) return false;
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return false;
 	const EFactionID Enemy = (GetFaction() == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
 	const FVector Origin = GetActorLocation();
-	const float Radius = 700.f;
-	int32 Hit = 0;
+
+	// ── LECTURE : combien d'ennemis COLLÉS autour (rayon court ~3 m) + le plus proche. ──
+	const float CloseRadius = 320.f;   // ~3 m : zone "agglutiné"
+	const float ReachRadius = 420.f;   // portée d'un coup de lame direct
+	int32 SurroundCount = 0;
+	AUnitBase* Nearest = nullptr; float NearestD2 = TNumericLimits<float>::Max();
 	for (AUnitBase* U : Reg->GetUnitsForFaction(Enemy))
 	{
 		if (!U || !U->IsAlive()) continue;
 		FVector To = U->GetActorLocation() - Origin; To.Z = 0.f;
-		if (To.Size() > Radius) continue;
-		U->LaunchCharacter(To.GetSafeNormal() * 1400.f + FVector(0, 0, 350.f), true, true);
-		U->TakeDamageFromUnit(70.f, this);
-		++Hit;
+		const float D2 = To.SizeSquared();
+		if (D2 < CloseRadius * CloseRadius) ++SurroundCount;
+		if (D2 < NearestD2) { NearestD2 = D2; Nearest = U; }
 	}
-	// ── ONDE DE CHOC blanc-bleu : éclat central + FRONT circulaire (anneau de jaillissements
-	// au bord du rayon) -> lecture d'une onde qui se propage et REPOUSSE tout autour. ──
+	const float NearestDist = FMath::Sqrt(NearestD2);
+
+	// LÉGITIMITÉ : aucun ennemi à portée exploitable -> on GARDE la capacité.
+	if (SurroundCount == 0 && (!Nearest || NearestDist > ReachRadius))
+		return false;
+
+	// Dégâts = base + jauge d'impact (énergie parée), plafonnés ; puis on VIDE la jauge.
+	const float Damage = 90.f + FMath::Min(ImpactGauge, 600.f);
+	ImpactGauge = 0.f;
 	const FLinearColor Wave(0.75f, 0.95f, 1.f, 1.f);
-	AWOTOLBubbleBurst::Burst(W, Origin + FVector(0, 0, 30.f), FLinearColor(1.f, 1.f, 1.f, 1.f), 30); // flash central blanc
-	const int32 Ring = 14;
-	for (int32 i = 0; i < Ring; ++i)
+
+	// L'attaque coïncide avec un coup de lame (animation de frappe).
+	AttackAnimTimer = 0.55f;
+
+	// ── MODE DÉFENSIF : plusieurs ennemis collés -> ONDE AU SOL, dégagement circulaire. ──
+	if (SurroundCount >= 2)
 	{
-		const float A = 2.f * PI * i / Ring;
-		const FVector P = Origin + FVector(FMath::Cos(A), FMath::Sin(A), 0.f) * (Radius * 0.72f) + FVector(0, 0, 25.f);
-		AWOTOLBubbleBurst::Burst(W, P, Wave, 6); // front de l'onde
+		const float Radius = 300.f; // ~3 m
+		for (AUnitBase* U : Reg->GetUnitsForFaction(Enemy))
+		{
+			if (!U || !U->IsAlive()) continue;
+			FVector To = U->GetActorLocation() - Origin; To.Z = 0.f;
+			if (To.Size() > Radius) continue;
+			U->LaunchCharacter(To.GetSafeNormal() * 1200.f + FVector(0, 0, 300.f), true, true); // expulsion ~2-3 m
+			U->TakeDamageFromUnit(Damage * 0.7f, this); // réparti sur le groupe
+		}
+		// VISUEL : flash central au sol + FRONT circulaire d'anneaux qui se propage (~3 m).
+		AWOTOLBubbleBurst::Burst(W, Origin + FVector(0, 0, 20.f), FLinearColor(1.f, 1.f, 1.f, 1.f), 30);
+		const int32 Ring = 16;
+		for (int32 i = 0; i < Ring; ++i)
+		{
+			const float A = 2.f * PI * i / Ring;
+			const FVector P = Origin + FVector(FMath::Cos(A), FMath::Sin(A), 0.f) * Radius + FVector(0, 0, 18.f);
+			AWOTOLBubbleBurst::Burst(W, P, Wave, 7); // marque circulaire au sol
+		}
+		AWOTOLDamageNumber::SpawnText(W, Origin + FVector(0, 0, 160.f), TEXT("Onde de Choc"), Wave);
+		return true;
 	}
-	if (Hit > 0)
-		AWOTOLDamageNumber::SpawnText(W, Origin + FVector(0, 0, 160.f), TEXT("Lame Photonique"), Wave);
+
+	// ── MODE ATTAQUE : peu d'ennemis -> onde de choc CONCENTRÉE sur la cible frappée. ──
+	if (Nearest)
+	{
+		FVector To = Nearest->GetActorLocation() - Origin; To.Z = 0.f;
+		Nearest->LaunchCharacter(To.GetSafeNormal() * 1500.f + FVector(0, 0, 350.f), true, true); // expulse la cible
+		Nearest->TakeDamageFromUnit(Damage, this);
+		// VISUEL : impact concentré SUR l'ennemi (pas au sol).
+		const FVector Hit = (Nearest->GetFloatingTextAnchor() ? Nearest->GetFloatingTextAnchor()->GetComponentLocation()
+			: Nearest->GetActorLocation());
+		AWOTOLBubbleBurst::Burst(W, Hit + FVector(0, 0, 40.f), FLinearColor(1.f, 1.f, 1.f, 1.f), 22);
+		const int32 Ring = 8;
+		for (int32 i = 0; i < Ring; ++i)
+		{
+			const float A = 2.f * PI * i / Ring;
+			const FVector P = Hit + FVector(FMath::Cos(A), FMath::Sin(A), 0.f) * 90.f + FVector(0, 0, 40.f);
+			AWOTOLBubbleBurst::Burst(W, P, Wave, 4);
+		}
+		AWOTOLDamageNumber::SpawnText(W, Hit + FVector(0, 0, 120.f), TEXT("Lame Photonique"), Wave);
+		return true;
+	}
+	return false;
 }
 
 // NOXAR — Rayon laser : cible l'OBJECTIF (bâtiment adverse) si présent, sinon l'ennemi
 // le plus proche. Gros dégâts, ponctuel.
-void AWOTOLDemoUnit::Ability_Laser()
+bool AWOTOLDemoUnit::Ability_Laser()
 {
-	UWorld* W = GetWorld(); if (!W) return;
+	UWorld* W = GetWorld(); if (!W) return false;
 	const FVector From = (GetFloatingTextAnchor() ? GetFloatingTextAnchor()->GetComponentLocation()
 		: GetActorLocation()) + FVector(0, 0, 40.f);
 
@@ -773,7 +851,7 @@ void AWOTOLDemoUnit::Ability_Laser()
 				: Foe->GetActorLocation()) + FVector(0, 0, 40.f);
 			bHasTarget = true;
 		}
-	if (!bHasTarget) return;
+	if (!bHasTarget) return false; // aucune cible légitime -> on garde la capacité
 
 	// Couleur du rayon = couleur de FACTION (vert Noxéen / cyan Aquiloris).
 	const FLinearColor BeamCol = (GetFaction() == EFactionID::Noxeens)
@@ -814,13 +892,14 @@ void AWOTOLDemoUnit::Ability_Laser()
 		AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, D3.Size() + 100.f), BeamCol, this, 0.f, Aim.Pitch);
 		AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 120.f), TEXT("Rayon Laser"), BeamCol);
 	}
+	return true;
 }
 
 // NOXEBLAST — Rafale : plusieurs projectiles sur l'ennemi le plus proche.
-void AWOTOLDemoUnit::Ability_ProjectileBurst()
+bool AWOTOLDemoUnit::Ability_ProjectileBurst()
 {
-	UWorld* W = GetWorld(); if (!W) return;
-	AUnitBase* Foe = FindNearestEnemyUnit(); if (!Foe) return;
+	UWorld* W = GetWorld(); if (!W) return false;
+	AUnitBase* Foe = FindNearestEnemyUnit(); if (!Foe) return false; // pas de cible -> capacité gardée
 	const FVector From = (GetFloatingTextAnchor() ? GetFloatingTextAnchor()->GetComponentLocation()
 		: GetActorLocation()) + FVector(0, 0, 40.f);
 	const FVector To = (Foe->GetFloatingTextAnchor() ? Foe->GetFloatingTextAnchor()->GetComponentLocation()
@@ -833,13 +912,14 @@ void AWOTOLDemoUnit::Ability_ProjectileBurst()
 	Foe->TakeDamageFromUnit(180.f, this);
 	AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 110.f), TEXT("Rafale"),
 		FLinearColor(0.6f, 0.4f, 1.f, 1.f));
+	return true;
 }
 
 // NOXEFLARE — Éblouissement : flash qui aveugle les ennemis proches DEVANT (précision ~0).
-void AWOTOLDemoUnit::Ability_BlindFlash()
+bool AWOTOLDemoUnit::Ability_BlindFlash()
 {
-	UWorld* W = GetWorld(); if (!W) return;
-	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return;
+	UWorld* W = GetWorld(); if (!W) return false;
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return false;
 	const EFactionID Enemy = (GetFaction() == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
 	const FVector Origin = GetActorLocation();
 	const FVector Fwd = GetActorForwardVector();
@@ -854,11 +934,82 @@ void AWOTOLDemoUnit::Ability_BlindFlash()
 		U->BlindedUntil = Now + 4.f; // précision quasi nulle pendant 4 s
 		++Hit;
 	}
+	// LÉGITIMITÉ : aucun ennemi devant à portée -> on garde la capacité (pas de flash inutile).
+	if (Hit == 0) return false;
 	// Flash VIOLET (éblouissement bioluminescent des Noxeflare).
 	AWOTOLBubbleBurst::Burst(W, Origin + Fwd * 120.f + FVector(0, 0, 60.f), FLinearColor(0.7f, 0.35f, 1.f, 1.f), 20);
-	if (Hit > 0)
-		AWOTOLDamageNumber::SpawnText(W, Origin + FVector(0, 0, 150.f), TEXT("Eblouissement"),
-			FLinearColor(0.72f, 0.4f, 1.f, 1.f));
+	AWOTOLDamageNumber::SpawnText(W, Origin + FVector(0, 0, 150.f), TEXT("Eblouissement"),
+		FLinearColor(0.72f, 0.4f, 1.f, 1.f));
+	return true;
+}
+
+// AQUIS — Interception des dégâts entrants : la lame photonique PARE une part des dégâts
+// (directs OU énergétiques) et BANQUE l'énergie bloquée dans la jauge d'impact. Cette
+// énergie est relâchée par l'onde de choc (dégâts proportionnels à ce qui a été bloqué).
+float AWOTOLDemoUnit::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit)
+{
+	if (Damage > 0.f && IsAlive() && UnitData && UnitData->GetFName() == TEXT("Aquis"))
+	{
+		const float Blocked = Damage * 0.35f;                    // 35% paré par la lame
+		ImpactGauge = FMath::Min(ImpactGauge + Blocked, 900.f);  // banque plafonnée
+		Damage     -= Blocked;                                   // dégâts réellement subis réduits
+		// Éclat de parade cyan sur la lame (lecture visuelle du blocage).
+		if (UWorld* W = GetWorld())
+		{
+			const FVector At = (GetFloatingTextAnchor() ? GetFloatingTextAnchor()->GetComponentLocation()
+				: GetActorLocation()) + FVector(0, 0, 60.f);
+			AWOTOLBubbleBurst::Burst(W, At, FLinearColor(0.4f, 0.9f, 1.f, 1.f), 4);
+		}
+	}
+	return Super::TakeDamageFromUnit(Damage, InstigatorUnit);
+}
+
+// SÉPARATION DOUCE (lisibilité) : écarte gentiment les unités qui se chevauchent sur une
+// MÊME couche verticale (~1 m d'espace mini) pour éviter l'amas illisible autour du
+// Cristalliseur / en mêlée. Les unités de couches DIFFÉRENTES ne s'écartent pas (la
+// verticalité est préservée : une unité montée en hauteur n'est jamais gênée par le sol).
+void AWOTOLDemoUnit::ApplySoftSeparation(float Dt)
+{
+	UWorld* W = GetWorld(); if (!W) return;
+	// Uniquement EN BATAILLE (au placement, les formations espacent déjà les unités).
+	if (UGameInstance* GI = GetGameInstance())
+		if (UDemoFlowSubsystem* D = GI->GetSubsystem<UDemoFlowSubsystem>())
+			if (D->GetScreen() != EDemoScreen::Playing) return;
+
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return;
+	const FVector MyLoc = GetActorLocation();
+	const float MyR = GetCapsuleComponent() ? GetCapsuleComponent()->GetScaledCapsuleRadius() : 40.f;
+	const float Gap = 100.f; // ~1 m d'espace mini entre deux silhouettes
+
+	FVector Push = FVector::ZeroVector;
+	const EFactionID Factions[2] = { EFactionID::Aquiloris, EFactionID::Noxeens };
+	for (const EFactionID F : Factions)
+	{
+		for (AUnitBase* U : Reg->GetUnitsForFaction(F))
+		{
+			if (!U || U == this || !U->IsAlive()) continue;
+			if (AWOTOLDemoUnit* Other = Cast<AWOTOLDemoUnit>(U))
+			{
+				if (Other->bIsBoss || Other->bCreatureBrain) continue; // pas de séparation avec le boss
+				// MÊME COUCHE seulement (verticalité préservée).
+				if (FMath::Abs(CurLayer - Other->CurLayer) > 180.f) continue;
+			}
+			FVector D = MyLoc - U->GetActorLocation(); D.Z = 0.f;
+			const float Dist = D.Size();
+			float OtherR = 40.f;
+			if (ACharacter* C = Cast<ACharacter>(U))
+				OtherR = C->GetCapsuleComponent() ? C->GetCapsuleComponent()->GetScaledCapsuleRadius() : 40.f;
+			const float MinSep = MyR + OtherR + Gap;
+			if (Dist > 1.f && Dist < MinSep)
+				Push += D.GetSafeNormal() * (MinSep - Dist);
+		}
+	}
+	if (!Push.IsNearlyZero())
+	{
+		// Nudge DOUX (respecte la collision du décor), plafonné -> pas d'à-coup ni de tremblement.
+		const FVector Step = Push.GetClampedToMaxSize(60.f) * FMath::Min(1.f, 6.f * Dt);
+		AddActorWorldOffset(Step, true);
+	}
 }
 
 // Tailles réelles approximatives (mètres) — valeurs du GDD/document de démo

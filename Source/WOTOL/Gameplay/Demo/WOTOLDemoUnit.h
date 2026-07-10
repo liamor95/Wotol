@@ -183,6 +183,9 @@ private:
 	// Déclenché à chaque coup réellement porté -> arme l'anim d'attaque (fenêtre courte).
 	virtual void OnAttackAnimTrigger() override;
 
+	// Interception des dégâts entrants (Aquis : parade + remplissage de la jauge d'impact).
+	virtual float TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit) override;
+
 	// ─── Animation générique (toutes unités) : nage + inclinaison + appendices ──
 	// Conteneur visuel : on le fait flotter/incliner pour animer TOUTE la silhouette.
 	UPROPERTY() TObjectPtr<USceneComponent> VisualRoot;
@@ -211,15 +214,26 @@ private:
 	void CreatureBrainTick(float DeltaSeconds);
 
 	// ─── Compétences ACTIVES (déclenchées périodiquement, cooldown du tableur) ─────
-	void  TickAbility(float DeltaSeconds); // décrémente le cooldown + déclenche
-	void  UseAbility();                    // dispatch selon l'unité
-	void  Ability_Shockwave();             // Aquis : onde de choc au sol (repousse autour)
-	void  Ability_Laser();                 // Noxar : rayon laser sur l'objectif / le + proche
-	void  Ability_ProjectileBurst();       // Noxeblast : rafale de projectiles
-	void  Ability_BlindFlash();            // Noxeflare : éblouit les ennemis proches
+	// RÈGLE GÉNÉRALE : une compétence n'est lancée QUE si elle est LÉGITIME (une cible/
+	// un motif réel). Sinon l'unité la GARDE (retente vite) et continue ses coups basiques.
+	// Chaque Ability_* renvoie true si elle a RÉELLEMENT été lancée, false sinon.
+	void  TickAbility(float DeltaSeconds); // décrémente le cooldown + déclenche si légitime
+	bool  UseAbility();                    // dispatch selon l'unité (true = lancée)
+	bool  Ability_Shockwave();             // Aquis : 2 modes (sol autour / sur la cible) selon la situation
+	bool  Ability_Laser();                 // Noxar : rayon laser sur l'objectif / le + proche
+	bool  Ability_ProjectileBurst();       // Noxeblast : rafale de projectiles
+	bool  Ability_BlindFlash();            // Noxeflare : éblouit les ennemis proches
 	float GetAbilityCooldownFor(FName Id) const; // CD du tableur par unité
 	float AbilityCooldown = 6.f;           // temps avant la prochaine compétence
 	bool  bAbilityInit = false;
+
+	// AQUIS — jauge d'impact : la lame photonique PARE une part des dégâts entrants et
+	// BANQUE l'énergie bloquée ici ; l'onde de choc la relâche (dégâts proportionnels).
+	float ImpactGauge = 0.f;
+
+	// SÉPARATION DOUCE (lisibilité) : écarte gentiment les unités d'une MÊME couche
+	// verticale pour éviter l'amas illisible, sans bloquer les couches différentes.
+	void ApplySoftSeparation(float DeltaSeconds);
 
 	// ─── Fouets du Kraken (2 grands tentacules articulés) ─────────────────────
 	// Chaîne de pivots (base → pointe) formant un tentacule capable de "claquer".
