@@ -1082,18 +1082,91 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		MakeBone(JRElbow, M_SPH, FVector(-H * 0.52f, 0, -H * 0.14f), FVector(0.22f, 0.22f, 0.22f), NoRot, AqEnergyHi); // ORBE bleu tourbillonnant
 		return;
 	}
-	if (Id == TEXT("Aquilombres")) // Spéciale : ARTICULÉ furtif (bleu nuit) + dague
-	{
-		BuildArticulatedHumanoid(H, FLinearColor(0.05f, 0.07f, 0.20f, 1.f), 0.26f);
-		MakeBone(JRElbow, M_CONE, FVector(0, 0, -H * 0.26f), FVector(0.05f, 0.05f, h * 0.28f), FRotator(180.f, 0, 0), AqEnergy); // dague
+	if (Id == TEXT("Aquilombres")) // Spéciale (réf) : duelliste Aquiloris élancée, peau bleue,
+	{                              // crête de nageoires, armure bleu nuit + liserés or, gemme losange
+		// cyan sur le torse, voiles flottantes, lames d'énergie cyan. Avant = -X (humanoïde flip).
+		const FLinearColor Skin(0.18f, 0.28f, 0.52f, 1.f);    // peau bleue
+		const FLinearColor Armor(0.05f, 0.08f, 0.22f, 1.f);   // armure bleu nuit
+		const FLinearColor GemGlow(0.35f, 1.30f, 1.90f, 1.f); // gemme/lames cyan lumineuses
+		const FLinearColor EyeGold(1.70f, 1.30f, 0.35f, 1.f); // yeux dorés lumineux
+		BuildArticulatedHumanoid(H, Armor, 0.24f);
+		// Tête en peau bleue par-dessus (visage devant = -X)
+		AddPart(M_SPH, FVector(-2, 0, H * 0.33f), FVector(0.20f, 0.20f, 0.22f), NoRot, Skin);
+		AddPart(M_SPH, FVector(-11, 5, H * 0.34f), FVector(0.045f, 0.045f, 0.05f), NoRot, EyeGold);
+		AddPart(M_SPH, FVector(-11, -5, H * 0.34f), FVector(0.045f, 0.045f, 0.05f), NoRot, EyeGold);
+		// Crête de nageoires-cheveux rejetée vers l'arrière (+X)
+		for (int32 cc = 0; cc < 6; ++cc)
+		{
+			const float t = (cc - 2.5f) / 2.5f;
+			AddPart(M_CONE, FVector(H * 0.04f + FMath::Abs(t) * H * 0.02f, t * 8.f, H * 0.42f),
+				FVector(0.04f, 0.05f, h * (0.20f - FMath::Abs(t) * 0.05f)), FRotator(52.f, 0, t * 18.f), Skin);
+		}
+		// Col montant + pauldrons dorés
+		AddPart(M_SPH, FVector(0, H * 0.14f, H * 0.22f), FVector(0.13f, 0.13f, 0.11f), NoRot, AqGold);
+		AddPart(M_SPH, FVector(0, -H * 0.14f, H * 0.22f), FVector(0.13f, 0.13f, 0.11f), NoRot, AqGold);
+		// Gemme losange CYAN lumineuse sur le plastron (devant)
+		AddPart(M_CONE, FVector(-H * 0.15f, 0, H * 0.16f), FVector(0.09f, 0.09f, h * 0.08f), FRotator(-90.f, 0, 0), GemGlow);
+		AddPart(M_CONE, FVector(-H * 0.15f, 0, H * 0.16f), FVector(0.09f, 0.09f, h * 0.08f), FRotator(90.f, 0, 0), GemGlow);
+		// Liserés dorés verticaux (devant)
+		AddPart(M_CUBE, FVector(-H * 0.145f, 6, H * 0.0f), FVector(0.015f, 0.02f, h * 0.26f), NoRot, AqGold);
+		AddPart(M_CUBE, FVector(-H * 0.145f, -6, H * 0.0f), FVector(0.015f, 0.02f, h * 0.26f), NoRot, AqGold);
+		// Jupe/voile fendue : panneaux flottants sur les côtés + derrière (ondulent)
+		RegisterWiggle(AddPart(M_CUBE, FVector(H * 0.06f, H * 0.10f, -H * 0.22f), FVector(0.03f, 0.10f, h * 0.44f), FRotator(6.f, 0, 10.f), Armor), 0.f);
+		RegisterWiggle(AddPart(M_CUBE, FVector(H * 0.06f, -H * 0.10f, -H * 0.22f), FVector(0.03f, 0.10f, h * 0.44f), FRotator(6.f, 0, -10.f), Armor), 3.14f);
+		RegisterWiggle(AddPart(M_CUBE, FVector(H * 0.12f, 0, -H * 0.20f), FVector(0.03f, 0.16f, h * 0.46f), FRotator(10.f, 0, 0), Armor), 1.2f);
+		// Lames d'énergie cyan dans chaque main (duelliste furtive)
+		MakeBone(JRElbow, M_CONE, FVector(0, 0, -H * 0.24f), FVector(0.04f, 0.04f, h * 0.22f), FRotator(180.f, 0, 0), GemGlow);
+		MakeBone(JLElbow, M_CONE, FVector(0, 0, -H * 0.24f), FVector(0.04f, 0.04f, h * 0.22f), FRotator(180.f, 0, 0), GemGlow);
 		return;
 	}
-	if (Id == TEXT("Leviaphenix")) // Mythique Aquiloris : grand corps + ailes or
-	{
-		SetupMainPart(M_SPH, FVector(0, 0, 0), FVector(h * 0.7f, h * 0.5f, h * 0.8f), NoRot, AqArmor);
-		AddPart(M_CONE, FVector(20, 0, H * 0.45f), FVector(0.6f, 0.6f, h * 0.3f), NoRot, AqGold);                  // tête/bec or
-		AddPart(M_CUBE, FVector(-10, 70, H * 0.1f), FVector(0.1f, h * 0.6f, h * 0.5f), FRotator(0, 0, 25.f), AqGold);  // aile
-		AddPart(M_CUBE, FVector(-10, -70, H * 0.1f), FVector(0.1f, h * 0.6f, h * 0.5f), FRotator(0, 0, -25.f), AqGold);
+	if (Id == TEXT("Leviaphenix")) // Mythique Aquiloris (réf) : dragon-phénix marin élancé,
+	{                              // écailles bleu nuit, crête + nageoires bleu glacé lumineuses,
+		// cœur d'énergie doré sur le torse, longue queue effilée. Avant = +X (pas de flip).
+		const FLinearColor ScaleBody = AqArmor;
+		const FLinearColor FinGlow(0.45f, 0.95f, 1.75f, 1.f);   // membranes/crête bleu glacé lumineuses
+		const FLinearColor CoreGlow(2.00f, 1.55f, 0.55f, 1.f);  // cœur d'énergie doré lumineux
+		const FLinearColor EyeGlow(0.35f, 0.75f, 1.80f, 1.f);   // yeux bleus lumineux
+		const FLinearColor Beakish(0.30f, 0.38f, 0.55f, 1.f);   // bec/griffes bleu-gris
+
+		// Torse élancé + bas-ventre qui file vers la queue
+		SetupMainPart(M_SPH, FVector(0, 0, H * 0.02f), FVector(h * 0.40f, h * 0.32f, h * 0.52f), NoRot, ScaleBody);
+		AddPart(M_SPH, FVector(-H * 0.04f, 0, -H * 0.28f), FVector(h * 0.34f, h * 0.28f, h * 0.34f), NoRot, ScaleBody);
+		// Cou incurvé + tête draconique haute devant (+X)
+		AddPart(M_CYL, FVector(H * 0.06f, 0, H * 0.34f), FVector(h * 0.18f, h * 0.18f, h * 0.20f), FRotator(18.f, 0, 0), ScaleBody);
+		AddPart(M_SPH, FVector(H * 0.16f, 0, H * 0.50f), FVector(h * 0.22f, h * 0.20f, h * 0.22f), NoRot, ScaleBody);
+		AddPart(M_CONE, FVector(H * 0.30f, 0, H * 0.48f), FVector(0.16f, 0.16f, h * 0.22f), FRotator(78.f, 0, 0), Beakish); // bec
+		// Yeux bleus lumineux (devant = +X)
+		AddPart(M_SPH, FVector(H * 0.24f, 8, H * 0.53f), FVector(0.06f, 0.06f, 0.07f), NoRot, EyeGlow);
+		AddPart(M_SPH, FVector(H * 0.24f, -8, H * 0.53f), FVector(0.06f, 0.06f, 0.07f), NoRot, EyeGlow);
+		// CRÊTE de plumes-nageoires bleu glacé en éventail derrière la tête
+		for (int32 cc = 0; cc < 7; ++cc)
+		{
+			const float t = (cc - 3) / 3.f;
+			AddPart(M_CONE, FVector(H * 0.02f - FMath::Abs(t) * H * 0.05f, t * 10.f, H * 0.62f),
+				FVector(0.05f, 0.10f, h * (0.34f - FMath::Abs(t) * 0.10f)), FRotator(-42.f, 0, t * 22.f), FinGlow);
+		}
+		// CŒUR D'ÉNERGIE doré lumineux sur le torse (devant)
+		AddPart(M_SPH, FVector(H * 0.20f, 0, H * 0.10f), FVector(0.16f, 0.16f, 0.16f), NoRot, CoreGlow);
+		// Bras/nageoires avant élancés + griffes
+		for (int32 s = -1; s <= 1; s += 2)
+		{
+			AddPart(M_CYL, FVector(H * 0.05f, s * H * 0.16f, H * 0.06f), FVector(0.07f, 0.07f, h * 0.22f), FRotator(40.f, 0, s * 20.f), ScaleBody);
+			AddPart(M_CONE, FVector(H * 0.14f, s * H * 0.22f, -H * 0.10f), FVector(0.05f, 0.05f, h * 0.14f), FRotator(120.f, 0, s * 20.f), Beakish);
+		}
+		// GRANDES AILES-NAGEOIRES plumeuses bleu glacé (ondulent)
+		for (int32 s = -1; s <= 1; s += 2)
+		{
+			RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.02f, s * H * 0.30f, H * 0.06f),
+				FVector(0.36f, 0.12f, h * 0.5f), FRotator(0, 0, s * 80.f), FinGlow), s < 0 ? 0.f : 3.14f);
+			RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.12f, s * H * 0.26f, -H * 0.06f),
+				FVector(0.26f, 0.09f, h * 0.36f), FRotator(0, 0, s * 70.f), FinGlow), s < 0 ? 0.6f : 2.5f);
+		}
+		// LONGUE QUEUE effilée en S (segments) qui ondule + éventail caudal lumineux
+		RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.10f, 0, -H * 0.52f), FVector(0.22f, 0.18f, h * 0.42f), FRotator(-100.f, 0, 0), ScaleBody), 0.f);
+		RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.02f, 0, -H * 0.82f), FVector(0.15f, 0.12f, h * 0.38f), FRotator(-70.f, 0, 0), ScaleBody), 0.6f);
+		RegisterWiggle(AddPart(M_CONE, FVector(H * 0.10f, 0, -H * 1.02f), FVector(0.10f, 0.08f, h * 0.30f), FRotator(-50.f, 0, 0), ScaleBody), 1.1f);
+		RegisterWiggle(AddPart(M_CUBE, FVector(H * 0.20f, 0, -H * 1.16f), FVector(0.04f, 0.40f, h * 0.24f), FRotator(0, 25.f, 0), FinGlow), 1.4f);
+		RegisterWiggle(AddPart(M_CUBE, FVector(H * 0.20f, 0, -H * 1.20f), FVector(0.04f, 0.40f, h * 0.24f), FRotator(0, -25.f, 0), FinGlow), 1.4f);
 		return;
 	}
 
@@ -1264,20 +1337,122 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		bArticulated = true; // démarche quadrupède (les 4 pattes s'animent)
 		return;
 	}
-	if (Id == TEXT("Noxeons")) // Spéciale : organisme bioluminescent vert
-	{
-		SetupMainPart(M_SPH, FVector(0, 0, -H * 0.1f), FVector(h * 0.6f, h * 0.6f, h * 0.55f), NoRot, NoxDark);
-		for (int32 i = 0; i < 5; ++i)
+	if (Id == TEXT("Noxeons")) // Spéciale (réf) : colosse abyssal noir couvert de pustules
+	{                          // bioluminescentes VERTES, grappe d'yeux verts, plaques épineuses,
+		// tentacules dorsaux. Avant = -X (humanoïde flip). Carrure massive.
+		const FLinearColor Body(0.06f, 0.08f, 0.07f, 1.f);      // chair noire abyssale
+		const FLinearColor GreenGlow(0.30f, 1.65f, 0.50f, 1.f); // pustules/yeux verts lumineux
+		BuildArticulatedHumanoid(H, Body, 0.42f);
+		// GRAPPE D'YEUX verts lumineux sur la tête (devant = -X)
+		for (int32 e = 0; e < 9; ++e)
 		{
-			const float Ang = 2.f * PI * i / 5.f;
-			RegisterWiggle(AddPart(M_CONE, FVector(FMath::Cos(Ang) * 20.f, FMath::Sin(Ang) * 20.f, -H * 0.3f),
-				FVector(0.07f, 0.07f, h * 0.3f), FRotator(0, FMath::RadiansToDegrees(Ang), 30.f), NoxGreen), i * 1.2f);
+			const float ey = FMath::Sin(e * 2.1f) * 7.f;
+			const float ez = H * 0.34f + FMath::Cos(e * 1.6f) * H * 0.045f;
+			AddPart(M_SPH, FVector(-10, ey, ez), FVector(0.045f, 0.045f, 0.05f), NoRot, GreenGlow);
+		}
+		// Couronne de pics autour du crâne
+		for (int32 cc = 0; cc < 8; ++cc)
+		{
+			const float a = -1.5f + cc * 0.43f;
+			AddPart(M_CONE, FVector(H * 0.02f, FMath::Sin(a) * 13.f, H * 0.44f),
+				FVector(0.05f, 0.05f, h * 0.18f), FRotator(-30.f, 0, FMath::RadiansToDegrees(a) * 0.4f), Body);
+		}
+		// PUSTULES vertes réparties sur le torse (devant = -X)
+		for (int32 t = 0; t < 10; ++t)
+		{
+			AddPart(M_SPH, FVector(-H * 0.17f, FMath::Sin(t * 1.7f) * 18.f, H * (0.16f - t * 0.028f)),
+				FVector(0.04f, 0.04f, 0.04f), NoRot, GreenGlow);
+		}
+		// Plaques épineuses sur épaules + avant-bras + longues griffes
+		for (int32 s = -1; s <= 1; s += 2)
+		{
+			for (int32 k = 0; k < 3; ++k)
+				AddPart(M_CONE, FVector(-H * 0.02f, s * H * 0.16f, H * (0.20f - k * 0.05f)),
+					FVector(0.06f, 0.06f, h * (0.20f - k * 0.04f)), FRotator(0, 0, s * (60.f - k * 14.f)), Body);
+			for (int32 k = 0; k < 3; ++k)
+				MakeBone(s < 0 ? JLElbow : JRElbow, M_CONE, FVector(0.03f, s * 4.f, -H * (0.04f + k * 0.05f)),
+					FVector(0.05f, 0.05f, h * 0.13f), FRotator(0, 0, s * 60.f), Body);
+			MakeBone(s < 0 ? JLElbow : JRElbow, M_CONE, FVector(-0.04f, s * 3.f, -H * 0.26f),
+				FVector(0.05f, 0.05f, h * 0.18f), FRotator(150.f, 0, 0), Body); // longue griffe
+		}
+		// 2 grands TENTACULES dorsaux (+X) qui ondulent, pointe verte lumineuse
+		for (int32 s = -1; s <= 1; s += 2)
+		{
+			RegisterWiggle(AddPart(M_CONE, FVector(H * 0.10f, s * 16.f, H * 0.30f), FVector(0.06f, 0.06f, h * 1.05f), FRotator(38.f, 0, s * 40.f), Body), s < 0 ? 0.f : 3.14f);
+			RegisterWiggle(AddPart(M_CONE, FVector(H * 0.32f, s * 34.f, H * 0.04f), FVector(0.045f, 0.045f, h * 0.18f), FRotator(90.f, 0, s * 40.f), GreenGlow), s < 0 ? 0.5f : 2.6f);
 		}
 		return;
 	}
-	if (Id == TEXT("Noxedrake")) // Mythique / boss "KRAKEN" : céphalopode géant
-	{
-		BuildKrakenCephalopod(H);
+	if (Id == TEXT("Noxedrake")) // Mythique Noxéen (réf) : dragon abyssal QUADRUPÈDE, écailles
+	{                            // noires luisantes, crête + épines dorsales VERTES bioluminescentes,
+		// grappe d'yeux verts, gueule à crocs, longue queue. Avant = +X (comme Noxebeast).
+		// NB : le boss NEUTRE de la phase 1 reste le Kraken céphalopode (chemin séparé dans
+		// BuildGreyboxShape) ; ce modèle-ci est le mythique Noxéen jouable de la phase 2.
+		const FLinearColor Scale(0.05f, 0.06f, 0.05f, 1.f);      // écailles noires
+		const FLinearColor Scale2(0.09f, 0.11f, 0.09f, 1.f);     // écailles plus claires
+		const FLinearColor GreenGlow(0.30f, 1.70f, 0.50f, 1.f);  // épines/yeux verts lumineux
+		const FLinearColor Fang(0.75f, 0.72f, 0.55f, 1.f);       // crocs ivoire
+
+		// Corps : poitrail avant haut -> tronc -> croupe
+		SetupMainPart(M_SPH, FVector(H * 0.10f, 0, -H * 0.02f), FVector(h * 0.95f, h * 0.80f, h * 0.66f), NoRot, Scale);
+		AddPart(M_SPH, FVector(-H * 0.52f, 0, -H * 0.16f), FVector(h * 0.72f, h * 0.66f, h * 0.48f), NoRot, Scale);
+		AddPart(M_CYL, FVector(-H * 0.24f, 0, -H * 0.10f), FVector(h * 0.68f, h * 0.68f, h * 0.82f), FRotator(90.f, 0, 0), Scale);
+
+		// Cou serpentin dressé + tête (avant +X, en hauteur)
+		AddPart(M_CYL, FVector(H * 0.48f, 0, H * 0.18f), FVector(h * 0.34f, h * 0.34f, h * 0.34f), FRotator(52.f, 0, 0), Scale);
+		AddPart(M_SPH, FVector(H * 0.72f, 0, H * 0.40f), FVector(h * 0.40f, h * 0.42f, h * 0.34f), NoRot, Scale);
+		AddPart(M_CONE, FVector(H * 0.96f, 0, H * 0.34f), FVector(h * 0.24f, h * 0.20f, h * 0.30f), FRotator(72.f, 0, 0), Scale); // museau allongé
+		// Grappe d'YEUX verts lumineux sur le crâne (devant)
+		for (int32 e = 0; e < 6; ++e)
+		{
+			const float ey = FMath::Sin(e * 2.0f) * 12.f;
+			const float ez = H * 0.44f + FMath::Cos(e * 1.7f) * H * 0.03f;
+			AddPart(M_SPH, FVector(H * 0.82f, ey, ez), FVector(0.10f, 0.10f, 0.11f), NoRot, GreenGlow);
+		}
+		// Mâchoire basse + rangée de crocs
+		AddPart(M_CONE, FVector(H * 0.98f, 0, H * 0.26f), FVector(h * 0.18f, h * 0.16f, h * 0.18f), FRotator(-96.f, 0, 0), Scale2);
+		for (int32 f = 0; f < 5; ++f)
+		{
+			const float fy = (f - 2) * 7.f;
+			AddPart(M_CONE, FVector(H * (0.90f + 0.02f * (f % 2)), fy, H * 0.30f), FVector(0.05f, 0.05f, h * 0.12f), FRotator(150.f, 0, 0), Fang);
+		}
+		// Barbillons sous la mâchoire (ondulent)
+		for (int32 s = -1; s <= 1; s += 2)
+			RegisterWiggle(AddPart(M_CONE, FVector(H * 0.94f, s * 10.f, H * 0.16f), FVector(0.03f, 0.03f, h * 0.22f), FRotator(150.f, 0, s * 10.f), Scale2), s < 0 ? 0.f : 2.0f);
+
+		// GRANDE CRÊTE + ÉPINES DORSALES vertes lumineuses (de la nuque +X vers la queue -X)
+		for (int32 s = 0; s < 10; ++s)
+		{
+			const float sx = H * (0.50f - s * 0.14f);
+			const float sz = H * (0.34f - s * 0.028f);
+			const float sh = h * (0.55f - s * 0.035f);
+			AddPart(M_CONE, FVector(sx, 0, sz), FVector(0.09f, 0.15f, sh), FRotator(-16.f, 0, 0), GreenGlow);
+		}
+		// Lignes bioluminescentes vertes le long des flancs
+		for (int32 s = -1; s <= 1; s += 2)
+			for (int32 k = 0; k < 5; ++k)
+				AddPart(M_SPH, FVector(H * (0.30f - k * 0.16f), s * H * 0.34f, -H * 0.06f), FVector(0.05f, 0.05f, 0.05f), NoRot, GreenGlow);
+
+		// 4 PATTES SEGMENTÉES (cuisse + tibia + patte + 3 griffes), animées
+		const float LegX = H * 0.36f, LegY = H * 0.34f;
+		auto BuildLeg = [&](USceneComponent* Joint)
+		{
+			MakeBone(Joint, M_CYL, FVector(0, 0, -H * 0.10f), FVector(0.20f, 0.20f, h * 0.22f), NoRot, Scale);
+			MakeBone(Joint, M_CYL, FVector(H * 0.02f, 0, -H * 0.28f), FVector(0.15f, 0.15f, h * 0.20f), NoRot, Scale);
+			MakeBone(Joint, M_SPH, FVector(H * 0.04f, 0, -H * 0.40f), FVector(0.18f, 0.22f, 0.13f), NoRot, Scale);
+			for (int32 cl = -1; cl <= 1; ++cl)
+				MakeBone(Joint, M_CONE, FVector(H * 0.12f, cl * 8.f, -H * 0.42f), FVector(0.05f, 0.05f, h * 0.12f), FRotator(70.f, 0, 0), Fang);
+		};
+		JRShoulder = MakeJoint(VisualRoot, FVector(LegX, LegY, -H * 0.06f));   BuildLeg(JRShoulder);
+		JLShoulder = MakeJoint(VisualRoot, FVector(LegX, -LegY, -H * 0.06f));  BuildLeg(JLShoulder);
+		JRHip = MakeJoint(VisualRoot, FVector(-LegX, LegY, -H * 0.10f));       BuildLeg(JRHip);
+		JLHip = MakeJoint(VisualRoot, FVector(-LegX, -LegY, -H * 0.10f));      BuildLeg(JLHip);
+
+		// LONGUE QUEUE segmentée qui ondule, terminée par un aiguillon caudal vert lumineux
+		RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.80f, 0, -H * 0.10f), FVector(0.20f, 0.20f, h * 0.5f), FRotator(-100.f, 0, 0), Scale), 0.f);
+		RegisterWiggle(AddPart(M_CONE, FVector(-H * 1.12f, 0, -H * 0.02f), FVector(0.13f, 0.13f, h * 0.42f), FRotator(-96.f, 0, 0), Scale2), 0.6f);
+		RegisterWiggle(AddPart(M_CONE, FVector(-H * 1.40f, 0, H * 0.04f), FVector(0.08f, 0.14f, h * 0.30f), FRotator(-90.f, 0, 0), GreenGlow), 1.0f);
+		bArticulated = true; // démarche quadrupède (les 4 pattes s'animent)
 		return;
 	}
 
