@@ -1280,6 +1280,20 @@ float AWOTOLDemoUnit::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit
 	{
 		const FName Id = UnitData->GetFName();
 
+		// Texte flottant de MITIGATION (parade/blocage/esquive/couvert) accroché à l'unité,
+		// pour que le joueur VOIE ces événements (throttlé pour ne pas surcharger l'écran).
+		auto ShowMitig = [&](const TCHAR* Txt, const FLinearColor& Col)
+		{
+			if (FMath::FRand() > 0.55f) return; // ~55% du temps -> lisible sans spam
+			if (UWorld* W = GetWorld())
+			{
+				USceneComponent* A = GetFloatingTextAnchor();
+				const FVector L = (A ? A->GetComponentLocation() : GetActorLocation());
+				if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(W, L, Txt, Col))
+					N->SetFollow(A, FVector(FMath::FRandRange(-30.f, 30.f), FMath::FRandRange(-30.f, 30.f), 130.f));
+			}
+		};
+
 		// AQUIS — parade + jauge d'impact (relâchée par l'onde de choc).
 		if (Id == TEXT("Aquis"))
 		{
@@ -1292,6 +1306,7 @@ float AWOTOLDemoUnit::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit
 					: GetActorLocation()) + FVector(0, 0, 60.f);
 				AWOTOLBubbleBurst::Burst(W, At, FLinearColor(0.4f, 0.9f, 1.f, 1.f), 4);
 			}
+			ShowMitig(TEXT("Pare"), FLinearColor(0.4f, 0.95f, 1.6f, 1.f)); // parade de lame (cyan)
 		}
 		// AQUILOMBRES — INVISIBLE : dissimulée, difficile à toucher (dégâts très réduits) ;
 		// être touchée la RÉVÈLE (elle doit se re-cacher en s'immobilisant à nouveau).
@@ -1301,12 +1316,14 @@ float AWOTOLDemoUnit::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit
 			bStealthed = false;
 			SetStealthVisual(false);
 			StealthTimer = 0.f;
+			ShowMitig(TEXT("Esquive"), FLinearColor(0.35f, 0.6f, 1.3f, 1.f)); // se dérobe dans l'ombre
 		}
 		// AQUILANCES — PROTÉGÉES par un bouclier devant (synergie lance↔bouclier) : quand
 		// l'Aquilance est calée derrière un Aquiloryon, elle encaisse nettement moins.
 		else if (Id == TEXT("Aquilances") && bLanceGuarded)
 		{
 			Damage *= 0.72f; // -28% : couverte par le mur de boucliers
+			ShowMitig(TEXT("Couvert"), FLinearColor(0.5f, 1.f, 1.3f, 1.f));
 		}
 		// AQUILORYONS — BOUCLIER : blocage frontal dont l'efficacité dépend de l'ANCRAGE AU
 		// SOL (planté = bloque bien ; en hauteur = peu d'appui) et de la SYNERGIE (mur de
@@ -1329,6 +1346,7 @@ float AWOTOLDemoUnit::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit
 					const FVector At = GetActorLocation() + GetActorForwardVector() * 45.f + FVector(0, 0, 90.f);
 					AWOTOLBubbleBurst::Burst(W, At, FLinearColor(0.45f, 1.f, 1.6f, 1.f), 3);
 				}
+				ShowMitig(TEXT("Bloque"), FLinearColor(0.45f, 1.f, 1.7f, 1.f)); // blocage au bouclier
 			}
 		}
 	}
