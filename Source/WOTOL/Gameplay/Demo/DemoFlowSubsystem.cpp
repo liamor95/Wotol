@@ -37,7 +37,7 @@ void UDemoFlowSubsystem::AdvancePhase()
 
 EBattleType UDemoFlowSubsystem::GetCurrentBattleType() const
 {
-	return (CurrentPhase == EDemoPhase::Battle_Rival)
+	return (CurrentPhase == EDemoPhase::Battle_Rival || CurrentPhase == EDemoPhase::Battle_Grand)
 		? EBattleType::RivalDefense
 		: EBattleType::CreatureEncounter;
 }
@@ -96,12 +96,18 @@ bool UDemoFlowSubsystem::IsCategoryUnlocked(EDemoUnitCategory Category) const
 			return Progress.bRangedUnlocked;   // débloquée après la 1ère victoire
 		case EDemoUnitCategory::Speciale:
 		case EDemoUnitCategory::Mythique:
-			return false;                      // verrouillées pour la démo
+			return Progress.bAllUnlocked;      // débloquées en phase 3 (grande bataille)
 	}
 	return false;
 }
 
 void UDemoFlowSubsystem::UnlockRangedUnit()       { Progress.bRangedUnlocked = true; }
+void UDemoFlowSubsystem::UnlockAll()
+{
+	Progress.bRangedUnlocked   = true;
+	Progress.bMythicDiscovered = true;
+	Progress.bAllUnlocked      = true;
+}
 void UDemoFlowSubsystem::DiscoverMythic()
 {
 	Progress.bMythicDiscovered = true;

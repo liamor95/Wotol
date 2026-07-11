@@ -26,6 +26,7 @@ enum class EDemoPhase : uint8
 	Exploration_Rival     UMETA(DisplayName = "Alerte — zone attaquée"),
 	Battle_Rival          UMETA(DisplayName = "Bataille — défense rivale"),
 	Repair_Zone           UMETA(DisplayName = "Réparation de la zone"),
+	Battle_Grand          UMETA(DisplayName = "Bataille — grande (phase 3, zone neutre)"),
 	DemoEnd               UMETA(DisplayName = "Fin de démo")
 };
 
@@ -90,6 +91,7 @@ struct FDemoProgress
 	UPROPERTY(BlueprintReadOnly) bool bZoneCaptured          = false; // Grade 1 posé
 	UPROPERTY(BlueprintReadOnly) bool bZoneDamaged           = false; // attaquée par la rivale
 	UPROPERTY(BlueprintReadOnly) bool bZoneRepaired          = false;
+	UPROPERTY(BlueprintReadOnly) bool bAllUnlocked           = false; // phase 3 : spéciale + mythique débloquées
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDemoPhaseChanged,
@@ -136,6 +138,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void UnlockRangedUnit();
+
+	// Phase 3 : débloque TOUT le roster (spéciale + mythique compris).
+	UFUNCTION(BlueprintCallable, Category = "Demo")
+	void UnlockAll();
 
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void DiscoverMythic();

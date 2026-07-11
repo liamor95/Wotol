@@ -118,6 +118,7 @@ void AWOTOLDemoDirector::BeginPreparation()
 		Demo->SetPhase(EDemoPhase::Battle_Creature);
 	}
 	const EBattleType BT = Demo ? Demo->GetCurrentBattleType() : EBattleType::CreatureEncounter;
+	const bool bGrand = Demo && Demo->GetPhase() == EDemoPhase::Battle_Grand; // phase 3, zone neutre
 
 	// Phase 2 (défense rivale) : GRANDE bataille — plus d'unités des deux côtés.
 	// Valeurs volontairement mesurées : ~26 vs 26 unités entièrement riggées, pour
@@ -136,7 +137,7 @@ void AWOTOLDemoDirector::BeginPreparation()
 	// phase précédente). Nouvelle bataille = tout repart à zéro.
 	if (UWorld* W = GetWorld())
 		if (URTSBattleManager* RTS = W->GetSubsystem<URTSBattleManager>())
-			RTS->ResetForNewBattle(600.f);
+			RTS->ResetForNewBattle(bGrand ? 900.f : 600.f); // phase 3 : grande bataille -> plus de temps (~15 min)
 
 	// On VIDE la sélection : sinon le HUD (barre de commandement bas-gauche) continue
 	// d'afficher le roster de la phase précédente (unités désormais détruites/différentes).
@@ -168,17 +169,20 @@ void AWOTOLDemoDirector::BeginPreparation()
 
 	SpawnPlacementBoundary(); // barrière visuelle : zone de placement = ton premier tiers
 	SpawnCoverStructures();   // ruines Éthériennes (couverture au centre de l'arène)
-	// Phase 2 : cristaux de terraformation disséminés (zone acquise par le joueur).
-	if (BT == EBattleType::RivalDefense) SpawnZoneCrystals();
-	else                                 ClearZoneCrystals();
+	// Cristaux de terraformation : UNIQUEMENT en phase 2 (zone acquise). Phase 3 = zone
+	// NEUTRE -> aucun cristal, aucun avantage de terrain.
+	if (BT == EBattleType::RivalDefense && !bGrand) SpawnZoneCrystals();
+	else                                            ClearZoneCrystals();
 	FocusCameraOnPlayer();
 	if (Demo)
 	{
 		Demo->SetScreen(EDemoScreen::Prepare);
-		Demo->SetObjective(BT == EBattleType::RivalDefense
-			? FString::Printf(TEXT("Proteger le %s — ne le laissez pas tomber a 0"),
-				*BuildingDisplayName(CachedPlayerFaction))
-			: FString(TEXT("Vaincre la creature — le KRAKEN")));
+		Demo->SetObjective(bGrand
+			? FString(TEXT("Aneantir la faction rivale — bataille rangee (zone neutre)"))
+			: (BT == EBattleType::RivalDefense
+				? FString::Printf(TEXT("Proteger le %s — ne le laissez pas tomber a 0"),
+					*BuildingDisplayName(CachedPlayerFaction))
+				: FString(TEXT("Vaincre la creature — le KRAKEN"))));
 	}
 	Say(TEXT("PREPARATION : placez vos unites dans VOTRE zone (barriere coloree), puis lancez."));
 }
@@ -335,6 +339,16 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	{
 		PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Distance), RangedCount, Depth * 5.f, 8);
 	}
+	// PHASE 3 : SPÉCIALE (arrière-ligne) + MYTHIQUE (soutien) débloquées.
+	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Speciale))
+	{
+		PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Speciale), 3, Depth * 6.f, 3);
+	}
+	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Mythique))
+	{
+		SpawnUnit(Demo->GetUnitID(Faction, EDemoUnitCategory::Mythique),
+			Origin + FVector(-Depth * 7.f, 0.f, GroundZ), Facing, /*ScaleBoost=*/1.6f, /*HealthScale=*/3.0f);
+	}
 }
 
 void AWOTOLDemoDirector::SpawnEnemyForCreature(EFactionID RivalFaction, const FVector& Origin, const FRotator& Facing)
@@ -428,6 +442,18 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Infanterie), EDemoUnitCategory::Infanterie, InfantryCount, 0.f, 8);
 	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Montee), EDemoUnitCategory::Montee, MountedCount, Depth * 3.f, 6);
 	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Distance), EDemoUnitCategory::Distance, RangedCount, Depth * 5.f, 8);
+	// PHASE 3 : la rivale déploie AUSSI sa spéciale + son mythique.
+	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Speciale))
+	{
+		PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Speciale), EDemoUnitCategory::Speciale, 3, Depth * 6.f, 3);
+	}
+	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Mythique))
+	{
+		FVector MLoc = O + FVector(Depth * 7.f, 0.f, 100.f);
+		MLoc.X = FMath::Max(MLoc.X, MirrorX);
+		SetLayer(SpawnUnit(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Mythique), MLoc, Facing, 1.6f, 3.0f),
+			PickLayer(EDemoUnitCategory::Mythique));
+	}
 }
 
 AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, const FRotator& Facing,
@@ -669,9 +695,20 @@ void AWOTOLDemoDirector::CheckBattleEnd()
 		{
 			bBattleConcluded = true;
 			GetWorldTimerManager().ClearTimer(BattleCheckHandle);
-			const bool bObjectiveHeld = (CaptureObject != nullptr); // bâtiment encore debout
-			if (bObjectiveHeld) OnPlayerVictory();
-			else                OnPlayerDefeat();
+			UDemoFlowSubsystem* D2 = GetGameInstance() ? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+			const bool bGrandPhase = D2 && D2->GetPhase() == EDemoPhase::Battle_Grand;
+			if (bGrandPhase)
+			{
+				// Phase 3 (annihilation, zone neutre) : au chrono, l'armée la plus nombreuse l'emporte.
+				if (PlayerAlive >= EnemyAlive) OnPlayerVictory();
+				else                           OnPlayerDefeat();
+			}
+			else
+			{
+				const bool bObjectiveHeld = (CaptureObject != nullptr); // bâtiment encore debout
+				if (bObjectiveHeld) OnPlayerVictory();
+				else                OnPlayerDefeat();
+			}
 		}
 	}
 }
@@ -706,9 +743,18 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 		{
 			CaptureObject->Repair(CaptureObject->MaxHealth);
 		}
-		// Résumé FINAL de démo (victoire) : boutons Rejouer / Changer de faction.
+		// Résumé INTERMÉDIAIRE (bFinal=false -> bouton « Continuer ») : la démo enchaîne sur
+		// la PHASE 3 (grande bataille en zone neutre) au lieu de se terminer ici.
 		GetWorldTimerManager().ClearTimer(BattleCheckHandle);
-		BuildBattleSummary(true, /*bFinal=*/true, TEXT("VICTOIRE"));
+		BuildBattleSummary(true, /*bFinal=*/false, TEXT("VICTOIRE — LA RIVALE RECULE"));
+		if (Demo) Demo->SetScreen(EDemoScreen::Summary);
+		Say(TEXT("La rivale est repoussee. Des heures plus tard, elle revient en force sur un autre terrain..."));
+	}
+	else if (Phase == EDemoPhase::Battle_Grand)
+	{
+		// Fin de la PHASE 3 : résumé FINAL de démo (victoire) -> Rejouer / Changer de faction.
+		GetWorldTimerManager().ClearTimer(BattleCheckHandle);
+		BuildBattleSummary(true, /*bFinal=*/true, TEXT("VICTOIRE TOTALE"));
 		if (Demo)
 		{
 			Demo->bDemoVictory = true;
@@ -820,6 +866,15 @@ void AWOTOLDemoDirector::ContinueToPhase2()
 {
 	UGameInstance* GI = GetGameInstance();
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+
+	// Le MÊME bouton « Continuer » enchaîne : après la phase 2 (Battle_Rival déjà jouée) il
+	// mène à la PHASE 3 (grande bataille neutre) au lieu de re-lancer la phase 2.
+	if (Demo && Demo->GetPhase() == EDemoPhase::Battle_Rival)
+	{
+		StartGrandBattle();
+		return;
+	}
+
 	if (Demo)
 	{
 		Demo->UnlockRangedUnit();  // distance débloquée pour la phase 2
@@ -827,6 +882,31 @@ void AWOTOLDemoDirector::ContinueToPhase2()
 	}
 	SpawnCaptureObject(CachedPlayerFaction); // objet à défendre (visible en phase 2)
 	StartRivalDefense();                     // -> phase 2 en PRÉPARATION
+}
+
+// PHASE 3 — grande bataille rangée en ZONE NEUTRE : on débloque TOUT le roster (spéciale +
+// mythique), on RETIRE l'objectif (pas de Cristalliseur -> pas d'avantage de zone : les
+// deux camps n'ont que leurs bonus de faction), et on AGRANDIT l'arène (bataille épique).
+void AWOTOLDemoDirector::StartGrandBattle()
+{
+	UGameInstance* GI = GetGameInstance();
+	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (Demo) Demo->UnlockAll(); // spéciale (Aquilombres/Noxéons) + mythique (Léviaphénix/Noxedrake)
+
+	// ZONE NEUTRE : plus aucun objet de capture -> le bloc d'avantage de zone (gaté sur
+	// CaptureObject) est automatiquement ignoré. Bataille purement arme contre arme.
+	if (CaptureObject) { CaptureObject->Destroy(); CaptureObject = nullptr; }
+	if (Demo) Demo->SetCaptureObject(nullptr);
+	ClearZoneCrystals();
+
+	// Arène plus VASTE (autre terrain, sensation épique) + nouveau courant océanique.
+	ArmySeparation = 7000.f;
+	if (UWorld* W = GetWorld())
+		if (UOceanCurrentSubsystem* Cur = W->GetSubsystem<UOceanCurrentSubsystem>())
+			Cur->Regenerate();
+
+	if (Demo) Demo->SetPhase(EDemoPhase::Battle_Grand);
+	BeginPreparation(); // -> phase 3 en PRÉPARATION (roster complet, arène agrandie)
 }
 
 void AWOTOLDemoDirector::RestartDemo(bool bKeepFaction)
@@ -842,8 +922,9 @@ void AWOTOLDemoDirector::RestartDemo(bool bKeepFaction)
 	ClearCoverStructures();
 	if (CaptureObject) { CaptureObject->Destroy(); CaptureObject = nullptr; }
 	bBattleConcluded = false;
-	// Roster de phase 1 (les valeurs phase 2 sont réappliquées par BeginPreparation)
+	// Roster + arène de phase 1 (les valeurs phase 2/3 sont réappliquées à leur lancement)
 	InfantryCount = 10; MountedCount = 5; RangedCount = 5;
+	ArmySeparation = 4500.f; // réinitialise l'arène (la phase 3 l'agrandit à 7000)
 
 	UGameInstance* GI = GetGameInstance();
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;

@@ -174,6 +174,9 @@ private:
 	void CleanupUnits();
 	void SpawnCaptureObject(EFactionID Faction);
 	void StartRivalDefense();
+	// PHASE 3 : grande bataille rangée en ZONE NEUTRE (pas d'objectif, pas d'avantage de
+	// terrain). Débloque tout le roster (spéciale + mythique), agrandit l'arène.
+	void StartGrandBattle();
 	void EndDemo(bool bPlayerWon);
 	// Calcule les pertes par type d'unité (à partir de SpawnedUnits, morts inclus).
 	void BuildBattleSummary(bool bVictory, bool bFinal, const FString& Title);
