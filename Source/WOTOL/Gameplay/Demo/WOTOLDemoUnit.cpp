@@ -767,6 +767,7 @@ bool AWOTOLDemoUnit::UseAbility()
 	else if (Id == TEXT("Aquipheres") || Id == TEXT("Aquispheres")) return Ability_Hydrolaser();
 	else if (Id == TEXT("Aquilombres")) return Ability_ShadowStrike();
 	else if (Id == TEXT("Leviaphenix")) return Ability_Resonance();
+	else if (Id == TEXT("Noxebeast"))   return Ability_Charge();
 	// (Aquiloryons/Aquilances/Aquispheres/Noxebeast : leur "compétence" est leur
 	//  comportement de formation/charge géré par le cerveau tactique.)
 	return false;
@@ -1051,6 +1052,38 @@ bool AWOTOLDemoUnit::Ability_Hydrolaser()
 	AWOTOLProjectileTracer::Fire(W, Muzzle, To, OrbCol, 1.9f, /*bBolt=*/false, /*bBubbleTrail=*/true);
 	Nearest->TakeDamageFromUnit(260.f, this);
 	AWOTOLDamageNumber::SpawnText(W, Muzzle + FVector(0, 0, 110.f), TEXT("Hydrosniper"), OrbCol);
+	return true;
+}
+
+// NOXEBEAST — Fracasse-Fosse : CHARGE frontale destructrice qui REPOUSSE/renverse les
+// ennemis devant + les interrompt (annule leur fenêtre de coup) + dégâts. Renvoie false
+// s'il n'y a personne devant à charger.
+bool AWOTOLDemoUnit::Ability_Charge()
+{
+	UWorld* W = GetWorld(); if (!W) return false;
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return false;
+	const EFactionID Enemy = (GetFaction() == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
+	AUnitBase* Foe = FindNearestEnemyUnit(); if (!Foe) return false;
+	const FVector C   = GetActorLocation();
+	FVector Fwd = Foe->GetActorLocation() - C; Fwd.Z = 0.f; Fwd = Fwd.GetSafeNormal();
+
+	int32 Hit = 0;
+	for (AUnitBase* U : Reg->GetUnitsForFaction(Enemy))
+	{
+		if (!U || !U->IsAlive()) continue;
+		FVector D = U->GetActorLocation() - C; D.Z = 0.f;
+		if (D.Size() > 480.f) continue;
+		if (FVector::DotProduct(D.GetSafeNormal(), Fwd) < 0.25f) continue; // seulement DEVANT
+		const float KB = Cast<AWOTOLDemoUnit>(U) ? Cast<AWOTOLDemoUnit>(U)->GetKnockbackScale() : 1.f;
+		U->LaunchCharacter(D.GetSafeNormal() * (1300.f * KB) + FVector(0, 0, 300.f * KB), true, true); // renverse
+		U->TakeDamageFromUnit(120.f, this);
+		if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U)) DU->AttackAnimTimer = 0.f; // interrompt son coup
+		++Hit;
+	}
+	if (Hit == 0) return false;
+	AttackAnimTimer = 0.55f;
+	AWOTOLBubbleBurst::Burst(W, C + Fwd * 120.f + FVector(0, 0, 40.f), FLinearColor(0.3f, 1.2f, 0.5f, 1.f), 24);
+	AWOTOLDamageNumber::SpawnText(W, C + FVector(0, 0, 150.f), TEXT("Fracasse-Fosse"), FLinearColor(0.35f, 1.3f, 0.55f, 1.f));
 	return true;
 }
 
@@ -2418,6 +2451,43 @@ void AWOTOLDemoUnit::OnAttackAnimTrigger()
 				FLinearColor(0.2f, 0.5f, 1.2f, 1.f), 6);
 		// Attaquer la RÉVÈLE (elle sort de l'ombre pour frapper).
 		if (bStealthed) { bStealthed = false; SetStealthVisual(false); }
+	}
+
+	// ── NOXÉENS : attaque de base THÉMATIQUE (griffe / morsure / patte / tentacule) — aucune
+	// unité ne reste passive au corps-à-corps, chacune a son effet propre (agressivité de la
+	// faction). Cosmétique ; les dégâts sont appliqués par le combat de base (PerformAttack). ──
+	if (UnitData && GetFaction() == EFactionID::Noxeens)
+	{
+		const FName Nid = UnitData->GetFName();
+		UWorld* W = GetWorld();
+		AUnitBase* Foe = FindNearestEnemyUnit();
+		const FVector Strike = Foe
+			? ((Foe->GetFloatingTextAnchor() ? Foe->GetFloatingTextAnchor()->GetComponentLocation() : Foe->GetActorLocation()) + FVector(0, 0, 40.f))
+			: (GetActorLocation() + GetActorForwardVector() * 90.f + FVector(0, 0, 60.f));
+		const FLinearColor NoxGreen(0.30f, 1.20f, 0.50f, 1.f);
+		const FLinearColor NoxViolet(0.75f, 0.35f, 1.40f, 1.f);
+		auto Slash = [&](const FLinearColor& Col, int32 n)
+		{
+			if (!W) return;
+			for (int32 i = 0; i < 3; ++i)
+				AWOTOLBubbleBurst::Burst(W, Strike + FVector(0, 0, -15.f + i * 15.f) + GetActorForwardVector() * (i * 10.f), Col, n);
+		};
+		if      (Nid == TEXT("Noxar"))     Slash(NoxGreen, 5);   // coup de griffe abyssal
+		else if (Nid == TEXT("Noxeflare")) Slash(NoxViolet, 5);  // griffe/morsure crépusculaire
+		else if (Nid == TEXT("Noxebeast"))  Slash(NoxGreen, 7);  // coup de patte avant massif
+		else if (Nid == TEXT("Noxeons"))    Slash(NoxGreen, 6);  // fouet de tentacule dorsal
+		else if (Nid == TEXT("Noxedrake"))  Slash(NoxGreen, 8);  // morsure / coup de queue
+		else if (Nid == TEXT("Noxeblast"))
+		{
+			// Corps-à-corps : décharge de paume. + PASSIF « Yeux des Abysses » : EXÉCUTE les
+			// cibles AVEUGLÉES/désorientées (combo Noxeflare -> Noxeblast : aveugle puis exécute).
+			Slash(NoxViolet, 5);
+			if (Foe && W && W->GetTimeSeconds() < Foe->BlindedUntil)
+			{
+				NextHitCritMult = 1.6f;
+				AWOTOLDamageNumber::SpawnText(W, Strike + FVector(0, 0, 90.f), TEXT("Execution"), NoxViolet);
+			}
+		}
 	}
 }
 
