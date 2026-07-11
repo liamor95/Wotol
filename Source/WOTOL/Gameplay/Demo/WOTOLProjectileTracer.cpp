@@ -5,6 +5,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Components/PointLightComponent.h"
 #include "WOTOLGlow.h"
+#include "WOTOLBubbleBurst.h"
 
 AWOTOLProjectileTracer::AWOTOLProjectileTracer()
 {
@@ -32,7 +33,7 @@ AWOTOLProjectileTracer::AWOTOLProjectileTracer()
 }
 
 void AWOTOLProjectileTracer::Fire(UWorld* World, const FVector& From, const FVector& To,
-	const FLinearColor& Color, float Size, bool bBolt)
+	const FLinearColor& Color, float Size, bool bBolt, bool bBubbleTrail)
 {
 	if (!World) return;
 	// Oriente l'acteur vers la cible (utile pour l'ovale allongé).
@@ -44,6 +45,8 @@ void AWOTOLProjectileTracer::Fire(UWorld* World, const FVector& From, const FVec
 	if (!T) return;
 
 	T->Target = To;
+	T->bTrail = bBubbleTrail;
+	T->TrailColor = FLinearColor(Color.R, Color.G, Color.B, 1.f);
 	UStaticMesh* Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 	UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
 		nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
@@ -86,6 +89,18 @@ void AWOTOLProjectileTracer::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	Life += DeltaSeconds;
+
+	// TRAÎNÉE DE BULLES : le projectile brasse l'eau -> petit chapelet de bulles qui suit la
+	// boule tout le long de son vol (mécanique des fluides).
+	if (bTrail)
+	{
+		TrailAccum += DeltaSeconds;
+		if (TrailAccum >= 0.035f)
+		{
+			TrailAccum = 0.f;
+			AWOTOLBubbleBurst::Burst(GetWorld(), GetActorLocation(), TrailColor, 2);
+		}
+	}
 
 	const FVector Loc = GetActorLocation();
 	const FVector ToTarget = Target - Loc;

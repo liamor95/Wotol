@@ -741,6 +741,7 @@ bool AWOTOLDemoUnit::UseAbility()
 	else if (Id == TEXT("Noxar"))     return Ability_Laser();
 	else if (Id == TEXT("Noxeblast")) return Ability_ProjectileBurst();
 	else if (Id == TEXT("Noxeflare")) return Ability_BlindFlash();
+	else if (Id == TEXT("Aquipheres") || Id == TEXT("Aquispheres")) return Ability_Hydrolaser();
 	// (Aquiloryons/Aquilances/Aquispheres/Noxebeast : leur "compétence" est leur
 	//  comportement de formation/charge géré par le cerveau tactique.)
 	return false;
@@ -955,6 +956,76 @@ bool AWOTOLDemoUnit::Ability_BlindFlash()
 	AWOTOLBubbleBurst::Burst(W, Origin + Fwd * 120.f + FVector(0, 0, 60.f), FLinearColor(0.7f, 0.35f, 1.f, 1.f), 20);
 	AWOTOLDamageNumber::SpawnText(W, Origin + FVector(0, 0, 150.f), TEXT("Eblouissement"),
 		FLinearColor(0.72f, 0.4f, 1.f, 1.f));
+	return true;
+}
+
+// AQUISPHÈRES — tir de base : boule HYDROLASER (traînée de bulles) vers l'ennemi le plus
+// proche, OU COUP DE CROSSE si l'ennemi est au contact TRÈS rapproché. Cosmétique : les
+// dégâts, eux, sont appliqués par le combat de base (PerformAttack).
+void AWOTOLDemoUnit::FireHydrolaserOrMelee()
+{
+	UWorld* W = GetWorld(); if (!W) return;
+	AUnitBase* Foe = FindNearestEnemyUnit(); if (!Foe) return;
+	const FVector Anchor = GetFloatingTextAnchor() ? GetFloatingTextAnchor()->GetComponentLocation() : GetActorLocation();
+	const FVector Muzzle = Anchor + GetActorForwardVector() * 100.f + FVector(0, 0, 30.f);
+	const float Dist = FVector::Dist2D(GetActorLocation(), Foe->GetActorLocation());
+
+	if (Dist < 260.f)
+	{
+		// COUP DE CROSSE (corps-à-corps très rapproché) : pas de projectile, juste l'impact.
+		AWOTOLBubbleBurst::Burst(W, Muzzle, FLinearColor(0.7f, 0.9f, 1.f, 1.f), 8);
+		return;
+	}
+	// TIR HYDROLASER : boule cyan avec TRAÎNÉE DE BULLES jusqu'à la cible.
+	const FVector To = (Foe->GetFloatingTextAnchor() ? Foe->GetFloatingTextAnchor()->GetComponentLocation()
+		: Foe->GetActorLocation()) + FVector(0, 0, 30.f);
+	AWOTOLProjectileTracer::Fire(W, Muzzle, To, FLinearColor(0.35f, 0.85f, 1.f, 1.f), 1.1f, /*bBolt=*/false, /*bBubbleTrail=*/true);
+}
+
+// AQUISPHÈRES — compétence à 2 axes, choisie par lecture du champ de bataille :
+//   • HYDROPOMPE (ennemis groupés) : RAFALE de boules sur une ZONE (AoE).
+//   • HYDROSNIPER (cible isolée)   : UNE grosse boule mono-cible, plus de dégâts.
+// Renvoie false s'il n'y a aucune cible légitime (capacité gardée).
+bool AWOTOLDemoUnit::Ability_Hydrolaser()
+{
+	UWorld* W = GetWorld(); if (!W) return false;
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return false;
+	const EFactionID Enemy = (GetFaction() == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
+	AUnitBase* Nearest = FindNearestEnemyUnit(); if (!Nearest) return false;
+
+	const FVector Anchor = GetFloatingTextAnchor() ? GetFloatingTextAnchor()->GetComponentLocation() : GetActorLocation();
+	const FVector Muzzle = Anchor + GetActorForwardVector() * 100.f + FVector(0, 0, 30.f);
+	const FVector Center = Nearest->GetActorLocation();
+	const FLinearColor OrbCol(0.35f, 0.85f, 1.f, 1.f);
+
+	// Combien d'ennemis GROUPÉS autour de la cible -> décide zone vs mono.
+	int32 Cluster = 0;
+	for (AUnitBase* U : Reg->GetUnitsForFaction(Enemy))
+		if (U && U->IsAlive() && FVector::Dist2D(U->GetActorLocation(), Center) < 400.f) ++Cluster;
+
+	AttackAnimTimer = 0.55f; // recul/anim de tir
+
+	if (Cluster >= 3)
+	{
+		// HYDROPOMPE : rafale de boules réparties sur la zone + dégâts AoE modérés.
+		for (int32 i = 0; i < 6; ++i)
+		{
+			const FVector Jit(FMath::FRandRange(-260.f, 260.f), FMath::FRandRange(-260.f, 260.f), FMath::FRandRange(-20.f, 60.f));
+			AWOTOLProjectileTracer::Fire(W, Muzzle, Center + Jit, OrbCol, 0.9f, false, /*bBubbleTrail=*/true);
+		}
+		for (AUnitBase* U : Reg->GetUnitsForFaction(Enemy))
+			if (U && U->IsAlive() && FVector::Dist2D(U->GetActorLocation(), Center) < 350.f)
+				U->TakeDamageFromUnit(95.f, this);
+		AWOTOLDamageNumber::SpawnText(W, Muzzle + FVector(0, 0, 110.f), TEXT("Hydropompe"), OrbCol);
+		return true;
+	}
+
+	// HYDROSNIPER : une GROSSE boule mono-cible, plus de dégâts que le tir de base.
+	const FVector To = (Nearest->GetFloatingTextAnchor() ? Nearest->GetFloatingTextAnchor()->GetComponentLocation()
+		: Center) + FVector(0, 0, 30.f);
+	AWOTOLProjectileTracer::Fire(W, Muzzle, To, OrbCol, 1.9f, /*bBolt=*/false, /*bBubbleTrail=*/true);
+	Nearest->TakeDamageFromUnit(260.f, this);
+	AWOTOLDamageNumber::SpawnText(W, Muzzle + FVector(0, 0, 110.f), TEXT("Hydrosniper"), OrbCol);
 	return true;
 }
 
@@ -1385,14 +1456,21 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		LanceHome = LanceJoint ? LanceJoint->GetRelativeLocation() : FVector::ZeroVector;
 		return;
 	}
-	if (Id == TEXT("Aquipheres") || Id == TEXT("Aquispheres")) // Distance (réf 4080) : chevalier + CANON à orbe bleu
+	if (Id == TEXT("Aquipheres") || Id == TEXT("Aquispheres")) // Distance (réf) : chevalier + GROS CANON à 2 mains
 	{
+		bTwoHandWeapon = true; // tenu à DEUX MAINS (pose de port + de tir)
 		BuildAquiKnight(0.32f);
-		// Gros canon tenu à deux mains, pointé vers l'AVANT (-X après le flip)
-		MakeBone(JRElbow, M_CYL, FVector(-H * 0.24f, 0, -H * 0.14f), FVector(0.16f, 0.16f, h * 0.38f), FRotator(90.f, 0, 0), AqArmor); // fût
-		MakeBone(JRElbow, M_CYL, FVector(-H * 0.10f, 0, -H * 0.14f), FVector(0.19f, 0.19f, h * 0.12f), FRotator(90.f, 0, 0), AqGold);  // culasse or
-		MakeBone(JRElbow, M_CONE, FVector(-H * 0.44f, 0, -H * 0.14f), FVector(0.20f, 0.20f, h * 0.14f), FRotator(-90.f, 0, 0), AqGold); // bouche
-		MakeBone(JRElbow, M_SPH, FVector(-H * 0.52f, 0, -H * 0.14f), FVector(0.22f, 0.22f, 0.22f), NoRot, AqEnergyHi); // ORBE bleu tourbillonnant
+		// ── GROS CANON RECTANGULAIRE tech (réf) : corps bleu-gris massif + liserés/culasse
+		// dorés, bouche évasée, ORBE d'énergie tourbillonnante au canon. Tenu à DEUX MAINS
+		// devant le corps, pointé vers l'AVANT (-X après le flip). Attaché à la main droite ;
+		// le bras gauche vient tenir le fût (pose 2 mains, voir AnimateArticulated). ──
+		const FLinearColor CannonBody(0.10f, 0.14f, 0.30f, 1.f); // bleu-gris sombre
+		MakeBone(JRElbow, M_CUBE, FVector(-H * 0.22f, 0, -H * 0.12f), FVector(0.16f, 0.15f, h * 0.44f), FRotator(90.f, 0, 0), CannonBody); // corps rectangulaire
+		MakeBone(JRElbow, M_CUBE, FVector(-H * 0.06f, 0, -H * 0.10f), FVector(0.14f, 0.17f, h * 0.16f), FRotator(90.f, 0, 0), AqGold);     // culasse dorée
+		MakeBone(JRElbow, M_CUBE, FVector(-H * 0.24f, 0, -H * 0.04f), FVector(0.03f, 0.16f, h * 0.34f), FRotator(90.f, 0, 0), AqGold);     // liseré or (dessus)
+		MakeBone(JRElbow, M_CONE, FVector(-H * 0.46f, 0, -H * 0.12f), FVector(0.23f, 0.23f, h * 0.16f), FRotator(-90.f, 0, 0), AqGold);    // bouche évasée
+		MakeBone(JRElbow, M_SPH,  FVector(-H * 0.56f, 0, -H * 0.12f), FVector(0.24f, 0.24f, 0.24f), NoRot, AqEnergyHi);                    // ORBE tourbillonnante (bloom)
+		MakeBone(JRElbow, M_CYL,  FVector(-H * 0.30f, 0, -H * 0.22f), FVector(0.05f, 0.05f, h * 0.10f), NoRot, AqArmor);                   // poignée avant (foregrip main G)
 		return;
 	}
 	if (Id == TEXT("Aquilombres")) // Spéciale (réf) : duelliste Aquiloris élancée, peau bleue,
@@ -2032,6 +2110,11 @@ void AWOTOLDemoUnit::OnAttackAnimTrigger()
 		if (JRElbow) Tip = JRElbow->GetComponentLocation() + GetActorForwardVector() * 40.f;
 		AWOTOLBubbleBurst::Burst(W, Tip, FLinearColor(0.7f, 0.9f, 1.f, 1.f), 6);
 	}
+
+	// AQUISPHÈRES : chaque coup de base = tir de boule Hydrolaser (traînée de bulles) OU
+	// coup de crosse si l'ennemi est au contact très rapproché.
+	if (UnitData && (UnitData->GetFName() == TEXT("Aquipheres") || UnitData->GetFName() == TEXT("Aquispheres")))
+		FireHydrolaserOrMelee();
 }
 
 void AWOTOLDemoUnit::AnimateArticulated(float Dt)
@@ -2125,6 +2208,17 @@ void AWOTOLDemoUnit::AnimateArticulated(float Dt)
 	{
 		lShoRoll = -58.f; lSho = 22.f; lEl = -80.f;           // avant-bras en travers, écu haut
 		torsoPitch = FMath::Max(torsoPitch, 2.f);
+	}
+
+	// ── ARME À DEUX MAINS (Aquisphères) : les DEUX bras tiennent le canon devant le corps
+	// (main droite = crosse, main gauche = fût). Recul sec au tir. Le canon suit la main
+	// droite ; la main gauche vient le tenir (bras croisé devant). ──
+	if (bTwoHandWeapon && !bDead)
+	{
+		const float Recoil = bAttacking ? -18.f : 0.f;       // léger recul du bras au tir
+		rSho = -48.f + Recoil; rEl = -58.f;                  // bras droit tient la crosse, canon en avant
+		lShoRoll = -34.f; lSho = -40.f; lEl = -70.f;         // bras gauche croisé sur le fût
+		torsoPitch = FMath::Max(torsoPitch, bAttacking ? 6.f : 3.f);
 	}
 
 	auto Set = [&](USceneComponent* J, const FRotator& Target)

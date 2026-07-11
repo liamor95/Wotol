@@ -228,6 +228,10 @@ private:
 	bool  Ability_Laser();                 // Noxar : rayon laser sur l'objectif / le + proche
 	bool  Ability_ProjectileBurst();       // Noxeblast : rafale de projectiles
 	bool  Ability_BlindFlash();            // Noxeflare : éblouit les ennemis proches
+	bool  Ability_Hydrolaser();            // Aquisphères : grosse boule mono OU rafale de zone
+	// Tir de base des Aquisphères : boule Hydrolaser (traînée de bulles) OU coup de crosse
+	// au corps-à-corps très rapproché. Appelé au moment d'un vrai coup.
+	void  FireHydrolaserOrMelee();
 	float GetAbilityCooldownFor(FName Id) const; // CD du tableur par unité
 	float AbilityCooldown = 6.f;           // temps avant la prochaine compétence
 	bool  bAbilityInit = false;
@@ -240,6 +244,9 @@ private:
 	// blocage renforcé). L'efficacité dépend de l'ANCRAGE AU SOL (voir GetGroundedFactor).
 	bool  bHasShield = false;
 	float ShieldGuardTimer = 0.f; // >0 = vient de bloquer -> tient le bouclier levé un court instant
+
+	// AQUISPHÈRES — porte un CANON tenu à DEUX MAINS (pose de port/tir des deux bras).
+	bool  bTwoHandWeapon = false;
 
 	// Facteur d'ancrage au sol : 1 = bien planté au sol (couche 0), 0 = en pleine hauteur.
 	// Sert au blocage (meilleur au sol) et au recul (part plus loin en l'air).

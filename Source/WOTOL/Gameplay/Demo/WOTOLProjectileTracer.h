@@ -19,8 +19,10 @@ public:
 	// Tire un projectile de From vers To (couleur = faction).
 	// bBolt = true -> ovale ALLONGÉ (trait/projectile, ex. Noxeblast) orienté vers la cible.
 	// bBolt = false -> petite SPHÈRE (ex. Aquisphères), taille d'un vrai projectile.
+	// bBubbleTrail = true -> laisse une TRAÎNÉE de bulles derrière la boule (mécanique des
+	// fluides : le tir brasse l'eau, ex. Hydrolaser des Aquisphères).
 	static void Fire(UWorld* World, const FVector& From, const FVector& To,
-		const FLinearColor& Color, float Size = 1.f, bool bBolt = false);
+		const FLinearColor& Color, float Size = 1.f, bool bBolt = false, bool bBubbleTrail = false);
 
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -31,4 +33,7 @@ private:
 	FVector Target = FVector::ZeroVector;
 	float Speed = 2600.f; // plus lent = mieux suivi à l'œil
 	float Life = 0.f;
+	bool  bTrail = false;      // laisse une traînée de bulles
+	float TrailAccum = 0.f;    // cadence d'émission des bulles
+	FLinearColor TrailColor = FLinearColor(0.7f, 0.9f, 1.f, 1.f);
 };
