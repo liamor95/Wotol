@@ -254,6 +254,17 @@ private:
 	// verticale pour éviter l'amas illisible, sans bloquer les couches différentes.
 	void ApplySoftSeparation(float DeltaSeconds);
 
+	// AQUILANCES — lance sur articulation (coup de lance = poussée vers l'avant) + son ancrage.
+	UPROPERTY() TObjectPtr<USceneComponent> LanceJoint;
+	FVector LanceHome = FVector::ZeroVector;
+
+	// SYNERGIE AQUILORIS (lance ↔ bouclier) : les Aquilances placées DERRIÈRE un bouclier
+	// Aquiloryon sont PROTÉGÉES (bLanceGuarded) et, en retour, dopent l'ATTAQUE de ce
+	// bouclier (SynergyDamageMult sur l'Aquiloryon). Réévalué périodiquement.
+	void  UpdateAquilorisSynergy();
+	float SynergyTimer   = 0.f;
+	bool  bLanceGuarded  = false;
+
 	// ─── Fouets du Kraken (2 grands tentacules articulés) ─────────────────────
 	// Chaîne de pivots (base → pointe) formant un tentacule capable de "claquer".
 	void BuildWhipTentacle(const FVector& RootLoc, float SideSign,

@@ -1163,7 +1163,9 @@ void AWOTOLDemoDirector::TacticalTick()
 						// et gagner un répit — hit-and-run temporel.
 						const float Speed = Data ? Data->Stats.MovementSpeed : 1.f;
 						const float Cycle = FMath::Max(6.f, 12.f - Speed * 3.f);
-						const bool  bCharge = FMath::Fmod(Now + idx * 1.7f, Cycle) < 4.f;
+						// HIVE-MIND : toutes les Aquilances chargent EN MÊME TEMPS (vague unique,
+						// pas de décalage par unité) -> percée coordonnée puis repli groupé.
+						const bool  bCharge = FMath::Fmod(Now, Cycle) < 4.f;
 						Dest  = bCharge ? EnemyRangedC : (ObjLoc + Fwd * 520.f);
 						Layer = 0.f;
 						break;
@@ -1308,7 +1310,9 @@ void AWOTOLDemoDirector::TacticalTick()
 					// revient se repositionner (cycle temporel). Rapide = charge plus souvent.
 					const float Speed = Data ? Data->Stats.MovementSpeed : 1.f;
 					const float Cycle = FMath::Max(6.f, 12.f - Speed * 3.f); // rapide -> cycle court
-					const bool  bCharge = FMath::Fmod(Now + idx * 1.7f, Cycle) < 3.5f;
+					// HIVE-MIND : percée COORDONNÉE (toutes chargent ensemble), puis repli en
+					// ligne à leur position -> on lit une vague de lances, pas des charges éparses.
+					const bool  bCharge = FMath::Fmod(Now, Cycle) < 3.5f;
 					const int32 c = monCol++;
 					Dest  = bCharge ? EnemyC : (Front - Fwd * 250.f + Lateral * ((float)(c - 1) * 320.f));
 					Layer = 0.f; // monture : sol / 1re couche uniquement

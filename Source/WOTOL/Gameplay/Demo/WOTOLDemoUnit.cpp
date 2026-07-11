@@ -156,6 +156,9 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	if (!bCreatureBrain && !bIsBoss)
 	{
 		ApplySoftSeparation(DeltaSeconds);
+		// Synergie Aquiloris (lance ↔ bouclier) réévaluée ~3 fois/s (pas chaque frame).
+		SynergyTimer -= DeltaSeconds;
+		if (SynergyTimer <= 0.f) { SynergyTimer = 0.33f; UpdateAquilorisSynergy(); }
 	}
 
 	// Sur ORDRE d'attaque (cible imposée), l'unité se cale sur la couche de sa cible.
@@ -972,6 +975,12 @@ float AWOTOLDemoUnit::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit
 				AWOTOLBubbleBurst::Burst(W, At, FLinearColor(0.4f, 0.9f, 1.f, 1.f), 4);
 			}
 		}
+		// AQUILANCES — PROTÉGÉES par un bouclier devant (synergie lance↔bouclier) : quand
+		// l'Aquilance est calée derrière un Aquiloryon, elle encaisse nettement moins.
+		else if (Id == TEXT("Aquilances") && bLanceGuarded)
+		{
+			Damage *= 0.72f; // -28% : couverte par le mur de boucliers
+		}
 		// AQUILORYONS — BOUCLIER : blocage frontal dont l'efficacité dépend de l'ANCRAGE AU
 		// SOL (planté = bloque bien ; en hauteur = peu d'appui) et de la SYNERGIE (mur de
 		// boucliers : plus il y a d'Aquiloryons proches, plus le rempart est solide).
@@ -1031,6 +1040,48 @@ int32 AWOTOLDemoUnit::CountNearbyShieldAllies(float Radius) const
 		if (FVector::DistSquared(MyLoc, U->GetActorLocation()) < R2) ++Count;
 	}
 	return Count;
+}
+
+// SYNERGIE AQUILORIS (lance ↔ bouclier) : réévaluée périodiquement. « Devant » = vers
+// l'ennemi (l'unité lui fait face en combat). Une Aquilance a une lance DERRIÈRE un
+// bouclier -> l'Aquilance est protégée (bLanceGuarded) et le bouclier frappe plus fort
+// (SynergyDamageMult). Traduit le « corps commun » / esprit de ruche de la faction.
+void AWOTOLDemoUnit::UpdateAquilorisSynergy()
+{
+	SynergyDamageMult = 1.f;
+	bLanceGuarded     = false;
+	if (!IsAlive() || !UnitData || GetFaction() != EFactionID::Aquiloris) return;
+
+	const FName Id = UnitData->GetFName();
+	const bool bIsLance = (Id == TEXT("Aquilances"));
+	if (!bHasShield && !bIsLance) return; // seuls les boucliers et les lances tissent cette synergie
+
+	UWorld* W = GetWorld(); if (!W) return;
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return;
+	const FVector Fwd   = GetActorForwardVector(); // vers l'ennemi quand l'unité combat
+	const FVector MyLoc = GetActorLocation();
+
+	for (AUnitBase* U : Reg->GetUnitsForFaction(EFactionID::Aquiloris))
+	{
+		if (!U || U == this || !U->IsAlive() || !U->GetUnitData()) continue;
+		AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U);
+		if (!D) continue;
+		FVector Rel = U->GetActorLocation() - MyLoc; Rel.Z = 0.f;
+		const float Dist = Rel.Size();
+		if (Dist > 360.f || Dist < 1.f) continue;
+		const float Along = FVector::DotProduct(Rel.GetSafeNormal(), Fwd); // >0 = devant, <0 = derrière
+
+		if (bHasShield && D->GetUnitData()->GetFName() == TEXT("Aquilances") && Along < -0.25f)
+		{
+			// Une lance me couvre par l'arrière -> mon bouclier attaque plus fort.
+			SynergyDamageMult = 1.30f;
+		}
+		else if (bIsLance && D->HasShield() && Along > 0.25f)
+		{
+			// Un bouclier me protège par l'avant -> je suis couverte.
+			bLanceGuarded = true;
+		}
+	}
 }
 
 // SÉPARATION DOUCE (lisibilité) : écarte gentiment les unités qui se chevauchent sur une
@@ -1253,55 +1304,80 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		MakeBone(JLElbow, M_CUBE, FVector(-H * 0.10f, 0, -H * 0.13f), FVector(0.02f, h * 0.26f, 0.03f), NoRot, AqGold);
 		return;
 	}
-	if (Id == TEXT("Aquilances")) // Montée : CAVALIER (avec jambes) sur MONTURE marine + lance
+	if (Id == TEXT("Aquilances")) // Montée (réf) : CAVALIER bleu+or sur MONTURE baleine/raie + LANCE d'énergie
 	{
-		// ── MONTURE : créature marine cuirassée, corps SEGMENTÉ (plus un simple ovale) ──
-		// Tronc avant (poitrail) + segment médian + croupe qui s'effile vers la queue.
-		SetupMainPart(M_SPH, FVector(20, 0, -H * 0.24f),
-			FVector(h * 1.05f, h * 0.72f, h * 0.58f), NoRot, AqArmor);                                  // poitrail
-		AddPart(M_CYL, FVector(-14, 0, -H * 0.24f), FVector(h * 0.60f, h * 0.60f, h * 0.55f), FRotator(90.f, 0, 0), AqArmor); // segment médian
-		AddPart(M_CONE, FVector(-52, 0, -H * 0.24f), FVector(h * 0.55f, h * 0.42f, h * 0.6f), FRotator(-90.f, 0, 0), AqArmor); // croupe effilée
-		// PLAQUES D'ÉCAILLES/CARAPACE sur le dos (relief -> pas lisse, accroche la lumière)
-		for (int32 p = 0; p < 5; ++p)
-		{
-			const float px = 44.f - p * 26.f;
-			AddPart(M_CONE, FVector(px, 0, -H * 0.02f + p * 1.f), FVector(0.16f, 0.30f, h * 0.10f), FRotator(0, 0, 0), AqGold); // arête dorsale
-			AddPart(M_CUBE, FVector(px, 20.f, -H * 0.16f), FVector(0.10f, 0.10f, 0.06f), FRotator(0, 0, 25.f), AqArmor);        // écaille flanc D
-			AddPart(M_CUBE, FVector(px, -20.f, -H * 0.16f), FVector(0.10f, 0.10f, 0.06f), FRotator(0, 0, -25.f), AqArmor);      // écaille flanc G
-		}
-		// Tête distincte + mâchoire + yeux bioluminescents
-		AddPart(M_SPH, FVector(80, 0, -H * 0.18f), FVector(h * 0.5f, h * 0.46f, h * 0.40f), NoRot, AqArmor);   // tête
-		AddPart(M_CONE, FVector(104, 0, -H * 0.22f), FVector(0.30f, 0.30f, h * 0.26f), FRotator(80.f, 0, 0), AqGold); // museau cuirassé
-		AddPart(M_SPH, FVector(88, 24, -H * 0.10f), FVector(0.13f, 0.13f, 0.13f), NoRot, AqEnergy);
-		AddPart(M_SPH, FVector(88, -24, -H * 0.10f), FVector(0.13f, 0.13f, 0.13f), NoRot, AqEnergy);
-		// Grandes nageoires latérales (ailes de raie) qui ondulent
-		RegisterWiggle(AddPart(M_CONE, FVector(10, 64, -H * 0.24f), FVector(0.34f, 0.10f, h * 0.36f), FRotator(0, 0, 88.f), AqArmor), 0.4f);
-		RegisterWiggle(AddPart(M_CONE, FVector(10, -64, -H * 0.24f), FVector(0.34f, 0.10f, h * 0.36f), FRotator(0, 0, -88.f), AqArmor), 3.5f);
-		// QUEUE ARTICULÉE (2 segments effilés) + NAGEOIRE CAUDALE en éventail (plus un simple cône)
-		RegisterWiggle(AddPart(M_CONE, FVector(-82, 0, -H * 0.22f), FVector(0.30f, 0.16f, h * 0.42f), FRotator(90.f, 0, 0), AqArmor), 0.f);
-		RegisterWiggle(AddPart(M_CONE, FVector(-108, 0, -H * 0.20f), FVector(0.18f, 0.10f, h * 0.30f), FRotator(90.f, 0, 0), AqArmor), 0.6f);
-		RegisterWiggle(AddPart(M_CUBE, FVector(-124, 0, -H * 0.10f), FVector(0.04f, 0.42f, h * 0.24f), FRotator(0, 18.f, 0), AqEnergy), 0.9f); // lobe caudal haut
-		RegisterWiggle(AddPart(M_CUBE, FVector(-124, 0, -H * 0.34f), FVector(0.04f, 0.42f, h * 0.24f), FRotator(0, -18.f, 0), AqEnergy), 0.9f); // lobe caudal bas
+		// Avant = +X (pas de flip). MONTURE fidèle à la réf : grosse créature marine LISSE
+		// (baleine/raie), tête ronde émoussée, corps bulbeux, larges nageoires pectorales
+		// plates, dos moucheté d'or, queue qui S'AFFINE puis se termine par une NAGEOIRE
+		// CAUDALE (fluke). Nageoires LÉGÈRES (ondulation subtile). Fini l'ancien corps segmenté.
+		const FLinearColor MountBlue(0.14f, 0.24f, 0.52f, 1.f);
+		const FLinearColor Belly    (0.22f, 0.34f, 0.60f, 1.f);
+		const FLinearColor DarkEye  (0.02f, 0.02f, 0.03f, 1.f);
+		const FLinearColor LanceEnergy(0.50f, 1.20f, 2.90f, 1.f); // énergie cristalline bleue HDR (bloom)
 
-		// ── CAVALIER : buste HAUT bien visible, tête casquée, 2 jambes qui enfourchent, bras ──
-		const FVector Seat(-6, 0, H * 0.10f); // assis SUR le dos, remonté pour être visible
-		AddPart(M_CYL, Seat + FVector(0, 0, H * 0.06f), FVector(0.16f, 0.14f, h * 0.10f), FRotator(0, 0, 0), AqArmor); // bassin
-		AddPart(M_CYL, Seat + FVector(-2, 0, H * 0.24f), FVector(0.26f, 0.22f, h * 0.30f), FRotator(6.f, 0, 0), AqGold); // torse cuirassé (plus grand)
-		AddPart(M_CUBE, Seat + FVector(-6, 0, H * 0.30f), FVector(0.06f, 0.34f, h * 0.20f), FRotator(4.f, 0, 0), AqArmor); // pauldrons/épaules
-		AddPart(M_SPH, Seat + FVector(0, 0, H * 0.46f), FVector(0.20f, 0.20f, 0.22f), NoRot, AqArmor);                 // tête (casque)
-		AddPart(M_CONE, FVector(-6, 0, H * 0.10f) + Seat + FVector(0,0,H*0.58f), FVector(0.12f, 0.12f, h*0.14f), NoRot, AqGold); // cimier du casque
-		AddPart(M_SPH, Seat + FVector(11, 0, H * 0.46f), FVector(0.09f, 0.16f, 0.09f), NoRot, AqEnergy);               // visière lumineuse
-		// Jambes qui enfourchent la monture, pliées vers le bas de chaque côté
-		AddPart(M_CYL, Seat + FVector(2, 22, H * 0.00f), FVector(0.10f, 0.10f, h * 0.32f), FRotator(22.f, 0, 22.f), AqArmor);  // cuisse D
-		AddPart(M_CYL, Seat + FVector(2, -22, H * 0.00f), FVector(0.10f, 0.10f, h * 0.32f), FRotator(22.f, 0, -22.f), AqArmor); // cuisse G
-		AddPart(M_CYL, Seat + FVector(20, 30, -H * 0.16f), FVector(0.08f, 0.08f, h * 0.26f), FRotator(58.f, 0, 12.f), AqGold);  // botte D
-		AddPart(M_CYL, Seat + FVector(20, -30, -H * 0.16f), FVector(0.08f, 0.08f, h * 0.26f), FRotator(58.f, 0, -12.f), AqGold);// botte G
-		// Bras droit tendu qui tient la LANCE, bras gauche sur les rênes
-		AddPart(M_CYL, Seat + FVector(16, 18, H * 0.30f), FVector(0.07f, 0.07f, h * 0.24f), FRotator(70.f, 0, 40.f), AqArmor);  // bras D
-		AddPart(M_CYL, Seat + FVector(14, -16, H * 0.26f), FVector(0.07f, 0.07f, h * 0.18f), FRotator(50.f, 0, -30.f), AqArmor);// bras G
-		// LANCE longue effilée, pointe énergétique lumineuse en avant
-		AddPart(M_CYL, FVector(58, 22, H * 0.24f), FVector(0.05f, 0.05f, h * 1.10f), FRotator(78.f, 0, 0), AqGold);
-		AddPart(M_CONE, FVector(126, 22, H * 0.20f), FVector(0.11f, 0.11f, h * 0.40f), FRotator(80.f, 0, 0), AqEnergyHi);       // pointe énergie bleue lumineuse
+		// Corps bulbeux + tête ronde émoussée à l'avant (+X) + ventre plus clair.
+		SetupMainPart(M_SPH, FVector(0, 0, -H * 0.22f), FVector(h * 0.95f, h * 0.78f, h * 0.60f), NoRot, MountBlue); // corps
+		AddPart(M_SPH, FVector(H * 0.55f, 0, -H * 0.24f), FVector(h * 0.62f, h * 0.60f, h * 0.50f), NoRot, MountBlue); // tête ronde
+		AddPart(M_SPH, FVector(H * 0.82f, 0, -H * 0.28f), FVector(h * 0.36f, h * 0.42f, h * 0.34f), NoRot, MountBlue); // museau émoussé
+		AddPart(M_SPH, FVector(H * 0.15f, 0, -H * 0.34f), FVector(h * 0.70f, h * 0.60f, h * 0.34f), NoRot, Belly);     // ventre clair
+		// Un œil sombre de chaque flanc (façon réf : gros œil rond).
+		AddPart(M_SPH, FVector(H * 0.70f, H * 0.30f, -H * 0.18f), FVector(0.09f, 0.09f, 0.10f), NoRot, DarkEye);
+		AddPart(M_SPH, FVector(H * 0.70f, -H * 0.30f, -H * 0.18f), FVector(0.09f, 0.09f, 0.10f), NoRot, DarkEye);
+		// Mouchetures dorées (peau piquetée d'or) réparties sur le dos/flancs.
+		for (int32 g = 0; g < 10; ++g)
+		{
+			const float gx = H * (0.42f - g * 0.09f);
+			const float gy = FMath::Sin(g * 1.7f) * H * 0.28f;
+			AddPart(M_SPH, FVector(gx, gy, -H * 0.10f + FMath::Cos(g * 1.3f) * H * 0.06f), FVector(0.03f, 0.03f, 0.03f), NoRot, AqGold);
+		}
+		// Petite CRÊTE dorsale DOUCE (nageoires légères, subtiles, peu mobiles).
+		for (int32 d = 0; d < 5; ++d)
+			AddPart(M_CONE, FVector(H * (0.25f - d * 0.13f), 0, H * 0.05f), FVector(0.05f, 0.14f, h * 0.12f), FRotator(-8.f, 0, 0), MountBlue);
+		// GRANDES NAGEOIRES PECTORALES plates et larges (flippers), balayées vers l'arrière —
+		// ondulation TRÈS légère (elles ne battent pas fort).
+		RegisterWiggle(AddPart(M_CONE, FVector(H * 0.05f, H * 0.42f, -H * 0.34f), FVector(0.70f, 0.09f, h * 0.5f), FRotator(6.f, 22.f, 80.f), MountBlue), 0.5f);
+		RegisterWiggle(AddPart(M_CONE, FVector(H * 0.05f, -H * 0.42f, -H * 0.34f), FVector(0.70f, 0.09f, h * 0.5f), FRotator(6.f, -22.f, -80.f), MountBlue), 3.6f);
+		// QUEUE : le corps S'AFFINE vers l'arrière, la queue remonte et se termine par une
+		// NAGEOIRE CAUDALE (fluke à 2 lobes larges et plats) — fidèle à la réf.
+		RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.55f, 0, -H * 0.16f), FVector(0.34f, 0.30f, h * 0.55f), FRotator(-108.f, 0, 0), MountBlue), 0.f);  // base épaisse
+		RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.92f, 0, H * 0.02f), FVector(0.20f, 0.18f, h * 0.45f), FRotator(-125.f, 0, 0), MountBlue), 0.5f);  // s'affine + remonte
+		RegisterWiggle(AddPart(M_CONE, FVector(-H * 1.12f, H * 0.14f, H * 0.22f), FVector(0.42f, 0.08f, h * 0.30f), FRotator(-120.f, 30.f, 20.f), MountBlue), 0.7f);  // lobe fluke D
+		RegisterWiggle(AddPart(M_CONE, FVector(-H * 1.12f, -H * 0.14f, H * 0.22f), FVector(0.42f, 0.08f, h * 0.30f), FRotator(-120.f, -30.f, -20.f), MountBlue), 0.7f); // lobe fluke G
+
+		// ── CAVALIER : chevalier bleu+or (peau bleue, crête, yeux bleus lumineux) assis sur le dos. ──
+		const FVector Seat(H * 0.12f, 0, H * 0.02f);
+		AddPart(M_CYL, Seat + FVector(0, 0, H * 0.10f), FVector(0.16f, 0.14f, h * 0.10f), NoRot, AqArmor);              // bassin
+		AddPart(M_CYL, Seat + FVector(-2, 0, H * 0.28f), FVector(0.24f, 0.20f, h * 0.28f), FRotator(6.f, 0, 0), AqArmor); // torse cuirassé
+		AddPart(M_CONE, Seat + FVector(-H * 0.10f, 0, H * 0.30f), FVector(0.08f, 0.08f, h * 0.06f), FRotator(-90.f, 0, 0), AqGold); // gemme dorée torse
+		AddPart(M_CUBE, Seat + FVector(-4, 0, H * 0.34f), FVector(0.05f, 0.30f, h * 0.16f), FRotator(4.f, 0, 0), AqGold); // pauldrons or
+		AddPart(M_SPH, Seat + FVector(0, 0, H * 0.50f), FVector(0.17f, 0.17f, 0.19f), NoRot, FLinearColor(0.18f, 0.28f, 0.52f, 1.f)); // tête peau bleue
+		AddPart(M_SPH, Seat + FVector(-9, 4, H * 0.51f), FVector(0.04f, 0.04f, 0.045f), NoRot, AqEyeGlow); // yeux bleus lumineux
+		AddPart(M_SPH, Seat + FVector(-9, -4, H * 0.51f), FVector(0.04f, 0.04f, 0.045f), NoRot, AqEyeGlow);
+		// Crête de nageoires-cheveux rejetée en arrière (+X derrière la tête).
+		for (int32 c = 0; c < 5; ++c)
+		{
+			const float t = (c - 2) / 2.f;
+			AddPart(M_CONE, Seat + FVector(6.f + FMath::Abs(t) * 3.f, t * 5.f, H * 0.60f), FVector(0.03f, 0.04f, h * 0.10f), FRotator(50.f, 0, t * 15.f), AqCrest);
+		}
+		// Jambes qui enfourchent la monture.
+		AddPart(M_CYL, Seat + FVector(2, 20, -H * 0.06f), FVector(0.09f, 0.09f, h * 0.26f), FRotator(24.f, 0, 24.f), AqArmor);
+		AddPart(M_CYL, Seat + FVector(2, -20, -H * 0.06f), FVector(0.09f, 0.09f, h * 0.26f), FRotator(24.f, 0, -24.f), AqArmor);
+		// Bras qui tiennent la lance (avant/arrière).
+		AddPart(M_CYL, Seat + FVector(12, 15, H * 0.26f), FVector(0.06f, 0.06f, h * 0.20f), FRotator(65.f, 0, 35.f), FLinearColor(0.18f, 0.28f, 0.52f, 1.f));
+		AddPart(M_CYL, Seat + FVector(-4, 13, H * 0.30f), FVector(0.06f, 0.06f, h * 0.18f), FRotator(80.f, 0, 20.f), FLinearColor(0.18f, 0.28f, 0.52f, 1.f));
+
+		// ── LANCE sur une ARTICULATION (LanceJoint) pour l'animer (coup de lance = poussée
+		// vers l'avant). Longue hampe sombre, garde dorée, LAME D'ÉNERGIE CRISTALLINE bleue
+		// au bout (+X, bloom) = la partie qui frappe ; talon doré (butt) à l'arrière. ──
+		LanceJoint = MakeJoint(VisualRoot, Seat + FVector(14, 14, H * 0.22f));
+		MakeBone(LanceJoint, M_CYL, FVector(H * 0.35f, 0, 0), FVector(0.045f, 0.045f, h * 0.95f), FRotator(90.f, 0, 0), FLinearColor(0.03f, 0.03f, 0.04f, 1.f)); // hampe noire longue
+		MakeBone(LanceJoint, M_SPH, FVector(H * 0.72f, 0, 0), FVector(0.09f, 0.09f, 0.09f), NoRot, AqGold);                                                      // garde ornée
+		MakeBone(LanceJoint, M_CONE, FVector(H * 0.72f, H * 0.06f, 0), FVector(0.035f, 0.035f, h * 0.13f), FRotator(0, 0, 90.f), AqGold);                          // ailette garde D
+		MakeBone(LanceJoint, M_CONE, FVector(H * 0.72f, -H * 0.06f, 0), FVector(0.035f, 0.035f, h * 0.13f), FRotator(0, 0, -90.f), AqGold);                        // ailette garde G
+		MakeBone(LanceJoint, M_SPH, FVector(H * 0.84f, 0, 0), FVector(0.10f, 0.10f, 0.10f), NoRot, LanceEnergy);                                                  // halo à la base de la lame
+		MakeBone(LanceJoint, M_CONE, FVector(H * 1.04f, 0, 0), FVector(0.11f, 0.11f, h * 0.55f), FRotator(90.f, 0, 0), LanceEnergy);                              // LAME d'énergie cristalline
+		MakeBone(LanceJoint, M_CONE, FVector(-H * 0.30f, 0, 0), FVector(0.05f, 0.05f, h * 0.14f), FRotator(-90.f, 0, 0), AqGold);                                 // talon doré (butt-spike)
+		LanceHome = LanceJoint ? LanceJoint->GetRelativeLocation() : FVector::ZeroVector;
 		return;
 	}
 	if (Id == TEXT("Aquipheres") || Id == TEXT("Aquispheres")) // Distance (réf 4080) : chevalier + CANON à orbe bleu
@@ -2138,6 +2214,26 @@ void AWOTOLDemoUnit::AnimateBody(float Dt)
 		const FRotator Osc(FMath::Sin(AnimClock * 2.2f + P) * 16.f, 0.f,
 			FMath::Cos(AnimClock * 1.8f + P) * 12.f);
 		WiggleComps[i]->SetRelativeRotation(Base + Osc);
+	}
+
+	// ── AQUILANCES : COUP DE LANCE — poussée nette de la lance vers l'AVANT (+X) pendant la
+	// fenêtre d'attaque (on VOIT la lance percer vers l'ennemi), puis retour à la position de
+	// port. Hors attaque, léger frémissement (courant sous-marin). ──
+	if (LanceJoint)
+	{
+		float Thrust = 0.f;
+		if (bAttacking)
+		{
+			// Va-et-vient rapide : la lame jaillit devant puis se rétracte (estoc).
+			const float s = FMath::Sin(AnimClock * 12.f);
+			Thrust = FMath::Max(0.f, s) * 85.f;
+		}
+		else
+		{
+			Thrust = FMath::Sin(AnimClock * 1.4f + BobSeed) * 4.f; // frémissement au repos
+		}
+		const FVector Goal = LanceHome + FVector(Thrust, 0.f, 0.f);
+		LanceJoint->SetRelativeLocation(FMath::VInterpTo(LanceJoint->GetRelativeLocation(), Goal, Dt, 18.f));
 	}
 }
 

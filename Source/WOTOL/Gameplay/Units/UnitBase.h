@@ -72,6 +72,12 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Combat")
 	float OutgoingDamageMult = 1.f;
 
+	// Multiplicateur de dégâts issu d'une SYNERGIE de faction dynamique (1 = aucune).
+	// STACKE avec OutgoingDamageMult sans l'écraser (ex. Aquiloryons protégés par un
+	// bouclier + soutenus par une lance Aquilance derrière -> frappent plus fort).
+	UPROPERTY(BlueprintReadWrite, Category = "Combat")
+	float SynergyDamageMult = 1.f;
+
 	// ── Rythme de bataille (demo) — batailles plus LONGUES et sous-marines ──
 	// Multiplicateur GLOBAL de dégâts (< 1 = combats plus longs, plus d'échanges).
 	static float GlobalDamageScale;
