@@ -235,6 +235,14 @@ private:
 	// au corps-à-corps très rapproché. Appelé au moment d'un vrai coup.
 	void  FireHydrolaserOrMelee();
 
+	// AQUILOMBRES — PASSIF « invisible si immobile » : dissimulée tant qu'elle reste immobile
+	// (arrière-ligne protégée). Réapparaît dès qu'elle BOUGE (défense / changement de couche)
+	// ou qu'elle ATTAQUE, puis se re-dissimule si elle redevient immobile.
+	bool  bStealthed   = false;
+	float StealthTimer = 0.f;
+	void  UpdateStealth(float DeltaSeconds);
+	void  SetStealthVisual(bool bOn);
+
 	// LÉVIAPHÉNIX — AURA passive : amplifie les alliés proches (dégâts/défense) et accélère
 	// leurs recharges. Réévaluée périodiquement.
 	void  TickAura(float DeltaSeconds);

@@ -160,6 +160,8 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		SynergyTimer -= DeltaSeconds;
 		if (SynergyTimer <= 0.f) { SynergyTimer = 0.33f; UpdateAquilorisSynergy(); }
 
+		// AQUILOMBRES : passif « invisible si immobile » (arrière-ligne protégée).
+		if (UnitData && UnitData->GetFName() == TEXT("Aquilombres")) UpdateStealth(DeltaSeconds);
 		// LÉVIAPHÉNIX : aura d'amplification des alliés proches (réévaluée ~2 fois/s).
 		if (UnitData && UnitData->GetFName() == TEXT("Leviaphenix"))
 		{
@@ -254,6 +256,14 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	}
 
 	if (!NameTag) return;
+
+	// FURTIVITÉ (Aquilombres dissimulée) : nom + PV masqués tant qu'elle est invisible.
+	if (bStealthed)
+	{
+		NameTag->SetVisibility(false);
+		if (NameTagShadow) NameTagShadow->SetVisibility(false);
+		return;
+	}
 
 	// ANTI-EMPILEMENT : en pleine bataille, on n'affiche l'étiquette (nom + PV) que pour
 	// les unités SÉLECTIONNÉES (+ le boss) -> plus de bouillie de texte quand les unités se
@@ -1046,6 +1056,42 @@ bool AWOTOLDemoUnit::Ability_Hydrolaser()
 }
 
 // ══════════ AQUILOMBRES (spéciale furtive — réserve phase 3) ══════════
+// PASSIF « invisible si immobile » : dès qu'elle reste IMMOBILE un court instant (ni
+// déplacement horizontal, ni changement de couche, ni attaque), elle se DISSIMULE (corps
+// estompé, nom masqué, très difficile à toucher). Elle RÉAPPARAÎT dès qu'elle BOUGE (pour
+// se défendre / pour changer de hauteur) ou qu'elle ATTAQUE, puis se re-cache si elle
+// redevient immobile.
+void AWOTOLDemoUnit::UpdateStealth(float Dt)
+{
+	if (!IsAlive()) { if (bStealthed) { bStealthed = false; SetStealthVisual(false); } return; }
+	const float Speed = GetVelocity().Size2D();
+	const bool  bAttacking  = (AttackAnimTimer > 0.f);
+	const bool  bChangeLayer = FMath::Abs(CurLayer - DesiredZ) > 25.f; // monte/descend d'une couche
+	if (Speed < 15.f && !bAttacking && !bChangeLayer)
+	{
+		StealthTimer += Dt;
+		if (StealthTimer > 0.8f && !bStealthed) { bStealthed = true; SetStealthVisual(true); }
+	}
+	else
+	{
+		StealthTimer = 0.f;
+		if (bStealthed) { bStealthed = false; SetStealthVisual(false); }
+	}
+}
+
+// Rendu de la furtivité : le corps s'estompe (assombri) et le nom/PV disparaissent.
+void AWOTOLDemoUnit::SetStealthVisual(bool bOn)
+{
+	for (int32 i = 0; i < PartMIDs.Num(); ++i)
+	{
+		if (!PartMIDs[i]) continue;
+		const FLinearColor Base = PartBaseColors.IsValidIndex(i) ? PartBaseColors[i] : FFactionColors::Get(GetFaction());
+		PartMIDs[i]->SetVectorParameterValue(TEXT("Color"), bOn ? (Base * 0.18f) : Base);
+	}
+	if (NameTag)       NameTag->SetVisibility(!bOn && IsAlive());
+	if (NameTagShadow) NameTagShadow->SetVisibility(!bOn && IsAlive());
+}
+
 // OMBRES GLISSÉES : au bon moment, l'assassin DISPARAÎT dans un NUAGE DE FUMÉE, se TÉLÉPORTE
 // derrière la DERNIÈRE ligne ennemie DE SA COUCHE VERTICALE (ou derrière le boss/mythique),
 // porte une frappe critique SURPRISE (crit % très élevé), puis RÉAPPARAÎT instantanément à
@@ -1167,6 +1213,15 @@ float AWOTOLDemoUnit::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit
 					: GetActorLocation()) + FVector(0, 0, 60.f);
 				AWOTOLBubbleBurst::Burst(W, At, FLinearColor(0.4f, 0.9f, 1.f, 1.f), 4);
 			}
+		}
+		// AQUILOMBRES — INVISIBLE : dissimulée, difficile à toucher (dégâts très réduits) ;
+		// être touchée la RÉVÈLE (elle doit se re-cacher en s'immobilisant à nouveau).
+		else if (Id == TEXT("Aquilombres") && bStealthed)
+		{
+			Damage *= 0.30f;
+			bStealthed = false;
+			SetStealthVisual(false);
+			StealthTimer = 0.f;
 		}
 		// AQUILANCES — PROTÉGÉES par un bouclier devant (synergie lance↔bouclier) : quand
 		// l'Aquilance est calée derrière un Aquiloryon, elle encaisse nettement moins.
@@ -2238,7 +2293,8 @@ void AWOTOLDemoUnit::OnAttackAnimTrigger()
 	if (UnitData && UnitData->GetFName() == TEXT("Aquilombres"))
 	{
 		float Crit = 1.f;
-		if (AUnitBase* Foe = FindNearestEnemyUnit())
+		if (bStealthed) Crit = 3.f; // première frappe SURPRISE depuis l'invisibilité
+		else if (AUnitBase* Foe = FindNearestEnemyUnit())
 		{
 			const FVector ToMe = (GetActorLocation() - Foe->GetActorLocation()).GetSafeNormal2D();
 			if (FVector::DotProduct(ToMe, Foe->GetActorForwardVector()) < -0.25f) Crit = 2.f; // dans son dos
@@ -2247,6 +2303,8 @@ void AWOTOLDemoUnit::OnAttackAnimTrigger()
 		if (Crit > 1.f && GetWorld())
 			AWOTOLBubbleBurst::Burst(GetWorld(), GetActorLocation() + GetActorForwardVector() * 60.f + FVector(0, 0, 60.f),
 				FLinearColor(0.2f, 0.5f, 1.2f, 1.f), 6);
+		// Attaquer la RÉVÈLE (elle sort de l'ombre pour frapper).
+		if (bStealthed) { bStealthed = false; SetStealthVisual(false); }
 	}
 }
 
