@@ -78,6 +78,20 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Combat")
 	float SynergyDamageMult = 1.f;
 
+	// Multiplicateur du PROCHAIN coup uniquement (1 = normal), CONSOMMÉ après le coup.
+	// Sert aux coups critiques ponctuels (ex. Aquilombres qui frappe dans le dos / depuis
+	// la furtivité).
+	UPROPERTY(BlueprintReadWrite, Category = "Combat")
+	float NextHitCritMult = 1.f;
+
+	// AURA (Léviaphénix) : buffs appliqués aux alliés proches. AuraDamageMult dope les
+	// dégâts infligés ; AuraDefenseMult (<1) réduit les dégâts subis. Rafraîchis par l'aura
+	// et décroissent doucement vers 1 quand l'unité sort du rayon (voir le Tick greybox).
+	UPROPERTY(BlueprintReadWrite, Category = "Combat")
+	float AuraDamageMult = 1.f;
+	UPROPERTY(BlueprintReadWrite, Category = "Combat")
+	float AuraDefenseMult = 1.f;
+
 	// ── Rythme de bataille (demo) — batailles plus LONGUES et sous-marines ──
 	// Multiplicateur GLOBAL de dégâts (< 1 = combats plus longs, plus d'échanges).
 	static float GlobalDamageScale;

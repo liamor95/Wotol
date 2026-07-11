@@ -229,9 +229,25 @@ private:
 	bool  Ability_ProjectileBurst();       // Noxeblast : rafale de projectiles
 	bool  Ability_BlindFlash();            // Noxeflare : éblouit les ennemis proches
 	bool  Ability_Hydrolaser();            // Aquisphères : grosse boule mono OU rafale de zone
+	bool  Ability_ShadowStrike();          // Aquilombres : bond furtif dans le dos + crit + ombre
+	bool  Ability_Resonance();             // Léviaphénix : pulse d'aura (soin + amplification alliés)
 	// Tir de base des Aquisphères : boule Hydrolaser (traînée de bulles) OU coup de crosse
 	// au corps-à-corps très rapproché. Appelé au moment d'un vrai coup.
 	void  FireHydrolaserOrMelee();
+
+	// AQUILOMBRES — FURTIVITÉ : invisible/insaisissable à l'arrêt ; frappe critique dans le
+	// dos / depuis la furtivité. bStealthed = actuellement dissimulée.
+	bool  bStealthed   = false;
+	float StealthTimer = 0.f;      // temps passé immobile (déclenche la furtivité)
+	void  UpdateStealth(float DeltaSeconds);
+	void  SetStealthVisual(bool bOn);
+
+	// LÉVIAPHÉNIX — AURA passive : amplifie les alliés proches (dégâts/défense) et accélère
+	// leurs recharges. Réévaluée périodiquement.
+	void  TickAura(float DeltaSeconds);
+	float AuraTimer = 0.f;
+	// Accélération de recharge reçue d'une aura (1 = normal, >1 = plus rapide). Décroît seule.
+	float AuraCooldownRate = 1.f;
 	float GetAbilityCooldownFor(FName Id) const; // CD du tableur par unité
 	float AbilityCooldown = 6.f;           // temps avant la prochaine compétence
 	bool  bAbilityInit = false;

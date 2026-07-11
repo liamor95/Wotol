@@ -154,6 +154,7 @@ float AUnitBase::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit)
 	float EffDamage          = Damage * (1.f - DefReduction);
 	if (bBlocked) EffDamage *= 0.35f; // coup paré = 65% de dégâts en moins
 	EffDamage *= IncomingDamageMult;  // avantage de ZONE (défenseur qui possède le terrain)
+	EffDamage *= AuraDefenseMult;     // aura de protection (Léviaphénix : boucliers renforcés)
 	const float Applied      = FMath::Min(EffDamage, CurrentHealth);
 	CurrentHealth           -= Applied;
 	if (InstigatorUnit) InstigatorUnit->DamageDealt += Applied; // pour le résumé de bataille
@@ -206,6 +207,9 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 	float BaseDamage = UnitData->Stats.AttackDPS * UnitData->Stats.AttackCooldown * GlobalDamageScale;
 	BaseDamage *= OutgoingDamageMult; // avantage OFFENSIF de zone (défenseur galvanisé)
 	BaseDamage *= SynergyDamageMult;  // synergie dynamique (ex. bouclier soutenu par une lance)
+	BaseDamage *= AuraDamageMult;     // aura d'amplification (Léviaphénix)
+	BaseDamage *= NextHitCritMult;    // coup critique ponctuel (ex. backstab Aquilombres)
+	NextHitCritMult = 1.f;            // consommé : ne vaut que pour CE coup
 
 	// Appliquer le multiplicateur vertical (attaque ascendante depuis Hadal = ×3)
 	if (VerticalLayer && Target->VerticalLayer)
