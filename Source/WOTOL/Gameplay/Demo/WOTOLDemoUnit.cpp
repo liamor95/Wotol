@@ -257,13 +257,8 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 
 	if (!NameTag) return;
 
-	// FURTIVITÉ (Aquilombres dissimulée) : nom + PV masqués tant qu'elle est invisible.
-	if (bStealthed)
-	{
-		NameTag->SetVisibility(false);
-		if (NameTagShadow) NameTagShadow->SetVisibility(false);
-		return;
-	}
+	// NB : la furtivité d'Aquilombres est « invisible pour l'ENNEMI » seulement — le JOUEUR
+	// continue de la voir (silhouette fantôme) ET son nom/PV restent affichés pour la suivre.
 
 	// ANTI-EMPILEMENT : en pleine bataille, on n'affiche l'étiquette (nom + PV) que pour
 	// les unités SÉLECTIONNÉES (+ le boss) -> plus de bouillie de texte quand les unités se
@@ -460,6 +455,7 @@ AUnitBase* AWOTOLDemoUnit::FindNearestEnemyUnit() const
 	for (AUnitBase* U : Reg->GetUnitsForFaction(EnemyFac))
 	{
 		if (!U || !U->IsAlive()) continue;
+		if (U->IsHiddenFromEnemies()) continue; // furtive : invisible pour les hostiles (dont le Kraken)
 		const float D = FVector::DistSquared(GetActorLocation(), U->GetActorLocation());
 		if (D < Best) { Best = D; Nearest = U; }
 	}
@@ -1079,17 +1075,20 @@ void AWOTOLDemoUnit::UpdateStealth(float Dt)
 	}
 }
 
-// Rendu de la furtivité : le corps s'estompe (assombri) et le nom/PV disparaissent.
+// Rendu de la furtivité : l'unité prend un aspect FANTÔME (silhouette spectrale bleu pâle)
+// -> invisible pour l'ennemi (géré par IsHiddenFromEnemies), mais le JOUEUR la distingue
+// encore sur le plateau. Le nom/PV, eux, restent affichés (on ne les touche pas ici).
 void AWOTOLDemoUnit::SetStealthVisual(bool bOn)
 {
+	// Teinte spectrale uniforme (bleu-cyan pâle) qui remplace les couleurs propres quand elle
+	// est furtive ; retour aux couleurs de base quand elle réapparaît.
+	const FLinearColor Ghost(0.32f, 0.52f, 0.78f, 1.f);
 	for (int32 i = 0; i < PartMIDs.Num(); ++i)
 	{
 		if (!PartMIDs[i]) continue;
 		const FLinearColor Base = PartBaseColors.IsValidIndex(i) ? PartBaseColors[i] : FFactionColors::Get(GetFaction());
-		PartMIDs[i]->SetVectorParameterValue(TEXT("Color"), bOn ? (Base * 0.18f) : Base);
+		PartMIDs[i]->SetVectorParameterValue(TEXT("Color"), bOn ? Ghost : Base);
 	}
-	if (NameTag)       NameTag->SetVisibility(!bOn && IsAlive());
-	if (NameTagShadow) NameTagShadow->SetVisibility(!bOn && IsAlive());
 }
 
 // OMBRES GLISSÉES : au bon moment, l'assassin DISPARAÎT dans un NUAGE DE FUMÉE, se TÉLÉPORTE

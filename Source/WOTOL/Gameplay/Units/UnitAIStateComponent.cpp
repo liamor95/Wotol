@@ -406,6 +406,7 @@ AUnitBase* UUnitAIStateComponent::FindNearestEnemy() const
 		for (AUnitBase* Enemy : Registry->GetUnitsForFaction(FID))
 		{
 			if (!Enemy || !Enemy->IsAlive()) continue;
+			if (Enemy->IsHiddenFromEnemies()) continue; // furtive (Aquilombres) : invisible pour l'IA ennemie
 			const float Dist = FVector::DistSquared(OwnLoc, Enemy->GetActorLocation());
 			if (Dist < NearestDist)
 			{

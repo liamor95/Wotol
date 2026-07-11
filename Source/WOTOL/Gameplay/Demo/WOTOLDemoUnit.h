@@ -191,6 +191,10 @@ private:
 	// Interception des dégâts entrants (Aquis : parade + remplissage de la jauge d'impact).
 	virtual float TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit) override;
 
+	// Aquilombres furtive : cachée aux ennemis (l'IA hostile ne la cible pas ; le joueur, lui,
+	// la voit en fantôme).
+	virtual bool IsHiddenFromEnemies() const override { return bStealthed; }
+
 	// ─── Animation générique (toutes unités) : nage + inclinaison + appendices ──
 	// Conteneur visuel : on le fait flotter/incliner pour animer TOUTE la silhouette.
 	UPROPERTY() TObjectPtr<USceneComponent> VisualRoot;

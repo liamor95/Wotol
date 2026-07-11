@@ -107,6 +107,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	virtual float TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit);
 
+	// Vrai si l'unité est CACHÉE aux yeux des ennemis (ex. Aquilombres furtive) : l'IA
+	// hostile ne la prend PAS pour cible. Le joueur, lui, continue de la voir (fantôme).
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	virtual bool IsHiddenFromEnemies() const { return false; }
+
 	// Déclenche une attaque vers la cible (appelé par l'IA ou le joueur)
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void PerformAttack(AUnitBase* Target);
