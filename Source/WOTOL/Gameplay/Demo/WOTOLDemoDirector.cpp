@@ -845,18 +845,41 @@ void AWOTOLDemoDirector::ShowInterlude()
 	const FString Building = BuildingDisplayName(CachedPlayerFaction);
 	const FString Ranged   = RangedUnitDisplayName(CachedPlayerFaction);
 	const FString Mythic   = MythicDisplayName(CachedPlayerFaction);
+	// Nom de la SPÉCIALE de la faction (débloquée en phase 3).
+	const FString Special  = (CachedPlayerFaction == EFactionID::Noxeens) ? TEXT("Noxeons") : TEXT("Aquilombres");
 
-	const FString Lore = FString::Printf(TEXT(
-		"Apres votre victoire sur le Kraken, une creature des abysses — prisonniere elle aussi\n"
-		"des griffes du colosse — a ete liberee. Vous l'avez recueillie et adoptee : le %s,\n"
-		"qui grandira pour devenir votre creature MYTHIQUE.\n"
-		"\n"
-		"De retour a votre cite, cette decouverte vous a apporte l'experience necessaire pour\n"
-		"eriger un NOUVEAU batiment et former une nouvelle categorie : les %s (a distance).\n"
-		"\n"
-		"Mais la faction rivale a repere votre %s et lance l'assaut pour s'emparer de la zone.\n"
-		"Deployez vos forces — distance comprise — et PROTEGEZ le batiment a tout prix."),
-		*Mythic, *Ranged, *Building);
+	FString Lore;
+	// La MÊME fonction sert aux deux transitions ; le texte dépend de la phase courante.
+	if (Demo->GetPhase() == EDemoPhase::Battle_Rival)
+	{
+		// ── TRANSITION PHASE 2 -> PHASE 3 : ellipse temporelle ──
+		Lore = FString::Printf(TEXT(
+			"La faction rivale a ete repoussee et votre %s tient toujours.\n"
+			"\n"
+			"Les mois passent. Votre cite prospere et votre puissance grandit : le %s, autrefois\n"
+			"juvenile, est devenu un veritable MYTHIQUE — il rejoint desormais vos rangs au combat.\n"
+			"Vos artisans ont aussi acheve l'entrainement d'une unite d'elite : les %s.\n"
+			"\n"
+			"Mais la rivale n'a pas dit son dernier mot : elle revient EN FORCE, sur un TERRAIN\n"
+			"NEUTRE et inconnu, avec elle aussi son mythique et son elite. Aucun avantage de\n"
+			"territoire cette fois — seule la valeur de vos troupes decidera. ANEANTISSEZ-LES."),
+			*Building, *Mythic, *Special);
+	}
+	else
+	{
+		// ── TRANSITION PHASE 1 -> PHASE 2 (Kraken vaincu -> defense de la zone) ──
+		Lore = FString::Printf(TEXT(
+			"Apres votre victoire sur le Kraken, une creature des abysses — prisonniere elle aussi\n"
+			"des griffes du colosse — a ete liberee. Vous l'avez recueillie et adoptee : le %s,\n"
+			"qui grandira pour devenir votre creature MYTHIQUE.\n"
+			"\n"
+			"De retour a votre cite, cette decouverte vous a apporte l'experience necessaire pour\n"
+			"eriger un NOUVEAU batiment et former une nouvelle categorie : les %s (a distance).\n"
+			"\n"
+			"Mais la faction rivale a repere votre %s et lance l'assaut pour s'emparer de la zone.\n"
+			"Deployez vos forces — distance comprise — et PROTEGEZ le batiment a tout prix."),
+			*Mythic, *Ranged, *Building);
+	}
 
 	Demo->SetInterludeText(Lore);
 	Demo->SetScreen(EDemoScreen::Interlude);
