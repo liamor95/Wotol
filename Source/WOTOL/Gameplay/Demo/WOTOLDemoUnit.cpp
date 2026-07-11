@@ -162,11 +162,14 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 
 		// AQUILOMBRES : passif « invisible si immobile » (arrière-ligne protégée).
 		if (UnitData && UnitData->GetFName() == TEXT("Aquilombres")) UpdateStealth(DeltaSeconds);
-		// LÉVIAPHÉNIX : aura d'amplification des alliés proches (réévaluée ~2 fois/s).
+		// LÉVIAPHÉNIX : aura d'amplification (réévaluée ~2 fois/s) + passif d'auto-défense
+		// (coup de nageoire / coup de queue quand on l'attaque au contact) + anim propre.
 		if (UnitData && UnitData->GetFName() == TEXT("Leviaphenix"))
 		{
 			AuraTimer -= DeltaSeconds;
 			if (AuraTimer <= 0.f) { AuraTimer = 0.5f; TickAura(DeltaSeconds); }
+			LeviphenixDefenseTick(DeltaSeconds);
+			AnimateLeviphenix(DeltaSeconds);
 		}
 		// DÉCROISSANCE des buffs d'aura reçus : reviennent seuls à la normale hors du rayon
 		// (le Léviaphénix les rafraîchit tant que l'allié reste à portée).
@@ -1196,6 +1199,78 @@ bool AWOTOLDemoUnit::Ability_Resonance()
 	return true;
 }
 
+// PASSIF de DÉFENSE : quand un ennemi arrive au CONTACT, le Léviaphénix se défend seul —
+// COUP DE NAGEOIRE (ennemi devant/côté) ou COUP DE QUEUE (ennemi derrière) qui REPOUSSE les
+// ennemis proches (brassage de l'eau) + petits dégâts. Sur cooldown (pas en continu).
+void AWOTOLDemoUnit::LeviphenixDefenseTick(float Dt)
+{
+	if (!IsAlive()) return;
+	if (LeviDefCooldown > 0.f) LeviDefCooldown -= Dt;
+	if (LeviDefTimer   > 0.f) { LeviDefTimer -= Dt; return; } // balayage en cours
+	if (LeviDefCooldown > 0.f) return;
+
+	UWorld* W = GetWorld(); if (!W) return;
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return;
+	const EFactionID Enemy = (GetFaction() == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
+	const FVector C   = GetActorLocation();
+	const FVector Fwd = GetActorForwardVector();
+	const float Reach = 360.f;
+
+	// Y a-t-il un ennemi AU CONTACT ? Détermine aussi s'il est plutôt DEVANT ou DERRIÈRE.
+	bool bAny = false, bBehind = false;
+	for (AUnitBase* U : Reg->GetUnitsForFaction(Enemy))
+	{
+		if (!U || !U->IsAlive()) continue;
+		FVector D = U->GetActorLocation() - C; D.Z = 0.f;
+		if (D.Size() > Reach) continue;
+		bAny = true;
+		if (FVector::DotProduct(D.GetSafeNormal(), Fwd) < -0.15f) bBehind = true;
+	}
+	if (!bAny) return; // personne au contact -> rien à repousser
+
+	// Déclenche le balayage : queue si l'ennemi est derrière, sinon nageoire.
+	LeviDefKind    = bBehind ? 1 : 0;
+	LeviDefTimer   = 0.6f;
+	LeviDefCooldown = FMath::FRandRange(2.4f, 3.4f);
+	LeviTailDir    = (FMath::FRand() < 0.5f) ? 1.f : -1.f;
+
+	// REPOUSSE + petits dégâts + brassage de l'eau (bulles) tout autour au contact.
+	for (AUnitBase* U : Reg->GetUnitsForFaction(Enemy))
+	{
+		if (!U || !U->IsAlive()) continue;
+		FVector D = U->GetActorLocation() - C; D.Z = 0.f;
+		if (D.Size() > Reach + 60.f) continue;
+		const float KB = Cast<AWOTOLDemoUnit>(U) ? Cast<AWOTOLDemoUnit>(U)->GetKnockbackScale() : 1.f;
+		U->LaunchCharacter(D.GetSafeNormal() * (1000.f * KB) + FVector(0, 0, 250.f * KB), true, true);
+		U->TakeDamageFromUnit(40.f, this); // expulse plus qu'il ne blesse (chasser, pas tuer)
+		AWOTOLBubbleBurst::Burst(W, U->GetActorLocation() + FVector(0, 0, 40.f), FLinearColor(0.6f, 0.85f, 1.f, 1.f), 6);
+	}
+	AWOTOLBubbleBurst::Burst(W, C + FVector(0, 0, 60.f), FLinearColor(0.7f, 0.9f, 1.f, 1.f), 14);
+}
+
+// Animation propre au Léviaphénix : ondulation permanente des nageoires/queue (mécanique
+// des fluides) + BALAYAGE ample lors d'un coup de nageoire / coup de queue défensif.
+void AWOTOLDemoUnit::AnimateLeviphenix(float Dt)
+{
+	// Progression du balayage : 0 -> 1 -> 0 sur la fenêtre (cloche sinusoïdale).
+	const float Sw = (LeviDefTimer > 0.f) ? FMath::Sin((1.f - LeviDefTimer / 0.6f) * PI) : 0.f;
+	const float FinIdle  = FMath::Sin(AnimClock * 1.5f + BobSeed) * 8.f;   // battement doux
+	const float TailIdle = FMath::Sin(AnimClock * 1.2f + BobSeed) * 12.f;  // ondulation de queue
+
+	auto SetJoint = [&](USceneComponent* J, const FRotator& Target)
+	{
+		if (J) J->SetRelativeRotation(FMath::RInterpTo(J->GetRelativeRotation(), Target, Dt, 14.f));
+	};
+
+	// COUP DE NAGEOIRE (LeviDefKind==0) : les deux grandes nageoires se rabattent vers l'avant.
+	const float FinBeat = (LeviDefKind == 0) ? Sw * -75.f : 0.f;
+	SetJoint(LeviFinR, FRotator(FinBeat,  FinIdle, 0.f));
+	SetJoint(LeviFinL, FRotator(FinBeat, -FinIdle, 0.f));
+	// COUP DE QUEUE (LeviDefKind==1) : la queue balaie latéralement (yaw) d'un grand angle.
+	const float TailYaw = (LeviDefKind == 1) ? (TailIdle + Sw * 80.f * LeviTailDir) : TailIdle;
+	SetJoint(LeviTail, FRotator(0.f, TailYaw, 0.f));
+}
+
 // AQUIS — Interception des dégâts entrants : la lame photonique PARE une part des dégâts
 // (directs OU énergétiques) et BANQUE l'énergie bloquée dans la jauge d'impact. Cette
 // énergie est relâchée par l'onde de choc (dégâts proportionnels à ce qui a été bloqué).
@@ -1720,20 +1795,21 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 			AddPart(M_CYL, FVector(H * 0.05f, s * H * 0.16f, H * 0.06f), FVector(0.07f, 0.07f, h * 0.22f), FRotator(40.f, 0, s * 20.f), ScaleBody);
 			AddPart(M_CONE, FVector(H * 0.14f, s * H * 0.22f, -H * 0.10f), FVector(0.05f, 0.05f, h * 0.14f), FRotator(120.f, 0, s * 20.f), Beakish);
 		}
-		// GRANDES AILES-NAGEOIRES plumeuses bleu glacé (ondulent)
-		for (int32 s = -1; s <= 1; s += 2)
-		{
-			RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.02f, s * H * 0.30f, H * 0.06f),
-				FVector(0.36f, 0.12f, h * 0.5f), FRotator(0, 0, s * 80.f), FinGlow), s < 0 ? 0.f : 3.14f);
-			RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.12f, s * H * 0.26f, -H * 0.06f),
-				FVector(0.26f, 0.09f, h * 0.36f), FRotator(0, 0, s * 70.f), FinGlow), s < 0 ? 0.6f : 2.5f);
-		}
-		// LONGUE QUEUE effilée en S (segments) qui ondule + éventail caudal lumineux
-		RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.10f, 0, -H * 0.52f), FVector(0.22f, 0.18f, h * 0.42f), FRotator(-100.f, 0, 0), ScaleBody), 0.f);
-		RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.02f, 0, -H * 0.82f), FVector(0.15f, 0.12f, h * 0.38f), FRotator(-70.f, 0, 0), ScaleBody), 0.6f);
-		RegisterWiggle(AddPart(M_CONE, FVector(H * 0.10f, 0, -H * 1.02f), FVector(0.10f, 0.08f, h * 0.30f), FRotator(-50.f, 0, 0), ScaleBody), 1.1f);
-		RegisterWiggle(AddPart(M_CUBE, FVector(H * 0.20f, 0, -H * 1.16f), FVector(0.04f, 0.40f, h * 0.24f), FRotator(0, 25.f, 0), FinGlow), 1.4f);
-		RegisterWiggle(AddPart(M_CUBE, FVector(H * 0.20f, 0, -H * 1.20f), FVector(0.04f, 0.40f, h * 0.24f), FRotator(0, -25.f, 0), FinGlow), 1.4f);
+		// GRANDES NAGEOIRES PECTORALES sur ARTICULATIONS (servent au PASSIF : coup de nageoire).
+		// Membrane large + fronde secondaire, portées par un pivot animable (balayage).
+		LeviFinR = MakeJoint(VisualRoot, FVector(-H * 0.02f, H * 0.16f, H * 0.06f));
+		MakeBone(LeviFinR, M_CONE, FVector(0, H * 0.20f, 0), FVector(0.40f, 0.13f, h * 0.55f), FRotator(0, 0, 88.f), FinGlow);
+		MakeBone(LeviFinR, M_CONE, FVector(-H * 0.10f, H * 0.16f, -H * 0.06f), FVector(0.28f, 0.10f, h * 0.38f), FRotator(0, 0, 72.f), FinGlow);
+		LeviFinL = MakeJoint(VisualRoot, FVector(-H * 0.02f, -H * 0.16f, H * 0.06f));
+		MakeBone(LeviFinL, M_CONE, FVector(0, -H * 0.20f, 0), FVector(0.40f, 0.13f, h * 0.55f), FRotator(0, 0, -88.f), FinGlow);
+		MakeBone(LeviFinL, M_CONE, FVector(-H * 0.10f, -H * 0.16f, -H * 0.06f), FVector(0.28f, 0.10f, h * 0.38f), FRotator(0, 0, -72.f), FinGlow);
+		// LONGUE QUEUE en S sur ARTICULATION (sert au PASSIF : coup de queue) + fluke lumineux.
+		LeviTail = MakeJoint(VisualRoot, FVector(-H * 0.06f, 0, -H * 0.30f));
+		MakeBone(LeviTail, M_CONE, FVector(-H * 0.04f, 0, -H * 0.22f), FVector(0.22f, 0.18f, h * 0.42f), FRotator(-100.f, 0, 0), ScaleBody);
+		MakeBone(LeviTail, M_CONE, FVector(H * 0.04f, 0, -H * 0.52f), FVector(0.15f, 0.12f, h * 0.38f), FRotator(-70.f, 0, 0), ScaleBody);
+		MakeBone(LeviTail, M_CONE, FVector(H * 0.16f, 0, -H * 0.72f), FVector(0.10f, 0.08f, h * 0.30f), FRotator(-50.f, 0, 0), ScaleBody);
+		MakeBone(LeviTail, M_CUBE, FVector(H * 0.26f, 0, -H * 0.86f), FVector(0.04f, 0.40f, h * 0.24f), FRotator(0, 25.f, 0), FinGlow);
+		MakeBone(LeviTail, M_CUBE, FVector(H * 0.26f, 0, -H * 0.90f), FVector(0.04f, 0.40f, h * 0.24f), FRotator(0, -25.f, 0), FinGlow);
 
 		// ── INDICATEUR D'AURA : anneau lumineux au sol matérialisant le RAYON DE SOUTIEN
 		// (~800 uu). Le joueur voit clairement où placer ses unités pour bénéficier du buff. ──

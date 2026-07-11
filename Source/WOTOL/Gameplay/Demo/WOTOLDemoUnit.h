@@ -253,6 +253,19 @@ private:
 	float AuraTimer = 0.f;
 	// Accélération de recharge reçue d'une aura (1 = normal, >1 = plus rapide). Décroît seule.
 	float AuraCooldownRate = 1.f;
+
+	// LÉVIAPHÉNIX — PASSIF de DÉFENSE : attaqué au corps-à-corps, il se défend seul par un
+	// COUP DE NAGEOIRE (grandes nageoires pectorales) ou un COUP DE QUEUE qui REPOUSSE les
+	// ennemis proches (mécanique des fluides). Nageoires + queue sur articulations animables.
+	UPROPERTY() TObjectPtr<USceneComponent> LeviFinL;
+	UPROPERTY() TObjectPtr<USceneComponent> LeviFinR;
+	UPROPERTY() TObjectPtr<USceneComponent> LeviTail;
+	float LeviDefTimer    = 0.f;   // >0 = balayage en cours
+	float LeviDefCooldown = 0.f;   // délai avant la prochaine parade
+	int32 LeviDefKind     = 0;     // 0 = coup de nageoire, 1 = coup de queue
+	float LeviTailDir     = 1.f;   // sens du balayage de queue
+	void  LeviphenixDefenseTick(float DeltaSeconds); // détecte le contact -> déclenche
+	void  AnimateLeviphenix(float DeltaSeconds);      // ondulation nageoires/queue + balayage
 	float GetAbilityCooldownFor(FName Id) const; // CD du tableur par unité
 	float AbilityCooldown = 6.f;           // temps avant la prochaine compétence
 	bool  bAbilityInit = false;
