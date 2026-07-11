@@ -283,6 +283,15 @@ private:
 	// AQUISPHÈRES — porte un CANON tenu à DEUX MAINS (pose de port/tir des deux bras).
 	bool  bTwoHandWeapon = false;
 
+	// NOXEBEAST — « Carapace Pressurisée » : plus il subit de coups rapprochés, plus sa
+	// résistance monte (0..~0.45) ; décroît seule quand on cesse de le frapper.
+	float Carapace = 0.f;
+
+	// NOXÉONS — « Émergence Luminale » : zone bioluminescente qui amplifie les Noxéens
+	// proches (dégâts + recharges). Réévaluée périodiquement.
+	void  TickNoxeonZone(float DeltaSeconds);
+	float NoxeonZoneTimer = 0.f;
+
 	// Facteur d'ancrage au sol : 1 = bien planté au sol (couche 0), 0 = en pleine hauteur.
 	// Sert au blocage (meilleur au sol) et au recul (part plus loin en l'air).
 	float GetGroundedFactor() const;

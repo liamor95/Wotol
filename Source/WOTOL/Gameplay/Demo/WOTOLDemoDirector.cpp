@@ -511,7 +511,10 @@ void AWOTOLDemoDirector::LaunchBattle()
 					}
 					else
 					{
-						U->IncomingDamageMult = 0.6f;  // -40% : les Aquiloris tiennent la défense
+						// -22% (au lieu de -40%) : les Aquiloris tiennent TOUJOURS la défense
+						// (ils gagnent), mais encaissent assez pour subir de VRAIES pertes
+						// (avant : -40% + combat quasi ability-only = 0 perte). [Réglable]
+						U->IncomingDamageMult = 0.78f;
 						U->OutgoingDamageMult = 1.2f;
 					}
 				}

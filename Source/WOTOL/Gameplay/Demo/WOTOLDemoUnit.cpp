@@ -171,6 +171,14 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 			LeviphenixDefenseTick(DeltaSeconds);
 			AnimateLeviphenix(DeltaSeconds);
 		}
+		// NOXÉONS : zone bioluminescente qui amplifie les Noxéens proches (réévaluée ~2 fois/s).
+		if (UnitData && UnitData->GetFName() == TEXT("Noxeons"))
+		{
+			NoxeonZoneTimer -= DeltaSeconds;
+			if (NoxeonZoneTimer <= 0.f) { NoxeonZoneTimer = 0.5f; TickNoxeonZone(DeltaSeconds); }
+		}
+		// NOXEBEAST : la carapace pressurisée se relâche doucement quand on cesse de le frapper.
+		Carapace = FMath::FInterpTo(Carapace, 0.f, DeltaSeconds, 0.5f);
 		// DÉCROISSANCE des buffs d'aura reçus : reviennent seuls à la normale hors du rayon
 		// (le Léviaphénix les rafraîchit tant que l'allié reste à portée).
 		AuraDamageMult    = FMath::FInterpTo(AuraDamageMult, 1.f, DeltaSeconds, 1.5f);
@@ -428,6 +436,32 @@ void AWOTOLDemoUnit::HandleDeath(AUnitBase* /*Unit*/)
 	// sort en amont pour les unités mortes, l'étiquette ne sera plus jamais ré-affichée.
 	if (NameTag)       NameTag->SetVisibility(false);
 	if (NameTagShadow) NameTagShadow->SetVisibility(false);
+
+	// ── SURCHARGE NOXÉENNE (« Cœur Abyssal Instable ») : une élimination CATALYSE la recharge
+	// du Noxar et du Noxedrake du CAMP ADVERSE (= le tueur) proches du lieu de la mort. Traduit
+	// la synergie Noxar ↔ Noxedrake (ils accélèrent mutuellement leurs recharges via les kills).
+	if (UWorld* W = GetWorld())
+	{
+		const EFactionID Killer = (GetFaction() == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
+		if (Killer == EFactionID::Noxeens)
+		{
+			if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
+			{
+				const FVector DeathLoc = GetActorLocation();
+				for (AUnitBase* U : Reg->GetUnitsForFaction(EFactionID::Noxeens))
+				{
+					AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U);
+					if (!D || !U->IsAlive() || !U->GetUnitData()) continue;
+					const FName Nid = U->GetUnitData()->GetFName();
+					if ((Nid == TEXT("Noxar") || Nid == TEXT("Noxedrake"))
+						&& FVector::Dist2D(DeathLoc, U->GetActorLocation()) < 1100.f)
+					{
+						D->AbilityCooldown = FMath::Max(0.f, D->AbilityCooldown - 3.f); // recharge catalysée
+					}
+				}
+			}
+		}
+	}
 }
 
 void AWOTOLDemoUnit::HandleSelected(bool bSel)
@@ -588,11 +622,11 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 		// TOUTES les unités proches de la cible (celles massées autour en MEURENT). C'est ce
 		// qui inflige de VRAIES pertes au joueur pendant qu'il abat le Kraken.
 		CritCooldown -= DeltaSeconds;
-		if (CritCooldown <= 0.f && FMath::FRand() < 0.35f && Nearest->IsAlive())
+		if (CritCooldown <= 0.f && FMath::FRand() < 0.45f && Nearest->IsAlive())
 		{
-			CritCooldown = FMath::FRandRange(8.f, 12.f); // modéré (pas de wipe)
+			CritCooldown = FMath::FRandRange(7.f, 10.f); // un peu plus fréquent (l'armée tue le Kraken plus vite depuis le fix mêlée -> moins de fenêtres, donc on densifie)
 			const FVector CritLoc = Nearest->GetActorLocation();
-			const float SlamR = 300.f;                    // zone plus serrée
+			const float SlamR = 330.f;                    // zone légèrement élargie
 			if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
 			{
 				const EFactionID Foe = (GetFaction() == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
@@ -600,7 +634,7 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 				{
 					if (!U || !U->IsAlive()) continue;
 					if (FVector::DistSquared2D(U->GetActorLocation(), CritLoc) > SlamR * SlamR) continue;
-					U->TakeDamageFromUnit(170.f, this); // modéré -> quelques pertes, pas un wipe
+					U->TakeDamageFromUnit(230.f, this); // relevé (170->230) -> vraies pertes autour de l'écrasement, sans wipe
 				}
 			}
 			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(W, CritLoc + FVector(0, 0, 90.f),
@@ -1087,6 +1121,24 @@ bool AWOTOLDemoUnit::Ability_Charge()
 	return true;
 }
 
+// NOXÉONS — « Émergence Luminale » : zone bioluminescente qui AMPLIFIE les Noxéens proches
+// (dégâts + recharges accélérées, façon « vitesse »). Rafraîchie tant qu'ils sont dans la zone
+// (les buffs d'aura décroissent seuls hors de portée, comme pour le Léviaphénix).
+void AWOTOLDemoUnit::TickNoxeonZone(float /*Dt*/)
+{
+	UWorld* W = GetWorld(); if (!W) return;
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return;
+	const FVector C = GetActorLocation();
+	const float R2 = 700.f * 700.f;
+	for (AUnitBase* U : Reg->GetUnitsForFaction(EFactionID::Noxeens))
+	{
+		if (!U || !U->IsAlive()) continue;
+		if (FVector::DistSquared(C, U->GetActorLocation()) > R2) continue;
+		U->AuraDamageMult = FMath::Max(U->AuraDamageMult, 1.12f); // +12% dégâts dans la zone
+		if (AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U)) D->AuraCooldownRate = FMath::Max(D->AuraCooldownRate, 1.15f);
+	}
+}
+
 // ══════════ AQUILOMBRES (spéciale furtive — réserve phase 3) ══════════
 // PASSIF « invisible si immobile » : dès qu'elle reste IMMOBILE un court instant (ni
 // déplacement horizontal, ni changement de couche, ni attaque), elle se DISSIMULE (corps
@@ -1357,6 +1409,14 @@ float AWOTOLDemoUnit::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit
 		{
 			Damage *= 0.72f; // -28% : couverte par le mur de boucliers
 			ShowMitig(TEXT("Couvert"), FLinearColor(0.5f, 1.f, 1.3f, 1.f));
+		}
+		// NOXEBEAST — « Carapace Pressurisée » : plus il encaisse de coups rapprochés, plus sa
+		// résistance monte (elle décroît seule au repos). Récompense de tenir la ligne.
+		else if (Id == TEXT("Noxebeast"))
+		{
+			Damage  *= (1.f - Carapace);
+			Carapace = FMath::Min(Carapace + 0.06f, 0.45f);
+			ShowMitig(TEXT("Carapace"), FLinearColor(0.35f, 1.2f, 0.5f, 1.f));
 		}
 		// AQUILORYONS — BOUCLIER : blocage frontal dont l'efficacité dépend de l'ANCRAGE AU
 		// SOL (planté = bloque bien ; en hauteur = peu d'appui) et de la SYNERGIE (mur de
@@ -2089,6 +2149,15 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		{
 			RegisterWiggle(AddPart(M_CONE, FVector(H * 0.10f, s * 16.f, H * 0.30f), FVector(0.06f, 0.06f, h * 1.05f), FRotator(38.f, 0, s * 40.f), Body), s < 0 ? 0.f : 3.14f);
 			RegisterWiggle(AddPart(M_CONE, FVector(H * 0.32f, s * 34.f, H * 0.04f), FVector(0.045f, 0.045f, h * 0.18f), FRotator(90.f, 0, s * 40.f), GreenGlow), s < 0 ? 0.5f : 2.6f);
+		}
+		// ── ZONE BIOLUMINESCENTE : anneau vert au sol matérialisant le rayon d'amplification
+		// (~700 uu), équivalent Noxéen de l'aura du Léviaphénix (repère pour se placer). ──
+		const FLinearColor ZoneRing(0.35f, 1.55f, 0.55f, 1.f);
+		for (int32 a = 0; a < 26; ++a)
+		{
+			const float ang = 2.f * PI * a / 26.f;
+			AddPart(M_SPH, FVector(FMath::Cos(ang) * 700.f, FMath::Sin(ang) * 700.f, -H * 0.40f),
+				FVector(0.20f, 0.20f, 0.20f), NoRot, ZoneRing);
 		}
 		return;
 	}
