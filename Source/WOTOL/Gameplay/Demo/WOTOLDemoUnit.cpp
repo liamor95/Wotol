@@ -180,6 +180,9 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	{
 		FRotator Desired = GetActorRotation();
 		bool bWant = false;
+		// LANCE : par défaut GARDE PASSIVE (diagonale). Passe en garde AGRESSIVE quand un
+		// ennemi est à portée d'engagement/charge OU pendant un coup.
+		LanceAggroTarget = (AttackAnimTimer > 0.f) ? 1.f : 0.f;
 		// 1) Un ennemi à portée de combat -> on lui FAIT FACE (le coup part devant).
 		if (AUnitBase* Foe = FindNearestEnemyUnit())
 		{
@@ -188,6 +191,8 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 			const float Dist = To.Size();
 			const float AtkRange = UnitData ? UnitData->Stats.AttackRange * 200.f : 200.f;
 			if (Dist > 1.f && Dist < AtkRange + 500.f) { Desired = To.Rotation(); bWant = true; }
+			// Lance abaissée (agressive) dès que l'ennemi est en portée d'engagement/charge.
+			if (LanceJoint && Dist < AtkRange + 700.f) LanceAggroTarget = 1.f;
 			// BOUCLIER : garde PROACTIVE — dès qu'un ennemi est au contact et que l'unité ne
 			// frappe pas, elle LÈVE le bouclier (rempart / formation tortue devant les lignes).
 			if (bHasShield && AttackAnimTimer <= 0.f && Dist < AtkRange + 350.f && GetVelocity().Size2D() < 40.f)
@@ -2216,21 +2221,34 @@ void AWOTOLDemoUnit::AnimateBody(float Dt)
 		WiggleComps[i]->SetRelativeRotation(Base + Osc);
 	}
 
-	// ── AQUILANCES : COUP DE LANCE — poussée nette de la lance vers l'AVANT (+X) pendant la
-	// fenêtre d'attaque (on VOIT la lance percer vers l'ennemi), puis retour à la position de
-	// port. Hors attaque, léger frémissement (courant sous-marin). ──
+	// ── AQUILANCES : BASCULE GARDE PASSIVE <-> AGRESSIVE + COUP DE LANCE ──
+	// • Garde PASSIVE (au repos / placement / pas d'ennemi) : lance portée en DIAGONALE
+	//   (pointe haut-avant, talon bas-arrière) — au-dessus de la monture, sans la traverser.
+	// • Garde AGRESSIVE (ennemi à portée / charge) : la lance S'ABAISSE à l'horizontale,
+	//   couchée vers l'avant (+X), prête à percer.
+	// • Pendant un coup : ESTOC — la lance jaillit vers l'avant puis se rétracte.
+	// La bascule est INTERPOLÉE (mouvement fluide, pas de saut).
 	if (LanceJoint)
 	{
+		// Aggro interpolé vers sa cible (transition douce passive <-> agressive).
+		LanceAggro = FMath::FInterpTo(LanceAggro, bDead ? 0.f : LanceAggroTarget, Dt, 6.f);
+
+		// Rotation : diagonale (garde) -> horizontale (couchée) selon l'agressivité.
+		const FRotator PassiveRot(38.f, 18.f, 0.f); // pointe relevée + un peu en travers (au-dessus de la monture)
+		const FRotator CouchedRot(2.f, 0.f, 0.f);   // presque à plat, pointée devant
+		const FRotator GoalRot = FMath::Lerp(PassiveRot, CouchedRot, LanceAggro);
+		LanceJoint->SetRelativeRotation(FMath::RInterpTo(LanceJoint->GetRelativeRotation(), GoalRot, Dt, 10.f));
+
+		// Estoc (translation +X) uniquement au moment d'un coup ; sinon léger frémissement.
 		float Thrust = 0.f;
 		if (bAttacking)
 		{
-			// Va-et-vient rapide : la lame jaillit devant puis se rétracte (estoc).
 			const float s = FMath::Sin(AnimClock * 12.f);
 			Thrust = FMath::Max(0.f, s) * 85.f;
 		}
 		else
 		{
-			Thrust = FMath::Sin(AnimClock * 1.4f + BobSeed) * 4.f; // frémissement au repos
+			Thrust = FMath::Sin(AnimClock * 1.4f + BobSeed) * 4.f; // frémissement au repos (courant)
 		}
 		const FVector Goal = LanceHome + FVector(Thrust, 0.f, 0.f);
 		LanceJoint->SetRelativeLocation(FMath::VInterpTo(LanceJoint->GetRelativeLocation(), Goal, Dt, 18.f));

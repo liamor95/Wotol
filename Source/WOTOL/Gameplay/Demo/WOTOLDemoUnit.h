@@ -257,6 +257,10 @@ private:
 	// AQUILANCES — lance sur articulation (coup de lance = poussée vers l'avant) + son ancrage.
 	UPROPERTY() TObjectPtr<USceneComponent> LanceJoint;
 	FVector LanceHome = FVector::ZeroVector;
+	// Bascule GARDE PASSIVE (lance en diagonale, au repos) <-> GARDE AGRESSIVE (lance
+	// couchée vers l'avant, prête à frapper). 0 = passive, 1 = agressive ; interpolé.
+	float LanceAggro       = 0.f;
+	float LanceAggroTarget = 0.f;
 
 	// SYNERGIE AQUILORIS (lance ↔ bouclier) : les Aquilances placées DERRIÈRE un bouclier
 	// Aquiloryon sont PROTÉGÉES (bLanceGuarded) et, en retour, dopent l'ATTAQUE de ce
