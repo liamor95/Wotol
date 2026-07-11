@@ -1154,9 +1154,12 @@ void AWOTOLDemoUnit::TickAura(float /*Dt*/)
 	{
 		if (!U || !U->IsAlive()) continue;
 		if (FVector::DistSquared(C, U->GetActorLocation()) > R2) continue;
-		U->AuraDamageMult  = FMath::Max(U->AuraDamageMult, 1.20f);
-		U->AuraDefenseMult = FMath::Min(U->AuraDefenseMult, 0.85f);
-		if (AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U)) D->AuraCooldownRate = FMath::Max(D->AuraCooldownRate, 1.35f);
+		// Buffs passifs VOLONTAIREMENT MODESTES : ils se CUMULENT (multiplicativement) avec
+		// le bonus de territoire/grade + la synergie de faction + la compétence -> on garde
+		// de la marge pour ne pas trivialiser la partie (pas de +70% qui la finit en 2 s).
+		U->AuraDamageMult  = FMath::Max(U->AuraDamageMult, 1.10f);   // +10% dégâts
+		U->AuraDefenseMult = FMath::Min(U->AuraDefenseMult, 0.92f);  // -8% dégâts subis
+		if (AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U)) D->AuraCooldownRate = FMath::Max(D->AuraCooldownRate, 1.20f); // recharges +20%
 	}
 }
 
@@ -1173,9 +1176,11 @@ bool AWOTOLDemoUnit::Ability_Resonance()
 	{
 		if (!U || !U->IsAlive()) continue;
 		if (FVector::DistSquared(C, U->GetActorLocation()) > R2) continue;
-		U->TakeDamageFromUnit(-150.f, this);                       // soin (valeur négative)
-		U->AuraDamageMult  = FMath::Max(U->AuraDamageMult, 1.50f); // gros buff temporaire
-		U->AuraDefenseMult = FMath::Min(U->AuraDefenseMult, 0.70f);
+		U->TakeDamageFromUnit(-120.f, this);                       // soin (valeur négative)
+		// Buff temporaire renforcé mais RAISONNABLE (cumul-aware) : le gros cooldown (20 s)
+		// évite l'empilement permanent -> pic ponctuel, pas un +X% constant.
+		U->AuraDamageMult  = FMath::Max(U->AuraDamageMult, 1.25f);
+		U->AuraDefenseMult = FMath::Min(U->AuraDefenseMult, 0.82f);
 		++n;
 	}
 	if (n == 0) return false;
@@ -1729,6 +1734,17 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		RegisterWiggle(AddPart(M_CONE, FVector(H * 0.10f, 0, -H * 1.02f), FVector(0.10f, 0.08f, h * 0.30f), FRotator(-50.f, 0, 0), ScaleBody), 1.1f);
 		RegisterWiggle(AddPart(M_CUBE, FVector(H * 0.20f, 0, -H * 1.16f), FVector(0.04f, 0.40f, h * 0.24f), FRotator(0, 25.f, 0), FinGlow), 1.4f);
 		RegisterWiggle(AddPart(M_CUBE, FVector(H * 0.20f, 0, -H * 1.20f), FVector(0.04f, 0.40f, h * 0.24f), FRotator(0, -25.f, 0), FinGlow), 1.4f);
+
+		// ── INDICATEUR D'AURA : anneau lumineux au sol matérialisant le RAYON DE SOUTIEN
+		// (~800 uu). Le joueur voit clairement où placer ses unités pour bénéficier du buff. ──
+		const FLinearColor AuraRing(1.30f, 1.00f, 0.40f, 1.f); // or lumineux (émissif faible)
+		const float AuraR = 800.f;
+		for (int32 a = 0; a < 28; ++a)
+		{
+			const float ang = 2.f * PI * a / 28.f;
+			AddPart(M_SPH, FVector(FMath::Cos(ang) * AuraR, FMath::Sin(ang) * AuraR, -H * 0.55f),
+				FVector(0.22f, 0.22f, 0.22f), NoRot, AuraRing);
+		}
 		return;
 	}
 
