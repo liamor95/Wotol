@@ -160,8 +160,6 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		SynergyTimer -= DeltaSeconds;
 		if (SynergyTimer <= 0.f) { SynergyTimer = 0.33f; UpdateAquilorisSynergy(); }
 
-		// AQUILOMBRES : gestion de la furtivité (invisible/insaisissable à l'arrêt).
-		if (UnitData && UnitData->GetFName() == TEXT("Aquilombres")) UpdateStealth(DeltaSeconds);
 		// LÉVIAPHÉNIX : aura d'amplification des alliés proches (réévaluée ~2 fois/s).
 		if (UnitData && UnitData->GetFName() == TEXT("Leviaphenix"))
 		{
@@ -256,14 +254,6 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	}
 
 	if (!NameTag) return;
-
-	// FURTIVITÉ (Aquilombres dissimulée) : nom + PV masqués tant qu'elle est dans l'ombre.
-	if (bStealthed)
-	{
-		NameTag->SetVisibility(false);
-		if (NameTagShadow) NameTagShadow->SetVisibility(false);
-		return;
-	}
 
 	// ANTI-EMPILEMENT : en pleine bataille, on n'affiche l'étiquette (nom + PV) que pour
 	// les unités SÉLECTIONNÉES (+ le boss) -> plus de bouillie de texte quand les unités se
@@ -726,7 +716,7 @@ float AWOTOLDemoUnit::GetAbilityCooldownFor(FName Id) const
 	if (Id == TEXT("Noxeflare"))   return 10.f;
 	if (Id == TEXT("Noxebeast"))   return 14.f;
 	if (Id == TEXT("Noxeblast"))   return 8.f;
-	if (Id == TEXT("Aquilombres")) return 12.f; // spéciale (réserve phase 3)
+	if (Id == TEXT("Aquilombres")) return 16.f; // spéciale : coup qui fait mal -> gros cooldown (pas spammable)
 	if (Id == TEXT("Leviaphenix")) return 20.f; // mythique (réserve phase 3)
 	return 12.f;
 }
@@ -1056,70 +1046,53 @@ bool AWOTOLDemoUnit::Ability_Hydrolaser()
 }
 
 // ══════════ AQUILOMBRES (spéciale furtive — réserve phase 3) ══════════
-// FURTIVITÉ : dès que l'unité reste IMMOBILE un court instant (et ne frappe pas), elle se
-// dissimule dans l'ombre (corps estompé, nom masqué, très difficile à toucher). Bouger ou
-// frapper la révèle.
-void AWOTOLDemoUnit::UpdateStealth(float Dt)
-{
-	if (!IsAlive()) { if (bStealthed) { bStealthed = false; SetStealthVisual(false); } return; }
-	const float Speed = GetVelocity().Size2D();
-	const bool  bAttacking = (AttackAnimTimer > 0.f);
-	if (Speed < 15.f && !bAttacking)
-	{
-		StealthTimer += Dt;
-		if (StealthTimer > 1.0f && !bStealthed) { bStealthed = true; SetStealthVisual(true); }
-	}
-	else
-	{
-		StealthTimer = 0.f;
-		if (bStealthed) { bStealthed = false; SetStealthVisual(false); }
-	}
-}
-
-// Rendu de la furtivité : le corps s'estompe (assombri) et le nom/PV disparaissent.
-void AWOTOLDemoUnit::SetStealthVisual(bool bOn)
-{
-	for (int32 i = 0; i < PartMIDs.Num(); ++i)
-	{
-		if (!PartMIDs[i]) continue;
-		const FLinearColor Base = PartBaseColors.IsValidIndex(i) ? PartBaseColors[i] : FFactionColors::Get(GetFaction());
-		PartMIDs[i]->SetVectorParameterValue(TEXT("Color"), bOn ? (Base * 0.18f) : Base);
-	}
-	if (NameTag)       NameTag->SetVisibility(!bOn && IsAlive());
-	if (NameTagShadow) NameTagShadow->SetVisibility(!bOn && IsAlive());
-}
-
-// OMBRES GLISSÉES : bond DANS LE DOS de la cible + frappe critique + ombre projetée qui
-// réduit la précision des ennemis proches. Retourne dans l'ombre après le coup.
+// OMBRES GLISSÉES : au bon moment, l'assassin DISPARAÎT dans un NUAGE DE FUMÉE, se TÉLÉPORTE
+// derrière la DERNIÈRE ligne ennemie DE SA COUCHE VERTICALE (ou derrière le boss/mythique),
+// porte une frappe critique SURPRISE (crit % très élevé), puis RÉAPPARAÎT instantanément à
+// sa place. CONTRAINTE anti-abus : ne cible que sa PROPRE couche verticale + gros cooldown.
 bool AWOTOLDemoUnit::Ability_ShadowStrike()
 {
 	UWorld* W = GetWorld(); if (!W) return false;
-	AUnitBase* Foe = FindNearestEnemyUnit(); if (!Foe) return false;
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return false;
+	const EFactionID Enemy = (GetFaction() == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
 
-	const FVector Start = GetActorLocation();
-	FVector Behind = Foe->GetActorLocation() - Foe->GetActorForwardVector() * 160.f;
-	Behind.Z = Start.Z;
-	// Traînée d'ombre entre le départ et l'arrivée (on LIT le dash, pas un simple "pop").
-	for (int32 i = 1; i <= 6; ++i)
-		AWOTOLBubbleBurst::Burst(W, FMath::Lerp(Start, Behind, i / 6.f) + FVector(0, 0, 50.f), FLinearColor(0.12f, 0.28f, 0.8f, 1.f), 4);
-	SetActorLocation(Behind, false);
-	SetActorRotation((Foe->GetActorLocation() - Behind).Rotation());
-
-	Foe->TakeDamageFromUnit(360.f, this); // frappe critique dans le dos
-	AttackAnimTimer = 0.55f;
-
-	// OMBRE PROJETÉE : les ennemis proches voient leur précision chuter (comme aveuglés).
-	const float Now = W->GetTimeSeconds();
-	if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
+	// Cible : d'abord un BOSS/MYTHIQUE s'il existe (téléport dans son dos). Sinon, la ligne
+	// ennemie la PLUS AU FOND (la plus éloignée) SUR MA COUCHE VERTICALE uniquement.
+	AUnitBase* Target = nullptr;
+	for (AUnitBase* U : Reg->GetUnitsForFaction(Enemy))
 	{
-		const EFactionID Enemy = (GetFaction() == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
-		for (AUnitBase* U : Reg->GetUnitsForFaction(Enemy))
-			if (U && U->IsAlive() && FVector::Dist2D(U->GetActorLocation(), Behind) < 380.f)
-				U->BlindedUntil = Now + 3.f;
+		AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U);
+		if (U && U->IsAlive() && D && (D->bIsBoss || D->bCreatureBrain)) { Target = U; break; }
 	}
-	AWOTOLBubbleBurst::Burst(W, Foe->GetActorLocation() + FVector(0, 0, 50.f), FLinearColor(0.15f, 0.35f, 0.9f, 1.f), 20);
-	AWOTOLDamageNumber::SpawnText(W, Behind + FVector(0, 0, 120.f), TEXT("Ombres Glissees"), FLinearColor(0.3f, 0.5f, 1.2f, 1.f));
-	StealthTimer = 0.f; // se refond dans l'ombre juste après
+	if (!Target)
+	{
+		float Deepest = -1.f;
+		for (AUnitBase* U : Reg->GetUnitsForFaction(Enemy))
+		{
+			if (!U || !U->IsAlive()) continue;
+			const float TheirLayer = Cast<AWOTOLDemoUnit>(U) ? Cast<AWOTOLDemoUnit>(U)->CurLayer : 0.f;
+			if (FMath::Abs(CurLayer - TheirLayer) > 200.f) continue; // MÊME couche verticale seulement
+			const float Dist = FVector::Dist2D(GetActorLocation(), U->GetActorLocation());
+			if (Dist > Deepest) { Deepest = Dist; Target = U; } // la plus au fond
+		}
+	}
+	if (!Target) return false; // aucune cible sur ma couche -> je garde la capacité
+
+	const FVector Start  = GetActorLocation();
+	const FVector Behind = Target->GetActorLocation() - Target->GetActorForwardVector() * 170.f;
+	const FLinearColor Smoke(0.10f, 0.16f, 0.30f, 1.f); // fumée abyssale bleu-nuit
+
+	// 1) DISPARITION : nuage de fumée à sa position de départ.
+	AWOTOLBubbleBurst::Burst(W, Start + FVector(0, 0, 70.f), Smoke, 26);
+	// 2) FRAPPE derrière la cible : fumée d'apparition + gros crit surprise (crit % très élevé).
+	AWOTOLBubbleBurst::Burst(W, Behind + FVector(0, 0, 60.f), Smoke, 22);
+	AWOTOLBubbleBurst::Burst(W, Target->GetActorLocation() + FVector(0, 0, 50.f), FLinearColor(0.25f, 0.5f, 1.3f, 1.f), 18); // éclat cyan (bloom)
+	Target->TakeDamageFromUnit(420.f, this); // coup dans le dos, dévastateur (à équilibrer au global)
+	AttackAnimTimer = 0.55f;
+	// 3) RÉAPPARITION instantanée à sa place : re-fumée à l'origine (elle n'a jamais quitté sa
+	// ligne arrière -> reste protégée).
+	AWOTOLBubbleBurst::Burst(W, Start + FVector(0, 0, 70.f), Smoke, 14);
+	AWOTOLDamageNumber::SpawnText(W, Target->GetActorLocation() + FVector(0, 0, 130.f), TEXT("Ombres Glissees"), FLinearColor(0.35f, 0.55f, 1.3f, 1.f));
 	return true;
 }
 
@@ -1194,14 +1167,6 @@ float AWOTOLDemoUnit::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit
 					: GetActorLocation()) + FVector(0, 0, 60.f);
 				AWOTOLBubbleBurst::Burst(W, At, FLinearColor(0.4f, 0.9f, 1.f, 1.f), 4);
 			}
-		}
-		// AQUILOMBRES — FURTIVE : dissimulée, elle est très difficile à toucher (esquive
-		// l'essentiel du coup) mais le coup la RÉVÈLE (rompt la furtivité).
-		else if (Id == TEXT("Aquilombres") && bStealthed)
-		{
-			Damage *= 0.15f;
-			bStealthed = false;
-			SetStealthVisual(false);
 		}
 		// AQUILANCES — PROTÉGÉES par un bouclier devant (synergie lance↔bouclier) : quand
 		// l'Aquilance est calée derrière un Aquiloryon, elle encaisse nettement moins.
@@ -2268,23 +2233,20 @@ void AWOTOLDemoUnit::OnAttackAnimTrigger()
 	if (UnitData && (UnitData->GetFName() == TEXT("Aquipheres") || UnitData->GetFName() == TEXT("Aquispheres")))
 		FireHydrolaserOrMelee();
 
-	// AQUILOMBRES : coup CRITIQUE si porté depuis la FURTIVITÉ (×3) ou dans le DOS de la
-	// cible (×2). Le crit ne vaut que pour CE coup (NextHitCritMult consommé par PerformAttack).
+	// AQUILOMBRES — assassin : FORT taux de critique. Coup de dague ×2 quand elle frappe
+	// dans le DOS de la cible (le gros crit surprise vient de la compétence, voir plus bas).
 	if (UnitData && UnitData->GetFName() == TEXT("Aquilombres"))
 	{
 		float Crit = 1.f;
-		if (bStealthed) Crit = 3.f; // frappe depuis l'ombre = dévastatrice
-		else if (AUnitBase* Foe = FindNearestEnemyUnit())
+		if (AUnitBase* Foe = FindNearestEnemyUnit())
 		{
 			const FVector ToMe = (GetActorLocation() - Foe->GetActorLocation()).GetSafeNormal2D();
-			if (FVector::DotProduct(ToMe, Foe->GetActorForwardVector()) < -0.25f) Crit = 2.f; // je suis dans son dos
+			if (FVector::DotProduct(ToMe, Foe->GetActorForwardVector()) < -0.25f) Crit = 2.f; // dans son dos
 		}
 		NextHitCritMult = Crit;
 		if (Crit > 1.f && GetWorld())
 			AWOTOLBubbleBurst::Burst(GetWorld(), GetActorLocation() + GetActorForwardVector() * 60.f + FVector(0, 0, 60.f),
 				FLinearColor(0.2f, 0.5f, 1.2f, 1.f), 6);
-		// Attaquer RÉVÈLE l'assassin (rompt la furtivité).
-		if (bStealthed) { bStealthed = false; SetStealthVisual(false); }
 	}
 }
 

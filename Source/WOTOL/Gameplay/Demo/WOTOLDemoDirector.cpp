@@ -1061,6 +1061,21 @@ void AWOTOLDemoDirector::TacticalTick()
 			float   Layer = 0.f;
 			FVector Dest  = EnemyC;
 
+			// ── AQUILOMBRES (assassin fragile — réserve phase 3) : se tient en ARRIÈRE-LIGNE,
+			// protégée par les lignes avant. Elle ne charge JAMAIS ; c'est sa compétence
+			// (téléport dans le dos) qui frappe. Quelle que soit la phase. ──
+			if (DU && Data && Data->GetFName() == TEXT("Aquilombres"))
+			{
+				const FVector Back = OwnC - Fwd * 500.f + Lateral * ((float)(idx % 3 - 1) * 220.f);
+				DU->SetDesiredZ(0.f);
+				AIC->ActivateRTSBehavior();
+				AIC->IssueOrder_AttackMove(Back);
+				if (UUnitAIStateComponent* St = U->FindComponentByClass<UUnitAIStateComponent>())
+					St->SightRange = 900.f; // reste à l'arrière, n'engage que ce qui la menace
+				++idx;
+				continue;
+			}
+
 			// ═══ PHASE 1 : ASSAUT DU BOSS (Kraken) ═══ objectif = l'anéantir.
 			if (bHasBoss && bIsPlayer)
 			{

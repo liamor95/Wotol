@@ -235,13 +235,6 @@ private:
 	// au corps-à-corps très rapproché. Appelé au moment d'un vrai coup.
 	void  FireHydrolaserOrMelee();
 
-	// AQUILOMBRES — FURTIVITÉ : invisible/insaisissable à l'arrêt ; frappe critique dans le
-	// dos / depuis la furtivité. bStealthed = actuellement dissimulée.
-	bool  bStealthed   = false;
-	float StealthTimer = 0.f;      // temps passé immobile (déclenche la furtivité)
-	void  UpdateStealth(float DeltaSeconds);
-	void  SetStealthVisual(bool bOn);
-
 	// LÉVIAPHÉNIX — AURA passive : amplifie les alliés proches (dégâts/défense) et accélère
 	// leurs recharges. Réévaluée périodiquement.
 	void  TickAura(float DeltaSeconds);
