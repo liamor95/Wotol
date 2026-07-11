@@ -1426,7 +1426,11 @@ void AWOTOLDemoUnit::ApplySoftSeparation(float Dt)
 	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return;
 	const FVector MyLoc = GetActorLocation();
 	const float MyR = GetCapsuleComponent() ? GetCapsuleComponent()->GetScaledCapsuleRadius() : 40.f;
-	const float Gap = 100.f; // ~1 m d'espace mini entre deux silhouettes
+	// Écart mini = juste assez pour DISTINGUER les silhouettes (pas d'empilement), mais
+	// STRICTEMENT INFÉRIEUR à la portée de mêlée bord-à-bord (~55 uu, voir IsInAttackRange) :
+	// sinon la séparation empêche les unités de s'approcher assez pour se FRAPPER (aucun coup
+	// de base ne portait). 35 uu -> silhouettes séparées ET contact de combat possible.
+	const float Gap = 35.f;
 
 	FVector Push = FVector::ZeroVector;
 	const EFactionID Factions[2] = { EFactionID::Aquiloris, EFactionID::Noxeens };
