@@ -510,10 +510,10 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	// SUBIT enfin des pertes et le combat DURE davantage, tout en restant GAGNABLE.
 	// × compensation d'identité de la faction RIVALE (Noxéens fragiles compensés) : la règle
 	// d'équilibrage s'applique aux DEUX camps, quel que soit celui contrôlé par le joueur.
-	// Bonus rival MODÉRÉ : 1.6/1.35 empilé avec la compensation de faction donnait des PV
-	// absurdes (Noxeblast, glass cannon, montait a ~5800). On resserre pour que l'armee rivale
-	// reste tuable et fidele a son identite, la difficulte restant le vrai curseur.
-	const float RivalScale = ArmyHealthScale * (bGrandBattle ? 1.12f : 1.18f)
+	// PAS de sur-bonus rival : empile a 1.6/1.35 x compensation de faction, le Noxebeast (tank,
+	// base 1700) montait a ~5800 PV. On retire le bonus phase 2 (leger en phase 3) -> l'armee
+	// rivale reste tuable et fidele a son identite. La DIFFICULTE est le vrai curseur de defi.
+	const float RivalScale = ArmyHealthScale * (bGrandBattle ? 1.05f : 1.00f)
 		* FactionSurvivability(RivalFaction) * DiffEnemyMult(Demo->GetDifficulty());
 
 	// PLACEMENT ALÉATOIRE par couche, PROPRE À LA FACTION : chaque unité peut être au sol
