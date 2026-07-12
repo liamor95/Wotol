@@ -72,6 +72,12 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Combat")
 	float OutgoingDamageMult = 1.f;
 
+	// Multiplicateur de dégâts d'ÉQUILIBRAGE (difficulté + camp joueur/ennemi), fixé AU SPAWN
+	// et STABLE (jamais recalculé par frame -> ne se fait pas écraser par les synergies). C'est
+	// le levier qui rend Facile/Difficile réels côté dégâts et équilibre la phase 3.
+	UPROPERTY(BlueprintReadWrite, Category = "Combat")
+	float BalanceDamageMult = 1.f;
+
 	// Multiplicateur de dégâts issu d'une SYNERGIE de faction dynamique (1 = aucune).
 	// STACKE avec OutgoingDamageMult sans l'écraser (ex. Aquiloryons protégés par un
 	// bouclier + soutenus par une lance Aquilance derrière -> frappent plus fort).

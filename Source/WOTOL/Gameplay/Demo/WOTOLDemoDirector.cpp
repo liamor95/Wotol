@@ -73,6 +73,27 @@ static float DiffPlayerMult(EDemoDifficulty D)
 		default:                         return 1.00f; // Normal
 	}
 }
+// Multiplicateur de DÉGÂTS du JOUEUR (levier de difficulté côté offensif).
+static float DiffPlayerDamage(EDemoDifficulty D)
+{
+	switch (D)
+	{
+		case EDemoDifficulty::Facile:    return 1.30f;
+		case EDemoDifficulty::Difficile: return 0.85f;
+		default:                         return 1.00f;
+	}
+}
+// Multiplicateur de DÉGÂTS de l'ENNEMI. Facile : l'ennemi frappe BEAUCOUP moins (avant, la
+// difficulté ne touchait pas les dégâts des unités -> Facile restait mortel).
+static float DiffEnemyDamage(EDemoDifficulty D)
+{
+	switch (D)
+	{
+		case EDemoDifficulty::Facile:    return 0.65f;
+		case EDemoDifficulty::Difficile: return 1.30f;
+		default:                         return 1.00f;
+	}
+}
 
 AWOTOLDemoDirector::AWOTOLDemoDirector()
 {
@@ -609,6 +630,21 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 	Unit->HealthScale = HealthScale;   // appliqué dans BeginPlay (avant FinishSpawning)
 	Unit->bIsBoss     = bAsBoss;       // AVANT FinishSpawning -> silhouette Kraken forcée
 	UGameplayStatics::FinishSpawningActor(Unit, SpawnTM);
+
+	// ── ÉQUILIBRAGE DES DÉGÂTS (difficulté + camp) : fixé au spawn, stable. Le boss (Kraken)
+	// a sa propre gestion de difficulté -> exclu ici. ──
+	if (!bAsBoss)
+	{
+		UDemoFlowSubsystem* Flow = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+		const EDemoDifficulty Diff = Flow ? Flow->GetDifficulty() : EDemoDifficulty::Normal;
+		const bool bPlayerSide = (Unit->GetFaction() == CachedPlayerFaction);
+		float M = bPlayerSide ? DiffPlayerDamage(Diff) : DiffEnemyDamage(Diff);
+		// Phase 3 (miroir 80v80) : les Noxéens surclassent les Aquiloris en DPS brut -> on donne
+		// un LÉGER avantage offensif au JOUEUR et on tempère l'ennemi, pour que la grande
+		// bataille reste GAGNABLE quel que soit le camp choisi.
+		if (bGrandBattle) M *= bPlayerSide ? 1.15f : 0.90f;
+		Unit->BalanceDamageMult = M;
+	}
 
 	SpawnedUnits.Add(Unit);
 	return Unit;

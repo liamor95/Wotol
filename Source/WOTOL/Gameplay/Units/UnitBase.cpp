@@ -206,6 +206,7 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 	// global de rythme -> plus d'échanges, batailles plus longues.
 	float BaseDamage = UnitData->Stats.AttackDPS * UnitData->Stats.AttackCooldown * GlobalDamageScale;
 	BaseDamage *= OutgoingDamageMult; // avantage OFFENSIF de zone (défenseur galvanisé)
+	BaseDamage *= BalanceDamageMult;  // équilibrage difficulté + camp (fixé au spawn)
 	BaseDamage *= SynergyDamageMult;  // synergie dynamique (ex. bouclier soutenu par une lance)
 	BaseDamage *= AuraDamageMult;     // aura d'amplification (Léviaphénix)
 	BaseDamage *= NextHitCritMult;    // coup critique ponctuel (ex. backstab Aquilombres)
