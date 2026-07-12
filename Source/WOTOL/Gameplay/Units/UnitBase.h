@@ -121,6 +121,11 @@ public:
 	// unités greybox renvoient leur VisualRoot (position visuelle réelle en hauteur).
 	virtual class USceneComponent* GetFloatingTextAnchor() const { return RootComponent; }
 
+	// Ancre d'affichage des DÉGÂTS/critiques/esquives. Par défaut = ancre de texte flottant.
+	// Surchargée pour le Kraken (colosse) -> renvoie l'étiquette nom/PV, sinon les chiffres
+	// apparaissaient au PIED du modèle géant, invisibles.
+	virtual class USceneComponent* GetDamageTextAnchor() const { return GetFloatingTextAnchor(); }
+
 	// ---- Sélection (joueur) ----
 	UFUNCTION(BlueprintCallable, Category = "Selection")
 	void SetSelected(bool bNewSelected);

@@ -417,6 +417,15 @@ USceneComponent* AWOTOLDemoUnit::GetFloatingTextAnchor() const
 	return VisualRoot ? VisualRoot.Get() : Super::GetFloatingTextAnchor();
 }
 
+USceneComponent* AWOTOLDemoUnit::GetDamageTextAnchor() const
+{
+	// Kraken (colosse) : ses PV et son nom sont affichés TRÈS HAUT (NameTag). Les chiffres de
+	// dégâts doivent apparaître LÀ, à côté du nom/PV, sinon ils naissent au pied du modèle géant
+	// et restent invisibles. Les unités normales gardent leur ancre visuelle habituelle.
+	if ((bIsBoss || bCreatureBrain) && NameTag) return NameTag.Get();
+	return GetFloatingTextAnchor();
+}
+
 void AWOTOLDemoUnit::HandleHealthChanged(float NewHealth, float MaxHealth)
 {
 	// Chiffre de dégâts flottant rouge (uniquement quand on PERD des PV), ACCROCHÉ à
@@ -425,13 +434,13 @@ void AWOTOLDemoUnit::HandleHealthChanged(float NewHealth, float MaxHealth)
 	if (LastKnownHealth >= 0.f && NewHealth < LastKnownHealth)
 	{
 		const float Dmg = LastKnownHealth - NewHealth;
-		const FVector Anchor = GetFloatingTextAnchor()
-			? GetFloatingTextAnchor()->GetComponentLocation() : GetActorLocation();
+		USceneComponent* DmgAnchor = GetDamageTextAnchor();
+		const FVector Anchor = DmgAnchor ? DmgAnchor->GetComponentLocation() : GetActorLocation();
 		const FVector Jitter(FMath::FRandRange(-35.f, 35.f), FMath::FRandRange(-35.f, 35.f), 0.f);
 		if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::Spawn(
 				GetWorld(), Anchor, Dmg, FLinearColor(0.55f, 0.f, 0.f, 1.f))) // rouge FONCÉ (contraste sur sol clair)
 		{
-			N->SetFollow(GetFloatingTextAnchor(), FVector(0.f, 0.f, 110.f) + Jitter);
+			N->SetFollow(DmgAnchor, FVector(0.f, 0.f, 110.f) + Jitter);
 		}
 		// VFX d'impact : éclat de bulles (eau) à la position visuelle de l'unité
 		AWOTOLBubbleBurst::Burst(GetWorld(), Anchor + FVector(0, 0, 60.f),

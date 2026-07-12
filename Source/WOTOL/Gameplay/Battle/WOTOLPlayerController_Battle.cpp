@@ -602,7 +602,19 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 		// SA hauteur pour l'attaquer là où elle se trouve (ex. Aquisphères en l'air), au lieu
 		// de rester au sol sous elle. La cible précise est VERROUILLÉE (ForceTarget).
 		float TargetLayer = 0.f;
-		if (AWOTOLDemoUnit* TDU = Cast<AWOTOLDemoUnit>(TargetUnit)) TargetLayer = TDU->GetDesiredZ();
+		if (AWOTOLDemoUnit* TDU = Cast<AWOTOLDemoUnit>(TargetUnit))
+		{
+			TargetLayer = TDU->GetDesiredZ();
+			// KRAKEN : sa capsule de déplacement est à la BASE, mais son corps (modèle 3D) monte
+			// haut. On vise le CORPS -> les unités à courte portée GRIMPENT jusqu'à lui pour
+			// pouvoir le toucher (au lieu de rester en bas sans l'atteindre). Celles qui ne
+			// peuvent pas monter aussi haut s'arrêtent à leur couche max (clamp dans SetDesiredZ).
+			if (TDU->bIsBoss || TDU->bCreatureBrain)
+			{
+				FVector BOri, BExt; TargetUnit->GetActorBounds(true, BOri, BExt);
+				TargetLayer += BExt.Z * 0.7f;
+			}
+		}
 		for (AUnitBase* Unit : Sel)
 		{
 			if (!Unit || !Unit->IsAlive()) continue;

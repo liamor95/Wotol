@@ -90,6 +90,9 @@ public:
 	// Les textes flottants s'accrochent au VisualRoot (position visuelle réelle, couche
 	// verticale comprise) -> chaque chiffre suit son unité et sa hauteur.
 	virtual class USceneComponent* GetFloatingTextAnchor() const override;
+	// Kraken : les chiffres de dégâts s'affichent près de son NOM/PV (haut du colosse), pas à
+	// sa base où ils étaient invisibles.
+	virtual class USceneComponent* GetDamageTextAnchor() const override;
 
 protected:
 	virtual void BeginPlay() override;

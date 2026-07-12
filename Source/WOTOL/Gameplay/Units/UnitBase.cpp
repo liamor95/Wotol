@@ -126,7 +126,7 @@ float AUnitBase::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit)
 	if (UnitData)
 	{
 		// Texte accroché à l'unité (VisualRoot) -> suit l'unité et sa hauteur de couche.
-		USceneComponent* Anchor = GetFloatingTextAnchor();
+		USceneComponent* Anchor = GetDamageTextAnchor();
 		const FVector FxLoc = Anchor ? Anchor->GetComponentLocation() : GetActorLocation();
 		const FVector Jitter(FMath::FRandRange(-30.f, 30.f), FMath::FRandRange(-30.f, 30.f), 110.f);
 		// Esquive : le coup rate complètement
@@ -251,11 +251,12 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 		if (FMath::FRand() < CritChance)
 		{
 			BaseDamage *= bBackstab ? 2.2f : 1.7f;
-			const FVector Loc = Target->GetActorLocation() + FVector(0.f, 0.f, 90.f);
+			USceneComponent* CritAnchor = Target->GetDamageTextAnchor();
+			const FVector Loc = (CritAnchor ? CritAnchor->GetComponentLocation() : Target->GetActorLocation()) + FVector(0.f, 0.f, 50.f);
 			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(GetWorld(), Loc,
 					bBackstab ? TEXT("CRITIQUE DOS !") : TEXT("CRITIQUE !"),
 					FLinearColor(1.f, 0.85f, 0.2f, 1.f)))
-				N->SetFollow(Target->GetFloatingTextAnchor(), FVector(0.f, 0.f, 140.f));
+				N->SetFollow(CritAnchor, FVector(0.f, 0.f, 140.f));
 		}
 	}
 
