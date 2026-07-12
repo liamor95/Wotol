@@ -131,7 +131,10 @@ void AWOTOLDemoDirector::BeginPreparation()
 		//   1 chef + 26 inf + 18 montées + 24 distance + 10 spéciales + 1 mythique = 80.
 		// Armée plus RÉSISTANTE -> la bataille DURE (~15 min). Formation ÉTALÉE.
 		InfantryCount = 26; MountedCount = 18; RangedCount = 24; SpecialCount = 10;
-		ArmyHealthScale = 3.0f; // moins tank -> plus de pertes des deux cotes (la bataille reste longue avec 80 unites)
+		// Bataille jugee TROP COURTE (~3 min sur un budget de 15). On AUGMENTE fortement les PV
+		// des deux armees pour ETIRER l'affrontement : plus les unites encaissent, plus la
+		// bataille dure. Reste gagnable (le joueur perd deja ~la moitie de son armee). [Reglable]
+		ArmyHealthScale = 6.5f;
 	}
 	else if (BT == EBattleType::RivalDefense)
 	{
@@ -1648,17 +1651,21 @@ void AWOTOLDemoDirector::SpawnPlacementBoundary()
 
 	const FLinearColor Col = FFactionColors::Get(CachedPlayerFaction); // bleu / vert selon faction
 	const float BX = GetPlacementBoundaryWorldX();
+	const float CY = GetActorLocation().Y;
 	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-	UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
-		nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 
-	// UNE SEULE bande lumineuse AU SOL le long de la limite (en Y). Pas de cubes, pas de
-	// marqueurs verticaux : juste une ligne. Le "mur invisible" est le clamp de déplacement
-	// (IssueCommandToSelection) qui empêche de placer/déplacer au-delà du premier tiers.
+	// LIGNE DE LIMITE DE PLACEMENT : un BARREAU LUMINEUX qui court sur TOUTE la largeur de la
+	// carte (en Y), SURÉLEVÉ et ÉPAIS pour rester visible MÊME AU CENTRE (au-dessus du tapis
+	// de combat surélevé qui masquait un simple trait au sol) + ÉMISSIF (bloom) à la couleur du
+	// camp. Repère clair : « voilà la limite de mon premier tiers ».
+	const float HalfLen = 7200.f;           // demi-longueur -> couvre toute la largeur jouable
+	const float BarZ    = 90.f;             // surélevé : passe AU-DESSUS du tapis central
+	const float BarH    = 180.f;            // hauteur du barreau (bien visible de profil)
+
 	FActorSpawnParameters P; P.Owner = this;
 	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	AStaticMeshActor* Line = W->SpawnActor<AStaticMeshActor>(
-		AStaticMeshActor::StaticClass(), FVector(BX, GetActorLocation().Y, 12.f), FRotator::ZeroRotator, P);
+		AStaticMeshActor::StaticClass(), FVector(BX, CY, BarZ), FRotator::ZeroRotator, P);
 	if (Line)
 	{
 		if (UStaticMeshComponent* C = Line->GetStaticMeshComponent())
@@ -1667,18 +1674,36 @@ void AWOTOLDemoDirector::SpawnPlacementBoundary()
 			C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			C->SetCanEverAffectNavigation(false);
 			if (Cube) C->SetStaticMesh(Cube);
-			// Fine (X), très longue (Y), plate (Z) = trait lumineux posé au sol.
-			Line->SetActorScale3D(FVector(0.15f, 66.f, 0.06f));
-			if (BaseMat)
-			{
-				if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, Line))
-				{
-					MID->SetVectorParameterValue(TEXT("Color"), Col);
-					C->SetMaterial(0, MID);
-				}
-			}
+			// Épais (X), TRÈS long (Y = toute la largeur), haut (Z) = barre lumineuse verticale.
+			Line->SetActorScale3D(FVector(0.5f, HalfLen * 2.f / 100.f, BarH / 100.f));
+			// ÉMISSIF survolté (>1.2) -> déclenche le BLOOM : la barre RAYONNE à la couleur du camp.
+			if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeGlow(Line,
+					FLinearColor(Col.R * 2.6f + 0.3f, Col.G * 2.6f + 0.3f, Col.B * 2.6f + 0.3f, 1.f)))
+				C->SetMaterial(0, MID);
 		}
 		PlacementMarkers.Add(Line);
+	}
+
+	// LAMPES réparties le long du trait -> halo lumineux continu sur toute la largeur, la
+	// limite se DISTINGUE nettement même au centre et dans l'ambiance sombre du fond.
+	const FLinearColor LCol(FMath::Min(1.f, Col.R + 0.25f), FMath::Min(1.f, Col.G + 0.25f), FMath::Min(1.f, Col.B + 0.25f));
+	const int32 Lamps = 9;
+	for (int32 i = 0; i < Lamps; ++i)
+	{
+		const float y = CY - HalfLen + (2.f * HalfLen) * (i / float(Lamps - 1));
+		AActor* LampA = W->SpawnActor<AActor>(AActor::StaticClass(), FVector(BX, y, BarZ + 40.f), FRotator::ZeroRotator, P);
+		if (!LampA) continue;
+		USceneComponent* Root = NewObject<USceneComponent>(LampA);
+		Root->RegisterComponent(); LampA->SetRootComponent(Root);
+		if (UPointLightComponent* PL = NewObject<UPointLightComponent>(LampA))
+		{
+			PL->SetupAttachment(Root); PL->RegisterComponent();
+			PL->SetLightColor(LCol);
+			PL->SetIntensity(2600.f);
+			PL->SetAttenuationRadius(1400.f);
+			PL->SetCastShadows(false);
+		}
+		PlacementMarkers.Add(LampA);
 	}
 }
 

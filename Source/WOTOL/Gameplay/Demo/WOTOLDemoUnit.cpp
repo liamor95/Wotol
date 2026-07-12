@@ -120,6 +120,21 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		return;
 	}
 
+	// ── PLACEMENT : unités POSÉES et FIGÉES tant que la bataille n'est pas LANCÉE ──
+	// Tant qu'on est en préparation (écran != Playing), l'unité ne doit NI se déplacer NI
+	// engager : on coupe l'évitement RVO et on annule toute vélocité résiduelle. Sinon la
+	// dérive physique la faisait sortir de sa zone de placement (dépasser le premier tiers)
+	// et déclenchait le combat AVANT que le joueur ne lance la bataille.
+	bool bBattleLive = true;
+	if (UGameInstance* GI = GetGameInstance())
+		if (UDemoFlowSubsystem* D = GI->GetSubsystem<UDemoFlowSubsystem>())
+			bBattleLive = (D->GetScreen() == EDemoScreen::Playing);
+	if (UCharacterMovementComponent* M = GetCharacterMovement())
+	{
+		if (M->bUseRVOAvoidance != bBattleLive) M->SetAvoidanceEnabled(bBattleLive);
+		if (!bBattleLive) { M->StopMovementImmediately(); M->Velocity = FVector::ZeroVector; }
+	}
+
 	if (bCreatureBrain)
 	{
 		CreatureBrainTick(DeltaSeconds);
@@ -138,17 +153,22 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		// Un ordre explicite du joueur reprend la main sur un choix tactique automatique.
 		if (bUnderPlayerOrder && bCoverTactic) { TargetCover = nullptr; bCoverTactic = false; }
 
-		CoverTacticTimer -= DeltaSeconds;
-		if (!bUnderPlayerOrder && !TargetCover.IsValid() && CoverTacticTimer <= 0.f)
+		// Tactique de couverture UNIQUEMENT en bataille (sinon l'unité se déplaçait vers une
+		// ruine pendant le placement -> elle sortait de sa zone).
+		if (bBattleLive)
 		{
-			CoverTacticTimer = FMath::FRandRange(1.5f, 3.5f);
-			if (AWOTOLCoverStructure* Tac = FindTacticalCover())
+			CoverTacticTimer -= DeltaSeconds;
+			if (!bUnderPlayerOrder && !TargetCover.IsValid() && CoverTacticTimer <= 0.f)
 			{
-				TargetCover = Tac;
-				bCoverTactic = true;
+				CoverTacticTimer = FMath::FRandRange(1.5f, 3.5f);
+				if (AWOTOLCoverStructure* Tac = FindTacticalCover())
+				{
+					TargetCover = Tac;
+					bCoverTactic = true;
+				}
 			}
+			if (TargetCover.IsValid()) TickAttackCover(DeltaSeconds); // attaque de décor (ordre OU tactique)
 		}
-		if (TargetCover.IsValid()) TickAttackCover(DeltaSeconds); // attaque de décor (ordre OU tactique)
 	}
 
 	// LISIBILITÉ : séparation douce entre unités d'une même couche (anti-amas illisible
