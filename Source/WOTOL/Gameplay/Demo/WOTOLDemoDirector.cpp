@@ -188,10 +188,9 @@ void AWOTOLDemoDirector::BeginPreparation()
 	}
 	else
 	{
-		// PHASE 1 (Kraken) : 2.2x rendait les unites quasi increvables (2 pertes seulement).
-		// 1.7x -> elles restent solides mais l'ecrasement/le fouet du Kraken font enfin de
-		// vraies victimes. La calibration de PV du Kraken (0.58 x armee) suit automatiquement.
-		SpecialCount = 3; ArmyHealthScale = 1.7f;
+		// PHASE 1 (Kraken) : 2.0x -> armee solide mais pas increvable. Le Kraken fait des pertes
+		// via son ecrasement (dose plus bas qu'avant), mais la bataille reste GAGNABLE.
+		SpecialCount = 3; ArmyHealthScale = 2.0f;
 	}
 
 	CleanupUnits(); // repart d'une armée propre (utile en phase 2)
@@ -469,14 +468,11 @@ void AWOTOLDemoDirector::SpawnEnemyForCreature(EFactionID RivalFaction, const FV
 			// ÉQUILIBRAGE : le Kraken doit rester un défi mais la phase 1 doit être
 			// GAGNABLE avec le petit groupe du joueur (les deux factions). On baisse donc
 			// nettement sa robustesse et sa frappe (valeurs ABSOLUES = idempotentes).
-			// Combat de phase 1 trop court (~2 min, 3 pertes seulement) : on REMONTE la
-			// robustesse pour que l'affrontement DURE plus longtemps et coûte quelques pertes
-			// de plus, sans le rendre imbattable (valeurs ABSOLUES = idempotentes).
-			Data->Stats.DefensePercent = FMath::Clamp(Data->Stats.DefensePercent, 24.f, 30.f); // encaisse mieux
-			Data->Stats.BlockChance    = FMath::Clamp(Data->Stats.BlockChance, 15.f, 18.f);     // pare un peu plus
-			Data->Stats.DodgeChance    = FMath::Min(Data->Stats.DodgeChance, 3.f);
-			// Frappe forte mais soutenable pour un petit groupe.
-			Data->Stats.AttackDPS      = FMath::Clamp(Data->Stats.AttackDPS, 260.f, 310.f);
+			// Défi mesuré : le Kraken doit tenir un peu mais rester BATTABLE (valeurs ABSOLUES).
+			Data->Stats.DefensePercent = FMath::Clamp(Data->Stats.DefensePercent, 16.f, 20.f);
+			Data->Stats.BlockChance    = FMath::Clamp(Data->Stats.BlockChance, 8.f, 12.f);
+			Data->Stats.DodgeChance    = FMath::Min(Data->Stats.DodgeChance, 2.f);
+			Data->Stats.AttackDPS      = FMath::Clamp(Data->Stats.AttackDPS, 230.f, 280.f);
 		}
 		if (Demo)
 		{
@@ -719,7 +715,7 @@ void AWOTOLDemoDirector::LaunchBattle()
 						// aussi l'inflation de PV joueur en Facile pour que ce soit vraiment plus simple).
 						const float DMul = GetGameInstance() && GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()
 							? DiffEnemyMult(GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()->GetDifficulty()) : 1.f;
-						const float TargetHP = FMath::Clamp(ArmyHP * 0.58f * DMul, 10000.f, 52000.f);
+						const float TargetHP = FMath::Clamp(ArmyHP * 0.42f * DMul, 9000.f, 40000.f);
 						const int32 BaseMax  = FMath::Max(1, Boss->GetUnitData()->Stats.MaxHealth);
 						Boss->HealthScale    = FMath::Max(1.f, TargetHP / (float)BaseMax);
 						Boss->SetHealthToFull(); // applique PV = HealthScale * base

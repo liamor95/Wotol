@@ -227,15 +227,12 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 		BaseDamage *= Bonus.DamageMultiplier;
 	}
 
-	// ÉQUILIBRAGE PHASE 1 : les AQUILORIS manquaient de punch contre le Kraken (combat
-	// trop long -> défaite au chrono). On augmente LÉGÈREMENT leurs dégâts UNIQUEMENT
-	// contre le boss (n'affecte donc PAS la phase 2). Les Noxéens ne sont pas concernés.
-	if (GetFaction() == EFactionID::Aquiloris)
+	// ÉQUILIBRAGE PHASE 1 : les DEUX factions manquaient de punch contre le Kraken (combat trop
+	// long -> le Kraken use l'armée et gagne au chrono). On augmente les dégâts UNIQUEMENT
+	// contre le boss (n'affecte donc PAS la phase 2/3) -> le Kraken tombe dans un délai correct.
+	if (const AWOTOLDemoUnit* TDU = Cast<AWOTOLDemoUnit>(Target))
 	{
-		if (const AWOTOLDemoUnit* TDU = Cast<AWOTOLDemoUnit>(Target))
-		{
-			if (TDU->bCreatureBrain) BaseDamage *= 1.6f;
-		}
+		if (TDU->bCreatureBrain) BaseDamage *= 1.6f;
 	}
 
 	// ── COUP CRITIQUE (TOUTES les unités, pas seulement le boss) ──
