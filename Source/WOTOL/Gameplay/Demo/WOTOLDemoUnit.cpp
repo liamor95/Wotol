@@ -939,7 +939,7 @@ bool AWOTOLDemoUnit::Ability_Laser()
 					: Drake->GetActorLocation()) + FVector(0, 0, 40.f);
 				const FRotator Aim = (DTo - From).Rotation();
 				const FLinearColor Charge(0.35f, 1.f, 0.5f, 1.f);
-				AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (DTo - From).Size() + 60.f), Charge, this, 0.f, Aim.Pitch);
+				AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (DTo - From).Size() + 60.f), Charge, this, 0.f, Aim.Pitch, /*Thickness=*/1.f, /*bBubbleTrail=*/true);
 				AWOTOLBubbleBurst::Burst(W, DTo, Charge, 18);
 				AWOTOLDamageNumber::SpawnText(W, DTo + FVector(0, 0, 120.f), TEXT("Surcharge"), Charge);
 				return true;
@@ -995,7 +995,7 @@ bool AWOTOLDemoUnit::Ability_Laser()
 	{
 		// BALAYAGE : le rayon balaie de MinYaw à MaxYaw en ~1 s (le bras suit ce mouvement),
 		// touchant chaque ennemi traversé (dégâts répartis, un peu moins par cible).
-		AWOTOLBeam::Fire(W, From, MinYaw - 6.f, MaxYaw + 6.f, 1600.f, BeamCol, this, 240.f);
+		AWOTOLBeam::Fire(W, From, MinYaw - 6.f, MaxYaw + 6.f, 1600.f, BeamCol, this, 240.f, /*Pitch=*/0.f, /*Thickness=*/1.f, /*bBubbleTrail=*/true);
 		AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 120.f), TEXT("Rayon — Balayage"), BeamCol);
 	}
 	else
@@ -1005,7 +1005,7 @@ bool AWOTOLDemoUnit::Ability_Laser()
 		// lévitation au-dessus -> le rayon MONTE vraiment jusqu'à lui, il ne part plus à plat).
 		const FVector D3 = To - From;                 // delta RÉEL (From/To = centres des mesh flottants)
 		const FRotator Aim = D3.Rotation();           // yaw + pitch
-		AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, D3.Size() + 100.f), BeamCol, this, 0.f, Aim.Pitch);
+		AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, D3.Size() + 100.f), BeamCol, this, 0.f, Aim.Pitch, /*Thickness=*/1.f, /*bBubbleTrail=*/true);
 		AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 120.f), TEXT("Rayon Laser"), BeamCol);
 	}
 	return true;
@@ -1023,7 +1023,7 @@ bool AWOTOLDemoUnit::Ability_ProjectileBurst()
 	for (int32 i = 0; i < 5; ++i)
 	{
 		const FVector Jit(FMath::FRandRange(-40.f, 40.f), FMath::FRandRange(-40.f, 40.f), FMath::FRandRange(-20.f, 40.f));
-		AWOTOLProjectileTracer::Fire(W, From, To + Jit, FLinearColor(0.55f, 0.35f, 1.f, 1.f), 1.0f, /*bBolt=*/true);
+		AWOTOLProjectileTracer::Fire(W, From, To + Jit, FLinearColor(0.55f, 0.35f, 1.f, 1.f), 1.0f, /*bBolt=*/true, /*bBubbleTrail=*/true);
 	}
 	Foe->TakeDamageFromUnit(180.f, this);
 	AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 110.f), TEXT("Rafale"),
@@ -1177,7 +1177,7 @@ bool AWOTOLDemoUnit::Ability_LaserBig()
 	{
 		const FVector To = Cov->GetActorLocation() + FVector(0, 0, 100.f);
 		const FRotator Aim = (To - From).Rotation();
-		AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (To - From).Size() + 100.f), Beam, this, 0.f, Aim.Pitch, /*Thickness=*/3.5f);
+		AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (To - From).Size() + 100.f), Beam, this, 0.f, Aim.Pitch, /*Thickness=*/3.5f, /*bBubbleTrail=*/true);
 		Cov->TakeCoverDamage(Dmg * 1.6f, this); // effondre la structure
 		AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 150.f), TEXT("Souffle d'Extinction"), Beam);
 		NoxedrakeCharge = 1.f; AttackAnimTimer = 0.6f;
@@ -1189,7 +1189,7 @@ bool AWOTOLDemoUnit::Ability_LaserBig()
 	const FVector To = (Foe->GetFloatingTextAnchor() ? Foe->GetFloatingTextAnchor()->GetComponentLocation()
 		: Foe->GetActorLocation()) + FVector(0, 0, 40.f);
 	const FRotator Aim = (To - From).Rotation();
-	AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (To - From).Size() + 120.f), Beam, this, 0.f, Aim.Pitch, /*Thickness=*/3.5f);
+	AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (To - From).Size() + 120.f), Beam, this, 0.f, Aim.Pitch, /*Thickness=*/3.5f, /*bBubbleTrail=*/true);
 	Foe->TakeDamageFromUnit(Dmg, this);
 	AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 150.f),
 		NoxedrakeCharge > 1.f ? TEXT("Souffle d'Extinction — SURCHARGE") : TEXT("Souffle d'Extinction"), Beam);
@@ -1644,8 +1644,10 @@ void AWOTOLDemoUnit::ApplySoftSeparation(float Dt)
 	}
 	if (!Push.IsNearlyZero())
 	{
-		// Nudge DOUX (respecte la collision du décor), plafonné -> pas d'à-coup ni de tremblement.
-		const FVector Step = Push.GetClampedToMaxSize(60.f) * FMath::Min(1.f, 6.f * Dt);
+		// Poussée FERME : résout vite les chevauchements même quand 80 unités convergent ->
+		// AUCUNE unité ne s'entremêle (elles restent distinctes). Reste sous la portée de
+		// mêlée (l'écart 35 < 55) pour ne pas empêcher le combat. Respecte la collision décor.
+		const FVector Step = Push.GetClampedToMaxSize(180.f) * FMath::Min(1.f, 14.f * Dt);
 		AddActorWorldOffset(Step, true);
 	}
 }

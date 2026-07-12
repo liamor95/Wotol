@@ -27,7 +27,7 @@ public:
 	// plus gros que le Noxar).
 	static AWOTOLBeam* Fire(UWorld* World, const FVector& Origin, float YawStart, float YawEnd,
 		float Length, const FLinearColor& Color, AUnitBase* Caster, float SweepDamage,
-		float Pitch = 0.f, float Thickness = 1.f);
+		float Pitch = 0.f, float Thickness = 1.f, bool bBubbleTrail = false);
 
 protected:
 	virtual void Tick(float DeltaSeconds) override;
@@ -39,6 +39,9 @@ protected:
 	UPROPERTY() TObjectPtr<class UPointLightComponent> Glow2; // lumière fluo (quart lointain)
 
 	FVector OriginLoc = FVector::ZeroVector;
+	FLinearColor BeamColor = FLinearColor::White;   // couleur pour les bulles de frémissement
+	bool bBubbles = false;                           // émet des bulles le long du rayon
+	float BubbleAccum = 0.f;                          // cadence d'émission des bulles
 	float Yaw0 = 0.f, Yaw1 = 0.f, PitchAngle = 0.f, Len = 1000.f, Life = 0.f, Duration = 0.9f, Damage = 0.f;
 	TWeakObjectPtr<AUnitBase> CasterUnit;
 	TSet<TWeakObjectPtr<AUnitBase>> AlreadyHit;

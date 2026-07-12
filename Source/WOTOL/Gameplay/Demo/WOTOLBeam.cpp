@@ -8,6 +8,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Components/PointLightComponent.h"
 #include "WOTOLGlow.h"
+#include "WOTOLBubbleBurst.h"
 
 AWOTOLBeam::AWOTOLBeam()
 {
@@ -34,7 +35,7 @@ AWOTOLBeam::AWOTOLBeam()
 }
 
 AWOTOLBeam* AWOTOLBeam::Fire(UWorld* World, const FVector& Origin, float YawStart, float YawEnd,
-	float Length, const FLinearColor& Color, AUnitBase* Caster, float SweepDamage, float Pitch, float Thickness)
+	float Length, const FLinearColor& Color, AUnitBase* Caster, float SweepDamage, float Pitch, float Thickness, bool bBubbleTrail)
 {
 	if (!World) return nullptr;
 	FActorSpawnParameters P;
@@ -45,6 +46,7 @@ AWOTOLBeam* AWOTOLBeam::Fire(UWorld* World, const FVector& Origin, float YawStar
 	B->OriginLoc = Origin;
 	B->Yaw0 = YawStart; B->Yaw1 = YawEnd; B->PitchAngle = Pitch; B->Len = Length;
 	B->CasterUnit = Caster; B->Damage = SweepDamage;
+	B->BeamColor = Color; B->bBubbles = bBubbleTrail;
 
 	UStaticMesh* Cyl = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 	if (Cyl) B->Beam->SetStaticMesh(Cyl);
@@ -85,6 +87,25 @@ void AWOTOLBeam::Tick(float Dt)
 
 	// Léger fondu en fin de vie.
 	if (BeamMID) BeamMID->SetScalarParameterValue(TEXT("Opacity"), 1.f - a);
+
+	// Frémissement : bulles qui montent le long du rayon pendant qu'il rayonne.
+	if (bBubbles && Life < Duration)
+	{
+		BubbleAccum += Dt;
+		if (BubbleAccum >= 0.04f)
+		{
+			BubbleAccum = 0.f;
+			const FVector Dir = FRotator(PitchAngle, Yaw, 0.f).Vector();
+			// Deux bulles à des distances aléatoires le long du trait.
+			for (int32 i = 0; i < 2; ++i)
+			{
+				const float D = FMath::FRandRange(0.08f, 0.98f) * Len;
+				FVector Loc = OriginLoc + Dir * D;
+				Loc += FVector(FMath::FRandRange(-12.f, 12.f), FMath::FRandRange(-12.f, 12.f), FMath::FRandRange(-12.f, 12.f));
+				AWOTOLBubbleBurst::Burst(GetWorld(), Loc, BeamColor, 2);
+			}
+		}
+	}
 
 	// Dégâts de BALAYAGE : les unités ennemies sur la ligne du rayon (une fois chacune).
 	UWorld* W = GetWorld();
