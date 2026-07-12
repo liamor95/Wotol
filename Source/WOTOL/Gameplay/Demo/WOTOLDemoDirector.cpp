@@ -31,6 +31,24 @@
 #include "Sound/SoundBase.h"
 #include "TimerManager.h"
 
+// ── COEFFICIENT DE SURVIVABILITÉ PAR FACTION ──────────────────────────────────────────────
+// RÈGLE GÉNÉRALE d'équilibrage : tout réglage vaut pour LES DEUX factions, mais adapté à leur
+// identité. Les Noxéens sont des GLASS CANNONS (PV + défense plus bas, DPS/agressivité plus
+// hauts, stats venant de S_UnitData). À réglage identique (mêmes coups de Kraken, même échelle
+// de PV), ils mourraient bien plus vite -> on COMPENSE partiellement leur fragilité pour viser
+// « à peu près le même RÉSULTAT » (victoire + pertes comparables), SANS effacer leur identité
+// (ils restent plus fragiles que les Aquiloris). Appliqué à TOUTE armée, joueur comme rivale,
+// quelle que soit la phase -> chaque futur ajustement s'adapte automatiquement aux deux camps.
+static float FactionSurvivability(EFactionID F)
+{
+	switch (F)
+	{
+		case EFactionID::Noxeens:   return 1.25f; // fragiles -> compensation partielle
+		case EFactionID::Aquiloris: return 1.00f; // référence (tanky, défensifs)
+		default:                    return 1.00f;
+	}
+}
+
 AWOTOLDemoDirector::AWOTOLDemoDirector()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -345,6 +363,9 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	// pour que la dernière (mythique) reste DANS l'arène, sans jamais toucher les montagnes.
 	const float Depth = UnitSpacing * (bGrandBattle ? 1.15f : 1.5f); // espacement entre rangées (X)
 	const float GroundZ = 100.f;
+	// PV de CETTE armée = échelle de bataille × compensation d'identité de faction (Noxéens
+	// fragiles compensés partiellement). S'applique à toutes ses unités.
+	const float PScale = ArmyHealthScale * FactionSurvivability(Faction);
 
 	// Place un groupe en rangées (se replie sur plusieurs lignes vers l'arrière -X). En
 	// phase 3, les rangées sont bien plus LARGES -> la ligne s'étale sur la largeur du tiers
@@ -366,7 +387,7 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 			// restent alignées au centre, jamais décalées sur une autre ligne.
 			const int32 InThisRow = FMath::Min(PerRow, Count - Row * PerRow);
 			const float Y = (Col - (InThisRow - 1) * 0.5f) * Lat;
-			SpawnUnit(Id, Origin + FVector(-BackCursor - Row * Depth, Y, GroundZ), Facing, 1.f, ArmyHealthScale);
+			SpawnUnit(Id, Origin + FVector(-BackCursor - Row * Depth, Y, GroundZ), Facing, 1.f, PScale);
 		}
 		BackCursor += Rows * Depth + GroupGap;              // réserve la place de CETTE catégorie
 	};
@@ -377,7 +398,7 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 
 	// Chef en pointe (devant l'infanterie, centré).
 	SpawnUnit(Demo->GetUnitID(Faction, EDemoUnitCategory::Chef),
-		Origin + FVector(Depth, 0.f, GroundZ), Facing, 1.f, ArmyHealthScale);
+		Origin + FVector(Depth, 0.f, GroundZ), Facing, 1.f, PScale);
 
 	// Rangées empilées de l'avant vers l'arrière, chaque catégorie sur ses propres lignes.
 	PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Infanterie), InfantryCount, PRinf);
@@ -397,7 +418,7 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 		// Placé DERRIÈRE la dernière catégorie via le curseur -> bien DANS l'arène, jamais
 		// sur une rangée occupée ni enterré dans les montagnes.
 		SpawnUnit(Demo->GetUnitID(Faction, EDemoUnitCategory::Mythique),
-			Origin + FVector(-BackCursor, 0.f, GroundZ), Facing, /*ScaleBoost=*/1.0f, /*HealthScale=*/3.0f);
+			Origin + FVector(-BackCursor, 0.f, GroundZ), Facing, /*ScaleBoost=*/1.0f, /*HealthScale=*/3.0f * FactionSurvivability(Faction));
 	}
 }
 
@@ -461,7 +482,9 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	// trop vite (~2 min). On DURCIT l'armée RIVALE (PV majorés côté IA UNIQUEMENT) : sa ligne
 	// de front tient plus longtemps, pousse jusqu'aux lignes arrière du joueur -> le joueur
 	// SUBIT enfin des pertes et le combat DURE davantage, tout en restant GAGNABLE.
-	const float RivalScale = ArmyHealthScale * (bGrandBattle ? 1.35f : 1.6f);
+	// × compensation d'identité de la faction RIVALE (Noxéens fragiles compensés) : la règle
+	// d'équilibrage s'applique aux DEUX camps, quel que soit celui contrôlé par le joueur.
+	const float RivalScale = ArmyHealthScale * (bGrandBattle ? 1.35f : 1.6f) * FactionSurvivability(RivalFaction);
 
 	// PLACEMENT ALÉATOIRE par couche, PROPRE À LA FACTION : chaque unité peut être au sol
 	// ou en hauteur. Les caps de verticalité (ex. Noxebeast au grade 1) sont respectés
