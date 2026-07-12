@@ -23,9 +23,11 @@ public:
 	// Origine, orientation de départ/fin (degrés yaw monde), longueur, couleur.
 	// Pitch (degrés) : inclinaison VERTICALE du rayon -> il peut viser une cible sur une
 	// couche de verticalité DIFFÉRENTE (Kraken en lévitation au-dessus, etc.).
+	// Thickness : multiplicateur d'épaisseur du rayon (1 = normal ; le Noxedrake tire BEAUCOUP
+	// plus gros que le Noxar).
 	static AWOTOLBeam* Fire(UWorld* World, const FVector& Origin, float YawStart, float YawEnd,
 		float Length, const FLinearColor& Color, AUnitBase* Caster, float SweepDamage,
-		float Pitch = 0.f);
+		float Pitch = 0.f, float Thickness = 1.f);
 
 protected:
 	virtual void Tick(float DeltaSeconds) override;

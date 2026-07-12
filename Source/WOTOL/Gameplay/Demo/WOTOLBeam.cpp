@@ -34,7 +34,7 @@ AWOTOLBeam::AWOTOLBeam()
 }
 
 AWOTOLBeam* AWOTOLBeam::Fire(UWorld* World, const FVector& Origin, float YawStart, float YawEnd,
-	float Length, const FLinearColor& Color, AUnitBase* Caster, float SweepDamage, float Pitch)
+	float Length, const FLinearColor& Color, AUnitBase* Caster, float SweepDamage, float Pitch, float Thickness)
 {
 	if (!World) return nullptr;
 	FActorSpawnParameters P;
@@ -51,7 +51,7 @@ AWOTOLBeam* AWOTOLBeam::Fire(UWorld* World, const FVector& Origin, float YawStar
 	// Cylindre couché le long de +X (le mesh est vertical à la base -> pitch +90),
 	// fin et long = trait laser. Ancré à l'origine, s'étend vers l'avant.
 	B->Beam->SetRelativeRotation(FRotator(90.f, 0.f, 0.f));
-	B->Beam->SetRelativeScale3D(FVector(0.10f, 0.10f, Length / 100.f));
+	B->Beam->SetRelativeScale3D(FVector(0.10f * Thickness, 0.10f * Thickness, Length / 100.f));
 	B->Beam->SetRelativeLocation(FVector(Length * 0.5f, 0.f, 0.f));
 	// Trait ÉMISSIF sur TOUTE sa longueur : c'est le rayon qui rayonne (couleur >1),
 	// pas le sol. Matériau unlit -> le cylindre entier brille fluo à l'écran.

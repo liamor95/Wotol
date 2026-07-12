@@ -234,6 +234,10 @@ private:
 	bool  Ability_BlindFlash();            // Noxeflare : éblouit les ennemis proches
 	bool  Ability_Hydrolaser();            // Aquisphères : grosse boule mono OU rafale de zone
 	bool  Ability_Charge();                // Noxebeast : charge frontale (repousse + interrompt)
+	bool  Ability_LaserBig();              // Noxedrake : ÉNORME rayon mono-cible (décor OU unité)
+
+	// NOXEDRAKE — Surcharge reçue du Noxar : multiplie le prochain Souffle (1 = normal).
+	float NoxedrakeCharge = 1.f;
 	bool  Ability_ShadowStrike();          // Aquilombres : bond furtif dans le dos + crit + ombre
 	bool  Ability_Resonance();             // Léviaphénix : pulse d'aura (soin + amplification alliés)
 	// Tir de base des Aquisphères : boule Hydrolaser (traînée de bulles) OU coup de crosse

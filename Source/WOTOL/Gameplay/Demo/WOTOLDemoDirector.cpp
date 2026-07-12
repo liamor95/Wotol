@@ -123,11 +123,24 @@ void AWOTOLDemoDirector::BeginPreparation()
 	// Phase 2 (défense rivale) : GRANDE bataille — plus d'unités des deux côtés.
 	// Valeurs volontairement mesurées : ~26 vs 26 unités entièrement riggées, pour
 	// rester fluide/stable sur un portable (évite les surcharges mémoire/GPU).
-	if (BT == EBattleType::RivalDefense)
+	bGrandBattle = bGrand;
+	if (bGrand)
+	{
+		// PHASE 3 : ~80 unités/faction (1 chef + 1 mythique + 6 spéciales + 72 réparties).
+		// Armée plus RÉSISTANTE -> la bataille DURE (vise ~15 min, pas 3). Formation ÉTALÉE.
+		InfantryCount = 34; MountedCount = 18; RangedCount = 20; SpecialCount = 6;
+		ArmyHealthScale = 4.0f;
+	}
+	else if (BT == EBattleType::RivalDefense)
 	{
 		// Phase 2 = GRANDE bataille : plus d'unités des deux côtés -> siège plus long et
 		// plus disputé (vise >= 5 min). Reste mesuré pour la fluidité sur portable.
-		InfantryCount = 16; MountedCount = 8; RangedCount = 10;
+		InfantryCount = 16; MountedCount = 8; RangedCount = 10; SpecialCount = 3;
+		ArmyHealthScale = 2.2f;
+	}
+	else
+	{
+		SpecialCount = 3; ArmyHealthScale = 2.2f;
 	}
 
 	CleanupUnits(); // repart d'une armée propre (utile en phase 2)
@@ -178,7 +191,7 @@ void AWOTOLDemoDirector::BeginPreparation()
 	{
 		Demo->SetScreen(EDemoScreen::Prepare);
 		Demo->SetObjective(bGrand
-			? FString(TEXT("Aneantir la faction rivale — bataille rangee (zone neutre)"))
+			? FString(TEXT("PHASE 3 — Remportez la bataille : mettez la rivale en DEROUTE pour conquerir la nouvelle zone"))
 			: (BT == EBattleType::RivalDefense
 				? FString::Printf(TEXT("Proteger le %s — ne le laissez pas tomber a 0"),
 					*BuildingDisplayName(CachedPlayerFaction))
@@ -317,7 +330,9 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	const float Depth = UnitSpacing * 1.5f;   // espacement entre rangées (X)
 	const float GroundZ = 100.f;
 
-	// Place un groupe en rangées (se replie sur plusieurs lignes vers l'arrière -X).
+	// Place un groupe en rangées (se replie sur plusieurs lignes vers l'arrière -X). En
+	// phase 3, les rangées sont bien plus LARGES -> la ligne s'étale sur la largeur du tiers
+	// (fini l'empilement). Toutes les unités reçoivent l'échelle de PV de la bataille.
 	auto PlaceRows = [&](FName Id, int32 Count, float BackStart, int32 PerRow)
 	{
 		if (Id.IsNone()) return;
@@ -325,29 +340,36 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 		{
 			const int32 Row = i / PerRow, Col = i % PerRow;
 			const float Y = (Col - (PerRow - 1) * 0.5f) * Lat;
-			SpawnUnit(Id, Origin + FVector(-BackStart - Row * Depth, Y, GroundZ), Facing, 1.f);
+			SpawnUnit(Id, Origin + FVector(-BackStart - Row * Depth, Y, GroundZ), Facing, 1.f, ArmyHealthScale);
 		}
 	};
+	const int32 PRinf = bGrandBattle ? 18 : 8;
+	const int32 PRmon = bGrandBattle ? 12 : 6;
+	const int32 PRdis = bGrandBattle ? 16 : 8;
+	const int32 PRspe = bGrandBattle ? 6  : 3;
 
 	// Chef en pointe
 	SpawnUnit(Demo->GetUnitID(Faction, EDemoUnitCategory::Chef),
-		Origin + FVector(Depth, 0.f, GroundZ), Facing, 1.f);
+		Origin + FVector(Depth, 0.f, GroundZ), Facing, 1.f, ArmyHealthScale);
 
-	PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Infanterie), InfantryCount, 0.f, 8);
-	PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Montee), MountedCount, Depth * 3.f, 6);
+	PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Infanterie), InfantryCount, 0.f, PRinf);
+	PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Montee), MountedCount, Depth * 3.f, PRmon);
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Distance))
 	{
-		PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Distance), RangedCount, Depth * 5.f, 8);
+		PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Distance), RangedCount, Depth * 5.f, PRdis);
 	}
 	// PHASE 3 : SPÉCIALE (arrière-ligne) + MYTHIQUE (soutien) débloquées.
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Speciale))
 	{
-		PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Speciale), 3, Depth * 6.f, 3);
+		PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Speciale), SpecialCount, Depth * 6.f, PRspe);
 	}
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Mythique))
 	{
+		// ScaleBoost = 1.0 : le mythique est DÉJÀ grand ; le surdimensionner (1.6) gonflait
+		// aussi sa CAPSULE de collision -> il restait BLOQUÉ dans le décor (impossible à
+		// déplacer). À l'échelle 1, il bouge normalement.
 		SpawnUnit(Demo->GetUnitID(Faction, EDemoUnitCategory::Mythique),
-			Origin + FVector(-Depth * 7.f, 0.f, GroundZ), Facing, /*ScaleBoost=*/1.6f, /*HealthScale=*/3.0f);
+			Origin + FVector(-Depth * 7.f, 0.f, GroundZ), Facing, /*ScaleBoost=*/1.0f, /*HealthScale=*/3.0f);
 	}
 }
 
@@ -430,28 +452,32 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 			const float Y = (Col - (PerRow - 1) * 0.5f) * Lat;
 			FVector Loc = O + FVector(BackStart + Row * Depth, Y, 100.f);
 			Loc.X = FMath::Max(Loc.X, MirrorX); // ne pas franchir la limite de son tiers
-			SetLayer(SpawnUnit(Id, Loc, Facing, 1.f), PickLayer(Cat));
+			SetLayer(SpawnUnit(Id, Loc, Facing, 1.f, ArmyHealthScale), PickLayer(Cat));
 		}
 	};
+	const int32 PRinf = bGrandBattle ? 18 : 8;
+	const int32 PRmon = bGrandBattle ? 12 : 6;
+	const int32 PRdis = bGrandBattle ? 16 : 8;
+	const int32 PRspe = bGrandBattle ? 6  : 3;
 
 	FVector ChefLoc = O + FVector(-Depth, 0.f, 100.f);
 	ChefLoc.X = FMath::Max(ChefLoc.X, MirrorX);
-	SetLayer(SpawnUnit(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Chef), ChefLoc, Facing, 1.f),
+	SetLayer(SpawnUnit(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Chef), ChefLoc, Facing, 1.f, ArmyHealthScale),
 		PickLayer(EDemoUnitCategory::Chef));
 
-	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Infanterie), EDemoUnitCategory::Infanterie, InfantryCount, 0.f, 8);
-	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Montee), EDemoUnitCategory::Montee, MountedCount, Depth * 3.f, 6);
-	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Distance), EDemoUnitCategory::Distance, RangedCount, Depth * 5.f, 8);
+	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Infanterie), EDemoUnitCategory::Infanterie, InfantryCount, 0.f, PRinf);
+	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Montee), EDemoUnitCategory::Montee, MountedCount, Depth * 3.f, PRmon);
+	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Distance), EDemoUnitCategory::Distance, RangedCount, Depth * 5.f, PRdis);
 	// PHASE 3 : la rivale déploie AUSSI sa spéciale + son mythique.
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Speciale))
 	{
-		PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Speciale), EDemoUnitCategory::Speciale, 3, Depth * 6.f, 3);
+		PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Speciale), EDemoUnitCategory::Speciale, SpecialCount, Depth * 6.f, PRspe);
 	}
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Mythique))
 	{
 		FVector MLoc = O + FVector(Depth * 7.f, 0.f, 100.f);
 		MLoc.X = FMath::Max(MLoc.X, MirrorX);
-		SetLayer(SpawnUnit(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Mythique), MLoc, Facing, 1.6f, 3.0f),
+		SetLayer(SpawnUnit(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Mythique), MLoc, Facing, /*ScaleBoost=*/1.0f, 3.0f),
 			PickLayer(EDemoUnitCategory::Mythique));
 	}
 }
@@ -600,11 +626,15 @@ void AWOTOLDemoDirector::LaunchBattle()
 				if (!U) continue;
 				AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U);
 				if (DU && DU->bCreatureBrain) continue; // le boss a son propre cerveau
-				// Léger avantage de survie/mordant à l'IA rivale : elle encaisse ~10% de
-				// moins et frappe ~12% de plus -> elle riposte assez pour faire des pertes
-				// au joueur, sans renverser l'issue (le joueur gagne toujours).
-				U->IncomingDamageMult *= 0.90f;
-				U->OutgoingDamageMult *= 1.12f;
+				// Léger avantage de survie/mordant à l'IA rivale (phases 1 & 2) : elle encaisse
+				// ~10% de moins et frappe ~12% de plus -> elle fait des pertes au joueur sans
+				// renverser l'issue. EN PHASE 3 : ZONE NEUTRE -> AUCUN avantage artificiel, les
+				// deux camps sont à égalité (seuls leurs bonus de faction comptent).
+				if (!bGrandBattle)
+				{
+					U->IncomingDamageMult *= 0.90f;
+					U->OutgoingDamageMult *= 1.12f;
+				}
 				const bool bSieger = bSiege && (RivalIndex++ % 5 < 2); // ~40% assiégeurs
 				if (AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(U->GetController()))
 				{

@@ -55,6 +55,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
 	float ArmySeparation = 4500.f;
 
+	// Phase 3 : bataille rangée massive (~80 unités/faction) -> plus résistante (dure ~15 min)
+	// et formation ÉTALÉE sur toute la largeur du tiers (pas empilée).
+	float ArmyHealthScale = 2.2f;   // PV des armées (relevé en phase 3 pour un combat long)
+	bool  bGrandBattle    = false;  // vrai en phase 3 (formation large + gros roster)
+	int32 SpecialCount    = 3;      // nb d'unités spéciales par armée (relevé en phase 3)
+
 	// Multiplicateur de PV de la créature/boss (réduit -> phase 1 gagnable)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
 	float CreatureHealthScale = 8.f;

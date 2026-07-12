@@ -760,7 +760,9 @@ float AWOTOLDemoUnit::GetAbilityCooldownFor(FName Id) const
 	if (Id == TEXT("Noxebeast"))   return 14.f;
 	if (Id == TEXT("Noxeblast"))   return 8.f;
 	if (Id == TEXT("Aquilombres")) return 16.f; // spéciale : coup qui fait mal -> gros cooldown (pas spammable)
-	if (Id == TEXT("Leviaphenix")) return 20.f; // mythique (réserve phase 3)
+	if (Id == TEXT("Leviaphenix")) return 20.f; // mythique
+	if (Id == TEXT("Noxedrake"))   return 18.f; // mythique : gros souffle (amplifié par Noxar)
+	if (Id == TEXT("Noxeons"))     return 12.f; // spéciale
 	return 12.f;
 }
 
@@ -802,6 +804,7 @@ bool AWOTOLDemoUnit::UseAbility()
 	else if (Id == TEXT("Aquilombres")) return Ability_ShadowStrike();
 	else if (Id == TEXT("Leviaphenix")) return Ability_Resonance();
 	else if (Id == TEXT("Noxebeast"))   return Ability_Charge();
+	else if (Id == TEXT("Noxedrake"))   return Ability_LaserBig();
 	// (Aquiloryons/Aquilances/Aquispheres/Noxebeast : leur "compétence" est leur
 	//  comportement de formation/charge géré par le cerveau tactique.)
 	return false;
@@ -906,6 +909,38 @@ bool AWOTOLDemoUnit::Ability_Laser()
 	UWorld* W = GetWorld(); if (!W) return false;
 	const FVector From = (GetFloatingTextAnchor() ? GetFloatingTextAnchor()->GetComponentLocation()
 		: GetActorLocation()) + FVector(0, 0, 40.f);
+
+	// ── SYNERGIE NOXAR -> NOXEDRAKE : si un Noxedrake allié est présent et pas encore
+	// pleinement chargé, Noxar lui envoie son rayon pour le CHARGER (amplifie son prochain
+	// Souffle) au lieu de tirer sur l'ennemi. Le rayon ne blesse PAS le Noxedrake. ──
+	if (UnitData && UnitData->GetFName() == TEXT("Noxar"))
+	{
+		if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
+		{
+			AWOTOLDemoUnit* Drake = nullptr; float BestD = 1800.f * 1800.f;
+			for (AUnitBase* U : Reg->GetUnitsForFaction(GetFaction()))
+			{
+				AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U);
+				if (!D || !U->IsAlive() || !U->GetUnitData()) continue;
+				if (U->GetUnitData()->GetFName() != TEXT("Noxedrake")) continue;
+				if (D->NoxedrakeCharge >= 3.f) continue; // déjà saturé
+				const float d2 = FVector::DistSquared(GetActorLocation(), U->GetActorLocation());
+				if (d2 < BestD) { BestD = d2; Drake = D; }
+			}
+			if (Drake)
+			{
+				Drake->NoxedrakeCharge = FMath::Min(Drake->NoxedrakeCharge + 0.6f, 3.f);
+				const FVector DTo = (Drake->GetFloatingTextAnchor() ? Drake->GetFloatingTextAnchor()->GetComponentLocation()
+					: Drake->GetActorLocation()) + FVector(0, 0, 40.f);
+				const FRotator Aim = (DTo - From).Rotation();
+				const FLinearColor Charge(0.35f, 1.f, 0.5f, 1.f);
+				AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (DTo - From).Size() + 60.f), Charge, this, 0.f, Aim.Pitch);
+				AWOTOLBubbleBurst::Burst(W, DTo, Charge, 18);
+				AWOTOLDamageNumber::SpawnText(W, DTo + FVector(0, 0, 120.f), TEXT("Surcharge"), Charge);
+				return true;
+			}
+		}
+	}
 
 	FVector To = From; bool bHasTarget = false;
 	// 1) Objectif : bâtiment de capture adverse (le sien = celui qu'il n'a pas)
@@ -1118,6 +1153,42 @@ bool AWOTOLDemoUnit::Ability_Charge()
 	AttackAnimTimer = 0.55f;
 	AWOTOLBubbleBurst::Burst(W, C + Fwd * 120.f + FVector(0, 0, 40.f), FLinearColor(0.3f, 1.2f, 0.5f, 1.f), 24);
 	AWOTOLDamageNumber::SpawnText(W, C + FVector(0, 0, 150.f), TEXT("Fracasse-Fosse"), FLinearColor(0.35f, 1.3f, 0.55f, 1.f));
+	return true;
+}
+
+// NOXEDRAKE — Souffle d'Extinction : ÉNORME rayon MONO-CIBLE (pas de balayage, contrairement
+// au Noxar). Il vise SOIT une STRUCTURE de décor (pour l'effondrer sur les troupes ennemies),
+// SOIT une cible précise (dégâts colossaux). Amplifié par la SURCHARGE reçue du Noxar.
+bool AWOTOLDemoUnit::Ability_LaserBig()
+{
+	UWorld* W = GetWorld(); if (!W) return false;
+	const FVector From = (GetFloatingTextAnchor() ? GetFloatingTextAnchor()->GetComponentLocation()
+		: GetActorLocation()) + FVector(0, 0, 60.f);
+	const FLinearColor Beam(0.30f, 1.f, 0.45f, 1.f);       // vert Noxéen intense
+	const float Dmg = 700.f * NoxedrakeCharge;             // colossal, décuplé par la charge Noxar
+
+	// 1) PRIORITÉ : une STRUCTURE de décor à faire tomber sur un groupe d'ennemis derrière.
+	if (AWOTOLCoverStructure* Cov = FindTacticalCover())
+	{
+		const FVector To = Cov->GetActorLocation() + FVector(0, 0, 100.f);
+		const FRotator Aim = (To - From).Rotation();
+		AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (To - From).Size() + 100.f), Beam, this, 0.f, Aim.Pitch, /*Thickness=*/3.5f);
+		Cov->TakeCoverDamage(Dmg * 1.6f, this); // effondre la structure
+		AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 150.f), TEXT("Souffle d'Extinction"), Beam);
+		NoxedrakeCharge = 1.f; AttackAnimTimer = 0.6f;
+		return true;
+	}
+
+	// 2) SINON : cible précise = ennemi le plus proche, dégâts colossaux (mono-cible).
+	AUnitBase* Foe = FindNearestEnemyUnit(); if (!Foe) return false;
+	const FVector To = (Foe->GetFloatingTextAnchor() ? Foe->GetFloatingTextAnchor()->GetComponentLocation()
+		: Foe->GetActorLocation()) + FVector(0, 0, 40.f);
+	const FRotator Aim = (To - From).Rotation();
+	AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (To - From).Size() + 120.f), Beam, this, 0.f, Aim.Pitch, /*Thickness=*/3.5f);
+	Foe->TakeDamageFromUnit(Dmg, this);
+	AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 150.f),
+		NoxedrakeCharge > 1.f ? TEXT("Souffle d'Extinction — SURCHARGE") : TEXT("Souffle d'Extinction"), Beam);
+	NoxedrakeCharge = 1.f; AttackAnimTimer = 0.6f;
 	return true;
 }
 
@@ -2308,7 +2379,7 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 	switch (UnitRole)
 	{
 		case EUnitRole::Montee:   WidthFactor = 0.42f; break; // monture : un peu plus large
-		case EUnitRole::Mythique: WidthFactor = 1.05f; break; // gros mythique (mais resserré)
+		case EUnitRole::Mythique: WidthFactor = 0.50f; break; // capsule RÉDUITE : le mythique est grand visuellement mais doit pouvoir se déplacer (une capsule énorme le bloquait dans le décor)
 		case EUnitRole::Chef:     WidthFactor = 0.32f; break;
 		default: break;
 	}
