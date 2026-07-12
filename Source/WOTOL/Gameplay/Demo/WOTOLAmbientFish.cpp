@@ -4,6 +4,7 @@
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "WOTOLBubbleBurst.h"
 
 AWOTOLAmbientFish::AWOTOLAmbientFish()
 {
@@ -230,5 +231,18 @@ void AWOTOLAmbientFish::Tick(float DeltaSeconds)
 		const float amp = 5.f + 12.f * ((float)(i + 1) / (float)N); // amplitude croissante vers la queue
 		const float yaw = FMath::Sin(t * SwimRate - i * 0.9f) * amp;
 		TailJoints[i]->SetRelativeRotation(FRotator(0.f, yaw, 0.f));
+	}
+
+	// FRÉMISSEMENT DE L'EAU : sillage de bulles derrière les GRANDES créatures (les petits
+	// bancs sont trop nombreux -> on les épargne pour rester léger). Émis à la queue.
+	if (Species != EFishSpecies::SmallFish)
+	{
+		TrailTimer -= DeltaSeconds;
+		if (TrailTimer <= 0.f)
+		{
+			TrailTimer = FMath::FRandRange(0.4f, 0.8f);
+			const FVector Rear = GetActorLocation() - GetActorForwardVector() * (BodyLen * 0.6f);
+			AWOTOLBubbleBurst::Burst(GetWorld(), Rear, FLinearColor(0.7f, 0.9f, 1.f, 1.f), 2);
+		}
 	}
 }

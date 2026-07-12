@@ -57,4 +57,5 @@ protected:
 	float Angle = 0.f;
 	float SwimRate = 6.f; // vitesse de battement (ondulation)
 	float BodyLen  = 100.f;
+	float TrailTimer = 0.f; // cadence des bulles de sillage (frémissement de l'eau)
 };
