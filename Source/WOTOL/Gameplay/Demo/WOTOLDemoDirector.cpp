@@ -639,10 +639,10 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 		const EDemoDifficulty Diff = Flow ? Flow->GetDifficulty() : EDemoDifficulty::Normal;
 		const bool bPlayerSide = (Unit->GetFaction() == CachedPlayerFaction);
 		float M = bPlayerSide ? DiffPlayerDamage(Diff) : DiffEnemyDamage(Diff);
-		// Phase 3 (miroir 80v80) : les Noxéens surclassent les Aquiloris en DPS brut -> on donne
-		// un LÉGER avantage offensif au JOUEUR et on tempère l'ennemi, pour que la grande
-		// bataille reste GAGNABLE quel que soit le camp choisi.
-		if (bGrandBattle) M *= bPlayerSide ? 1.15f : 0.90f;
+		// Phase 3 (miroir 80v80) : defaite ecrasante observee (80-19) -> l'avance de DPS des
+		// Noxeens + facteurs mecaniques exigent un avantage offensif JOUEUR plus net et un
+		// ennemi bien tempere, pour que la grande bataille soit reellement gagnable.
+		if (bGrandBattle) M *= bPlayerSide ? 1.30f : 0.80f;
 		Unit->BalanceDamageMult = M;
 	}
 

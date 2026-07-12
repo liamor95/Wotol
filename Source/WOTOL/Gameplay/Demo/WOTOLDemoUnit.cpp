@@ -1213,8 +1213,12 @@ bool AWOTOLDemoUnit::Ability_Charge()
 bool AWOTOLDemoUnit::Ability_LaserBig()
 {
 	UWorld* W = GetWorld(); if (!W) return false;
-	const FVector From = (GetFloatingTextAnchor() ? GetFloatingTextAnchor()->GetComponentLocation()
-		: GetActorLocation()) + FVector(0, 0, 60.f);
+	// MUSEAU : le souffle sort de la GUEULE (avant de la tête), pas du buste. Le Noxedrake est
+	// une créature (avant = +X), on avance donc jusqu'au bord AVANT du modèle, à hauteur de tête.
+	FVector BOri, BExt; GetActorBounds(true, BOri, BExt);
+	const FVector From = GetActorLocation()
+		+ GetActorForwardVector() * (BExt.X * 0.85f)   // jusqu'a l'avant de la gueule
+		+ FVector(0, 0, BExt.Z * 0.55f);               // a hauteur de tete
 	const FLinearColor Beam(0.30f, 1.f, 0.45f, 1.f);       // vert Noxéen intense
 	const float Dmg = 700.f * NoxedrakeCharge;             // colossal, décuplé par la charge Noxar
 
