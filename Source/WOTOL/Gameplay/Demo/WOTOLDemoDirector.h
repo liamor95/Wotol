@@ -79,19 +79,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
 	TSubclassOf<AWOTOLCaptureObject> CaptureObjectClass;
 
-	// ── MUSIQUE / BANDE-SON ── Dépose simplement tes sons (Sound Wave ou Sound Cue) dans
-	// ces cases dans l'éditeur : la musique se déclenche/arrête toute seule aux bons moments.
+	// ── MUSIQUE / BANDE-SON ── 3 pistes pilotées par l'ÉCRAN (elles bouclent, et ne
+	// REDÉMARRENT PAS quand on passe d'un écran à un autre qui partage la même musique) :
+	//   MenuMusic    -> Menu principal + Choix de faction/difficulté
+	//   BattleMusic  -> Placement des unités + Bataille (jusqu'à la fin du combat)
+	//   SummaryMusic -> Résumé de bataille + écran de transition
+	// Dépose tes sons dans Content/Audio/Music et NOMME-les MenuMusic / BattleMusic /
+	// SummaryMusic (ou assigne-les ici dans l'éditeur) -> tout se déclenche tout seul.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Audio")
-	TObjectPtr<class USoundBase> PreparationMusic; // pendant le placement des unités (boucle)
+	TObjectPtr<class USoundBase> MenuMusic;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Audio")
-	TObjectPtr<class USoundBase> BattleMusic;      // pendant le combat (boucle)
+	TObjectPtr<class USoundBase> BattleMusic;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Audio")
-	TObjectPtr<class USoundBase> VictoryMusic;     // stinger de victoire (one-shot)
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Audio")
-	TObjectPtr<class USoundBase> DefeatMusic;      // stinger de défaite (one-shot)
+	TObjectPtr<class USoundBase> SummaryMusic;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Audio", meta = (ClampMin = "0.0", ClampMax = "2.0"))
 	float MusicVolume = 0.7f;                       // volume global de la musique
@@ -100,8 +102,19 @@ public:
 	UPROPERTY(Transient)
 	TObjectPtr<class UAudioComponent> CurrentMusic;
 
+	// Piste actuellement jouée (pour ne PAS la relancer si l'écran change sans changer de piste).
+	UPROPERTY(Transient)
+	TObjectPtr<class USoundBase> CurrentMusicAsset;
+
+	FTimerHandle MusicPollHandle;
+
 	// Lance une musique (arrête l'ancienne en fondu). bLoop=false pour un stinger.
 	void PlayMusic(class USoundBase* Music, bool bLoop);
+
+	// Choisit la piste selon l'écran courant, et ne switche QUE si la piste change.
+	void UpdateMusicForScreen();
+	// Piste associée à un écran donné.
+	class USoundBase* MusicForScreen(uint8 Screen) const;
 
 	// Messages narratifs (le HUD/BP peut s'y abonner pour les afficher à l'écran)
 	UPROPERTY(BlueprintAssignable, Category = "Demo")

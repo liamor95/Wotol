@@ -7,12 +7,19 @@ glisser-deposer un .wav/.mp3 dans le dossier -> UE cree un asset SoundWave).
 Ensuite, pour que le son soit JOUE en jeu, il faut l'ASSIGNER a la bonne
 propriete dans le Blueprint du DemoDirector (BP base sur AWOTOLDemoDirector) :
 
-  MUSIQUE (dossier Music/) — proprietes du DemoDirector :
-    - PreparationMusic  -> musique pendant le PLACEMENT (boucle)
-    - BattleMusic       -> musique pendant le COMBAT (boucle)
-    - VictoryMusic      -> jingle de VICTOIRE (one-shot)
-    - DefeatMusic       -> jingle de DEFAITE (one-shot)
-    (Une musique de menu peut aussi etre posee ici.)
+  MUSIQUE (dossier Music/) — 3 pistes pilotees par l'ECRAN, en boucle. Elles ne
+  redemarrent PAS quand on passe d'un ecran a un autre partageant la meme piste.
+  Nomme tes fichiers EXACTEMENT ainsi (ou assigne-les sur le DemoDirector) et ca
+  se declenche tout seul, AUCUN Blueprint :
+
+    - MenuMusic     -> Menu principal + Choix de faction/difficulte
+    - BattleMusic   -> Placement des unites + Bataille (boucle jusqu'a la fin)
+    - SummaryMusic  -> Resume de bataille + ecran de transition
+
+  Enchainement automatique par phase :
+    Menu/Faction (MenuMusic) -> Placement+Combat (BattleMusic) -> Resume+
+    Transition (SummaryMusic) -> Placement+Combat phase 2 (BattleMusic) -> ...
+    Retour menu principal -> MenuMusic (la boucle repart).
 
   SFX/    effets ponctuels :
     - UI/         clics de boutons, navigation menus

@@ -125,19 +125,22 @@ void AWOTOLDemoDirector::BeginPlay()
 	CachedRivalFaction  = RivalOf(CachedPlayerFaction);
 
 	// ── MUSIQUE : si un slot n'est pas rempli dans l'éditeur, on tente de charger
-	// automatiquement un son portant le bon NOM dans le dossier Content/Audio.
-	// -> il suffit d'importer tes musiques dans Content/Audio et de les nommer
-	//    exactement : PreparationMusic, BattleMusic, VictoryMusic, DefeatMusic.
+	// automatiquement un son portant le bon NOM dans Content/Audio/Music (ou Content/Audio).
+	// -> il suffit d'importer tes musiques et de les nommer EXACTEMENT :
+	//    MenuMusic, BattleMusic, SummaryMusic.
+	// On tente les DEUX emplacements probables : Content/Audio/Music/<Nom> puis Content/Audio/<Nom>.
 	auto TryLoadMusic = [](TObjectPtr<USoundBase>& Slot, const TCHAR* AssetName)
 	{
 		if (Slot) return; // déjà assigné dans l'éditeur -> on n'écrase pas
-		const FString Path = FString::Printf(TEXT("/Game/Audio/%s.%s"), AssetName, AssetName);
-		Slot = LoadObject<USoundBase>(nullptr, *Path);
+		const FString P1 = FString::Printf(TEXT("/Game/Audio/Music/%s.%s"), AssetName, AssetName);
+		Slot = LoadObject<USoundBase>(nullptr, *P1);
+		if (Slot) return;
+		const FString P2 = FString::Printf(TEXT("/Game/Audio/%s.%s"), AssetName, AssetName);
+		Slot = LoadObject<USoundBase>(nullptr, *P2);
 	};
-	TryLoadMusic(PreparationMusic, TEXT("PreparationMusic"));
-	TryLoadMusic(BattleMusic,      TEXT("BattleMusic"));
-	TryLoadMusic(VictoryMusic,     TEXT("VictoryMusic"));
-	TryLoadMusic(DefeatMusic,      TEXT("DefeatMusic"));
+	TryLoadMusic(MenuMusic,    TEXT("MenuMusic"));
+	TryLoadMusic(BattleMusic,  TEXT("BattleMusic"));
+	TryLoadMusic(SummaryMusic, TEXT("SummaryMusic"));
 
 	// Visualisation du courant (traînées dérivantes sur les couches hautes) — persistante.
 	if (UWorld* W = GetWorld())
@@ -155,6 +158,39 @@ void AWOTOLDemoDirector::BeginPlay()
 			Demo->SetScreen(EDemoScreen::MainMenu);
 		}
 	}
+
+	// MUSIQUE PILOTÉE PAR L'ÉCRAN : on sonde l'écran courant ~4 fois/s et on change de piste
+	// UNIQUEMENT quand la musique cible change (menu -> bataille -> résumé). Léger et robuste.
+	UpdateMusicForScreen();
+	GetWorldTimerManager().SetTimer(MusicPollHandle, this,
+		&AWOTOLDemoDirector::UpdateMusicForScreen, 0.25f, /*bLoop=*/true);
+}
+
+USoundBase* AWOTOLDemoDirector::MusicForScreen(uint8 Screen) const
+{
+	switch (static_cast<EDemoScreen>(Screen))
+	{
+	case EDemoScreen::MainMenu:
+	case EDemoScreen::FactionSelect: return MenuMusic;
+	case EDemoScreen::Prepare:
+	case EDemoScreen::Playing:       return BattleMusic;
+	case EDemoScreen::Summary:
+	case EDemoScreen::Interlude:     return SummaryMusic;
+	default:                         return nullptr;
+	}
+}
+
+void AWOTOLDemoDirector::UpdateMusicForScreen()
+{
+	UGameInstance* GI = GetGameInstance();
+	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+
+	USoundBase* Target = MusicForScreen(static_cast<uint8>(Demo->GetScreen()));
+	if (Target == CurrentMusicAsset) return; // MÊME piste -> on NE relance PAS (continuité).
+
+	CurrentMusicAsset = Target;
+	PlayMusic(Target, /*bLoop=*/true); // Target peut être nul (aucune piste) -> coupe la musique.
 }
 
 // ── MUSIQUE ── Joue une musique (arrête l'ancienne en fondu). bLoop=true = boucle
@@ -184,9 +220,7 @@ void AWOTOLDemoDirector::PlayMusic(USoundBase* Music, bool bLoop)
 // Fonctionne pour LES DEUX phases (créature ou défense rivale) selon la phase courante.
 void AWOTOLDemoDirector::BeginPreparation()
 {
-	// Musique de PRÉPARATION (boucle) dès qu'on entre en placement.
-	PlayMusic(PreparationMusic, /*bLoop=*/true);
-
+	// (La musique est gérée automatiquement par l'écran -> BattleMusic dès l'écran Prepare.)
 	CachedPlayerFaction = ResolvePlayerFaction();
 	CachedRivalFaction  = RivalOf(CachedPlayerFaction);
 
@@ -668,9 +702,7 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 
 void AWOTOLDemoDirector::LaunchBattle()
 {
-	// Musique de COMBAT (boucle) : remplace la musique de préparation en fondu.
-	PlayMusic(BattleMusic, /*bLoop=*/true);
-
+	// (Musique geree par l'ecran : BattleMusic continue de Prepare a Playing, sans coupure.)
 	if (URTSBattleManager* RTS = GetWorld()->GetSubsystem<URTSBattleManager>())
 	{
 		// Phase 3 (grande bataille) : chrono ÉTENDU à 15 min (900 s) ; sinon 10 min.
@@ -913,7 +945,7 @@ void AWOTOLDemoDirector::CheckBattleEnd()
 
 void AWOTOLDemoDirector::OnPlayerVictory()
 {
-	PlayMusic(VictoryMusic, /*bLoop=*/false); // stinger de victoire (coupe la musique de combat)
+	// (Musique geree par l'ecran : SummaryMusic des le passage a l'ecran Summary.)
 	GetWorldTimerManager().ClearTimer(SiegeHandle);
 	GetWorldTimerManager().ClearTimer(TacticalHandle);
 	UGameInstance* GI = GetGameInstance();
@@ -965,7 +997,7 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 
 void AWOTOLDemoDirector::OnPlayerDefeat()
 {
-	PlayMusic(DefeatMusic, /*bLoop=*/false); // stinger de défaite (coupe la musique de combat)
+	// (Musique geree par l'ecran : SummaryMusic des le passage a l'ecran Summary.)
 	GetWorldTimerManager().ClearTimer(SiegeHandle);
 	GetWorldTimerManager().ClearTimer(TacticalHandle);
 	if (URTSBattleManager* RTS = GetWorld()->GetSubsystem<URTSBattleManager>())
