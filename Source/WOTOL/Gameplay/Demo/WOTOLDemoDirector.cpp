@@ -335,50 +335,63 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	//   - Montée : une rangée alignée derrière l'infanterie
 	//   - Distance : une rangée alignée tout à l'arrière (si débloquée)
 	const float Lat   = UnitSpacing;          // espacement latéral (Y)
-	const float Depth = UnitSpacing * 1.5f;   // espacement entre rangées (X)
+	// En phase 3 (grande bataille), il y a 5 catégories empilées : on RESSERRE la profondeur
+	// pour que la dernière (mythique) reste DANS l'arène, sans jamais toucher les montagnes.
+	const float Depth = UnitSpacing * (bGrandBattle ? 1.15f : 1.5f); // espacement entre rangées (X)
 	const float GroundZ = 100.f;
 
 	// Place un groupe en rangées (se replie sur plusieurs lignes vers l'arrière -X). En
 	// phase 3, les rangées sont bien plus LARGES -> la ligne s'étale sur la largeur du tiers
 	// (fini l'empilement). Toutes les unités reçoivent l'échelle de PV de la bataille.
-	auto PlaceRows = [&](FName Id, int32 Count, float BackStart, int32 PerRow)
+	// Curseur de PROFONDEUR partagé : chaque CATÉGORIE occupe SA/SES propre(s) rangée(s) et
+	// on avance le curseur du NOMBRE RÉEL de rangées qu'elle utilise + un espace de séparation.
+	// => JAMAIS deux types d'unités différents sur la même ligne (fini le chevauchement des
+	// Aquilances sur la rangée des Aquisphères vu en phase 2).
+	float BackCursor = 0.f;                                  // profondeur (en -X) de la prochaine catégorie
+	const float GroupGap = Depth * (bGrandBattle ? 0.5f : 1.0f); // couloir vide entre deux catégories
+	auto PlaceRows = [&](FName Id, int32 Count, int32 PerRow)
 	{
-		if (Id.IsNone()) return;
+		if (Id.IsNone() || Count <= 0 || PerRow <= 0) return;
+		const int32 Rows = (Count + PerRow - 1) / PerRow;   // rangées réellement utilisées
 		for (int32 i = 0; i < Count; ++i)
 		{
 			const int32 Row = i / PerRow, Col = i % PerRow;
-			const float Y = (Col - (PerRow - 1) * 0.5f) * Lat;
-			SpawnUnit(Id, Origin + FVector(-BackStart - Row * Depth, Y, GroundZ), Facing, 1.f, ArmyHealthScale);
+			// Chaque rangée d'une catégorie est CENTRÉE : les rangées incomplètes (dernière)
+			// restent alignées au centre, jamais décalées sur une autre ligne.
+			const int32 InThisRow = FMath::Min(PerRow, Count - Row * PerRow);
+			const float Y = (Col - (InThisRow - 1) * 0.5f) * Lat;
+			SpawnUnit(Id, Origin + FVector(-BackCursor - Row * Depth, Y, GroundZ), Facing, 1.f, ArmyHealthScale);
 		}
+		BackCursor += Rows * Depth + GroupGap;              // réserve la place de CETTE catégorie
 	};
 	const int32 PRinf = bGrandBattle ? 18 : 8;
 	const int32 PRmon = bGrandBattle ? 12 : 6;
 	const int32 PRdis = bGrandBattle ? 16 : 8;
 	const int32 PRspe = bGrandBattle ? 6  : 3;
 
-	// Chef en pointe
+	// Chef en pointe (devant l'infanterie, centré).
 	SpawnUnit(Demo->GetUnitID(Faction, EDemoUnitCategory::Chef),
 		Origin + FVector(Depth, 0.f, GroundZ), Facing, 1.f, ArmyHealthScale);
 
-	// Rangées PLUS RESSERRÉES (moins profondes) : on reste près de la limite de placement et
-	// on N'ATTEINT PAS le fond de l'arène (les montagnes) -> plus aucune unité générée dans le décor.
-	PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Infanterie), InfantryCount, 0.f, PRinf);
-	PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Montee), MountedCount, Depth * 2.5f, PRmon);
+	// Rangées empilées de l'avant vers l'arrière, chaque catégorie sur ses propres lignes.
+	PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Infanterie), InfantryCount, PRinf);
+	PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Montee), MountedCount, PRmon);
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Distance))
 	{
-		PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Distance), RangedCount, Depth * 3.5f, PRdis);
+		PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Distance), RangedCount, PRdis);
 	}
 	// PHASE 3 : SPÉCIALE (arrière-ligne) + MYTHIQUE (soutien) débloquées.
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Speciale))
 	{
-		PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Speciale), SpecialCount, Depth * 4.0f, PRspe);
+		PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Speciale), SpecialCount, PRspe);
 	}
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Mythique))
 	{
-		// ScaleBoost = 1.0 (le mythique est déjà grand ; le gonfler bloquait sa capsule). Placé
-		// à ~4.5 rangs en retrait -> bien DANS l'arène (fini l'enterrement dans les montagnes).
+		// ScaleBoost = 1.0 (le mythique est déjà grand ; le gonfler bloquait sa capsule).
+		// Placé DERRIÈRE la dernière catégorie via le curseur -> bien DANS l'arène, jamais
+		// sur une rangée occupée ni enterré dans les montagnes.
 		SpawnUnit(Demo->GetUnitID(Faction, EDemoUnitCategory::Mythique),
-			Origin + FVector(-Depth * 4.5f, 0.f, GroundZ), Facing, /*ScaleBoost=*/1.0f, /*HealthScale=*/3.0f);
+			Origin + FVector(-BackCursor, 0.f, GroundZ), Facing, /*ScaleBoost=*/1.0f, /*HealthScale=*/3.0f);
 	}
 }
 
@@ -403,11 +416,14 @@ void AWOTOLDemoDirector::SpawnEnemyForCreature(EFactionID RivalFaction, const FV
 			// ÉQUILIBRAGE : le Kraken doit rester un défi mais la phase 1 doit être
 			// GAGNABLE avec le petit groupe du joueur (les deux factions). On baisse donc
 			// nettement sa robustesse et sa frappe (valeurs ABSOLUES = idempotentes).
-			Data->Stats.DefensePercent = FMath::Min(Data->Stats.DefensePercent, 18.f); // encaisse bien moins
-			Data->Stats.BlockChance    = FMath::Min(Data->Stats.BlockChance, 10.f);     // pare rarement
-			Data->Stats.DodgeChance    = FMath::Min(Data->Stats.DodgeChance, 2.f);
-			// Frappe forte mais plus soutenable pour un petit groupe (était 420).
-			Data->Stats.AttackDPS      = FMath::Clamp(Data->Stats.AttackDPS, 240.f, 300.f);
+			// Combat de phase 1 trop court (~2 min, 3 pertes seulement) : on REMONTE la
+			// robustesse pour que l'affrontement DURE plus longtemps et coûte quelques pertes
+			// de plus, sans le rendre imbattable (valeurs ABSOLUES = idempotentes).
+			Data->Stats.DefensePercent = FMath::Clamp(Data->Stats.DefensePercent, 24.f, 30.f); // encaisse mieux
+			Data->Stats.BlockChance    = FMath::Clamp(Data->Stats.BlockChance, 15.f, 18.f);     // pare un peu plus
+			Data->Stats.DodgeChance    = FMath::Min(Data->Stats.DodgeChance, 3.f);
+			// Frappe forte mais soutenable pour un petit groupe.
+			Data->Stats.AttackDPS      = FMath::Clamp(Data->Stats.AttackDPS, 260.f, 310.f);
 		}
 		if (Demo)
 		{
@@ -425,7 +441,8 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	// L'IA (Lia) déploie une armée ÉQUIVALENTE à celle du joueur, RÉPARTIE SUR 3
 	// COUCHES : mêlée en bas, chef/montée au milieu, distance en haut (tire à travers).
 	const float L0 = 200.f, L1 = 900.f, L2 = 1600.f;
-	const float Lat = UnitSpacing, Depth = UnitSpacing * 1.4f;
+	const float Lat = UnitSpacing;
+	const float Depth = UnitSpacing * (bGrandBattle ? 1.15f : 1.4f);
 	auto SetLayer = [](AWOTOLDemoUnit* U, float Z) { if (U) U->SetDesiredZ(Z); };
 
 	// SEULE CONTRAINTE : l'ennemi est LIMITÉ À SON TIERS (comme le joueur au sien). On
@@ -433,6 +450,12 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	// = Center - PlacementBoundaryOffsetX). À l'intérieur, il place ses unités LIBREMENT.
 	const float MirrorX = GetActorLocation().X - PlacementBoundaryOffsetX; // limite du tiers ennemi
 	const FVector O = Origin;
+
+	// ── ÉQUILIBRAGE : l'armée du joueur écrasait la rivale 35-0 sans une seule perte, et
+	// trop vite (~2 min). On DURCIT l'armée RIVALE (PV majorés côté IA UNIQUEMENT) : sa ligne
+	// de front tient plus longtemps, pousse jusqu'aux lignes arrière du joueur -> le joueur
+	// SUBIT enfin des pertes et le combat DURE davantage, tout en restant GAGNABLE.
+	const float RivalScale = ArmyHealthScale * (bGrandBattle ? 1.35f : 1.6f);
 
 	// PLACEMENT ALÉATOIRE par couche, PROPRE À LA FACTION : chaque unité peut être au sol
 	// ou en hauteur. Les caps de verticalité (ex. Noxebeast au grade 1) sont respectés
@@ -451,18 +474,25 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 		}
 	};
 
-	auto PlaceRows = [&](FName Id, EDemoUnitCategory Cat, int32 Count, float BackStart, int32 PerRow)
+	// Curseur de PROFONDEUR cumulatif (comme côté joueur) : chaque catégorie a SES rangées,
+	// jamais deux types sur la même ligne. Côté rival, l'arrière = +X (il fait face à -X).
+	float BackCursor = 0.f;
+	const float GroupGap = Depth * (bGrandBattle ? 0.5f : 1.0f);
+	auto PlaceRows = [&](FName Id, EDemoUnitCategory Cat, int32 Count, int32 PerRow)
 	{
-		if (Id.IsNone()) return;
+		if (Id.IsNone() || Count <= 0 || PerRow <= 0) return;
+		const int32 Rows = (Count + PerRow - 1) / PerRow;
 		for (int32 i = 0; i < Count; ++i)
 		{
 			const int32 Row = i / PerRow;
 			const int32 Col = i % PerRow;
-			const float Y = (Col - (PerRow - 1) * 0.5f) * Lat;
-			FVector Loc = O + FVector(BackStart + Row * Depth, Y, 100.f);
+			const int32 InThisRow = FMath::Min(PerRow, Count - Row * PerRow);
+			const float Y = (Col - (InThisRow - 1) * 0.5f) * Lat;
+			FVector Loc = O + FVector(BackCursor + Row * Depth, Y, 100.f);
 			Loc.X = FMath::Max(Loc.X, MirrorX); // ne pas franchir la limite de son tiers
-			SetLayer(SpawnUnit(Id, Loc, Facing, 1.f, ArmyHealthScale), PickLayer(Cat));
+			SetLayer(SpawnUnit(Id, Loc, Facing, 1.f, RivalScale), PickLayer(Cat));
 		}
+		BackCursor += Rows * Depth + GroupGap;
 	};
 	const int32 PRinf = bGrandBattle ? 18 : 8;
 	const int32 PRmon = bGrandBattle ? 12 : 6;
@@ -471,22 +501,22 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 
 	FVector ChefLoc = O + FVector(-Depth, 0.f, 100.f);
 	ChefLoc.X = FMath::Max(ChefLoc.X, MirrorX);
-	SetLayer(SpawnUnit(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Chef), ChefLoc, Facing, 1.f, ArmyHealthScale),
+	SetLayer(SpawnUnit(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Chef), ChefLoc, Facing, 1.f, RivalScale),
 		PickLayer(EDemoUnitCategory::Chef));
 
-	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Infanterie), EDemoUnitCategory::Infanterie, InfantryCount, 0.f, PRinf);
-	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Montee), EDemoUnitCategory::Montee, MountedCount, Depth * 2.5f, PRmon);
-	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Distance), EDemoUnitCategory::Distance, RangedCount, Depth * 3.5f, PRdis);
+	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Infanterie), EDemoUnitCategory::Infanterie, InfantryCount, PRinf);
+	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Montee), EDemoUnitCategory::Montee, MountedCount, PRmon);
+	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Distance), EDemoUnitCategory::Distance, RangedCount, PRdis);
 	// PHASE 3 : la rivale déploie AUSSI sa spéciale + son mythique.
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Speciale))
 	{
-		PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Speciale), EDemoUnitCategory::Speciale, SpecialCount, Depth * 4.0f, PRspe);
+		PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Speciale), EDemoUnitCategory::Speciale, SpecialCount, PRspe);
 	}
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Mythique))
 	{
-		FVector MLoc = O + FVector(Depth * 4.5f, 0.f, 100.f);
+		FVector MLoc = O + FVector(BackCursor, 0.f, 100.f);
 		MLoc.X = FMath::Max(MLoc.X, MirrorX);
-		SetLayer(SpawnUnit(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Mythique), MLoc, Facing, /*ScaleBoost=*/1.0f, 3.0f),
+		SetLayer(SpawnUnit(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Mythique), MLoc, Facing, /*ScaleBoost=*/1.0f, RivalScale),
 			PickLayer(EDemoUnitCategory::Mythique));
 	}
 }
@@ -618,10 +648,11 @@ void AWOTOLDemoDirector::LaunchBattle()
 					}
 					if (ArmyHP > 0.f && Boss->GetUnitData())
 					{
-						// PHASE 1 : 0.42 = VICTOIRE garantie (valeur éprouvée). Les pertes viennent
-						// de l'ÉCRASEMENT de zone du Kraken (modéré), pas d'une surenchère de PV
-						// (0.50 le rendait imbattable -> défaite). On gagne AVEC quelques pertes.
-						const float TargetHP = FMath::Clamp(ArmyHP * 0.42f, 12000.f, 34000.f);
+						// PHASE 1 : combat jugé trop court -> on ALLONGE en donnant plus de PV au
+						// Kraken (0.42 -> 0.58). Avec la défense/parade relevées ci-dessus, il
+						// tient nettement plus longtemps et fait quelques pertes de plus, tout en
+						// restant BATTABLE par le groupe du joueur. [Réglable : 0.50 court .. 0.65 dur]
+						const float TargetHP = FMath::Clamp(ArmyHP * 0.58f, 12000.f, 44000.f);
 						const int32 BaseMax  = FMath::Max(1, Boss->GetUnitData()->Stats.MaxHealth);
 						Boss->HealthScale    = FMath::Max(1.f, TargetHP / (float)BaseMax);
 						Boss->SetHealthToFull(); // applique PV = HealthScale * base
