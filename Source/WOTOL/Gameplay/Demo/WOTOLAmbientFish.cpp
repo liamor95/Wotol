@@ -19,7 +19,7 @@ UStaticMeshComponent* AWOTOLAmbientFish::MakePart(USceneComponent* Parent, const
 {
 	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
 	if (!C) return nullptr;
-	C->SetupAttachment(Parent ? Parent : RootComponent);
+	C->SetupAttachment(Parent ? Parent : RootComponent.Get());
 	C->RegisterComponent();
 	C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	C->SetCanEverAffectNavigation(false);

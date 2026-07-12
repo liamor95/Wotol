@@ -183,14 +183,14 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		bool bDiffClicked = false;
 		if (UGameInstance* GI = GetGameInstance())
 		{
-			if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
+			if (UDemoFlowSubsystem* DemoFlow = GI->GetSubsystem<UDemoFlowSubsystem>())
 			{
 				const EDemoDifficulty DVals[3] = { EDemoDifficulty::Facile, EDemoDifficulty::Normal, EDemoDifficulty::Difficile };
 				for (int32 i = 0; i < 3; ++i)
 				{
 					if (AWOTOLDemoHUD::DifficultyButtonRect(i, VpSize.X, VpSize.Y).IsInside(M))
 					{
-						Demo->SetDifficulty(DVals[i]);
+						DemoFlow->SetDifficulty(DVals[i]);
 						bDiffClicked = true;
 						break;
 					}
