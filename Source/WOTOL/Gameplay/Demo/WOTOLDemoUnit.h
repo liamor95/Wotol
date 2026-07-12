@@ -376,4 +376,20 @@ private:
 
 	float LastKnownHealth = -1.f;
 	bool  bCreatureStyled = false;
+
+	// ── PERF : le sous-système de flux (écran de jeu) est interrogé plusieurs fois par frame
+	// et par unité. Avec 160 unités en phase 3, on le MET EN CACHE (résolu une fois). ──
+	TWeakObjectPtr<class UDemoFlowSubsystem> CachedFlow;
+	bool IsBattleLive();
+	// Séparation douce coûteuse (O(n²) sur toutes les unités) : on l'ÉTALE dans le temps
+	// (quelques fois par seconde) au lieu de chaque frame -> gros gain CPU, rendu identique.
+	float SepTimer = 0.f;
+
+	// ── ANTI-BLOCAGE (lecture du terrain) : si l'unité VEUT avancer mais ne bouge quasiment
+	// plus (coincée contre un rocher/ruine), elle se DÉGAGE d'elle-même par un pas latéral. ──
+	FVector StuckLastPos = FVector::ZeroVector;
+	float   StuckCheckTimer = 0.f;   // cadence d'échantillonnage de la position
+	float   UnstickTimer = 0.f;      // >0 = manœuvre de dégagement en cours
+	FVector UnstickDir = FVector::ZeroVector;
+	void    TickUnstick(float Dt, bool bWantsToMove);
 };

@@ -18,6 +18,8 @@ namespace
 	TStrongObjectPtr<UMaterialInterface> GMatteParent;
 }
 
+namespace WOTOLGlow { bool bLowGpuVFX = false; }
+
 UMaterialInterface* WOTOLGlow::GetGlowParent()
 {
 	if (GGlowParent.IsValid())

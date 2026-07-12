@@ -65,12 +65,22 @@ AWOTOLBeam* AWOTOLBeam::Fire(UWorld* World, const FVector& Origin, float YawStar
 	}
 	B->Pivot->SetWorldRotation(FRotator(Pitch, YawStart, 0.f));
 	// DEUX lampes fluo réparties sur le rayon -> TOUT le trait est illuminé (pas juste
-	// le milieu), à la couleur de l'attaque (vert pour Noxar, cyan pour Aquis).
-	const FLinearColor LCol(FMath::Min(1.f, Color.R + 0.25f),
-		FMath::Min(1.f, Color.G + 0.25f), FMath::Min(1.f, Color.B + 0.25f));
-	const float LRad = FMath::Clamp(Length * 0.55f, 500.f, 1400.f);
-	if (B->Glow)  { B->Glow->SetLightColor(LCol);  B->Glow->SetRelativeLocation(FVector(Length * 0.28f, 0.f, 0.f));  B->Glow->SetAttenuationRadius(LRad); }
-	if (B->Glow2) { B->Glow2->SetLightColor(LCol); B->Glow2->SetRelativeLocation(FVector(Length * 0.72f, 0.f, 0.f)); B->Glow2->SetAttenuationRadius(LRad); }
+	// le milieu), à la couleur de l'attaque (vert pour Noxar, cyan pour Aquis). En MODE FAIBLE
+	// GPU (phase 3) on les SUPPRIME : le trait émissif (unlit +bloom) brille toujours à l'écran,
+	// mais on évite le coût de dizaines de lampes dynamiques simultanées.
+	if (WOTOLGlow::bLowGpuVFX)
+	{
+		if (B->Glow)  { B->Glow->DestroyComponent();  B->Glow = nullptr; }
+		if (B->Glow2) { B->Glow2->DestroyComponent(); B->Glow2 = nullptr; }
+	}
+	else
+	{
+		const FLinearColor LCol(FMath::Min(1.f, Color.R + 0.25f),
+			FMath::Min(1.f, Color.G + 0.25f), FMath::Min(1.f, Color.B + 0.25f));
+		const float LRad = FMath::Clamp(Length * 0.55f, 500.f, 1400.f);
+		if (B->Glow)  { B->Glow->SetLightColor(LCol);  B->Glow->SetRelativeLocation(FVector(Length * 0.28f, 0.f, 0.f));  B->Glow->SetAttenuationRadius(LRad); }
+		if (B->Glow2) { B->Glow2->SetLightColor(LCol); B->Glow2->SetRelativeLocation(FVector(Length * 0.72f, 0.f, 0.f)); B->Glow2->SetAttenuationRadius(LRad); }
+	}
 	return B;
 }
 

@@ -125,10 +125,7 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	// engager : on coupe l'évitement RVO et on annule toute vélocité résiduelle. Sinon la
 	// dérive physique la faisait sortir de sa zone de placement (dépasser le premier tiers)
 	// et déclenchait le combat AVANT que le joueur ne lance la bataille.
-	bool bBattleLive = true;
-	if (UGameInstance* GI = GetGameInstance())
-		if (UDemoFlowSubsystem* D = GI->GetSubsystem<UDemoFlowSubsystem>())
-			bBattleLive = (D->GetScreen() == EDemoScreen::Playing);
+	const bool bBattleLive = IsBattleLive();
 	if (UCharacterMovementComponent* M = GetCharacterMovement())
 	{
 		if (M->bUseRVOAvoidance != bBattleLive) M->SetAvoidanceEnabled(bBattleLive);
@@ -175,7 +172,11 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	// autour du Cristalliseur / en mêlée). Ne concerne PAS le boss (créature géante).
 	if (!bCreatureBrain && !bIsBoss)
 	{
-		ApplySoftSeparation(DeltaSeconds);
+		// PERF : la séparation est O(n²) sur toutes les unités -> on l'ÉTALE (~12 fois/s) au lieu
+		// de chaque frame. Avec 160 unités en phase 3 c'est le plus gros gain CPU du démarrage,
+		// sans changement visible (les unités se démêlent tout aussi bien).
+		SepTimer -= DeltaSeconds;
+		if (SepTimer <= 0.f) { SepTimer = 0.08f; ApplySoftSeparation(0.08f); }
 		// Synergie Aquiloris (lance ↔ bouclier) réévaluée ~3 fois/s (pas chaque frame).
 		SynergyTimer -= DeltaSeconds;
 		if (SynergyTimer <= 0.f) { SynergyTimer = 0.33f; UpdateAquilorisSynergy(); }
@@ -221,6 +222,7 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	// tourne vers lui (pas seulement dans l'état "Attacking", car en mêlée l'état peut
 	// varier). -> le modèle regarde l'ennemi et le coup part VERS L'AVANT (fini le "frappe
 	// en arrière"). Sinon, l'unité garde son orientation de déplacement (OrientToMovement).
+	bool bWantsAdvance = false; // veut rejoindre un ennemi encore HORS de portée (donc se déplace)
 	if (!bCreatureBrain)
 	{
 		FRotator Desired = GetActorRotation();
@@ -236,6 +238,8 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 			const float Dist = To.Size();
 			const float AtkRange = UnitData ? UnitData->Stats.AttackRange * 200.f : 200.f;
 			if (Dist > 1.f && Dist < AtkRange + 500.f) { Desired = To.Rotation(); bWant = true; }
+			// Ennemi encore LOIN -> l'unité cherche à AVANCER vers lui : candidate au déblocage.
+			bWantsAdvance = (Dist > AtkRange + 120.f);
 			// Lance abaissée (agressive) dès que l'ennemi est en portée d'engagement/charge.
 			if (LanceJoint && Dist < AtkRange + 700.f) LanceAggroTarget = 1.f;
 			// BOUCLIER : garde PROACTIVE — dès qu'un ennemi est au contact et que l'unité ne
@@ -255,6 +259,11 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 			SetActorRotation(FMath::RInterpTo(GetActorRotation(), Desired, DeltaSeconds, 22.f));
 		}
 	}
+
+	// ANTI-BLOCAGE : lecture du terrain -> si l'unité VEUT avancer mais reste coincée contre
+	// un décor, elle se dégage seule (ne concerne que les unités mobiles, pas le boss).
+	if (!bCreatureBrain && bBattleLive)
+		TickUnstick(DeltaSeconds, bWantsAdvance);
 
 	// COURANT OCÉANIQUE : sur les couches HAUTES, la dérive pousse physiquement l'unité
 	// (joueur, ennemi ET Kraken). N'agit qu'EN BATAILLE (pas pendant le placement, sinon
@@ -1621,6 +1630,59 @@ void AWOTOLDemoUnit::UpdateAquilorisSynergy()
 	}
 }
 
+// PERF : résout et MET EN CACHE le sous-système de flux -> plus de GetSubsystem répété
+// (plusieurs fois par frame × 160 unités en phase 3).
+bool AWOTOLDemoUnit::IsBattleLive()
+{
+	if (!CachedFlow.IsValid())
+		if (UGameInstance* GI = GetGameInstance())
+			CachedFlow = GI->GetSubsystem<UDemoFlowSubsystem>();
+	return CachedFlow.IsValid() && CachedFlow->GetScreen() == EDemoScreen::Playing;
+}
+
+// ANTI-BLOCAGE (lecture du terrain) : quand l'unité VEUT avancer vers un ennemi mais reste
+// quasi immobile pendant un court instant, c'est qu'un décor la coince. Elle exécute alors un
+// PAS LATÉRAL (perpendiculaire à sa direction de marche) pour CONTOURNER l'obstacle, puis
+// reprend sa route. Évite qu'une unité reste plantée contre un rocher jusqu'à ce qu'on la
+// pousse.
+void AWOTOLDemoUnit::TickUnstick(float Dt, bool bWantsToMove)
+{
+	// Manœuvre de dégagement en cours : on pousse latéralement puis on décrémente.
+	if (UnstickTimer > 0.f)
+	{
+		UnstickTimer -= Dt;
+		const float Speed = (BaseWalkSpeed > 0.f ? BaseWalkSpeed : 300.f) * 0.9f;
+		AddActorWorldOffset(UnstickDir * Speed * Dt, true); // respecte la collision (glisse le long du décor)
+		return;
+	}
+
+	if (!bWantsToMove) { StuckCheckTimer = 0.f; return; }
+
+	// Échantillonne la position ~2 fois/s : si l'unité a à peine bougé alors qu'elle veut
+	// avancer, elle est coincée.
+	StuckCheckTimer -= Dt;
+	if (StuckCheckTimer > 0.f) return;
+	StuckCheckTimer = 0.5f;
+
+	const FVector Pos = GetActorLocation();
+	const float Moved = FVector::DistSquared2D(Pos, StuckLastPos);
+	const bool bWasSampled = !StuckLastPos.IsNearlyZero();
+	StuckLastPos = Pos;
+	if (!bWasSampled) return;
+
+	// Moins de ~40 uu parcourus en 0.5 s alors qu'on veut avancer -> bloquée : on se dégage.
+	if (Moved < 40.f * 40.f)
+	{
+		FVector Fwd = GetActorForwardVector(); Fwd.Z = 0.f; Fwd = Fwd.GetSafeNormal();
+		if (Fwd.IsNearlyZero()) Fwd = FVector(1.f, 0.f, 0.f);
+		// Côté aléatoire pour éviter que deux unités coincées oscillent en miroir.
+		const FVector Side = FVector(-Fwd.Y, Fwd.X, 0.f) * (FMath::RandBool() ? 1.f : -1.f);
+		// Mélange latéral (contournement) + un peu d'avant pour dépasser l'angle du décor.
+		UnstickDir = (Side * 0.85f + Fwd * 0.35f).GetSafeNormal();
+		UnstickTimer = 0.6f;
+	}
+}
+
 // SÉPARATION DOUCE (lisibilité) : écarte gentiment les unités qui se chevauchent sur une
 // MÊME couche verticale (~1 m d'espace mini) pour éviter l'amas illisible autour du
 // Cristalliseur / en mêlée. Les unités de couches DIFFÉRENTES ne s'écartent pas (la
@@ -1629,9 +1691,7 @@ void AWOTOLDemoUnit::ApplySoftSeparation(float Dt)
 {
 	UWorld* W = GetWorld(); if (!W) return;
 	// Uniquement EN BATAILLE (au placement, les formations espacent déjà les unités).
-	if (UGameInstance* GI = GetGameInstance())
-		if (UDemoFlowSubsystem* D = GI->GetSubsystem<UDemoFlowSubsystem>())
-			if (D->GetScreen() != EDemoScreen::Playing) return;
+	if (!IsBattleLive()) return;
 
 	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return;
 	const FVector MyLoc = GetActorLocation();

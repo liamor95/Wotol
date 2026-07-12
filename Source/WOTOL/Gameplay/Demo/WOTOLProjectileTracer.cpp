@@ -74,8 +74,14 @@ void AWOTOLProjectileTracer::Fire(UWorld* World, const FVector& From, const FVec
 	if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeGlow(T,
 			FLinearColor(Sat.R * 3.0f + 0.15f, Sat.G * 3.0f + 0.15f, Sat.B * 3.0f + 0.15f, 1.f)))
 		T->Ball->SetMaterial(0, MID);
-	// Lampe = couleur SATURÉE brute du tir -> halo bien coloré (pas blanc).
-	if (T->Glow) T->Glow->SetLightColor(Sat);
+	// Lampe = couleur SATURÉE brute du tir -> halo bien coloré (pas blanc). En MODE FAIBLE GPU
+	// (phase 3, dizaines de tirs simultanés) on SUPPRIME la lampe dynamique (le cœur émissif +
+	// halo restent -> le projectile brille toujours à l'écran, sans le coût des lampes).
+	if (T->Glow)
+	{
+		if (WOTOLGlow::bLowGpuVFX) { T->Glow->DestroyComponent(); T->Glow = nullptr; }
+		else                       { T->Glow->SetLightColor(Sat); }
+	}
 
 	// HALO autour du cœur (émissif doux, couleur brute) -> nimbe coloré, pas un voile blanc.
 	if (Sphere) T->Halo->SetStaticMesh(Sphere);

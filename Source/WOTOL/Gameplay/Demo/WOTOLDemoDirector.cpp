@@ -573,6 +573,10 @@ void AWOTOLDemoDirector::LaunchBattle()
 		const bool bGrand = GetGameInstance() && GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()
 			&& GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()->GetPhase() == EDemoPhase::Battle_Grand;
 		RTS->StartBattlePhase(bGrand ? 900.f : 600.f);
+		// PERF phase 3 : dizaines de pouvoirs simultanés -> on coupe les LAMPES dynamiques des
+		// VFX (rayons/projectiles). L'émissif + le bloom restent : le spectacle est intact, le
+		// GPU respire. Les phases 1/2 (peu d'unités) gardent les lampes.
+		WOTOLGlow::bLowGpuVFX = bGrand;
 	}
 
 	// TES unités attaquent D'OFFICE l'ennemi le plus proche tant que tu ne leur donnes

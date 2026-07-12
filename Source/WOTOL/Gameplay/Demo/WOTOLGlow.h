@@ -17,6 +17,12 @@ class UMaterialInstanceDynamic;
  */
 namespace WOTOLGlow
 {
+	/** MODE FAIBLE GPU (grande bataille phase 3) : quand true, les VFX (rayons, projectiles)
+	 *  n'ajoutent PAS de lampes dynamiques (très coûteuses en masse). Le MESH ÉMISSIF (+bloom)
+	 *  reste actif -> le spectacle est conservé, mais on économise énormément de GPU quand des
+	 *  dizaines de pouvoirs se déclenchent en même temps. Basculé par le directeur de démo. */
+	extern bool bLowGpuVFX;
+
 	/** Matériau parent émissif (construit une fois, mis en cache). */
 	UMaterialInterface* GetGlowParent();
 
