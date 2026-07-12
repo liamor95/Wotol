@@ -43,10 +43,11 @@ FBox2D AWOTOLDemoHUD::StartGameButtonRect(float W, float H)
 
 FBox2D AWOTOLDemoHUD::FactionButtonRect(int32 Index, float W, float H)
 {
-	const float BW = 320.f, BH = 90.f, Gap = 40.f;
+	const float BW = 320.f, BH = 88.f, Gap = 40.f;
 	const float TotalW = BW * 2.f + Gap;
 	const float X = (W - TotalW) * 0.5f + Index * (BW + Gap);
-	const float Y = H * 0.48f;
+	// Remonté (0.48 -> 0.36) pour laisser de la place NETTE au bloc difficulté en dessous.
+	const float Y = H * 0.36f;
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
@@ -55,7 +56,7 @@ FBox2D AWOTOLDemoHUD::DifficultyButtonRect(int32 Index, float W, float H)
 	const float BW = 200.f, BH = 54.f, Gap = 26.f;
 	const float TotalW = BW * 3.f + Gap * 2.f;
 	const float X = (W - TotalW) * 0.5f + Index * (BW + Gap);
-	const float Y = H * 0.70f;
+	const float Y = H * 0.66f;
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
@@ -536,8 +537,9 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 
 	DrawButton(FactionButtonRect(0, W, H), TEXT("AQUILORIS"), FLinearColor(0.3f, 0.6f, 1.f, 1.f), 1.7f);
 	DrawButton(FactionButtonRect(1, W, H), TEXT("NOXEENS"), FLinearColor(0.3f, 0.95f, 0.5f, 1.f), 1.7f);
-	DrawCenteredText(TEXT("Aquiloris : cristal-tech, coordination   —   Noxeens : abysses bioluminescents"),
-		FactionButtonRect(0, W, H).Max.Y + 40.f, FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 1.0f);
+	// Description COURTE, juste sous les boutons de faction (bien au-dessus du bloc difficulté).
+	DrawCenteredText(TEXT("Aquiloris : cristal-tech, coordination      Noxeens : abysses bioluminescents"),
+		FactionButtonRect(0, W, H).Max.Y + 26.f, FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 0.95f);
 
 	// ── DIFFICULTÉ (3 niveaux) : le joueur la choisit AVANT de cliquer sur une faction.
 	// Le niveau sélectionné est mis en évidence (couleur vive) ; les autres sont grisés.
@@ -547,8 +549,8 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 			if (UDemoFlowSubsystem* D = GI->GetSubsystem<UDemoFlowSubsystem>())
 				CurDiff = D->GetDifficulty();
 
-	DrawCenteredText(TEXT("DIFFICULTE"), DifficultyButtonRect(0, W, H).Min.Y - 34.f,
-		FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 1.1f);
+	DrawCenteredText(TEXT("DIFFICULTE"), DifficultyButtonRect(0, W, H).Min.Y - 40.f,
+		FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.2f);
 	const TCHAR* DLabels[3] = { TEXT("FACILE"), TEXT("NORMAL"), TEXT("DIFFICILE") };
 	const EDemoDifficulty DVals[3] = { EDemoDifficulty::Facile, EDemoDifficulty::Normal, EDemoDifficulty::Difficile };
 	for (int32 i = 0; i < 3; ++i)
