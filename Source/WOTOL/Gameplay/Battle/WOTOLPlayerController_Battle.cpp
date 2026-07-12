@@ -513,7 +513,9 @@ void AWOTOLPlayerController_Battle::OnRightMouseReleased()
 	FVector    TargetLocation = FVector::ZeroVector;
 	if (!TargetUnit)
 	{
-		GetGroundLocationUnderCursor(TargetLocation);
+		// Si on ne trouve AUCUN point de sol valide sous le curseur, on n'ordonne RIEN (plutôt
+		// que d'envoyer les unités au centre de l'arène par défaut).
+		if (!GetGroundLocationUnderCursor(TargetLocation)) return;
 	}
 	IssueCommandToSelection(TargetUnit, TargetLocation);
 }
@@ -532,7 +534,15 @@ AUnitBase* AWOTOLPlayerController_Battle::GetUnitUnderCursor() const
 	if (GetHitResultUnderCursorByChannel(
 			UEngineTypes::ConvertToTraceType(ECC_Pawn), true, Hit))
 	{
-		return Cast<AUnitBase>(Hit.GetActor());
+		if (AUnitBase* U = Cast<AUnitBase>(Hit.GetActor())) return U;
+	}
+	// SECOURS : le Kraken FLOTTE en hauteur (mesh visuel décalé de sa capsule) -> le trace Pawn
+	// pouvait rater son corps -> le clic était traité comme un ordre de déplacement au lieu
+	// d'une attaque. On retente sur la VISIBILITÉ et on accepte toute unité touchée.
+	if (GetHitResultUnderCursorByChannel(
+			UEngineTypes::ConvertToTraceType(ECC_Visibility), true, Hit))
+	{
+		if (AUnitBase* U = Cast<AUnitBase>(Hit.GetActor())) return U;
 	}
 	return nullptr;
 }
@@ -545,6 +555,21 @@ bool AWOTOLPlayerController_Battle::GetGroundLocationUnderCursor(FVector& OutLoc
 	{
 		OutLocation = Hit.Location;
 		return true;
+	}
+	// SECOURS : le trace physique peut RATER (curseur au-dessus de l'eau/du vide, ou sol non
+	// bloquant) -> avant, OutLocation restait (0,0,0) = CENTRE de l'arène et les unités
+	// partaient droit vers le milieu/le camp adverse (« à l'opposé »). On intersecte donc le
+	// rayon de la caméra avec un PLAN HORIZONTAL au niveau du sol -> point cliqué correct partout.
+	FVector RayOrigin, RayDir;
+	if (DeprojectMousePositionToWorld(RayOrigin, RayDir) && !FMath::IsNearlyZero(RayDir.Z))
+	{
+		const float PlaneZ = 100.f; // niveau du sol de l'arène (GroundZ des unités)
+		const float T = (PlaneZ - RayOrigin.Z) / RayDir.Z;
+		if (T > 0.f)
+		{
+			OutLocation = RayOrigin + RayDir * T;
+			return true;
+		}
 	}
 	return false;
 }
