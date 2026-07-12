@@ -15,6 +15,7 @@
 #include "Gameplay/Battle/WOTOLBattleCamera.h"
 #include "Core/FactionRegistrySubsystem.h"
 #include "EngineUtils.h"
+#include "WOTOLGreyboxEnvironment.h"
 #include "Engine/StaticMeshActor.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
@@ -955,8 +956,16 @@ void AWOTOLDemoDirector::StartGrandBattle()
 	// Arène plus VASTE (autre terrain, sensation épique) + nouveau courant océanique.
 	ArmySeparation = 7000.f;
 	if (UWorld* W = GetWorld())
+	{
 		if (UOceanCurrentSubsystem* Cur = W->GetSubsystem<UOceanCurrentSubsystem>())
 			Cur->Regenerate();
+		// REMODÈLE LE DÉCOR pour la phase 3 : autre lieu (palette/brume/disposition abyssales).
+		for (TActorIterator<AWOTOLGreyboxEnvironment> It(W); It; ++It)
+		{
+			It->RebuildForPhase(3);
+			break;
+		}
+	}
 
 	if (Demo) Demo->SetPhase(EDemoPhase::Battle_Grand);
 	BeginPreparation(); // -> phase 3 en PRÉPARATION (roster complet, arène agrandie)
@@ -978,6 +987,9 @@ void AWOTOLDemoDirector::RestartDemo(bool bKeepFaction)
 	// Roster + arène de phase 1 (les valeurs phase 2/3 sont réappliquées à leur lancement)
 	InfantryCount = 10; MountedCount = 5; RangedCount = 5;
 	ArmySeparation = 4500.f; // réinitialise l'arène (la phase 3 l'agrandit à 7000)
+	// Remet le TERRAIN de base (si on rejoue après la phase 3, qui l'avait passé en abyssal).
+	if (UWorld* W = GetWorld())
+		for (TActorIterator<AWOTOLGreyboxEnvironment> It(W); It; ++It) { It->RebuildForPhase(1); break; }
 
 	UGameInstance* GI = GetGameInstance();
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;

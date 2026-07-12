@@ -272,14 +272,19 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 {
 	const FVector Center = GetActorLocation();
 
-	// ── Palette FOND MARIN ROCHEUX : couleurs VARIÉES et TERREUSES (plus de bleu partout).
-	// Chaque type d'élément a SA teinte pour qu'ils ne se confondent pas entre eux. ──
-	const FLinearColor FloorColor(0.46f, 0.42f, 0.32f, 1.f); // sable tan du fond
-	const FLinearColor SandBright(0.52f, 0.47f, 0.35f, 1.f); // canyon de sable (couloir de combat)
-	const FLinearColor RockColor (0.36f, 0.30f, 0.25f, 1.f); // roche brun-rougeâtre (récif)
-	const FLinearColor FarColor  (0.30f, 0.28f, 0.27f, 1.f); // MONTAGNES rocheuses gris-brun (PAS bleu)
-	const FLinearColor SurfColor (0.28f, 0.58f, 0.72f, 1.f); // surface éclairée (rayons)
-	const FLinearColor KelpColor (0.42f, 0.55f, 0.16f, 1.f); // algues jaune-vert
+	// VARIANT DE TERRAIN : la phase 3 (Variant>=3) est une AUTRE zone, ABYSSALE-VOLCANIQUE
+	// (basalte sombre, teal, montagnes bleu-nuit) -> palette + brume + disposition différentes.
+	const bool bAbyss = (Variant >= 3);
+
+	// ── Palette FOND MARIN : terreuse (phases 1/2) OU basalte abyssal sombre (phase 3). ──
+	const FLinearColor FloorColor = bAbyss ? FLinearColor(0.26f, 0.30f, 0.28f, 1.f) : FLinearColor(0.46f, 0.42f, 0.32f, 1.f); // sable/basalte
+	const FLinearColor SandBright = bAbyss ? FLinearColor(0.30f, 0.36f, 0.33f, 1.f) : FLinearColor(0.52f, 0.47f, 0.35f, 1.f); // couloir central
+	const FLinearColor RockColor  = bAbyss ? FLinearColor(0.17f, 0.19f, 0.22f, 1.f) : FLinearColor(0.36f, 0.30f, 0.25f, 1.f); // récif / basalte
+	const FLinearColor FarColor   = bAbyss ? FLinearColor(0.19f, 0.22f, 0.30f, 1.f) : FLinearColor(0.30f, 0.28f, 0.27f, 1.f); // montagnes
+	const FLinearColor SurfColor  (0.28f, 0.58f, 0.72f, 1.f); // surface éclairée (rayons)
+	const FLinearColor KelpColor  = bAbyss ? FLinearColor(0.14f, 0.52f, 0.55f, 1.f) : FLinearColor(0.42f, 0.55f, 0.16f, 1.f); // algues teal / jaune-vert
+	// Décalage de seed propre au variant -> rochers/coraux/champignons disposés AUTREMENT.
+	const int32 VSeed = Variant * 777;
 
 	const FRotator NoRot = FRotator::ZeroRotator;
 
@@ -298,10 +303,11 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 				// d'être sous l'eau (l'eau qui diffuse), pendant que les objets proches gardent
 				// LEUR couleur. Plus dense + démarre plus près -> profondeur bleutée, halos
 				// bioluminescents qui « bavent » dans l'eau, silhouettes lointaines noyées.
-				FC->SetFogDensity(0.032f);
+				FC->SetFogDensity(bAbyss ? 0.040f : 0.032f);
 				FC->SetFogHeightFalloff(0.05f);
-				FC->SetFogInscatteringColor(FLinearColor(0.03f, 0.11f, 0.16f, 1.f));
-				FC->SetStartDistance(500.f);
+				// Phase 3 : brume ABYSSALE plus verte/profonde (autre ambiance que la teal claire).
+				FC->SetFogInscatteringColor(bAbyss ? FLinearColor(0.02f, 0.10f, 0.09f, 1.f) : FLinearColor(0.03f, 0.11f, 0.16f, 1.f));
+				FC->SetStartDistance(bAbyss ? 350.f : 500.f);
 			}
 		}
 
@@ -347,8 +353,10 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 					// Key light FROIDE (bleu-vert léger) : assez de teinte pour lire « sous
 					// l'eau », mais PAS au point de repeindre tout en bleu -> chaque matériau
 					// garde sa couleur (roche brune, sable tan, factions). Juste milieu.
-					LC->SetIntensity(LC->Intensity * 0.46f);
-					LC->SetLightColor(FLinearColor(0.58f, 0.74f, 0.96f));
+					// Atténuation appliquée UNE SEULE fois (un rebuild ne doit pas re-multiplier).
+					if (!bLightTuned) { LC->SetIntensity(LC->Intensity * 0.46f); bLightTuned = true; }
+					// Phase 3 : teinte de key light plus froide/verte (autre ambiance).
+					LC->SetLightColor(bAbyss ? FLinearColor(0.50f, 0.78f, 0.82f) : FLinearColor(0.58f, 0.74f, 0.96f));
 				}
 			}
 		}
@@ -455,7 +463,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 	};
 
 	// ── DEUX RÉCIFS ROCHEUX bordant le canyon (côtés +Y et -Y), couverts de coraux ──
-	FRandomStream Reef(4242);
+	FRandomStream Reef(4242 + VSeed);
 	for (float X = -6500.f; X <= 6500.f; X += 1300.f)
 	{
 		for (int32 side = 0; side < 2; ++side)
@@ -471,7 +479,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 	}
 
 	// ── Coraux + rochers plus loin (remplissent les flancs, hors du couloir) ──
-	FRandomStream Side(707);
+	FRandomStream Side(707 + VSeed);
 	for (int32 i = 0; i < 30; ++i)
 	{
 		const float Y = (Side.FRand() < 0.5f ? 1.f : -1.f) * Side.FRandRange(3400.f, 6500.f);
@@ -485,7 +493,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 	// ── CHAMPIGNONS / ORGANISMES BIOLUMINESCENTS dispersés ALÉATOIREMENT sur toute la
 	// carte (même principe que les rochers), un par un. Le CENTRE (emplacement du bâtiment,
 	// rayon 1600) est STRICTEMENT exclu -> jamais rien au milieu. ──
-	FRandomStream Shr(555);
+	FRandomStream Shr(555 + VSeed);
 	for (int32 i = 0; i < 40; ++i)
 	{
 		const float x = Shr.FRandRange(-6200.f, 6200.f);
@@ -495,7 +503,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 	}
 
 	// ── ALGUES (côté droit surtout, comme la réf) ──
-	FRandomStream Kel(313);
+	FRandomStream Kel(313 + VSeed);
 	for (int32 i = 0; i < 10; ++i)
 	{
 		const float X = Kel.FRandRange(1500.f, 6500.f);
@@ -505,7 +513,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 
 	// ── Petits rochers BAS dans le couloir (galets). PAS de corail au centre : la zone
 	// de combat centrale (|X|<2500) reste dégagée -> plus de pâté bioluminescent au milieu.
-	FRandomStream Mid(151);
+	FRandomStream Mid(151 + VSeed);
 	for (int32 i = 0; i < 16; ++i)
 	{
 		const float MX = Mid.FRandRange(-6500.f, 6500.f);
@@ -515,7 +523,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 	}
 
 	// ── HORIZON : chaînes de reliefs de TAILLES VARIÉES tout autour (pas un mur droit) ──
-	FRandomStream Hor(2024);
+	FRandomStream Hor(2024 + VSeed);
 	const int32 Rings = 14;
 	for (int32 i = 0; i < Rings; ++i)
 	{
@@ -565,7 +573,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
 				nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 			(void)BaseMat;
-			FRandomStream Bs(77);
+			FRandomStream Bs(77 + VSeed);
 
 			// ── ÉPARPILLÉ = de NOMBREUSES TOUFFES réparties sur TOUTE l'arène (réf.).
 			// Chaque touffe = un actor posé au sol, contenant PLUSIEURS organismes proches
@@ -792,4 +800,28 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			}
 		}
 	}
+}
+
+// ─── Nettoyage / reconstruction du décor (transitions de phase) ──────────────
+// Détruit tout ce que cet environnement a généré : tous les acteurs dont l'Owner est cet
+// environnement (blocs, rochers, coraux, lampes, brouillard, post-process, poissons...).
+void AWOTOLGreyboxEnvironment::ClearArena()
+{
+	UWorld* W = GetWorld(); if (!W) return;
+	TArray<AActor*> ToKill;
+	for (TActorIterator<AActor> It(W); It; ++It)
+	{
+		if (*It == this) continue;
+		if (It->GetOwner() == this) ToKill.Add(*It);
+	}
+	for (AActor* A : ToKill) { if (IsValid(A)) A->Destroy(); }
+}
+
+// Reconstruit l'arène pour une PHASE donnée : nettoie l'ancien décor puis régénère avec le
+// variant correspondant (phase 3 -> zone abyssale : palette/brume/disposition différentes).
+void AWOTOLGreyboxEnvironment::RebuildForPhase(int32 Phase)
+{
+	ClearArena();
+	Variant = Phase;
+	BuildArena();
 }

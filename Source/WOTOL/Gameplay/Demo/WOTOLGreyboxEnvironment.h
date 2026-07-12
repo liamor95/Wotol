@@ -32,6 +32,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Greybox")
 	void BuildArena();
 
+	// VARIANT de terrain : 1 = arène de base (phases 1/2) ; 3 = zone ABYSSALE (phase 3),
+	// palette + brume + disposition (seeds) DIFFÉRENTES pour donner « un autre lieu ».
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Greybox")
+	int32 Variant = 1;
+
+	// La lumière directionnelle du niveau n'est atténuée qu'UNE fois (sinon un rebuild la
+	// multiplierait à nouveau et assombrirait la scène à chaque phase).
+	bool bLightTuned = false;
+
+	// Détruit tout le décor déjà généré (tous les acteurs appartenant à cet environnement).
+	UFUNCTION(BlueprintCallable, Category = "Greybox")
+	void ClearArena();
+
+	// Reconstruit l'arène pour une PHASE donnée (nettoie puis régénère avec le bon variant).
+	UFUNCTION(BlueprintCallable, Category = "Greybox")
+	void RebuildForPhase(int32 Phase);
+
 protected:
 	virtual void BeginPlay() override;
 
