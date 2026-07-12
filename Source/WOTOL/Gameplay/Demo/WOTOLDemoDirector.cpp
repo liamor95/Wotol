@@ -49,6 +49,21 @@ static float FactionSurvivability(EFactionID F)
 	}
 }
 
+// NORMALISATEUR DE PUISSANCE PAR FACTION : dans le miroir 80v80 (phase 3), les Noxéens
+// (DPS + compétences AoE plus fortes) ecrasaient les Aquiloris 80-0 QUEL QUE SOIT le camp du
+// joueur -> pur desequilibre de faction. On rehausse les degats AQUILORIS (plus lents/tanky)
+// pour rapprocher les deux factions d'une puissance de combat equivalente. S'applique a toute
+// unite Aquiloris (joueur comme rivale), toutes phases.
+static float FactionDamage(EFactionID F)
+{
+	switch (F)
+	{
+		case EFactionID::Aquiloris: return 1.30f; // compense leur DPS/AoE plus faible
+		case EFactionID::Noxeens:   return 1.00f; // reference (glass cannon a haut DPS)
+		default:                    return 1.00f;
+	}
+}
+
 // ── DIFFICULTÉ ────────────────────────────────────────────────────────────────────────────
 // Multiplicateur de PUISSANCE ENNEMIE (PV + dégâts de l'armée rivale ET du Kraken). Normal =
 // référence. Facile : ennemis affaiblis. Difficile : ennemis renforcés (+ IA plus agressive
@@ -639,6 +654,7 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 		const EDemoDifficulty Diff = Flow ? Flow->GetDifficulty() : EDemoDifficulty::Normal;
 		const bool bPlayerSide = (Unit->GetFaction() == CachedPlayerFaction);
 		float M = bPlayerSide ? DiffPlayerDamage(Diff) : DiffEnemyDamage(Diff);
+		M *= FactionDamage(Unit->GetFaction()); // EGALISE les factions (Aquiloris renforces)
 		// Phase 3 (miroir 80v80) : defaite ecrasante observee (80-19) -> l'avance de DPS des
 		// Noxeens + facteurs mecaniques exigent un avantage offensif JOUEUR plus net et un
 		// ennemi bien tempere, pour que la grande bataille soit reellement gagnable.
