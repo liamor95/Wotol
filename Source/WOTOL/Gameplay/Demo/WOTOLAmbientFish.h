@@ -5,22 +5,23 @@
 #include "WOTOLAmbientFish.generated.h"
 
 class UStaticMeshComponent;
+class USceneComponent;
 
-// Espèces de faune ambiante (décor). Chacune a une SILHOUETTE reconnaissable, bâtie à partir
-// de primitives (BasicShapes), et NAGE en ondulant (corps + queue qui fouettent l'eau).
+// Espèces de faune ambiante (décor). Chacune a une SILHOUETTE reconnaissable : un CORPS
+// FUSELÉ unique (pas d'amas de boules) + des nageoires PLATES caractéristiques.
 UENUM()
 enum class EFishSpecies : uint8
 {
 	SmallFish, // petit poisson de banc
-	Shark,     // requin : aileron dorsal triangulaire, queue en croissant
-	Dolphin,   // dauphin : rostre, aileron courbe, nageoires
-	Orca,      // orque : aileron dorsal HAUT et droit, corps massif
-	Whale,     // baleine : corps énorme arrondi, nageoire caudale horizontale
-	Ray        // raie : corps plat en losange, longue queue fine
+	Shark,     // requin : aileron dorsal triangulaire haut, museau, queue en croissant
+	Dolphin,   // dauphin : rostre, aileron dorsal courbe
+	Orca,      // orque : aileron dorsal TRÈS haut et droit, ventre clair
+	Whale,     // baleine : corps massif, petite dorsale, caudale horizontale
+	Ray        // raie : corps plat en losange, ailes qui battent, longue queue
 };
 
-// Faune ambiante purement décorative : nage en boucle (cercle + houle) avec ONDULATION du
-// corps. Sans collision, sans interaction gameplay. Léger (quelques meshes + Tick trigo).
+// Faune ambiante purement décorative : nage en boucle (cercle + houle). La QUEUE bat et le
+// corps ondule doucement -> nage crédible. Sans collision, léger.
 UCLASS()
 class WOTOL_API AWOTOLAmbientFish : public AActor
 {
@@ -30,10 +31,9 @@ public:
 	AWOTOLAmbientFish();
 	virtual void Tick(float DeltaSeconds) override;
 
-	// Paramètres de trajectoire (réglés au spawn par l'environnement)
 	UPROPERTY() FVector CenterPoint = FVector::ZeroVector;
 	UPROPERTY() float Radius   = 1500.f;
-	UPROPERTY() float Speed    = 0.4f;   // rad/s
+	UPROPERTY() float Speed    = 0.4f;
 	UPROPERTY() float Phase    = 0.f;
 	UPROPERTY() float HeightAmp = 120.f;
 	UPROPERTY() float BaseZ    = 300.f;
@@ -43,19 +43,18 @@ public:
 		EFishSpecies InSpecies = EFishSpecies::SmallFish);
 
 protected:
-	// Fabrique une pièce de mesh (corps, aileron, queue…) attachée à un parent.
-	UStaticMeshComponent* MakePart(USceneComponent* Parent, const TCHAR* MeshPath,
+	// Ajoute une pièce (corps, nageoire…) attachée à un parent. Mesh : "sphere"/"cone"/"cube".
+	UStaticMeshComponent* AddMesh(USceneComponent* Parent, const TCHAR* MeshPath,
 		const FVector& RelLoc, const FVector& Scale, const FRotator& Rot, const FLinearColor& Color);
 
-	UPROPERTY() TObjectPtr<USceneComponent> Hull;   // pivot du corps (ondule légèrement)
-	UPROPERTY() TObjectPtr<UStaticMeshComponent> Body;
-	// Segments arrière (queue) : ondulent en vague progressive -> nage crédible.
-	UPROPERTY() TArray<TObjectPtr<USceneComponent>> TailJoints;
-	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> Fins; // pectorales/ailerons (léger battement)
+	UPROPERTY() TObjectPtr<USceneComponent> Hull;       // corps entier (ondule légèrement en lacet)
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> Body;  // corps fuselé unique
+	UPROPERTY() TObjectPtr<USceneComponent> TailPivot;  // articulation de queue (bat)
+	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> Wings; // ailes de raie (battement roulis)
 
 	EFishSpecies Species = EFishSpecies::SmallFish;
 	float Angle = 0.f;
-	float SwimRate = 6.f; // vitesse de battement (ondulation)
-	float BodyLen  = 100.f;
-	float TrailTimer = 0.f; // cadence des bulles de sillage (frémissement de l'eau)
+	float SwimRate = 5.f;
+	float BodyLen  = 200.f;
+	float TrailTimer = 0.f;
 };

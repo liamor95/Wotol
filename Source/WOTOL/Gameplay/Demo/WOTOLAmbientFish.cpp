@@ -6,15 +6,21 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "WOTOLBubbleBurst.h"
 
+namespace
+{
+	const TCHAR* SPH = TEXT("/Engine/BasicShapes/Sphere.Sphere");
+	const TCHAR* CON = TEXT("/Engine/BasicShapes/Cone.Cone");
+	const TCHAR* CUB = TEXT("/Engine/BasicShapes/Cube.Cube");
+}
+
 AWOTOLAmbientFish::AWOTOLAmbientFish()
 {
 	PrimaryActorTick.bCanEverTick = true;
-
 	Hull = CreateDefaultSubobject<USceneComponent>(TEXT("Hull"));
 	RootComponent = Hull;
 }
 
-UStaticMeshComponent* AWOTOLAmbientFish::MakePart(USceneComponent* Parent, const TCHAR* MeshPath,
+UStaticMeshComponent* AWOTOLAmbientFish::AddMesh(USceneComponent* Parent, const TCHAR* MeshPath,
 	const FVector& RelLoc, const FVector& Scale, const FRotator& Rot, const FLinearColor& Color)
 {
 	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
@@ -29,13 +35,11 @@ UStaticMeshComponent* AWOTOLAmbientFish::MakePart(USceneComponent* Parent, const
 	C->SetRelativeRotation(Rot);
 	if (UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
 			nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial")))
-	{
 		if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, this))
 		{
 			MID->SetVectorParameterValue(TEXT("Color"), Color);
 			C->SetMaterial(0, MID);
 		}
-	}
 	return C;
 }
 
@@ -44,149 +48,102 @@ void AWOTOLAmbientFish::Configure(const FVector& InCenter, float InRadius, float
 	EFishSpecies InSpecies)
 {
 	CenterPoint = InCenter; Radius = InRadius; Speed = InSpeed;
-	Phase = InPhase; HeightAmp = InHeightAmp; BaseZ = InBaseZ;
-	Species = InSpecies;
+	Phase = InPhase; HeightAmp = InHeightAmp; BaseZ = InBaseZ; Species = InSpecies;
 
-	const TCHAR* SPH = TEXT("/Engine/BasicShapes/Sphere.Sphere");
-	const TCHAR* CON = TEXT("/Engine/BasicShapes/Cone.Cone");
-	const TCHAR* CUB = TEXT("/Engine/BasicShapes/Cube.Cube");
-	const float S = SizeM;               // échelle globale (mètres approx)
-	const float U = S * 100.f;           // 1 "unité de corps" en uu
-	const FLinearColor Dark = Color * 0.7f;   // ventre/ailerons plus sombres
+	// Échelle : L = longueur du corps en uu. Les fins/queue sont exprimées en fraction de L.
+	const float L = SizeM * 120.f;
+	BodyLen = L;
+	const FLinearColor Belly = Color * 1.35f; // ventre plus clair
+	const FLinearColor Dark  = Color * 0.65f; // nageoires plus sombres
 
-	// Nombre de segments de queue + amplitude d'ondulation selon l'espèce.
-	int32 NSeg = 4;
+	// Pivot de queue à l'arrière du corps (-X) : la queue s'y accroche et bat.
+	TailPivot = NewObject<USceneComponent>(this);
+	TailPivot->SetupAttachment(Hull);
+	TailPivot->RegisterComponent();
+	TailPivot->SetRelativeLocation(FVector(-L * 0.5f, 0.f, 0.f));
 
-	auto BuildBodyChain = [&](float HeadW, float HeadH, float SegTaper, float Len, float FlukeVert)
+	// Helper : nageoire caudale VERTICALE (poissons/requins) = plaque fine en éventail.
+	auto CaudalVertical = [&](float w, float h)
 	{
-		// Tête / corps principal (sphère allongée le long de +X = sens de nage).
-		BodyLen = Len * U;
-		Body = MakePart(Hull, SPH, FVector(0, 0, 0),
-			FVector(Len * 0.9f, HeadW, HeadH), FRotator::ZeroRotator, Color);
-
-		// Chaîne de segments vers l'arrière (-X), rétrécissants -> profil fuselé qui ONDULE.
-		USceneComponent* Prev = Hull;
-		float segX = -Len * U * 0.42f;   // départ derrière la tête
-		const float step = (Len * U * 0.55f) / NSeg;
-		for (int32 i = 0; i < NSeg; ++i)
-		{
-			USceneComponent* J = NewObject<USceneComponent>(this);
-			J->SetupAttachment(Prev);
-			J->RegisterComponent();
-			J->SetRelativeLocation(FVector(i == 0 ? segX : -step, 0.f, 0.f));
-			TailJoints.Add(J);
-			const float taper = FMath::Pow(SegTaper, (float)(i + 1));
-			MakePart(J, SPH, FVector(-step * 0.5f, 0, 0),
-				FVector(step / 100.f * 1.3f, HeadW * taper, HeadH * taper), FRotator::ZeroRotator, Color);
-			Prev = J;
-		}
-		// Nageoire caudale au bout de la chaîne.
-		if (TailJoints.Num() > 0)
-		{
-			USceneComponent* End = TailJoints.Last();
-			if (FlukeVert > 0.5f)
-			{
-				// Queue VERTICALE (poissons/requins) en forme de croissant : 2 cônes.
-				MakePart(End, CON, FVector(-step * 0.7f, 0, U * 0.18f * S * 0.0f + step * 0.25f),
-					FVector(0.5f * HeadW, 0.14f, step / 100.f * 1.4f), FRotator(-60.f, 0, 0), Dark);
-				MakePart(End, CON, FVector(-step * 0.7f, 0, -step * 0.25f),
-					FVector(0.5f * HeadW, 0.14f, step / 100.f * 1.4f), FRotator(60.f, 0, 0), Dark);
-			}
-			else
-			{
-				// Nageoire caudale HORIZONTALE (mammifères marins : dauphin/orque/baleine).
-				MakePart(End, CON, FVector(-step * 0.7f, step * 0.30f, 0),
-					FVector(0.5f * HeadW, 0.14f, step / 100.f * 1.4f), FRotator(0, 0, -60.f), Dark);
-				MakePart(End, CON, FVector(-step * 0.7f, -step * 0.30f, 0),
-					FVector(0.5f * HeadW, 0.14f, step / 100.f * 1.4f), FRotator(0, 0, 60.f), Dark);
-			}
-		}
+		AddMesh(TailPivot, CUB, FVector(-L * 0.12f, 0, 0), FVector(w * 0.4f, 0.03f, h), FRotator(0, 0, 0), Dark);
+	};
+	// Nageoire caudale HORIZONTALE (mammifères marins) = plaque fine à plat.
+	auto CaudalHorizontal = [&](float w, float h)
+	{
+		AddMesh(TailPivot, CUB, FVector(-L * 0.12f, 0, 0), FVector(w * 0.4f, h, 0.03f), FRotator(0, 0, 0), Dark);
 	};
 
 	switch (Species)
 	{
 	case EFishSpecies::Shark:
 	{
-		NSeg = 5; SwimRate = 3.2f;
-		BuildBodyChain(/*HeadW*/0.42f, /*HeadH*/0.44f, /*taper*/0.82f, /*Len*/2.2f, /*flukeVert*/1.f);
-		// Museau pointu (cône vers l'avant).
-		MakePart(Body, CON, FVector(U * 1.0f, 0, 0), FVector(0.34f, 0.34f, U * 0.9f / 100.f),
-			FRotator(90.f, 0, 0), Color);
-		// Aileron dorsal TRIANGULAIRE (signature du requin).
-		Fins.Add(MakePart(Hull, CON, FVector(-U * 0.15f, 0, U * 0.45f),
-			FVector(0.34f, 0.14f, U * 0.7f / 100.f), FRotator(0, 0, 0), Dark));
-		// Pectorales.
-		Fins.Add(MakePart(Hull, CON, FVector(U * 0.1f, U * 0.42f, -U * 0.1f), FVector(0.3f, 0.1f, U * 0.5f / 100.f), FRotator(0, 0, 100.f), Dark));
-		Fins.Add(MakePart(Hull, CON, FVector(U * 0.1f, -U * 0.42f, -U * 0.1f), FVector(0.3f, 0.1f, U * 0.5f / 100.f), FRotator(0, 0, -100.f), Dark));
+		SwimRate = 3.0f;
+		// Corps fuselé long.
+		Body = AddMesh(Hull, SPH, FVector(0, 0, 0), FVector(L / 100.f * 1.0f, L / 100.f * 0.30f, L / 100.f * 0.34f), FRotator::ZeroRotator, Color);
+		AddMesh(Hull, SPH, FVector(0, 0, -L * 0.10f), FVector(L / 100.f * 0.85f, L / 100.f * 0.24f, L / 100.f * 0.14f), FRotator::ZeroRotator, Belly); // ventre clair
+		AddMesh(Hull, CON, FVector(L * 0.52f, 0, 0), FVector(L / 100.f * 0.22f, L / 100.f * 0.22f, L / 100.f * 0.30f), FRotator(90, 0, 0), Color); // museau
+		// Aileron dorsal TRIANGULAIRE haut (signature requin).
+		AddMesh(Hull, CON, FVector(-L * 0.02f, 0, L * 0.24f), FVector(L / 100.f * 0.22f, 0.04f, L / 100.f * 0.34f), FRotator(0, 0, 0), Dark);
+		// Pectorales plates inclinées.
+		AddMesh(Hull, CUB, FVector(L * 0.05f, L * 0.22f, -L * 0.06f), FVector(L / 100.f * 0.16f, L / 100.f * 0.30f, 0.03f), FRotator(0, 0, 20), Dark);
+		AddMesh(Hull, CUB, FVector(L * 0.05f, -L * 0.22f, -L * 0.06f), FVector(L / 100.f * 0.16f, L / 100.f * 0.30f, 0.03f), FRotator(0, 0, -20), Dark);
+		CaudalVertical(L / 100.f * 0.9f, L / 100.f * 0.5f);
 		break;
 	}
 	case EFishSpecies::Dolphin:
 	{
-		NSeg = 5; SwimRate = 4.2f;
-		BuildBodyChain(0.38f, 0.40f, 0.84f, 2.0f, /*flukeVert*/0.f);
-		// Rostre (bec) fin.
-		MakePart(Body, CON, FVector(U * 0.95f, 0, 0), FVector(0.22f, 0.22f, U * 0.7f / 100.f), FRotator(90.f, 0, 0), Color);
-		// Aileron dorsal courbé (cône incliné vers l'arrière).
-		Fins.Add(MakePart(Hull, CON, FVector(-U * 0.1f, 0, U * 0.42f), FVector(0.3f, 0.12f, U * 0.55f / 100.f), FRotator(-28.f, 0, 0), Dark));
-		Fins.Add(MakePart(Hull, CON, FVector(U * 0.15f, U * 0.38f, -U * 0.05f), FVector(0.26f, 0.1f, U * 0.45f / 100.f), FRotator(0, 0, 105.f), Dark));
-		Fins.Add(MakePart(Hull, CON, FVector(U * 0.15f, -U * 0.38f, -U * 0.05f), FVector(0.26f, 0.1f, U * 0.45f / 100.f), FRotator(0, 0, -105.f), Dark));
+		SwimRate = 4.0f;
+		Body = AddMesh(Hull, SPH, FVector(0, 0, 0), FVector(L / 100.f, L / 100.f * 0.32f, L / 100.f * 0.34f), FRotator::ZeroRotator, Color);
+		AddMesh(Hull, SPH, FVector(0, 0, -L * 0.10f), FVector(L / 100.f * 0.8f, L / 100.f * 0.24f, L / 100.f * 0.14f), FRotator::ZeroRotator, Belly);
+		AddMesh(Hull, CON, FVector(L * 0.52f, 0, 0), FVector(L / 100.f * 0.14f, L / 100.f * 0.14f, L / 100.f * 0.28f), FRotator(90, 0, 0), Color); // rostre fin
+		AddMesh(Hull, CON, FVector(0, 0, L * 0.22f), FVector(L / 100.f * 0.18f, 0.04f, L / 100.f * 0.24f), FRotator(-24, 0, 0), Dark); // dorsale courbée
+		AddMesh(Hull, CUB, FVector(L * 0.08f, L * 0.20f, -L * 0.05f), FVector(L / 100.f * 0.18f, L / 100.f * 0.26f, 0.03f), FRotator(0, 0, 18), Dark);
+		AddMesh(Hull, CUB, FVector(L * 0.08f, -L * 0.20f, -L * 0.05f), FVector(L / 100.f * 0.18f, L / 100.f * 0.26f, 0.03f), FRotator(0, 0, -18), Dark);
+		CaudalHorizontal(L / 100.f * 0.8f, L / 100.f * 0.5f);
 		break;
 	}
 	case EFishSpecies::Orca:
 	{
-		NSeg = 5; SwimRate = 3.6f;
-		BuildBodyChain(0.5f, 0.52f, 0.85f, 2.4f, /*flukeVert*/0.f);
-		MakePart(Body, SPH, FVector(U * 0.7f, 0, 0), FVector(0.7f, 0.42f, 0.44f), FRotator::ZeroRotator, Color);
-		// Aileron dorsal HAUT ET DROIT (signature de l'orque).
-		Fins.Add(MakePart(Hull, CON, FVector(-U * 0.05f, 0, U * 0.62f), FVector(0.34f, 0.14f, U * 1.05f / 100.f), FRotator(0, 0, 0), Dark));
-		// Tache blanche approximée (ventre clair).
-		MakePart(Body, SPH, FVector(0, 0, -U * 0.28f), FVector(1.5f, 0.36f, 0.16f),
-			FRotator::ZeroRotator, FLinearColor(0.95f, 0.95f, 0.98f, 1.f));
-		Fins.Add(MakePart(Hull, CON, FVector(U * 0.1f, U * 0.5f, -U * 0.12f), FVector(0.32f, 0.12f, U * 0.6f / 100.f), FRotator(0, 0, 100.f), Dark));
-		Fins.Add(MakePart(Hull, CON, FVector(U * 0.1f, -U * 0.5f, -U * 0.12f), FVector(0.32f, 0.12f, U * 0.6f / 100.f), FRotator(0, 0, -100.f), Dark));
+		SwimRate = 3.4f;
+		Body = AddMesh(Hull, SPH, FVector(0, 0, 0), FVector(L / 100.f, L / 100.f * 0.40f, L / 100.f * 0.42f), FRotator::ZeroRotator, FLinearColor(0.04f, 0.05f, 0.07f, 1.f));
+		AddMesh(Hull, SPH, FVector(L * 0.05f, 0, -L * 0.14f), FVector(L / 100.f * 0.75f, L / 100.f * 0.30f, L / 100.f * 0.16f), FRotator::ZeroRotator, FLinearColor(0.95f, 0.95f, 0.98f, 1.f)); // ventre BLANC
+		// Aileron dorsal TRÈS HAUT ET DROIT (signature orque).
+		AddMesh(Hull, CON, FVector(-L * 0.02f, 0, L * 0.34f), FVector(L / 100.f * 0.20f, 0.04f, L / 100.f * 0.5f), FRotator(0, 0, 0), FLinearColor(0.04f, 0.05f, 0.07f, 1.f));
+		AddMesh(Hull, CUB, FVector(L * 0.06f, L * 0.26f, -L * 0.08f), FVector(L / 100.f * 0.20f, L / 100.f * 0.30f, 0.03f), FRotator(0, 0, 20), FLinearColor(0.04f, 0.05f, 0.07f, 1.f));
+		AddMesh(Hull, CUB, FVector(L * 0.06f, -L * 0.26f, -L * 0.08f), FVector(L / 100.f * 0.20f, L / 100.f * 0.30f, 0.03f), FRotator(0, 0, -20), FLinearColor(0.04f, 0.05f, 0.07f, 1.f));
+		CaudalHorizontal(L / 100.f * 0.95f, L / 100.f * 0.55f);
 		break;
 	}
 	case EFishSpecies::Whale:
 	{
-		NSeg = 4; SwimRate = 2.0f;
-		BuildBodyChain(0.72f, 0.66f, 0.9f, 3.4f, /*flukeVert*/0.f);
-		// Grosse tête arrondie.
-		MakePart(Body, SPH, FVector(U * 0.95f, 0, 0), FVector(0.9f, 0.66f, 0.6f), FRotator::ZeroRotator, Color);
-		// Petit aileron dorsal bas + bosse.
-		Fins.Add(MakePart(Hull, CON, FVector(-U * 0.5f, 0, U * 0.5f), FVector(0.3f, 0.14f, U * 0.35f / 100.f), FRotator(-20.f, 0, 0), Dark));
-		Fins.Add(MakePart(Hull, CON, FVector(U * 0.2f, U * 0.6f, -U * 0.1f), FVector(0.4f, 0.14f, U * 0.7f / 100.f), FRotator(0, 0, 110.f), Dark));
-		Fins.Add(MakePart(Hull, CON, FVector(U * 0.2f, -U * 0.6f, -U * 0.1f), FVector(0.4f, 0.14f, U * 0.7f / 100.f), FRotator(0, 0, -110.f), Dark));
+		SwimRate = 1.8f;
+		Body = AddMesh(Hull, SPH, FVector(0, 0, 0), FVector(L / 100.f, L / 100.f * 0.5f, L / 100.f * 0.5f), FRotator::ZeroRotator, Color);
+		AddMesh(Hull, SPH, FVector(L * 0.42f, 0, 0), FVector(L / 100.f * 0.5f, L / 100.f * 0.46f, L / 100.f * 0.42f), FRotator::ZeroRotator, Color); // grosse tête
+		AddMesh(Hull, SPH, FVector(0, 0, -L * 0.16f), FVector(L / 100.f * 0.85f, L / 100.f * 0.4f, L / 100.f * 0.2f), FRotator::ZeroRotator, Belly);
+		AddMesh(Hull, CON, FVector(-L * 0.28f, 0, L * 0.28f), FVector(L / 100.f * 0.14f, 0.04f, L / 100.f * 0.16f), FRotator(-18, 0, 0), Dark); // petite dorsale
+		AddMesh(Hull, CUB, FVector(L * 0.02f, L * 0.34f, -L * 0.06f), FVector(L / 100.f * 0.24f, L / 100.f * 0.34f, 0.03f), FRotator(0, 0, 12), Dark);
+		AddMesh(Hull, CUB, FVector(L * 0.02f, -L * 0.34f, -L * 0.06f), FVector(L / 100.f * 0.24f, L / 100.f * 0.34f, 0.03f), FRotator(0, 0, -12), Dark);
+		CaudalHorizontal(L / 100.f * 1.1f, L / 100.f * 0.6f);
 		break;
 	}
 	case EFishSpecies::Ray:
 	{
-		NSeg = 4; SwimRate = 2.6f;
-		// Corps PLAT en losange (cube aplati).
-		BodyLen = 1.6f * U;
-		Body = MakePart(Hull, CUB, FVector(0, 0, 0), FVector(1.4f * S, 1.9f * S, 0.12f * S), FRotator(0, 45.f, 0), Color);
-		// Longue queue fine (chaîne).
-		USceneComponent* Prev = Hull; const float step = U * 0.5f;
-		for (int32 i = 0; i < NSeg; ++i)
-		{
-			USceneComponent* J = NewObject<USceneComponent>(this);
-			J->SetupAttachment(Prev); J->RegisterComponent();
-			J->SetRelativeLocation(FVector(i == 0 ? -U * 0.8f : -step, 0, 0));
-			TailJoints.Add(J);
-			const float t = FMath::Pow(0.8f, (float)(i + 1));
-			MakePart(J, CON, FVector(-step * 0.5f, 0, 0), FVector(0.12f * t, 0.12f * t, step / 100.f), FRotator(-90.f, 0, 0), Dark);
-			Prev = J;
-		}
-		// AILES (grandes nageoires latérales plates qui battent).
-		Fins.Add(MakePart(Hull, CUB, FVector(0, U * 1.0f, 0), FVector(1.0f * S, 1.1f * S, 0.06f * S), FRotator(0, 45.f, 0), Color));
-		Fins.Add(MakePart(Hull, CUB, FVector(0, -U * 1.0f, 0), FVector(1.0f * S, 1.1f * S, 0.06f * S), FRotator(0, 45.f, 0), Color));
+		SwimRate = 2.4f;
+		// Corps PLAT en losange (cube aplati tourné 45°).
+		Body = AddMesh(Hull, CUB, FVector(0, 0, 0), FVector(L / 100.f * 0.9f, L / 100.f * 1.2f, L / 100.f * 0.10f), FRotator(0, 45, 0), Color);
+		// AILES (grandes plaques latérales qui battent).
+		Wings.Add(AddMesh(Hull, CUB, FVector(0, L * 0.55f, 0), FVector(L / 100.f * 0.7f, L / 100.f * 0.8f, 0.05f), FRotator(0, 45, 0), Color));
+		Wings.Add(AddMesh(Hull, CUB, FVector(0, -L * 0.55f, 0), FVector(L / 100.f * 0.7f, L / 100.f * 0.8f, 0.05f), FRotator(0, 45, 0), Color));
+		// Longue queue fine (sur le pivot).
+		AddMesh(TailPivot, CON, FVector(-L * 0.4f, 0, 0), FVector(0.06f, 0.06f, L / 100.f * 0.9f), FRotator(-90, 0, 0), Dark);
 		break;
 	}
 	default: // SmallFish
 	{
-		NSeg = 3; SwimRate = 9.f;
-		BuildBodyChain(0.42f, 0.5f, 0.7f, 1.0f, /*flukeVert*/1.f);
-		// Petit aileron dorsal.
-		Fins.Add(MakePart(Hull, CON, FVector(0, 0, U * 0.28f), FVector(0.28f, 0.1f, U * 0.3f / 100.f), FRotator(0, 0, 0), Dark));
+		SwimRate = 8.f;
+		Body = AddMesh(Hull, SPH, FVector(0, 0, 0), FVector(L / 100.f, L / 100.f * 0.4f, L / 100.f * 0.5f), FRotator::ZeroRotator, Color);
+		AddMesh(Hull, CON, FVector(0, 0, L * 0.22f), FVector(L / 100.f * 0.2f, 0.04f, L / 100.f * 0.22f), FRotator(0, 0, 0), Dark); // dorsale
+		CaudalVertical(L / 100.f * 0.8f, L / 100.f * 0.55f);
 		break;
 	}
 	}
@@ -200,49 +157,41 @@ void AWOTOLAmbientFish::Tick(float DeltaSeconds)
 	const float A = Angle + Phase;
 	const float C = FMath::Cos(A);
 	const float Sn = FMath::Sin(A);
-	const FVector Pos = CenterPoint + FVector(C * Radius, Sn * Radius,
-		BaseZ + FMath::Sin(A * 2.f) * HeightAmp);
-	SetActorLocation(Pos);
+	SetActorLocation(CenterPoint + FVector(C * Radius, Sn * Radius,
+		BaseZ + FMath::Sin(A * 2.f) * HeightAmp));
 
-	// Oriente dans le sens de la nage (tangente) + léger tangage suivant la montée/descente.
-	const FVector Tangent(-Sn, C, 0.f);
-	FRotator Rot = Tangent.Rotation();
+	FRotator Rot = FVector(-Sn, C, 0.f).Rotation();
 	Rot.Pitch = FMath::Cos(A * 2.f) * 6.f; // pique/cabre doucement avec la houle
 	SetActorRotation(Rot);
 
 	const float t = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
 
-	if (Species == EFishSpecies::Ray)
+	// Battement de la QUEUE (lacet) -> propulsion crédible.
+	if (TailPivot)
+		TailPivot->SetRelativeRotation(FRotator(0.f, FMath::Sin(t * SwimRate) * 20.f, 0.f));
+
+	// Léger balancement du corps entier (contre-mouvement de la tête).
+	if (Body)
+		Body->SetRelativeRotation(FRotator(0.f, FMath::Sin(t * SwimRate + 0.6f) * 4.f, 0.f));
+
+	// Raie : les ailes battent (roulis opposé).
+	if (Species == EFishSpecies::Ray && Wings.Num() >= 2)
 	{
-		// Les AILES battent (roulis opposé) -> vol sous-marin caractéristique de la raie.
-		const float flap = FMath::Sin(t * SwimRate) * 22.f;
-		if (Fins.Num() >= 2)
-		{
-			if (Fins[0]) Fins[0]->SetRelativeRotation(FRotator(0, 45.f,  flap));
-			if (Fins[1]) Fins[1]->SetRelativeRotation(FRotator(0, 45.f, -flap));
-		}
-	}
-	// ONDULATION du corps : vague progressive le long des segments de queue -> nage crédible
-	// (le corps fléchit, la queue fouette de plus en plus fort vers l'arrière).
-	const int32 N = TailJoints.Num();
-	for (int32 i = 0; i < N; ++i)
-	{
-		if (!TailJoints[i]) continue;
-		const float amp = 5.f + 12.f * ((float)(i + 1) / (float)N); // amplitude croissante vers la queue
-		const float yaw = FMath::Sin(t * SwimRate - i * 0.9f) * amp;
-		TailJoints[i]->SetRelativeRotation(FRotator(0.f, yaw, 0.f));
+		const float flap = FMath::Sin(t * SwimRate) * 24.f;
+		if (Wings[0]) Wings[0]->SetRelativeRotation(FRotator(0, 45,  flap));
+		if (Wings[1]) Wings[1]->SetRelativeRotation(FRotator(0, 45, -flap));
 	}
 
-	// FRÉMISSEMENT DE L'EAU : sillage de bulles derrière les GRANDES créatures (les petits
-	// bancs sont trop nombreux -> on les épargne pour rester léger). Émis à la queue.
+	// Frémissement : sillage de bulles derrière les grandes créatures.
 	if (Species != EFishSpecies::SmallFish)
 	{
 		TrailTimer -= DeltaSeconds;
 		if (TrailTimer <= 0.f)
 		{
-			TrailTimer = FMath::FRandRange(0.4f, 0.8f);
-			const FVector Rear = GetActorLocation() - GetActorForwardVector() * (BodyLen * 0.6f);
-			AWOTOLBubbleBurst::Burst(GetWorld(), Rear, FLinearColor(0.7f, 0.9f, 1.f, 1.f), 2);
+			TrailTimer = FMath::FRandRange(0.5f, 0.9f);
+			AWOTOLBubbleBurst::Burst(GetWorld(),
+				GetActorLocation() - GetActorForwardVector() * (BodyLen * 0.6f),
+				FLinearColor(0.7f, 0.9f, 1.f, 1.f), 2);
 		}
 	}
 }
