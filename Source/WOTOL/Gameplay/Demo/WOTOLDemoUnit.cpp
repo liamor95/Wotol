@@ -658,9 +658,9 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 		CritCooldown -= DeltaSeconds;
 		if (CritCooldown <= 0.f && FMath::FRand() < 0.45f && Nearest->IsAlive())
 		{
-			CritCooldown = FMath::FRandRange(7.f, 10.f); // un peu plus fréquent (l'armée tue le Kraken plus vite depuis le fix mêlée -> moins de fenêtres, donc on densifie)
+			CritCooldown = FMath::FRandRange(4.5f, 6.5f); // PLUS fréquent -> plus de fenêtres de pertes
 			const FVector CritLoc = Nearest->GetActorLocation();
-			const float SlamR = 330.f;                    // zone légèrement élargie
+			const float SlamR = 420.f;                    // zone élargie -> touche plus d'unités massées
 			if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
 			{
 				const EFactionID Foe = (GetFaction() == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
@@ -668,7 +668,9 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 				{
 					if (!U || !U->IsAlive()) continue;
 					if (FVector::DistSquared2D(U->GetActorLocation(), CritLoc) > SlamR * SlamR) continue;
-					U->TakeDamageFromUnit(230.f, this); // relevé (170->230) -> vraies pertes autour de l'écrasement, sans wipe
+					// Écrasement VRAIMENT létal : face à des unités à 2.2x PV, 230 ne tuait personne.
+					// 620 fait de vraies victimes autour de l'impact sans wiper toute la zone.
+					U->TakeDamageFromUnit(620.f, this);
 				}
 			}
 			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(W, CritLoc + FVector(0, 0, 90.f),
@@ -3200,6 +3202,6 @@ void AWOTOLDemoUnit::DoWhipStrike()
 		// Balaie / repousse les unités (coup de fouet) + dégâts CONSÉQUENTS (colosse)
 		const FVector Push = To.GetSafeNormal() * 1300.f + FVector(0.f, 0.f, 400.f);
 		U->LaunchCharacter(Push, true, true);
-		U->TakeDamageFromUnit(60.f, this); // relevé (42->60) : les Noxéens doivent subir qq pertes
+		U->TakeDamageFromUnit(190.f, this); // relevé (60->190) : le fouet fait mal face aux unités tanky
 	}
 }

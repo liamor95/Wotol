@@ -145,7 +145,10 @@ void AWOTOLDemoDirector::BeginPreparation()
 	}
 	else
 	{
-		SpecialCount = 3; ArmyHealthScale = 2.2f;
+		// PHASE 1 (Kraken) : 2.2x rendait les unites quasi increvables (2 pertes seulement).
+		// 1.7x -> elles restent solides mais l'ecrasement/le fouet du Kraken font enfin de
+		// vraies victimes. La calibration de PV du Kraken (0.58 x armee) suit automatiquement.
+		SpecialCount = 3; ArmyHealthScale = 1.7f;
 	}
 
 	CleanupUnits(); // repart d'une armée propre (utile en phase 2)
