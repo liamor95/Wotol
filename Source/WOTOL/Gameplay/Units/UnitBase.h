@@ -127,6 +127,11 @@ public:
 	// unités greybox renvoient leur VisualRoot (position visuelle réelle en hauteur).
 	virtual class USceneComponent* GetFloatingTextAnchor() const { return RootComponent; }
 
+	// Joue un système Niagara (référence SOFT, ex. asset Fab assigné sur la fiche d'unité) à un
+	// endroit donné, s'il est assigné. No-op si le slot est vide -> le greybox reste par défaut.
+	void PlayVFX(const TSoftObjectPtr<class UNiagaraSystem>& VFX, const FVector& Loc,
+		const FRotator& Rot = FRotator::ZeroRotator);
+
 	// Ancre d'affichage des DÉGÂTS/critiques/esquives. Par défaut = ancre de texte flottant.
 	// Surchargée pour le Kraken (colosse) -> renvoie l'étiquette nom/PV, sinon les chiffres
 	// apparaissaient au PIED du modèle géant, invisibles.

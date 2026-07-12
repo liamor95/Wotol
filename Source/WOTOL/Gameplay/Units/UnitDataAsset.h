@@ -59,6 +59,22 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
 	TSoftObjectPtr<class UTexture2D> Icon;
 
+	// ─── EFFETS SPÉCIAUX (Niagara — ex. assets Fab) ────────────────────────────────
+	// Glisse ici le système Niagara importé (depuis Content/Factions/<Faction>/<Unite>/VFX).
+	// Le C++ le joue AUTOMATIQUEMENT au bon moment — AUCUN Blueprint requis, juste l'assigner.
+
+	// Joué SUR LA CIBLE quand l'unité porte un COUP DE BASE (impact d'attaque).
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
+	TSoftObjectPtr<class UNiagaraSystem> AttackImpactVFX;
+
+	// Joué SUR L'UNITÉ quand elle attaque (bouche/canon : flash de tir, éclat de lame…).
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
+	TSoftObjectPtr<class UNiagaraSystem> MuzzleVFX;
+
+	// Joué SUR L'UNITÉ quand elle lance sa COMPÉTENCE spéciale.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
+	TSoftObjectPtr<class UNiagaraSystem> AbilityVFX;
+
 	// ─── Compétences ───────────────────────────────────────────────────────────
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")

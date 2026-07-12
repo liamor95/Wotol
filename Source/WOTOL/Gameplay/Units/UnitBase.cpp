@@ -13,6 +13,8 @@
 #include "Gameplay/Demo/WOTOLDemoUnit.h"
 #include "Core/FactionRegistrySubsystem.h"
 #include "Gameplay/Factions/FactionSynergySubsystem.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 
 // Rythme de bataille (démo) : combats plus longs + déplacements ralentis (eau).
 // 0.42 dégâts -> ~2,5× plus d'échanges ; 0.55 vitesse -> approche/repli plus lents.
@@ -313,7 +315,27 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 		}
 	}
 
+	// ─── EFFETS SPÉCIAUX assignés sur la fiche de l'unité (Niagara / Fab) ───
+	// Joués automatiquement : flash au niveau de l'unité + impact sur la cible. No-op si vides.
+	{
+		const USceneComponent* SelfA = GetFloatingTextAnchor();
+		const FVector SelfLoc = (SelfA ? SelfA->GetComponentLocation() : GetActorLocation());
+		PlayVFX(UnitData->MuzzleVFX, SelfLoc + GetActorForwardVector() * 40.f, GetActorRotation());
+		const USceneComponent* TgtA = Target->GetDamageTextAnchor();
+		const FVector TgtLoc = (TgtA ? TgtA->GetComponentLocation() : Target->GetActorLocation());
+		PlayVFX(UnitData->AttackImpactVFX, TgtLoc);
+	}
+
 	OnAttackPerformed(Target);
+}
+
+void AUnitBase::PlayVFX(const TSoftObjectPtr<UNiagaraSystem>& VFX, const FVector& Loc, const FRotator& Rot)
+{
+	if (VFX.IsNull() || !GetWorld()) return;
+	if (UNiagaraSystem* Sys = VFX.LoadSynchronous())
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), Sys, Loc, Rot);
+	}
 }
 
 void AUnitBase::SpawnProjectileToward(AUnitBase* Target, float OverrideDamage)

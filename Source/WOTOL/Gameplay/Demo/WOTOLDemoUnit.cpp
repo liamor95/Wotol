@@ -836,7 +836,12 @@ void AWOTOLDemoUnit::TickAbility(float Dt)
 	// (UseAbility renvoie false s'il n'y a aucune cible/motif réel). Dans ce cas l'unité
 	// GARDE sa capacité et retente très vite -> elle ne frappe jamais dans le vide.
 	if (UseAbility())
+	{
 		AbilityCooldown = GetAbilityCooldownFor(UnitData->GetFName()); // lancée -> plein cooldown
+		// EFFET SPÉCIAL de compétence assigné sur la fiche (Niagara/Fab) : joué sur l'unité.
+		const USceneComponent* A = GetFloatingTextAnchor();
+		PlayVFX(UnitData->AbilityVFX, (A ? A->GetComponentLocation() : GetActorLocation()), GetActorRotation());
+	}
 	else
 		AbilityCooldown = 0.4f; // pas de cible légitime : on garde la capacité, on retente bientôt
 }

@@ -14,7 +14,7 @@ public class WOTOL : ModuleRules
 		{
 			"Core", "CoreUObject", "Engine", "InputCore",
 			"AIModule", "NavigationSystem", "GameplayTasks",
-			"UMG", "SlateCore"
+			"UMG", "SlateCore", "Niagara"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]
