@@ -15,6 +15,10 @@
 			"Name": "ModelingToolsEditorMode",
 			"Enabled": true,
 			"TargetAllowList": ["Editor"]
+		},
+		{
+			"Name": "Niagara",
+			"Enabled": true
 		}
 	]
 }
