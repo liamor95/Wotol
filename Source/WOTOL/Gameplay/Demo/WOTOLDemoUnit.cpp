@@ -670,7 +670,8 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 					if (FVector::DistSquared2D(U->GetActorLocation(), CritLoc) > SlamR * SlamR) continue;
 					// Écrasement VRAIMENT létal : face à des unités à 2.2x PV, 230 ne tuait personne.
 					// 620 fait de vraies victimes autour de l'impact sans wiper toute la zone.
-					U->TakeDamageFromUnit(620.f, this);
+					// × difficulté (le Kraken frappe plus/moins fort selon le niveau choisi).
+					U->TakeDamageFromUnit(620.f * DifficultyEnemyDamageMult(), this);
 				}
 			}
 			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(W, CritLoc + FVector(0, 0, 90.f),
@@ -1640,6 +1641,20 @@ bool AWOTOLDemoUnit::IsBattleLive()
 		if (UGameInstance* GI = GetGameInstance())
 			CachedFlow = GI->GetSubsystem<UDemoFlowSubsystem>();
 	return CachedFlow.IsValid() && CachedFlow->GetScreen() == EDemoScreen::Playing;
+}
+
+float AWOTOLDemoUnit::DifficultyEnemyDamageMult()
+{
+	if (!CachedFlow.IsValid())
+		if (UGameInstance* GI = GetGameInstance())
+			CachedFlow = GI->GetSubsystem<UDemoFlowSubsystem>();
+	if (!CachedFlow.IsValid()) return 1.f;
+	switch (CachedFlow->GetDifficulty())
+	{
+		case EDemoDifficulty::Facile:    return 0.80f;
+		case EDemoDifficulty::Difficile: return 1.30f;
+		default:                         return 1.00f;
+	}
 }
 
 // ANTI-BLOCAGE (lecture du terrain) : quand l'unité VEUT avancer vers un ennemi mais reste
@@ -3202,6 +3217,6 @@ void AWOTOLDemoUnit::DoWhipStrike()
 		// Balaie / repousse les unités (coup de fouet) + dégâts CONSÉQUENTS (colosse)
 		const FVector Push = To.GetSafeNormal() * 1300.f + FVector(0.f, 0.f, 400.f);
 		U->LaunchCharacter(Push, true, true);
-		U->TakeDamageFromUnit(190.f, this); // relevé (60->190) : le fouet fait mal face aux unités tanky
+		U->TakeDamageFromUnit(190.f * DifficultyEnemyDamageMult(), this); // × difficulté ; fouet costaud vs unités tanky
 	}
 }

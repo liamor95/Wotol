@@ -49,6 +49,31 @@ static float FactionSurvivability(EFactionID F)
 	}
 }
 
+// ── DIFFICULTÉ ────────────────────────────────────────────────────────────────────────────
+// Multiplicateur de PUISSANCE ENNEMIE (PV + dégâts de l'armée rivale ET du Kraken). Normal =
+// référence. Facile : ennemis affaiblis. Difficile : ennemis renforcés (+ IA plus agressive
+// géré ailleurs).
+static float DiffEnemyMult(EDemoDifficulty D)
+{
+	switch (D)
+	{
+		case EDemoDifficulty::Facile:    return 0.80f;
+		case EDemoDifficulty::Difficile: return 1.30f;
+		default:                         return 1.00f; // Normal
+	}
+}
+// Multiplicateur de ROBUSTESSE du JOUEUR (PV de son armée). Facile : joueur plus coriace ;
+// Difficile : joueur un peu plus fragile -> pertes accrues.
+static float DiffPlayerMult(EDemoDifficulty D)
+{
+	switch (D)
+	{
+		case EDemoDifficulty::Facile:    return 1.30f;
+		case EDemoDifficulty::Difficile: return 0.85f;
+		default:                         return 1.00f; // Normal
+	}
+}
+
 AWOTOLDemoDirector::AWOTOLDemoDirector()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -364,8 +389,9 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	const float Depth = UnitSpacing * (bGrandBattle ? 1.15f : 1.5f); // espacement entre rangées (X)
 	const float GroundZ = 100.f;
 	// PV de CETTE armée = échelle de bataille × compensation d'identité de faction (Noxéens
-	// fragiles compensés partiellement). S'applique à toutes ses unités.
-	const float PScale = ArmyHealthScale * FactionSurvivability(Faction);
+	// fragiles compensés) × robustesse liée à la DIFFICULTÉ. S'applique à toutes ses unités.
+	const float PScale = ArmyHealthScale * FactionSurvivability(Faction)
+		* DiffPlayerMult(Demo->GetDifficulty());
 
 	// Place un groupe en rangées (se replie sur plusieurs lignes vers l'arrière -X). En
 	// phase 3, les rangées sont bien plus LARGES -> la ligne s'étale sur la largeur du tiers
@@ -484,7 +510,8 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	// SUBIT enfin des pertes et le combat DURE davantage, tout en restant GAGNABLE.
 	// × compensation d'identité de la faction RIVALE (Noxéens fragiles compensés) : la règle
 	// d'équilibrage s'applique aux DEUX camps, quel que soit celui contrôlé par le joueur.
-	const float RivalScale = ArmyHealthScale * (bGrandBattle ? 1.35f : 1.6f) * FactionSurvivability(RivalFaction);
+	const float RivalScale = ArmyHealthScale * (bGrandBattle ? 1.35f : 1.6f)
+		* FactionSurvivability(RivalFaction) * DiffEnemyMult(Demo->GetDifficulty());
 
 	// PLACEMENT ALÉATOIRE par couche, PROPRE À LA FACTION : chaque unité peut être au sol
 	// ou en hauteur. Les caps de verticalité (ex. Noxebeast au grade 1) sont respectés
@@ -685,7 +712,11 @@ void AWOTOLDemoDirector::LaunchBattle()
 						// Kraken (0.42 -> 0.58). Avec la défense/parade relevées ci-dessus, il
 						// tient nettement plus longtemps et fait quelques pertes de plus, tout en
 						// restant BATTABLE par le groupe du joueur. [Réglable : 0.50 court .. 0.65 dur]
-						const float TargetHP = FMath::Clamp(ArmyHP * 0.58f, 12000.f, 44000.f);
+						// × difficulté : Facile amincit le Kraken, Difficile l'épaissit (compense
+						// aussi l'inflation de PV joueur en Facile pour que ce soit vraiment plus simple).
+						const float DMul = GetGameInstance() && GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()
+							? DiffEnemyMult(GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()->GetDifficulty()) : 1.f;
+						const float TargetHP = FMath::Clamp(ArmyHP * 0.58f * DMul, 10000.f, 52000.f);
 						const int32 BaseMax  = FMath::Max(1, Boss->GetUnitData()->Stats.MaxHealth);
 						Boss->HealthScale    = FMath::Max(1.f, TargetHP / (float)BaseMax);
 						Boss->SetHealthToFull(); // applique PV = HealthScale * base

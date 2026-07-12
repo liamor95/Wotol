@@ -30,6 +30,16 @@ enum class EDemoPhase : uint8
 	DemoEnd               UMETA(DisplayName = "Fin de démo")
 };
 
+// Niveau de difficulté (choisi sur l'écran de faction). Ajuste la puissance ennemie et la
+// robustesse du joueur, en plus de la compensation d'identité de faction.
+UENUM(BlueprintType)
+enum class EDemoDifficulty : uint8
+{
+	Facile   UMETA(DisplayName = "Facile"),
+	Normal   UMETA(DisplayName = "Normal"),
+	Difficile UMETA(DisplayName = "Difficile")
+};
+
 // Écran d'interface courant (menu → faction → préparation → jeu → résumé)
 UENUM(BlueprintType)
 enum class EDemoScreen : uint8
@@ -210,6 +220,16 @@ public:
 	// Réinitialise la progression (déblocages) pour rejouer la démo depuis le début.
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void ResetProgress() { Progress = FDemoProgress(); CurrentPhase = EDemoPhase::None; }
+
+	// Difficulté choisie (défaut Normal = l'équilibrage de référence).
+	UPROPERTY(BlueprintReadOnly, Category = "Demo")
+	EDemoDifficulty Difficulty = EDemoDifficulty::Normal;
+
+	UFUNCTION(BlueprintCallable, Category = "Demo")
+	void SetDifficulty(EDemoDifficulty D) { Difficulty = D; }
+
+	UFUNCTION(BlueprintPure, Category = "Demo")
+	EDemoDifficulty GetDifficulty() const { return Difficulty; }
 
 	// Écran d'interface courant (menu / faction / préparation / jeu)
 	UPROPERTY(BlueprintReadOnly, Category = "Demo")

@@ -50,6 +50,15 @@ FBox2D AWOTOLDemoHUD::FactionButtonRect(int32 Index, float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
+FBox2D AWOTOLDemoHUD::DifficultyButtonRect(int32 Index, float W, float H)
+{
+	const float BW = 200.f, BH = 54.f, Gap = 26.f;
+	const float TotalW = BW * 3.f + Gap * 2.f;
+	const float X = (W - TotalW) * 0.5f + Index * (BW + Gap);
+	const float Y = H * 0.70f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
 FBox2D AWOTOLDemoHUD::LaunchBattleButtonRect(float W, float H)
 {
 	// Petit bouton JUSTE SOUS le timer (haut centre) -> le centre de l'écran reste libre
@@ -529,6 +538,26 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 	DrawButton(FactionButtonRect(1, W, H), TEXT("NOXEENS"), FLinearColor(0.3f, 0.95f, 0.5f, 1.f), 1.7f);
 	DrawCenteredText(TEXT("Aquiloris : cristal-tech, coordination   —   Noxeens : abysses bioluminescents"),
 		FactionButtonRect(0, W, H).Max.Y + 40.f, FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 1.0f);
+
+	// ── DIFFICULTÉ (3 niveaux) : le joueur la choisit AVANT de cliquer sur une faction.
+	// Le niveau sélectionné est mis en évidence (couleur vive) ; les autres sont grisés.
+	EDemoDifficulty CurDiff = EDemoDifficulty::Normal;
+	if (UWorld* Wd = GetWorld())
+		if (UGameInstance* GI = Wd->GetGameInstance())
+			if (UDemoFlowSubsystem* D = GI->GetSubsystem<UDemoFlowSubsystem>())
+				CurDiff = D->GetDifficulty();
+
+	DrawCenteredText(TEXT("DIFFICULTE"), DifficultyButtonRect(0, W, H).Min.Y - 34.f,
+		FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 1.1f);
+	const TCHAR* DLabels[3] = { TEXT("FACILE"), TEXT("NORMAL"), TEXT("DIFFICILE") };
+	const EDemoDifficulty DVals[3] = { EDemoDifficulty::Facile, EDemoDifficulty::Normal, EDemoDifficulty::Difficile };
+	for (int32 i = 0; i < 3; ++i)
+	{
+		const bool bSel = (CurDiff == DVals[i]);
+		const FLinearColor Col = bSel ? FLinearColor(1.f, 0.85f, 0.3f, 1.f)   // sélectionné : or vif
+									  : FLinearColor(0.45f, 0.5f, 0.6f, 1.f); // autre : grisé
+		DrawButton(DifficultyButtonRect(i, W, H), DLabels[i], Col, bSel ? 1.3f : 1.05f);
+	}
 }
 
 void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)

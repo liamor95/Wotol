@@ -179,6 +179,26 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 	// ── Choix de faction ──
 	if (Screen == EDemoScreen::FactionSelect)
 	{
+		// Choix de la DIFFICULTÉ (ne lance pas la démo, juste mémorisé) — vérifié en premier.
+		bool bDiffClicked = false;
+		if (UGameInstance* GI = GetGameInstance())
+		{
+			if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
+			{
+				const EDemoDifficulty DVals[3] = { EDemoDifficulty::Facile, EDemoDifficulty::Normal, EDemoDifficulty::Difficile };
+				for (int32 i = 0; i < 3; ++i)
+				{
+					if (AWOTOLDemoHUD::DifficultyButtonRect(i, VpSize.X, VpSize.Y).IsInside(M))
+					{
+						Demo->SetDifficulty(DVals[i]);
+						bDiffClicked = true;
+						break;
+					}
+				}
+			}
+		}
+		if (bDiffClicked) { return true; }
+
 		if (AWOTOLDemoHUD::FactionButtonRect(0, VpSize.X, VpSize.Y).IsInside(M))
 		{
 			PickFactionAndPrepare(EFactionID::Aquiloris);

@@ -381,6 +381,9 @@ private:
 	// et par unité. Avec 160 unités en phase 3, on le MET EN CACHE (résolu une fois). ──
 	TWeakObjectPtr<class UDemoFlowSubsystem> CachedFlow;
 	bool IsBattleLive();
+	// Multiplicateur de dégâts ENNEMIS lié à la difficulté (utilisé par le Kraken) :
+	// Facile 0.8 / Normal 1.0 / Difficile 1.3.
+	float DifficultyEnemyDamageMult();
 	// Séparation douce coûteuse (O(n²) sur toutes les unités) : on l'ÉTALE dans le temps
 	// (quelques fois par seconde) au lieu de chaque frame -> gros gain CPU, rendu identique.
 	float SepTimer = 0.f;
