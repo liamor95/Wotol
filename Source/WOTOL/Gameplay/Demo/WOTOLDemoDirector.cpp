@@ -219,9 +219,12 @@ void AWOTOLDemoDirector::StartBattleNow()
 
 	ClearPlacementBoundary(); // la barrière disparaît quand la bataille commence
 
-	Say(BT == EBattleType::RivalDefense
-		? TEXT("Phase 2 — La faction rivale attaque ! Defendez la zone !")
-		: TEXT("Phase 1 — Bataille contre le Kraken. Aneantissez-le !"));
+	const bool bGrandSay = Demo && Demo->GetPhase() == EDemoPhase::Battle_Grand;
+	Say(bGrandSay
+		? TEXT("Phase 3 — Bataille rangee ! Mettez la rivale en DEROUTE !")
+		: (BT == EBattleType::RivalDefense
+			? TEXT("Phase 2 — La faction rivale attaque ! Defendez la zone !")
+			: TEXT("Phase 1 — Bataille contre le Kraken. Aneantissez-le !")));
 	LaunchBattle();
 }
 
@@ -353,24 +356,25 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	SpawnUnit(Demo->GetUnitID(Faction, EDemoUnitCategory::Chef),
 		Origin + FVector(Depth, 0.f, GroundZ), Facing, 1.f, ArmyHealthScale);
 
+	// Rangées PLUS RESSERRÉES (moins profondes) : on reste près de la limite de placement et
+	// on N'ATTEINT PAS le fond de l'arène (les montagnes) -> plus aucune unité générée dans le décor.
 	PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Infanterie), InfantryCount, 0.f, PRinf);
-	PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Montee), MountedCount, Depth * 3.f, PRmon);
+	PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Montee), MountedCount, Depth * 2.5f, PRmon);
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Distance))
 	{
-		PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Distance), RangedCount, Depth * 5.f, PRdis);
+		PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Distance), RangedCount, Depth * 3.5f, PRdis);
 	}
 	// PHASE 3 : SPÉCIALE (arrière-ligne) + MYTHIQUE (soutien) débloquées.
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Speciale))
 	{
-		PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Speciale), SpecialCount, Depth * 6.f, PRspe);
+		PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Speciale), SpecialCount, Depth * 4.0f, PRspe);
 	}
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Mythique))
 	{
-		// ScaleBoost = 1.0 : le mythique est DÉJÀ grand ; le surdimensionner (1.6) gonflait
-		// aussi sa CAPSULE de collision -> il restait BLOQUÉ dans le décor (impossible à
-		// déplacer). À l'échelle 1, il bouge normalement.
+		// ScaleBoost = 1.0 (le mythique est déjà grand ; le gonfler bloquait sa capsule). Placé
+		// à ~4.5 rangs en retrait -> bien DANS l'arène (fini l'enterrement dans les montagnes).
 		SpawnUnit(Demo->GetUnitID(Faction, EDemoUnitCategory::Mythique),
-			Origin + FVector(-Depth * 7.f, 0.f, GroundZ), Facing, /*ScaleBoost=*/1.0f, /*HealthScale=*/3.0f);
+			Origin + FVector(-Depth * 4.5f, 0.f, GroundZ), Facing, /*ScaleBoost=*/1.0f, /*HealthScale=*/3.0f);
 	}
 }
 
@@ -467,16 +471,16 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 		PickLayer(EDemoUnitCategory::Chef));
 
 	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Infanterie), EDemoUnitCategory::Infanterie, InfantryCount, 0.f, PRinf);
-	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Montee), EDemoUnitCategory::Montee, MountedCount, Depth * 3.f, PRmon);
-	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Distance), EDemoUnitCategory::Distance, RangedCount, Depth * 5.f, PRdis);
+	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Montee), EDemoUnitCategory::Montee, MountedCount, Depth * 2.5f, PRmon);
+	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Distance), EDemoUnitCategory::Distance, RangedCount, Depth * 3.5f, PRdis);
 	// PHASE 3 : la rivale déploie AUSSI sa spéciale + son mythique.
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Speciale))
 	{
-		PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Speciale), EDemoUnitCategory::Speciale, SpecialCount, Depth * 6.f, PRspe);
+		PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Speciale), EDemoUnitCategory::Speciale, SpecialCount, Depth * 4.0f, PRspe);
 	}
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Mythique))
 	{
-		FVector MLoc = O + FVector(Depth * 7.f, 0.f, 100.f);
+		FVector MLoc = O + FVector(Depth * 4.5f, 0.f, 100.f);
 		MLoc.X = FMath::Max(MLoc.X, MirrorX);
 		SetLayer(SpawnUnit(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Mythique), MLoc, Facing, /*ScaleBoost=*/1.0f, 3.0f),
 			PickLayer(EDemoUnitCategory::Mythique));
@@ -495,7 +499,17 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 	UUnitDataAsset* Data = Registry->GetUnitData(UnitID);
 	if (!Data) return nullptr;
 
-	const FTransform SpawnTM(Facing, Loc, FVector(ScaleBoost));
+	// SÉCURITÉ : ne JAMAIS générer une unité hors de l'arène (dans les montagnes/le mur), où
+	// elle resterait bloquée. On ramène toute position au-delà du rayon sûr sur le cercle.
+	FVector SafeLoc = Loc;
+	{
+		const FVector Ctr = GetActorLocation();
+		FVector Flat = SafeLoc - Ctr; Flat.Z = 0.f;
+		const float MaxR = 4200.f; // marge devant le mur de montagnes (~4700)
+		if (Flat.Size() > MaxR) SafeLoc = Ctr + Flat.GetSafeNormal() * MaxR + FVector(0.f, 0.f, SafeLoc.Z - Ctr.Z);
+	}
+
+	const FTransform SpawnTM(Facing, SafeLoc, FVector(ScaleBoost));
 
 	AWOTOLDemoUnit* Unit = GetWorld()->SpawnActorDeferred<AWOTOLDemoUnit>(
 		DemoUnitClass, SpawnTM, this, nullptr,
@@ -518,7 +532,10 @@ void AWOTOLDemoDirector::LaunchBattle()
 
 	if (URTSBattleManager* RTS = GetWorld()->GetSubsystem<URTSBattleManager>())
 	{
-		RTS->StartBattlePhase(600.f);
+		// Phase 3 (grande bataille) : chrono ÉTENDU à 15 min (900 s) ; sinon 10 min.
+		const bool bGrand = GetGameInstance() && GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()
+			&& GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()->GetPhase() == EDemoPhase::Battle_Grand;
+		RTS->StartBattlePhase(bGrand ? 900.f : 600.f);
 	}
 
 	// TES unités attaquent D'OFFICE l'ennemi le plus proche tant que tu ne leur donnes
@@ -953,8 +970,12 @@ void AWOTOLDemoDirector::StartGrandBattle()
 	if (Demo) Demo->SetCaptureObject(nullptr);
 	ClearZoneCrystals();
 
-	// Arène plus VASTE (autre terrain, sensation épique) + nouveau courant océanique.
-	ArmySeparation = 7000.f;
+	// Arène un peu plus large que la phase 2 MAIS qui tient DANS l'enceinte de montagnes
+	// (mur de collision ~4700) : au-delà, les unités du fond spawnaient DANS les montagnes et
+	// restaient bloquées (mythique enterré/invisible). 5000 + placement rapproché = OK.
+	ArmySeparation = 5000.f;
+	// Nettoie l'objectif/message résiduel de la phase 2 (sinon il reste affiché sous celui-ci).
+	if (Demo) { Demo->SetMessage(TEXT("")); }
 	if (UWorld* W = GetWorld())
 	{
 		if (UOceanCurrentSubsystem* Cur = W->GetSubsystem<UOceanCurrentSubsystem>())
