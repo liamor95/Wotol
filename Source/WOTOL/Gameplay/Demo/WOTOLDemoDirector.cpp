@@ -127,10 +127,10 @@ void AWOTOLDemoDirector::BeginPreparation()
 	bGrandBattle = bGrand;
 	if (bGrand)
 	{
-		// PHASE 3 — composition ajustée : MOINS d'Aquiloryons (infanterie), PLUS d'Aquilombres
-		// (spéciale). Armée plus RÉSISTANTE -> la bataille DURE (~15 min). Formation ÉTALÉE.
-		//   Total/faction : 1 chef + 26 inf + 16 montées + 14 distance + 10 spéciales + 1 mythique = 68.
-		InfantryCount = 26; MountedCount = 16; RangedCount = 14; SpecialCount = 10;
+		// PHASE 3 — 80 UNITÉS AU TOTAL par faction : moins d'Aquiloryons, plus d'Aquilombres.
+		//   1 chef + 26 inf + 18 montées + 24 distance + 10 spéciales + 1 mythique = 80.
+		// Armée plus RÉSISTANTE -> la bataille DURE (~15 min). Formation ÉTALÉE.
+		InfantryCount = 26; MountedCount = 18; RangedCount = 24; SpecialCount = 10;
 		ArmyHealthScale = 4.0f;
 	}
 	else if (BT == EBattleType::RivalDefense)
