@@ -197,11 +197,16 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		{
 			if (AWOTOLDemoHUD::SummaryReplayButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 			{
-				if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->RestartDemo(true);
+				// REJOUER = relance la phase qu'on vient de terminer/perdre (pas toute la démo).
+				if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->ReplayCurrentPhase();
 			}
 			else if (AWOTOLDemoHUD::SummaryChangeFactionButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 			{
 				if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->RestartDemo(false);
+			}
+			else if (AWOTOLDemoHUD::SummaryMenuButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+			{
+				if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->ReturnToMainMenu();
 			}
 			else if (AWOTOLDemoHUD::SummaryQuitButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 			{

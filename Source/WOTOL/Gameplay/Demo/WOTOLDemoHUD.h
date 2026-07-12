@@ -34,6 +34,7 @@ public:
 	static FBox2D SummaryContinueButtonRect(float W, float H);      // phase 1 -> phase 2
 	static FBox2D SummaryReplayButtonRect(float W, float H);        // final : rejouer
 	static FBox2D SummaryChangeFactionButtonRect(float W, float H); // final : changer de faction
+	static FBox2D SummaryMenuButtonRect(float W, float H);          // final : menu principal
 	static FBox2D SummaryQuitButtonRect(float W, float H);          // final : quitter
 	static FBox2D InterludeContinueButtonRect(float W, float H);    // transition -> phase 2
 

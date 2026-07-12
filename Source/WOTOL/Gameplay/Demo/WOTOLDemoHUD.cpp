@@ -66,18 +66,19 @@ FBox2D AWOTOLDemoHUD::SummaryContinueButtonRect(float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
-// 3 boutons finaux alignés (Rejouer / Changer de faction / Quitter).
-static FBox2D SummaryTripleRect(int32 Index, float W, float H)
+// 4 boutons finaux alignés (Rejouer / Changer de faction / Menu principal / Quitter).
+static FBox2D SummaryQuadRect(int32 Index, float W, float H)
 {
-	const float BW = 300.f, BH = 62.f, Gap = 30.f;
-	const float TotalW = BW * 3.f + Gap * 2.f;
+	const float BW = 250.f, BH = 62.f, Gap = 22.f;
+	const float TotalW = BW * 4.f + Gap * 3.f;
 	const float X = (W - TotalW) * 0.5f + Index * (BW + Gap), Y = H - 120.f;
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
-FBox2D AWOTOLDemoHUD::SummaryReplayButtonRect(float W, float H)        { return SummaryTripleRect(0, W, H); }
-FBox2D AWOTOLDemoHUD::SummaryChangeFactionButtonRect(float W, float H) { return SummaryTripleRect(1, W, H); }
-FBox2D AWOTOLDemoHUD::SummaryQuitButtonRect(float W, float H)          { return SummaryTripleRect(2, W, H); }
+FBox2D AWOTOLDemoHUD::SummaryReplayButtonRect(float W, float H)        { return SummaryQuadRect(0, W, H); }
+FBox2D AWOTOLDemoHUD::SummaryChangeFactionButtonRect(float W, float H) { return SummaryQuadRect(1, W, H); }
+FBox2D AWOTOLDemoHUD::SummaryMenuButtonRect(float W, float H)          { return SummaryQuadRect(2, W, H); }
+FBox2D AWOTOLDemoHUD::SummaryQuitButtonRect(float W, float H)          { return SummaryQuadRect(3, W, H); }
 
 FBox2D AWOTOLDemoHUD::InterludeContinueButtonRect(float W, float H)
 {
@@ -603,12 +604,15 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 	// Boutons selon le contexte
 	if (Demo->bSummaryIsFinal)
 	{
-		DrawButton(SummaryReplayButtonRect(W, H), TEXT("REJOUER"),
-			FLinearColor(0.3f, 0.7f, 1.f, 1.f), 1.3f);
+		// « Rejouer » relance la MÊME phase (celle qu'on vient de finir/perdre), pas la démo.
+		DrawButton(SummaryReplayButtonRect(W, H), TEXT("REJOUER LA PHASE"),
+			FLinearColor(0.3f, 0.7f, 1.f, 1.f), 1.15f);
 		DrawButton(SummaryChangeFactionButtonRect(W, H), TEXT("CHANGER DE FACTION"),
-			FLinearColor(0.3f, 0.9f, 0.5f, 1.f), 1.2f);
+			FLinearColor(0.3f, 0.9f, 0.5f, 1.f), 1.05f);
+		DrawButton(SummaryMenuButtonRect(W, H), TEXT("MENU PRINCIPAL"),
+			FLinearColor(0.9f, 0.8f, 0.35f, 1.f), 1.1f);
 		DrawButton(SummaryQuitButtonRect(W, H), TEXT("QUITTER"),
-			FLinearColor(1.f, 0.45f, 0.35f, 1.f), 1.3f);
+			FLinearColor(1.f, 0.45f, 0.35f, 1.f), 1.15f);
 	}
 	else
 	{

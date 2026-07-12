@@ -873,6 +873,7 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 		BuildBattleSummary(true, /*bFinal=*/true, TEXT("VICTOIRE TOTALE"));
 		if (Demo)
 		{
+			ReplayPhase = EDemoPhase::Battle_Grand; // « Rejouer » relance la grande bataille
 			Demo->bDemoVictory = true;
 			Demo->SetPhase(EDemoPhase::DemoEnd);
 			Demo->SetScreen(EDemoScreen::Summary);
@@ -895,6 +896,8 @@ void AWOTOLDemoDirector::OnPlayerDefeat()
 	{
 		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
 		{
+			// MÉMORISE la phase perdue AVANT de basculer sur DemoEnd -> « Rejouer » la relance.
+			ReplayPhase = Demo->GetPhase();
 			Demo->bDemoVictory = false;
 			Demo->SetPhase(EDemoPhase::DemoEnd);
 			Demo->SetScreen(EDemoScreen::Summary);
@@ -1105,6 +1108,75 @@ void AWOTOLDemoDirector::RestartDemo(bool bKeepFaction)
 		Demo->SelectedFaction = EFactionID::None;
 		Demo->SetScreen(EDemoScreen::FactionSelect); // re-choix de faction
 	}
+}
+
+void AWOTOLDemoDirector::ReplayCurrentPhase()
+{
+	// Nettoyage commun MAIS on NE remet PAS la progression/faction à zéro : on rejoue
+	// UNIQUEMENT la phase perdue (ReplayPhase), pas toute la démo.
+	GetWorldTimerManager().ClearTimer(BattleCheckHandle);
+	GetWorldTimerManager().ClearTimer(PhaseHandle);
+	GetWorldTimerManager().ClearTimer(BattleStartHandle);
+	GetWorldTimerManager().ClearTimer(SiegeHandle);
+	GetWorldTimerManager().ClearTimer(TacticalHandle);
+	CleanupUnits();
+	ClearPlacementBoundary();
+	ClearCoverStructures();
+	if (CaptureObject) { CaptureObject->Destroy(); CaptureObject = nullptr; }
+	bBattleConcluded = false;
+
+	UGameInstance* GI = GetGameInstance();
+	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (Demo)
+	{
+		Demo->PlayerLosses.Reset();
+		Demo->EnemyLosses.Reset();
+		Demo->CurrentMessage.Empty();
+		Demo->ObjectiveText.Empty();
+		Demo->SummaryTitle.Empty();
+		Demo->bDemoVictory   = false;
+		Demo->bSummaryIsFinal = false;
+		Demo->SetCaptureObject(nullptr);
+	}
+
+	switch (ReplayPhase)
+	{
+	case EDemoPhase::Battle_Rival:
+		// PHASE 2 : distance + mythique déjà découverts, NOUVEL objet de capture, terrain
+		// standard, arène phase 2. BeginPreparation réapplique les effectifs de la phase 2.
+		ArmySeparation = 4500.f;
+		if (UWorld* W = GetWorld())
+			for (TActorIterator<AWOTOLGreyboxEnvironment> It(W); It; ++It) { It->RebuildForPhase(1); break; }
+		if (Demo) { Demo->UnlockRangedUnit(); Demo->DiscoverMythic(); Demo->SetPhase(EDemoPhase::Battle_Rival); }
+		SpawnCaptureObject(CachedPlayerFaction);
+		BeginPreparation();
+		break;
+
+	case EDemoPhase::Battle_Grand:
+		// PHASE 3 : StartGrandBattle remet tout en place (déblocage total, terrain abyssal,
+		// arène agrandie, aucun objet de capture).
+		if (Demo) Demo->SetPhase(EDemoPhase::Battle_Grand);
+		StartGrandBattle();
+		break;
+
+	default: // Battle_Creature (ou inconnu) -> PHASE 1
+		InfantryCount = 10; MountedCount = 5; RangedCount = 5;
+		ArmySeparation = 4500.f;
+		if (UWorld* W = GetWorld())
+			for (TActorIterator<AWOTOLGreyboxEnvironment> It(W); It; ++It) { It->RebuildForPhase(1); break; }
+		if (Demo) Demo->SetPhase(EDemoPhase::Battle_Creature);
+		BeginPreparation();
+		break;
+	}
+}
+
+void AWOTOLDemoDirector::ReturnToMainMenu()
+{
+	// Remet TOUTE la démo à zéro (comme RestartDemo sans faction) puis affiche l'ACCUEIL.
+	RestartDemo(/*bKeepFaction=*/false);
+	if (UGameInstance* GI = GetGameInstance())
+		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
+			Demo->SetScreen(EDemoScreen::MainMenu);
 }
 
 void AWOTOLDemoDirector::CleanupUnits()

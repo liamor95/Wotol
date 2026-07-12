@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Data/WOTOLTypes.h"
+#include "DemoFlowSubsystem.h" // EDemoPhase (mémorisation de la phase à rejouer)
 #include "WOTOLDemoDirector.generated.h"
 
 class AWOTOLDemoUnit;
@@ -131,6 +132,21 @@ public:
 	//   bKeepFaction=false -> retourne à l'écran de choix de faction
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void RestartDemo(bool bKeepFaction);
+
+	// Depuis l'écran de RÉSUMÉ : REJOUE la phase qu'on vient de terminer/perdre (pas toute la
+	// démo). Réinstalle l'état de CETTE phase (déblocages, objet de capture, terrain) puis
+	// repart en préparation.
+	UFUNCTION(BlueprintCallable, Category = "Demo")
+	void ReplayCurrentPhase();
+
+	// Depuis l'écran de RÉSUMÉ : revient au MENU PRINCIPAL (remet la démo à zéro et affiche
+	// l'accueil).
+	UFUNCTION(BlueprintCallable, Category = "Demo")
+	void ReturnToMainMenu();
+
+	// Phase à rejouer sur « Rejouer » (mémorisée à la conclusion de la bataille, avant que la
+	// phase ne bascule sur DemoEnd).
+	EDemoPhase ReplayPhase = EDemoPhase::Battle_Creature;
 
 	// Décalage (depuis le centre) de la limite de placement du joueur (côté gauche -X).
 	// Le joueur ne peut PAS placer/déplacer ses unités au-delà (vers le centre).
