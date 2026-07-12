@@ -296,6 +296,10 @@ private:
 	void  TickNoxeonZone(float DeltaSeconds);
 	float NoxeonZoneTimer = 0.f;
 
+	// Anneau visuel de zone/aura (Léviaphénix, Noxéons) : MASQUÉ à la mort (on ne doit plus
+	// voir la zone de pouvoir d'une unité morte -> il ne reste que le corps qui coule).
+	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> AuraRingParts;
+
 	// Facteur d'ancrage au sol : 1 = bien planté au sol (couche 0), 0 = en pleine hauteur.
 	// Sert au blocage (meilleur au sol) et au recul (part plus loin en l'air).
 	float GetGroundedFactor() const;

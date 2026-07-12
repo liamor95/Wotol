@@ -131,7 +131,7 @@ void AWOTOLDemoDirector::BeginPreparation()
 		//   1 chef + 26 inf + 18 montées + 24 distance + 10 spéciales + 1 mythique = 80.
 		// Armée plus RÉSISTANTE -> la bataille DURE (~15 min). Formation ÉTALÉE.
 		InfantryCount = 26; MountedCount = 18; RangedCount = 24; SpecialCount = 10;
-		ArmyHealthScale = 4.0f;
+		ArmyHealthScale = 3.0f; // moins tank -> plus de pertes des deux cotes (la bataille reste longue avec 80 unites)
 	}
 	else if (BT == EBattleType::RivalDefense)
 	{
@@ -170,8 +170,11 @@ void AWOTOLDemoDirector::BeginPreparation()
 		}
 	}
 	const FVector Center = GetActorLocation();
-	const FVector PlayerOrigin = Center + FVector(-ArmySeparation * 0.5f, 0.f, 0.f);
-	const FVector EnemyOrigin  = Center + FVector( ArmySeparation * 0.5f, 0.f, 0.f);
+	// PHASE 3 : on AVANCE les deux armées vers la limite de placement (elles occupent l'AVANT
+	// de leur tiers, près de la barrière), au lieu d'être collées au fond contre les rochers.
+	const float FwdShift = bGrand ? 900.f : 0.f;
+	const FVector PlayerOrigin = Center + FVector(-ArmySeparation * 0.5f + FwdShift, 0.f, 0.f);
+	const FVector EnemyOrigin  = Center + FVector( ArmySeparation * 0.5f - FwdShift, 0.f, 0.f);
 	SpawnPlayerArmy(CachedPlayerFaction, PlayerOrigin, FRotator(0.f, 0.f, 0.f));
 	if (BT == EBattleType::RivalDefense)
 	{
@@ -193,7 +196,7 @@ void AWOTOLDemoDirector::BeginPreparation()
 	{
 		Demo->SetScreen(EDemoScreen::Prepare);
 		Demo->SetObjective(bGrand
-			? FString(TEXT("PHASE 3 — Remportez la bataille : mettez la rivale en DEROUTE pour conquerir la nouvelle zone"))
+			? FString(TEXT("PHASE 3 — Mettez la faction rivale en DEROUTE"))
 			: (BT == EBattleType::RivalDefense
 				? FString::Printf(TEXT("Proteger le %s — ne le laissez pas tomber a 0"),
 					*BuildingDisplayName(CachedPlayerFaction))
@@ -795,7 +798,7 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 		// Résumé INTERMÉDIAIRE (bFinal=false -> bouton « Continuer ») : la démo enchaîne sur
 		// la PHASE 3 (grande bataille en zone neutre) au lieu de se terminer ici.
 		GetWorldTimerManager().ClearTimer(BattleCheckHandle);
-		BuildBattleSummary(true, /*bFinal=*/false, TEXT("VICTOIRE — LA RIVALE RECULE"));
+		BuildBattleSummary(true, /*bFinal=*/false, TEXT("VICTOIRE — LA FACTION RIVALE RECULE"));
 		if (Demo) Demo->SetScreen(EDemoScreen::Summary);
 		Say(TEXT("La rivale est repoussee. Des heures plus tard, elle revient en force sur un autre terrain..."));
 	}

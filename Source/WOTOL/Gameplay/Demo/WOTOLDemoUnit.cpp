@@ -437,6 +437,11 @@ void AWOTOLDemoUnit::HandleDeath(AUnitBase* /*Unit*/)
 	if (NameTag)       NameTag->SetVisibility(false);
 	if (NameTagShadow) NameTagShadow->SetVisibility(false);
 
+	// ZONE DE POUVOIR (aura Léviaphénix / zone Noxéons) : masquée à la mort -> il ne reste
+	// que le corps (plus de ressource visuelle inutile qui encombre la bataille).
+	for (const TObjectPtr<UStaticMeshComponent>& C : AuraRingParts)
+		if (C) C->SetVisibility(false);
+
 	// ── SURCHARGE NOXÉENNE (« Cœur Abyssal Instable ») : une élimination CATALYSE la recharge
 	// du Noxar et du Noxedrake du CAMP ADVERSE (= le tueur) proches du lieu de la mort. Traduit
 	// la synergie Noxar ↔ Noxedrake (ils accélèrent mutuellement leurs recharges via les kills).
@@ -1895,19 +1900,20 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 	}
 	if (Id == TEXT("Aquipheres") || Id == TEXT("Aquispheres")) // Distance (réf) : chevalier + GROS CANON à 2 mains
 	{
-		bTwoHandWeapon = true; // tenu à DEUX MAINS (pose de port + de tir)
+		bTwoHandWeapon = true; // les DEUX bras se placent devant, autour du canon
 		BuildAquiKnight(0.32f);
-		// ── GROS CANON RECTANGULAIRE tech (réf) : corps bleu-gris massif + liserés/culasse
-		// dorés, bouche évasée, ORBE d'énergie tourbillonnante au canon. Tenu à DEUX MAINS
-		// devant le corps, pointé vers l'AVANT (-X après le flip). Attaché à la main droite ;
-		// le bras gauche vient tenir le fût (pose 2 mains, voir AnimateArticulated). ──
+		// ── GROS CANON RECTANGULAIRE tech (réf), tenu DEVANT le corps et pointé HORIZONTALEMENT
+		// VERS L'AVANT (-X après le flip). IMPORTANT : attaché au VisualRoot (corps), PAS à la
+		// main — sinon la pose du bras l'inclinait VERS LE HAUT (il tirait en l'air). Là il
+		// vise toujours devant ; la visée en hauteur se fait via l'inclinaison de tout le corps
+		// quand la cible est sur une couche haute. ──
 		const FLinearColor CannonBody(0.10f, 0.14f, 0.30f, 1.f); // bleu-gris sombre
-		MakeBone(JRElbow, M_CUBE, FVector(-H * 0.22f, 0, -H * 0.12f), FVector(0.16f, 0.15f, h * 0.44f), FRotator(90.f, 0, 0), CannonBody); // corps rectangulaire
-		MakeBone(JRElbow, M_CUBE, FVector(-H * 0.06f, 0, -H * 0.10f), FVector(0.14f, 0.17f, h * 0.16f), FRotator(90.f, 0, 0), AqGold);     // culasse dorée
-		MakeBone(JRElbow, M_CUBE, FVector(-H * 0.24f, 0, -H * 0.04f), FVector(0.03f, 0.16f, h * 0.34f), FRotator(90.f, 0, 0), AqGold);     // liseré or (dessus)
-		MakeBone(JRElbow, M_CONE, FVector(-H * 0.46f, 0, -H * 0.12f), FVector(0.23f, 0.23f, h * 0.16f), FRotator(-90.f, 0, 0), AqGold);    // bouche évasée
-		MakeBone(JRElbow, M_SPH,  FVector(-H * 0.56f, 0, -H * 0.12f), FVector(0.24f, 0.24f, 0.24f), NoRot, AqEnergyHi);                    // ORBE tourbillonnante (bloom)
-		MakeBone(JRElbow, M_CYL,  FVector(-H * 0.30f, 0, -H * 0.22f), FVector(0.05f, 0.05f, h * 0.10f), NoRot, AqArmor);                   // poignée avant (foregrip main G)
+		AddPart(M_CUBE, FVector(-H * 0.22f, 0, H * 0.08f), FVector(0.16f, 0.15f, h * 0.44f), FRotator(90.f, 0, 0), CannonBody); // corps rectangulaire
+		AddPart(M_CUBE, FVector(-H * 0.05f, 0, H * 0.10f), FVector(0.14f, 0.17f, h * 0.16f), FRotator(90.f, 0, 0), AqGold);     // culasse dorée
+		AddPart(M_CUBE, FVector(-H * 0.22f, 0, H * 0.16f), FVector(0.03f, 0.16f, h * 0.34f), FRotator(90.f, 0, 0), AqGold);     // liseré or (dessus)
+		AddPart(M_CONE, FVector(-H * 0.46f, 0, H * 0.08f), FVector(0.23f, 0.23f, h * 0.16f), FRotator(-90.f, 0, 0), AqGold);    // bouche évasée (vers l'avant)
+		AddPart(M_SPH,  FVector(-H * 0.56f, 0, H * 0.08f), FVector(0.24f, 0.24f, 0.24f), NoRot, AqEnergyHi);                    // ORBE tourbillonnante (bloom) au bout
+		AddPart(M_CYL,  FVector(-H * 0.30f, 0, -H * 0.02f), FVector(0.05f, 0.05f, h * 0.10f), NoRot, AqArmor);                  // poignée sous le fût
 		return;
 	}
 	if (Id == TEXT("Aquilombres")) // Spéciale (réf) : duelliste Aquiloris élancée, peau bleue,
@@ -2004,8 +2010,8 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		for (int32 a = 0; a < 28; ++a)
 		{
 			const float ang = 2.f * PI * a / 28.f;
-			AddPart(M_SPH, FVector(FMath::Cos(ang) * AuraR, FMath::Sin(ang) * AuraR, -H * 0.55f),
-				FVector(0.22f, 0.22f, 0.22f), NoRot, AuraRing);
+			AuraRingParts.Add(AddPart(M_SPH, FVector(FMath::Cos(ang) * AuraR, FMath::Sin(ang) * AuraR, -H * 0.55f),
+				FVector(0.22f, 0.22f, 0.22f), NoRot, AuraRing));
 		}
 		return;
 	}
@@ -2227,8 +2233,8 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		for (int32 a = 0; a < 26; ++a)
 		{
 			const float ang = 2.f * PI * a / 26.f;
-			AddPart(M_SPH, FVector(FMath::Cos(ang) * 700.f, FMath::Sin(ang) * 700.f, -H * 0.40f),
-				FVector(0.20f, 0.20f, 0.20f), NoRot, ZoneRing);
+			AuraRingParts.Add(AddPart(M_SPH, FVector(FMath::Cos(ang) * 700.f, FMath::Sin(ang) * 700.f, -H * 0.40f),
+				FVector(0.20f, 0.20f, 0.20f), NoRot, ZoneRing));
 		}
 		return;
 	}
