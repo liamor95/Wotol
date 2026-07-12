@@ -6,8 +6,21 @@
 
 class UStaticMeshComponent;
 
-// Faune ambiante purement décorative : un poisson qui nage en boucle (cercle + houle).
-// Sans collision, sans interaction gameplay. Léger (1 mesh + Tick trigonométrique).
+// Espèces de faune ambiante (décor). Chacune a une SILHOUETTE reconnaissable, bâtie à partir
+// de primitives (BasicShapes), et NAGE en ondulant (corps + queue qui fouettent l'eau).
+UENUM()
+enum class EFishSpecies : uint8
+{
+	SmallFish, // petit poisson de banc
+	Shark,     // requin : aileron dorsal triangulaire, queue en croissant
+	Dolphin,   // dauphin : rostre, aileron courbe, nageoires
+	Orca,      // orque : aileron dorsal HAUT et droit, corps massif
+	Whale,     // baleine : corps énorme arrondi, nageoire caudale horizontale
+	Ray        // raie : corps plat en losange, longue queue fine
+};
+
+// Faune ambiante purement décorative : nage en boucle (cercle + houle) avec ONDULATION du
+// corps. Sans collision, sans interaction gameplay. Léger (quelques meshes + Tick trigo).
 UCLASS()
 class WOTOL_API AWOTOLAmbientFish : public AActor
 {
@@ -26,10 +39,22 @@ public:
 	UPROPERTY() float BaseZ    = 300.f;
 
 	void Configure(const FVector& InCenter, float InRadius, float InSpeed,
-		float InPhase, float InHeightAmp, float InBaseZ, const FLinearColor& Color, float SizeM);
+		float InPhase, float InHeightAmp, float InBaseZ, const FLinearColor& Color, float SizeM,
+		EFishSpecies InSpecies = EFishSpecies::SmallFish);
 
 protected:
+	// Fabrique une pièce de mesh (corps, aileron, queue…) attachée à un parent.
+	UStaticMeshComponent* MakePart(USceneComponent* Parent, const TCHAR* MeshPath,
+		const FVector& RelLoc, const FVector& Scale, const FRotator& Rot, const FLinearColor& Color);
+
+	UPROPERTY() TObjectPtr<USceneComponent> Hull;   // pivot du corps (ondule légèrement)
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> Body;
-	UPROPERTY() TObjectPtr<UStaticMeshComponent> Tail;
+	// Segments arrière (queue) : ondulent en vague progressive -> nage crédible.
+	UPROPERTY() TArray<TObjectPtr<USceneComponent>> TailJoints;
+	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> Fins; // pectorales/ailerons (léger battement)
+
+	EFishSpecies Species = EFishSpecies::SmallFish;
 	float Angle = 0.f;
+	float SwimRate = 6.f; // vitesse de battement (ondulation)
+	float BodyLen  = 100.f;
 };

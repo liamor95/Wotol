@@ -762,7 +762,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			FLinearColor(0.20f, 0.75f, 0.60f, 1.f), // vert d'eau
 			FLinearColor(0.90f, 0.40f, 0.45f, 1.f), // corail
 		};
-		// 5 bancs, chacun de plusieurs poissons proches (même cercle, phases décalées)
+		// 5 bancs de PETITS POISSONS proches (même cercle, phases décalées) qui ondulent.
 		for (int32 s = 0; s < 5; ++s)
 		{
 			const FVector SchoolCenter = Center + FVector(
@@ -771,7 +771,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			const float Speed  = Fs.FRandRange(0.25f, 0.6f) * (Fs.FRand() < 0.5f ? 1.f : -1.f);
 			const float BaseZ  = Fs.FRandRange(400.f, 1600.f);
 			const FLinearColor Col = FishColors[Fs.RandRange(0, 4)];
-			const int32 Count = Fs.RandRange(5, 9);
+			const int32 Count = Fs.RandRange(6, 10);
 			for (int32 f = 0; f < Count; ++f)
 			{
 				FActorSpawnParameters P; P.Owner = this;
@@ -780,23 +780,43 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 				{
 					Fish->Configure(SchoolCenter, Radius + Fs.FRandRange(-120.f, 120.f), Speed,
 						(2.f * PI * f / Count) + Fs.FRandRange(-0.2f, 0.2f),
-						Fs.FRandRange(80.f, 220.f), BaseZ, Col, Fs.FRandRange(0.8f, 1.6f));
+						Fs.FRandRange(80.f, 220.f), BaseZ, Col, Fs.FRandRange(0.7f, 1.3f),
+						EFishSpecies::SmallFish);
 				}
 			}
 		}
 
-		// ── SILHOUETTES DE REQUINS : grandes, sombres, lentes, en hauteur (fond) ──
-		const FLinearColor SharkCol(0.10f, 0.14f, 0.18f, 1.f);
-		for (int32 s = 0; s < 3; ++s)
+		// ── GRANDES CRÉATURES avec une VRAIE identité (requin, dauphin, orque, baleine, raie) :
+		// silhouettes reconnaissables, lentes, réparties en hauteur (fond de scène). ──
+		struct FBig { EFishSpecies Sp; FLinearColor Col; float SizeMin, SizeMax, SpeedMin, SpeedMax; };
+		const FBig Kinds[] = {
+			{ EFishSpecies::Shark,   FLinearColor(0.16f, 0.19f, 0.22f, 1.f), 4.5f, 6.5f, 0.10f, 0.18f },
+			{ EFishSpecies::Dolphin, FLinearColor(0.35f, 0.45f, 0.55f, 1.f), 3.5f, 4.8f, 0.16f, 0.26f },
+			{ EFishSpecies::Orca,    FLinearColor(0.06f, 0.07f, 0.09f, 1.f), 5.0f, 7.0f, 0.12f, 0.20f },
+			{ EFishSpecies::Whale,   FLinearColor(0.22f, 0.32f, 0.42f, 1.f), 8.0f, 11.0f, 0.05f, 0.10f },
+			{ EFishSpecies::Ray,     FLinearColor(0.28f, 0.22f, 0.16f, 1.f), 4.0f, 6.0f, 0.10f, 0.18f },
+		};
+		for (int32 k = 0; k < UE_ARRAY_COUNT(Kinds); ++k)
 		{
-			FActorSpawnParameters P; P.Owner = this;
-			if (AWOTOLAmbientFish* Shark = W->SpawnActor<AWOTOLAmbientFish>(
-					AWOTOLAmbientFish::StaticClass(), Center, FRotator::ZeroRotator, P))
+			const FBig& B = Kinds[k];
+			// Dauphins en petit groupe (2-3), les autres en solitaire/paire.
+			const int32 Cnt = (B.Sp == EFishSpecies::Dolphin) ? Fs.RandRange(2, 3) : Fs.RandRange(1, 2);
+			const FVector GroupCenter = Center + FVector(Fs.FRandRange(-3000.f, 3000.f), Fs.FRandRange(-3000.f, 3000.f), 0.f);
+			const float GRadius = Fs.FRandRange(4500.f, 7500.f);
+			const float GSpeed  = Fs.FRandRange(B.SpeedMin, B.SpeedMax) * (k % 2 ? 1.f : -1.f);
+			const float GZ = (B.Sp == EFishSpecies::Whale) ? Fs.FRandRange(2800.f, 3600.f)
+				: (B.Sp == EFishSpecies::Ray) ? Fs.FRandRange(300.f, 900.f)   // les raies rasent le fond
+				: Fs.FRandRange(1800.f, 3200.f);
+			for (int32 i = 0; i < Cnt; ++i)
 			{
-				Shark->Configure(Center + FVector(Fs.FRandRange(-2000.f, 2000.f), Fs.FRandRange(-2000.f, 2000.f), 0.f),
-					Fs.FRandRange(5000.f, 7500.f), Fs.FRandRange(0.08f, 0.16f) * (s % 2 ? 1.f : -1.f),
-					Fs.FRandRange(0.f, 6.f), Fs.FRandRange(120.f, 300.f),
-					Fs.FRandRange(2600.f, 3600.f), SharkCol, Fs.FRandRange(5.f, 8.f));
+				FActorSpawnParameters P; P.Owner = this;
+				if (AWOTOLAmbientFish* Big = W->SpawnActor<AWOTOLAmbientFish>(
+						AWOTOLAmbientFish::StaticClass(), GroupCenter, FRotator::ZeroRotator, P))
+				{
+					Big->Configure(GroupCenter, GRadius + Fs.FRandRange(-200.f, 200.f), GSpeed,
+						(2.f * PI * i / FMath::Max(1, Cnt)) + Fs.FRandRange(-0.15f, 0.15f),
+						Fs.FRandRange(80.f, 240.f), GZ, B.Col, Fs.FRandRange(B.SizeMin, B.SizeMax), B.Sp);
+				}
 			}
 		}
 	}
