@@ -81,9 +81,9 @@ void AWOTOLAmbientFish::Configure(const FVector& InCenter, float InRadius, float
 		// Corps fuselé long.
 		Body = AddMesh(Hull, SPH, FVector(0, 0, 0), FVector(L / 100.f * 1.0f, L / 100.f * 0.30f, L / 100.f * 0.34f), FRotator::ZeroRotator, Color);
 		AddMesh(Hull, SPH, FVector(0, 0, -L * 0.10f), FVector(L / 100.f * 0.85f, L / 100.f * 0.24f, L / 100.f * 0.14f), FRotator::ZeroRotator, Belly); // ventre clair
-		AddMesh(Hull, CON, FVector(L * 0.52f, 0, 0), FVector(L / 100.f * 0.22f, L / 100.f * 0.22f, L / 100.f * 0.30f), FRotator(90, 0, 0), Color); // museau
+		AddMesh(Hull, CON, FVector(L * 0.58f, 0, 0), FVector(L / 100.f * 0.20f, L / 100.f * 0.20f, L / 100.f * 0.44f), FRotator(90, 0, 0), Color); // museau ALLONGÉ
 		// Aileron dorsal TRIANGULAIRE haut (signature requin).
-		AddMesh(Hull, CON, FVector(-L * 0.02f, 0, L * 0.24f), FVector(L / 100.f * 0.22f, 0.04f, L / 100.f * 0.34f), FRotator(0, 0, 0), Dark);
+		AddMesh(Hull, CON, FVector(-L * 0.02f, 0, L * 0.24f), FVector(L / 100.f * 0.22f, 0.04f, L / 100.f * 0.38f), FRotator(0, 0, 0), Dark);
 		// Pectorales plates inclinées.
 		AddMesh(Hull, CUB, FVector(L * 0.05f, L * 0.22f, -L * 0.06f), FVector(L / 100.f * 0.16f, L / 100.f * 0.30f, 0.03f), FRotator(0, 0, 20), Dark);
 		AddMesh(Hull, CUB, FVector(L * 0.05f, -L * 0.22f, -L * 0.06f), FVector(L / 100.f * 0.16f, L / 100.f * 0.30f, 0.03f), FRotator(0, 0, -20), Dark);
@@ -108,7 +108,7 @@ void AWOTOLAmbientFish::Configure(const FVector& InCenter, float InRadius, float
 		Body = AddMesh(Hull, SPH, FVector(0, 0, 0), FVector(L / 100.f, L / 100.f * 0.40f, L / 100.f * 0.42f), FRotator::ZeroRotator, FLinearColor(0.04f, 0.05f, 0.07f, 1.f));
 		AddMesh(Hull, SPH, FVector(L * 0.05f, 0, -L * 0.14f), FVector(L / 100.f * 0.75f, L / 100.f * 0.30f, L / 100.f * 0.16f), FRotator::ZeroRotator, FLinearColor(0.95f, 0.95f, 0.98f, 1.f)); // ventre BLANC
 		// Aileron dorsal TRÈS HAUT ET DROIT (signature orque).
-		AddMesh(Hull, CON, FVector(-L * 0.02f, 0, L * 0.34f), FVector(L / 100.f * 0.20f, 0.04f, L / 100.f * 0.5f), FRotator(0, 0, 0), FLinearColor(0.04f, 0.05f, 0.07f, 1.f));
+		AddMesh(Hull, CON, FVector(-L * 0.02f, 0, L * 0.40f), FVector(L / 100.f * 0.18f, 0.04f, L / 100.f * 0.62f), FRotator(0, 0, 0), FLinearColor(0.04f, 0.05f, 0.07f, 1.f));
 		AddMesh(Hull, CUB, FVector(L * 0.06f, L * 0.26f, -L * 0.08f), FVector(L / 100.f * 0.20f, L / 100.f * 0.30f, 0.03f), FRotator(0, 0, 20), FLinearColor(0.04f, 0.05f, 0.07f, 1.f));
 		AddMesh(Hull, CUB, FVector(L * 0.06f, -L * 0.26f, -L * 0.08f), FVector(L / 100.f * 0.20f, L / 100.f * 0.30f, 0.03f), FRotator(0, 0, -20), FLinearColor(0.04f, 0.05f, 0.07f, 1.f));
 		CaudalHorizontal(L / 100.f * 0.95f, L / 100.f * 0.55f);
@@ -126,16 +126,23 @@ void AWOTOLAmbientFish::Configure(const FVector& InCenter, float InRadius, float
 		CaudalHorizontal(L / 100.f * 1.1f, L / 100.f * 0.6f);
 		break;
 	}
-	case EFishSpecies::Ray:
+	case EFishSpecies::Ray: // RAIE MANTA
 	{
-		SwimRate = 2.4f;
-		// Corps PLAT en losange (cube aplati tourné 45°).
-		Body = AddMesh(Hull, CUB, FVector(0, 0, 0), FVector(L / 100.f * 0.9f, L / 100.f * 1.2f, L / 100.f * 0.10f), FRotator(0, 45, 0), Color);
-		// AILES (grandes plaques latérales qui battent).
-		Wings.Add(AddMesh(Hull, CUB, FVector(0, L * 0.55f, 0), FVector(L / 100.f * 0.7f, L / 100.f * 0.8f, 0.05f), FRotator(0, 45, 0), Color));
-		Wings.Add(AddMesh(Hull, CUB, FVector(0, -L * 0.55f, 0), FVector(L / 100.f * 0.7f, L / 100.f * 0.8f, 0.05f), FRotator(0, 45, 0), Color));
-		// Longue queue fine (sur le pivot).
-		AddMesh(TailPivot, CON, FVector(-L * 0.4f, 0, 0), FVector(0.06f, 0.06f, L / 100.f * 0.9f), FRotator(-90, 0, 0), Dark);
+		SwimRate = 2.2f;
+		// Corps central PLAT, plus large que long (le disque de la manta), sombre dessus.
+		Body = AddMesh(Hull, CUB, FVector(0, 0, 0), FVector(L / 100.f * 0.75f, L / 100.f * 0.85f, L / 100.f * 0.09f), FRotator(0, 45, 0), Color);
+		AddMesh(Hull, CUB, FVector(0, 0, -L * 0.03f), FVector(L / 100.f * 0.6f, L / 100.f * 0.7f, L / 100.f * 0.06f), FRotator(0, 45, 0), Belly); // ventre clair
+		// AILES très larges (envergure ~2x le corps), APLATIES (cône écrasé en Z = aile plate
+		// et large qui se distingue à l'horizontale) -> silhouette de manta en vol.
+		Wings.Add(AddMesh(Hull, CON, FVector(-L * 0.05f, L * 0.60f, 0),
+			FVector(L / 100.f * 1.3f, L / 100.f * 1.5f, 0.05f), FRotator::ZeroRotator, Color));
+		Wings.Add(AddMesh(Hull, CON, FVector(-L * 0.05f, -L * 0.60f, 0),
+			FVector(L / 100.f * 1.3f, L / 100.f * 1.5f, 0.05f), FRotator::ZeroRotator, Color));
+		// CORNES CÉPHALIQUES : les deux petits lobes à l'avant de la bouche (signature manta).
+		AddMesh(Hull, CON, FVector(L * 0.42f, L * 0.10f, 0), FVector(0.10f, 0.10f, L / 100.f * 0.28f), FRotator(70, 0, 0), Dark);
+		AddMesh(Hull, CON, FVector(L * 0.42f, -L * 0.10f, 0), FVector(0.10f, 0.10f, L / 100.f * 0.28f), FRotator(70, 0, 0), Dark);
+		// Longue queue fine en fouet (sur le pivot).
+		AddMesh(TailPivot, CON, FVector(-L * 0.5f, 0, 0), FVector(0.05f, 0.05f, L / 100.f * 1.1f), FRotator(-90, 0, 0), Dark);
 		break;
 	}
 	default: // SmallFish
@@ -174,12 +181,12 @@ void AWOTOLAmbientFish::Tick(float DeltaSeconds)
 	if (Body)
 		Body->SetRelativeRotation(FRotator(0.f, FMath::Sin(t * SwimRate + 0.6f) * 4.f, 0.f));
 
-	// Raie : les ailes battent (roulis opposé).
+	// Manta : les ailes BATTENT (roulis autour de l'axe d'avancée) -> vol sous-marin ondulant.
 	if (Species == EFishSpecies::Ray && Wings.Num() >= 2)
 	{
-		const float flap = FMath::Sin(t * SwimRate) * 24.f;
-		if (Wings[0]) Wings[0]->SetRelativeRotation(FRotator(0, 45,  flap));
-		if (Wings[1]) Wings[1]->SetRelativeRotation(FRotator(0, 45, -flap));
+		const float flap = FMath::Sin(t * SwimRate) * 26.f;
+		if (Wings[0]) Wings[0]->SetRelativeRotation(FRotator(0.f, 0.f,  flap));
+		if (Wings[1]) Wings[1]->SetRelativeRotation(FRotator(0.f, 0.f, -flap));
 	}
 
 	// Frémissement : sillage de bulles derrière les grandes créatures.
