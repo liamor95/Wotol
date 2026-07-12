@@ -1653,8 +1653,31 @@ void AWOTOLDemoDirector::SpawnCoverStructures()
 		{ FVector( 2300.f, 1400.f, 0.f), 0, false, 1100.f}, // pilier (destructible)
 		{ FVector(-1500.f, 2100.f, 0.f), 1, false, 1400.f}, // pan de mur (destructible)
 	};
-	for (const FCover& S : Layout)
+	// PHASE 3 : décor DIFFÉRENT — bouts de BÂTIMENTS en ruine (var. 3), DÉCOMBRES (var. 4),
+	// DALLES penchées (var. 5) + murs/arches, répartis LARGE sur l'arène agrandie.
+	const FCover LayoutGrand[] = {
+		{ FVector( 1000.f,  1200.f, 0.f), 3, false, 1500.f}, // fragment de bâtiment
+		{ FVector(-1200.f,  -900.f, 0.f), 3, false, 1500.f}, // fragment de bâtiment
+		{ FVector(  900.f, -1400.f, 0.f), 5, false, 1300.f}, // dalle penchée
+		{ FVector(-1400.f,  1300.f, 0.f), 5, false, 1300.f}, // dalle penchée
+		{ FVector(  200.f,  2600.f, 0.f), 4, false,  900.f}, // décombres
+		{ FVector( -300.f, -2600.f, 0.f), 4, false,  900.f}, // décombres
+		{ FVector( 2900.f,   400.f, 0.f), 1, false, 1400.f}, // pan de mur
+		{ FVector(-2900.f,  -500.f, 0.f), 2, false, 1500.f}, // arche
+		{ FVector( 2600.f, -1800.f, 0.f), 3, false, 1500.f}, // fragment de bâtiment
+		{ FVector(-2600.f,  1800.f, 0.f), 5, false, 1300.f}, // dalle penchée
+		{ FVector( 1800.f,  2400.f, 0.f), 4, false,  900.f}, // décombres
+		{ FVector(-1800.f, -2400.f, 0.f), 1, false, 1400.f}, // pan de mur
+		{ FVector(  700.f,   700.f, 0.f), 0, true,   0.f   }, // pilier INDESTRUCTIBLE (repère)
+		{ FVector( 3300.f,  2100.f, 0.f), 2, false, 1500.f}, // arche
+		{ FVector(-3300.f, -2100.f, 0.f), 3, false, 1500.f}, // fragment de bâtiment
+		{ FVector(    0.f,  3300.f, 0.f), 5, false, 1300.f}, // dalle penchée
+	};
+	const FCover* Use = bGrandBattle ? LayoutGrand : Layout;
+	const int32 UseN  = bGrandBattle ? UE_ARRAY_COUNT(LayoutGrand) : UE_ARRAY_COUNT(Layout);
+	for (int32 li = 0; li < UseN; ++li)
 	{
+		const FCover& S = Use[li];
 		const FTransform TM(FRotator(0.f, FMath::FRandRange(0.f, 360.f), 0.f), C + S.Off);
 		AWOTOLCoverStructure* Cov = W->SpawnActorDeferred<AWOTOLCoverStructure>(
 			AWOTOLCoverStructure::StaticClass(), TM, this, nullptr,

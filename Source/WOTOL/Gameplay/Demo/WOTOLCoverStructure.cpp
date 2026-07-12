@@ -123,6 +123,35 @@ void AWOTOLCoverStructure::BuildVisual()
 		Add(M_CUBE, FVector(0, -20, 440), FVector(0.5f, 2.4f, 0.5f), FRotator(0, 0, 12.f), Stone);  // linteau penché
 		Add(M_CONE, FVector(0, -160, 470), FVector(0.3f, 0.3f, 0.8f), FRotator::ZeroRotator, Glow);
 	}
+	else if (Variant == 3) // FRAGMENT DE BÂTIMENT : coin de mur avec une OUVERTURE (porte/fenêtre)
+	{
+		Add(M_CUBE, FVector(0, -190, 200), FVector(0.6f, 1.2f, 4.0f), FRotator::ZeroRotator, Stone); // montant gauche
+		Add(M_CUBE, FVector(0,  190, 200), FVector(0.6f, 1.2f, 4.0f), FRotator::ZeroRotator, Stone); // montant droit
+		Add(M_CUBE, FVector(0, 0, 430), FVector(0.6f, 2.7f, 0.7f), FRotator::ZeroRotator, Stone);    // linteau au-dessus de l'ouverture
+		Add(M_CUBE, FVector(170, -320, 170), FVector(2.6f, 0.6f, 3.4f), FRotator::ZeroRotator, Stone); // mur de retour (le coin du bâtiment)
+		Add(M_CUBE, FVector(0, 0, 30), FVector(1.1f, 3.8f, 0.5f), FRotator::ZeroRotator, Dark);       // socle
+		Add(M_CONE, FVector(0, 300, 360), FVector(0.15f, 0.15f, 1.0f), FRotator::ZeroRotator, Glow);  // conduit lumineux
+	}
+	else if (Variant == 4) // TAS DE BLOCS EFFONDRÉS (décombres bas, irréguliers)
+	{
+		FRandomStream Rb(991);
+		for (int32 i = 0; i < 7; ++i)
+		{
+			const float s = Rb.FRandRange(0.8f, 1.8f);
+			Add(M_CUBE, FVector(Rb.FRandRange(-170.f, 170.f), Rb.FRandRange(-170.f, 170.f), s * 42.f),
+				FVector(s, s, s * 0.7f),
+				FRotator(Rb.FRandRange(0.f, 40.f), Rb.FRandRange(0.f, 360.f), Rb.FRandRange(0.f, 40.f)),
+				(Rb.FRand() < 0.5f) ? Stone : Dark);
+		}
+		Add(M_CONE, FVector(0, 0, 130), FVector(0.2f, 0.2f, 0.7f), FRotator::ZeroRotator, Glow);
+	}
+	else if (Variant == 5) // DALLE / MONOLITHE PENCHÉ + bloc tombé à côté
+	{
+		Add(M_CUBE, FVector(0, 0, 230), FVector(0.7f, 2.6f, 4.8f), FRotator(0, 0, 22.f), Stone); // grande dalle inclinée
+		Add(M_CUBE, FVector(70, 0, 40), FVector(1.5f, 3.0f, 0.5f), FRotator::ZeroRotator, Dark); // socle
+		Add(M_CUBE, FVector(-140, 90, 70), FVector(0.9f, 0.9f, 0.9f), FRotator(10.f, 30.f, 10.f), Stone); // bloc tombé
+		Add(M_CONE, FVector(-30, 0, 500), FVector(0.2f, 0.2f, 1.0f), FRotator(22.f, 0, 0), Glow);
+	}
 	else // grand pilier (défaut)
 	{
 		Add(M_CYL, FVector(0, 0, 40), FVector(2.4f, 2.4f, 0.4f), FRotator::ZeroRotator, Dark);      // base large
@@ -131,9 +160,10 @@ void AWOTOLCoverStructure::BuildVisual()
 		Add(M_CONE, FVector(20, 0, 640), FVector(0.5f, 0.5f, 1.6f), FRotator(14.f, 0, 0), Glow);    // cristal au sommet
 	}
 
-	HealthTag->SetRelativeLocation(FVector(0.f, 0.f, (Variant == 0) ? 760.f : 520.f));
+	HealthTag->SetRelativeLocation(FVector(0.f, 0.f, (Variant == 0) ? 760.f : (Variant == 4) ? 260.f : 520.f));
 	// Longueur qui balaiera le sol en tombant (≈ hauteur de la structure).
-	PillarLen = (Variant == 0) ? 780.f : (Variant == 2) ? 560.f : 460.f;
+	PillarLen = (Variant == 0) ? 780.f : (Variant == 2) ? 560.f
+		: (Variant == 4) ? 300.f : (Variant == 3 || Variant == 5) ? 520.f : 460.f;
 }
 
 void AWOTOLCoverStructure::TakeCoverDamage(float Amount, AUnitBase* InstigatorUnit)
