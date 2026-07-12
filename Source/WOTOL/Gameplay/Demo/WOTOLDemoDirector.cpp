@@ -43,7 +43,7 @@ static float FactionSurvivability(EFactionID F)
 {
 	switch (F)
 	{
-		case EFactionID::Noxeens:   return 1.25f; // fragiles -> compensation partielle
+		case EFactionID::Noxeens:   return 1.12f; // fragiles -> compensation LÉGÈRE (ils restent glass cannon)
 		case EFactionID::Aquiloris: return 1.00f; // référence (tanky, défensifs)
 		default:                    return 1.00f;
 	}
@@ -510,7 +510,10 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	// SUBIT enfin des pertes et le combat DURE davantage, tout en restant GAGNABLE.
 	// × compensation d'identité de la faction RIVALE (Noxéens fragiles compensés) : la règle
 	// d'équilibrage s'applique aux DEUX camps, quel que soit celui contrôlé par le joueur.
-	const float RivalScale = ArmyHealthScale * (bGrandBattle ? 1.35f : 1.6f)
+	// Bonus rival MODÉRÉ : 1.6/1.35 empilé avec la compensation de faction donnait des PV
+	// absurdes (Noxeblast, glass cannon, montait a ~5800). On resserre pour que l'armee rivale
+	// reste tuable et fidele a son identite, la difficulte restant le vrai curseur.
+	const float RivalScale = ArmyHealthScale * (bGrandBattle ? 1.12f : 1.18f)
 		* FactionSurvivability(RivalFaction) * DiffEnemyMult(Demo->GetDifficulty());
 
 	// PLACEMENT ALÉATOIRE par couche, PROPRE À LA FACTION : chaque unité peut être au sol

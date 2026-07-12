@@ -128,8 +128,10 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	const bool bBattleLive = IsBattleLive();
 	if (UCharacterMovementComponent* M = GetCharacterMovement())
 	{
+		// En PRÉPARATION on coupe SEULEMENT l'évitement RVO (la dérive automatique qui faisait
+		// sortir les unités de leur zone). On NE fige PAS le déplacement -> le joueur peut
+		// TOUJOURS déplacer/placer librement ses unités dans son tiers avant de lancer.
 		if (M->bUseRVOAvoidance != bBattleLive) M->SetAvoidanceEnabled(bBattleLive);
-		if (!bBattleLive) { M->StopMovementImmediately(); M->Velocity = FVector::ZeroVector; }
 	}
 
 	if (bCreatureBrain)
