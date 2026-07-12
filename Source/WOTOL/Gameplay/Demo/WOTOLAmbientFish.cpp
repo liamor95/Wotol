@@ -168,8 +168,12 @@ void AWOTOLAmbientFish::Tick(float DeltaSeconds)
 	SetActorLocation(CenterPoint + FVector(C * Radius, Sn * Radius,
 		BaseZ + FMath::Sin(A * 2.f) * HeightAmp));
 
-	FRotator Rot = FVector(-Sn, C, 0.f).Rotation();
-	Rot.Pitch = FMath::Cos(A * 2.f) * 6.f; // pique/cabre doucement avec la houle
+	// Sens de nage = dérivée de la position = Speed * (-Sn, C). Il FAUT multiplier par le
+	// SIGNE de Speed : sinon les poissons qui tournent dans le sens négatif regardent en
+	// arrière et nagent A RECULONS (tête derrière). C'est le bug corrigé ici.
+	const float Dir = (Speed < 0.f) ? -1.f : 1.f;
+	FRotator Rot = FVector(-Sn * Dir, C * Dir, 0.f).Rotation();
+	Rot.Pitch = FMath::Cos(A * 2.f) * 6.f * Dir; // pique/cabre cohérent avec le sens réel
 	SetActorRotation(Rot);
 
 	const float t = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;

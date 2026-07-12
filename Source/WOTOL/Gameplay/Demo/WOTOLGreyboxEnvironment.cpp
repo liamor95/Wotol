@@ -789,12 +789,12 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 		// ── GRANDES CRÉATURES avec une VRAIE identité (requin, dauphin, orque, baleine, raie) :
 		// silhouettes reconnaissables, lentes, réparties en hauteur (fond de scène). ──
 		struct FBig { EFishSpecies Sp; FLinearColor Col; float SizeMin, SizeMax, SpeedMin, SpeedMax; };
+		// (Raie manta RETIREE : mal generee/trop grande en greybox.)
 		const FBig Kinds[] = {
 			{ EFishSpecies::Shark,   FLinearColor(0.16f, 0.19f, 0.22f, 1.f), 4.5f, 6.5f, 0.10f, 0.18f },
 			{ EFishSpecies::Dolphin, FLinearColor(0.35f, 0.45f, 0.55f, 1.f), 3.5f, 4.8f, 0.16f, 0.26f },
 			{ EFishSpecies::Orca,    FLinearColor(0.06f, 0.07f, 0.09f, 1.f), 5.0f, 7.0f, 0.12f, 0.20f },
 			{ EFishSpecies::Whale,   FLinearColor(0.22f, 0.32f, 0.42f, 1.f), 8.0f, 11.0f, 0.05f, 0.10f },
-			{ EFishSpecies::Ray,     FLinearColor(0.28f, 0.22f, 0.16f, 1.f), 4.0f, 6.0f, 0.10f, 0.18f },
 		};
 		for (int32 k = 0; k < UE_ARRAY_COUNT(Kinds); ++k)
 		{
