@@ -123,6 +123,11 @@ float AUnitBase::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit)
 
 	if (Damage <= 0.f) return 0.f;
 
+	// ── ÉQUILIBRAGE (difficulté + camp) : mise à l'échelle par le multiplicateur de
+	// l'ATTAQUANT. Placé ICI (et non dans PerformAttack) pour couvrir AUSSI les dégâts de
+	// COMPÉTENCES (rayons, souffles, rafales…) qui appellent TakeDamageFromUnit directement.
+	if (InstigatorUnit) Damage *= InstigatorUnit->BalanceDamageMult;
+
 	// ── ESQUIVE / PARADE (font durer les combats, tous les coups ne portent pas) ──
 	bool bBlocked = false;
 	if (UnitData)
@@ -208,7 +213,8 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 	// global de rythme -> plus d'échanges, batailles plus longues.
 	float BaseDamage = UnitData->Stats.AttackDPS * UnitData->Stats.AttackCooldown * GlobalDamageScale;
 	BaseDamage *= OutgoingDamageMult; // avantage OFFENSIF de zone (défenseur galvanisé)
-	BaseDamage *= BalanceDamageMult;  // équilibrage difficulté + camp (fixé au spawn)
+	// NB : l'équilibrage (BalanceDamageMult) est appliqué dans TakeDamageFromUnit (couvre
+	// aussi les compétences), pas ici -> pas de double application.
 	BaseDamage *= SynergyDamageMult;  // synergie dynamique (ex. bouclier soutenu par une lance)
 	BaseDamage *= AuraDamageMult;     // aura d'amplification (Léviaphénix)
 	BaseDamage *= NextHitCritMult;    // coup critique ponctuel (ex. backstab Aquilombres)
