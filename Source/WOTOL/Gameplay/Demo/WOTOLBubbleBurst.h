@@ -20,6 +20,13 @@ public:
 	static void Burst(UWorld* World, const FVector& Loc, const FLinearColor& Color, int32 Count = 6);
 
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
+
+	// PLAFOND GLOBAL d'éclats de bulles vivants : en phase 3 (des dizaines de pouvoirs +
+	// sillages) ils se comptaient par centaines -> gros lag. Au-delà du plafond, Burst() ne
+	// spawne plus (les bulles existantes finissent leur vie) -> le coût reste borne.
+	static int32 LiveCount;
+	static int32 MaxLive;
 
 private:
 	UPROPERTY() TObjectPtr<USceneComponent> Root;

@@ -4,6 +4,15 @@
 #include "GameFramework/PlayerController.h"
 #include "Camera/PlayerCameraManager.h"
 
+int32 AWOTOLDamageNumber::LiveCount = 0;
+int32 AWOTOLDamageNumber::MaxLive   = 60;
+
+void AWOTOLDamageNumber::EndPlay(const EEndPlayReason::Type Reason)
+{
+	--LiveCount;
+	Super::EndPlay(Reason);
+}
+
 AWOTOLDamageNumber::AWOTOLDamageNumber()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -37,19 +46,20 @@ void AWOTOLDamageNumber::Init(float Amount, const FLinearColor& Color)
 AWOTOLDamageNumber* AWOTOLDamageNumber::Spawn(UWorld* World, const FVector& Loc,
 	float Amount, const FLinearColor& Color)
 {
-	if (!World) return nullptr;
+	if (!World || LiveCount >= MaxLive) return nullptr;
 	AWOTOLDamageNumber* N = World->SpawnActor<AWOTOLDamageNumber>(
 		AWOTOLDamageNumber::StaticClass(), Loc, FRotator::ZeroRotator);
-	if (N) N->Init(Amount, Color);
+	if (N) { ++LiveCount; N->Init(Amount, Color); }
 	return N;
 }
 
 AWOTOLDamageNumber* AWOTOLDamageNumber::SpawnText(UWorld* World, const FVector& Loc,
 	const FString& Label, const FLinearColor& Color)
 {
-	if (!World) return nullptr;
+	if (!World || LiveCount >= MaxLive) return nullptr;
 	AWOTOLDamageNumber* N = World->SpawnActor<AWOTOLDamageNumber>(
 		AWOTOLDamageNumber::StaticClass(), Loc, FRotator::ZeroRotator);
+	if (N) ++LiveCount;
 	if (N && N->Text)
 	{
 		N->Text->SetText(FText::FromString(Label));

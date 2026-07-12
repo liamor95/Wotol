@@ -5,6 +5,9 @@
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
+int32 AWOTOLBubbleBurst::LiveCount = 0;
+int32 AWOTOLBubbleBurst::MaxLive   = 130; // plafond global d'eclats simultanes
+
 AWOTOLBubbleBurst::AWOTOLBubbleBurst()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -12,19 +15,32 @@ AWOTOLBubbleBurst::AWOTOLBubbleBurst()
 	RootComponent = Root;
 }
 
+void AWOTOLBubbleBurst::EndPlay(const EEndPlayReason::Type Reason)
+{
+	--LiveCount;
+	Super::EndPlay(Reason);
+}
+
 void AWOTOLBubbleBurst::Burst(UWorld* World, const FVector& Loc, const FLinearColor& Color, int32 Count)
 {
 	if (!World) return;
+	// PLAFOND : au-dela, on n'ajoute plus d'eclats (evite l'accumulation qui fait ramer la
+	// phase 3). Les effets restent presents, simplement bornes pendant les pics.
+	if (LiveCount >= MaxLive) return;
 
 	FActorSpawnParameters P;
 	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	AWOTOLBubbleBurst* FX = World->SpawnActor<AWOTOLBubbleBurst>(
 		AWOTOLBubbleBurst::StaticClass(), Loc, FRotator::ZeroRotator, P);
 	if (!FX) return;
+	++LiveCount;
 
 	UStaticMesh* Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 	UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
 		nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+	// Un SEUL materiau partage pour tout l'eclat (au lieu d'un MID par bulle) -> moins de coût.
+	UMaterialInstanceDynamic* SharedMID = BaseMat ? UMaterialInstanceDynamic::Create(BaseMat, FX) : nullptr;
+	if (SharedMID) SharedMID->SetVectorParameterValue(TEXT("Color"), Color);
 
 	for (int32 i = 0; i < Count; ++i)
 	{
@@ -41,14 +57,7 @@ void AWOTOLBubbleBurst::Burst(UWorld* World, const FVector& Loc, const FLinearCo
 		B->SetRelativeLocation(FVector(
 			FMath::FRandRange(-25.f, 25.f), FMath::FRandRange(-25.f, 25.f), FMath::FRandRange(-10.f, 20.f)));
 
-		if (BaseMat)
-		{
-			if (UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMat, FX))
-			{
-				MID->SetVectorParameterValue(TEXT("Color"), Color);
-				B->SetMaterial(0, MID);
-			}
-		}
+		if (SharedMID) B->SetMaterial(0, SharedMID);
 		FX->Bubbles.Add(B);
 		FX->BaseScales.Add(Scale);
 		FX->Vels.Add(FVector(

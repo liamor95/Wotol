@@ -5,6 +5,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "WOTOLBubbleBurst.h"
+#include "WOTOLGlow.h"
 
 namespace
 {
@@ -189,8 +190,9 @@ void AWOTOLAmbientFish::Tick(float DeltaSeconds)
 		if (Wings[1]) Wings[1]->SetRelativeRotation(FRotator(0.f, 0.f, -flap));
 	}
 
-	// Frémissement : sillage de bulles derrière les grandes créatures.
-	if (Species != EFishSpecies::SmallFish)
+	// Frémissement : sillage de bulles derrière les grandes créatures. Coupé en phase 3
+	// (faible GPU) pour ne pas ajouter de charge pendant la grande bataille.
+	if (Species != EFishSpecies::SmallFish && !WOTOLGlow::bLowGpuVFX)
 	{
 		TrailTimer -= DeltaSeconds;
 		if (TrailTimer <= 0.f)

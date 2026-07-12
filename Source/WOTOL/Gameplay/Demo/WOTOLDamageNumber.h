@@ -31,8 +31,14 @@ public:
 	// -> chaque unité a son propre chiffre, plus d'empilement illisible au niveau du sol.
 	void SetFollow(class USceneComponent* Comp, const FVector& LocalOffset);
 
+	// Plafond global de chiffres flottants vivants (evite des centaines de TextRender en
+	// phase 3 -> lag + bouillie illisible). Au-dela, on n'en cree plus.
+	static int32 LiveCount;
+	static int32 MaxLive;
+
 protected:
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 
 	UPROPERTY()
 	TObjectPtr<UTextRenderComponent> Text;

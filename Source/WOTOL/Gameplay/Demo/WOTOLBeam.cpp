@@ -46,7 +46,9 @@ AWOTOLBeam* AWOTOLBeam::Fire(UWorld* World, const FVector& Origin, float YawStar
 	B->OriginLoc = Origin;
 	B->Yaw0 = YawStart; B->Yaw1 = YawEnd; B->PitchAngle = Pitch; B->Len = Length;
 	B->CasterUnit = Caster; B->Damage = SweepDamage;
-	B->BeamColor = Color; B->bBubbles = bBubbleTrail;
+	// En phase 3 (faible GPU), on coupe la traînée de bulles du rayon (elle sature le plafond
+	// et fait ramer) : le rayon émissif reste, sans le sillage.
+	B->BeamColor = Color; B->bBubbles = bBubbleTrail && !WOTOLGlow::bLowGpuVFX;
 
 	UStaticMesh* Cyl = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 	if (Cyl) B->Beam->SetStaticMesh(Cyl);

@@ -21,7 +21,7 @@ void AWOTOLCurrentField::BeginPlay()
 	UStaticMesh* Sph = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 
 	// ── TRAÎNÉES : longues stries ÉMISSIVES qui filent dans la bande (frémissement du courant).
-	const int32 N = 46;
+	const int32 N = 30;
 	for (int32 i = 0; i < N; ++i)
 	{
 		UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
@@ -44,7 +44,7 @@ void AWOTOLCurrentField::BeginPlay()
 	}
 
 	// ── BULLES : NUÉE dense qui file dans la bande -> matérialise le flux et sa vitesse.
-	const int32 NB = 320;
+	const int32 NB = 170;
 	for (int32 i = 0; i < NB; ++i)
 	{
 		UStaticMeshComponent* B = NewObject<UStaticMeshComponent>(this);

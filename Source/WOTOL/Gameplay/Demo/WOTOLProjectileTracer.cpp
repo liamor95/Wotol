@@ -45,7 +45,8 @@ void AWOTOLProjectileTracer::Fire(UWorld* World, const FVector& From, const FVec
 	if (!T) return;
 
 	T->Target = To;
-	T->bTrail = bBubbleTrail;
+	// Phase 3 (faible GPU) : pas de traînée de bulles (sature le plafond -> lag).
+	T->bTrail = bBubbleTrail && !WOTOLGlow::bLowGpuVFX;
 	T->TrailColor = FLinearColor(Color.R, Color.G, Color.B, 1.f);
 	UStaticMesh* Sphere = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 	UMaterialInterface* BaseMat = LoadObject<UMaterialInterface>(
