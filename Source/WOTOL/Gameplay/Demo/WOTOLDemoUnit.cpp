@@ -915,10 +915,13 @@ bool AWOTOLDemoUnit::Ability_Laser()
 	const FVector From = (GetFloatingTextAnchor() ? GetFloatingTextAnchor()->GetComponentLocation()
 		: GetActorLocation()) + FVector(0, 0, 40.f);
 
-	// ── SYNERGIE NOXAR -> NOXEDRAKE : si un Noxedrake allié est présent et pas encore
-	// pleinement chargé, Noxar lui envoie son rayon pour le CHARGER (amplifie son prochain
-	// Souffle) au lieu de tirer sur l'ennemi. Le rayon ne blesse PAS le Noxedrake. ──
-	if (UnitData && UnitData->GetFName() == TEXT("Noxar"))
+	// ── SYNERGIE NOXAR -> NOXEDRAKE (COMPLÉMENT, NON OBLIGATOIRE) : capacité débloquée en
+	// plus pour la phase 3. Noxar PEUT envoyer son rayon charger un Noxedrake allié (amplifie
+	// son prochain Souffle, sans le blesser) MAIS il n'y est pas forcé : la plupart du temps
+	// il attaque en direct comme en phase 1/2. On ne tente la charge que ponctuellement, et
+	// en priorité quand le Drake en a vraiment besoin (charge basse). ──
+	const bool bTryDrakeCharge = (FMath::FRand() < 0.35f);
+	if (bTryDrakeCharge && UnitData && UnitData->GetFName() == TEXT("Noxar"))
 	{
 		if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
 		{
