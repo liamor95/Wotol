@@ -60,6 +60,12 @@ protected:
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> Parts;
 	UPROPERTY() TObjectPtr<UTextRenderComponent> HealthTag; // PV (visible si endommagé)
 
+	// FEEDBACK D'INTERACTION : un halo lumineux qui BALAIE le modèle de bas en haut, par
+	// intermittence -> signale au joueur qu'on peut interagir (détruire) cette structure.
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> ScanSlice;
+	float ScanTimer = 0.f;
+	float ScanTop   = 700.f; // hauteur balayée
+
 	bool  bDestroyed = false;
 	float DebrisRadius = 380.f;
 	float DebrisDamage = 190.f;
@@ -68,7 +74,7 @@ protected:
 	// endroit -> plusieurs points de chute, pas un seul bloc). ──
 	bool    bFalling = false;
 	float   FallElapsed = 0.f;
-	float   FallDuration = 3.0f;              // durée max avant de figer les gravats
+	float   FallDuration = 4.5f;              // durée max avant de figer les gravats (chute lente)
 	FVector FallDir = FVector(1.f, 0.f, 0.f); // biais d'éjection (sens du tir)
 	float   PillarLen = 700.f;                // hauteur (position du texte / burst haut)
 	// État physique par morceau (parallèle à Parts).

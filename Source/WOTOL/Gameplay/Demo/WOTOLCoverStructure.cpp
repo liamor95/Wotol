@@ -46,8 +46,25 @@ void AWOTOLCoverStructure::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (bFalling) { TickFall(DeltaSeconds); return; }
+	if (bFalling) { if (ScanSlice) ScanSlice->SetVisibility(false); TickFall(DeltaSeconds); return; }
 	if (bDestroyed || !HealthTag) return;
+
+	// HALO DE BALAYAGE : cycle ~4.5 s -> monte de la base au sommet en ~1.4 s, puis disparaît.
+	if (ScanSlice)
+	{
+		ScanTimer += DeltaSeconds;
+		const float Cycle = FMath::Fmod(ScanTimer, 4.5f);
+		if (Cycle < 1.4f)
+		{
+			const float t = Cycle / 1.4f;
+			ScanSlice->SetVisibility(true);
+			ScanSlice->SetRelativeLocation(FVector(0.f, 0.f, 20.f + t * ScanTop));
+		}
+		else
+		{
+			ScanSlice->SetVisibility(false);
+		}
+	}
 
 	// Étiquette PV TOUJOURS visible : toute structure est destructible.
 	HealthTag->SetVisibility(true);
@@ -186,6 +203,25 @@ void AWOTOLCoverStructure::BuildVisual()
 		: (Variant == 4) ? 780.f : 700.f;
 	HealthTag->SetRelativeLocation(FVector(0.f, 0.f, TopZ + 60.f));
 	PillarLen = TopZ;
+	ScanTop   = TopZ;
+
+	// HALO DE BALAYAGE (feedback d'interaction) : une fine tranche lumineuse qui monte à
+	// travers le modèle, par intermittence. Emissif (unlit) -> brille dans la pénombre.
+	ScanSlice = NewObject<UStaticMeshComponent>(this);
+	if (ScanSlice)
+	{
+		ScanSlice->SetupAttachment(SceneRoot);
+		ScanSlice->RegisterComponent();
+		ScanSlice->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		ScanSlice->SetCanEverAffectNavigation(false);
+		if (UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, M_CUBE)) ScanSlice->SetStaticMesh(M);
+		// Large et TRÈS plate -> traverse le modèle comme un plan de scan.
+		ScanSlice->SetRelativeScale3D(FVector(5.2f, 5.2f, 0.05f));
+		ScanSlice->SetRelativeLocation(FVector(0.f, 0.f, 20.f));
+		if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeGlow(this, FLinearColor(0.35f, 1.5f, 2.1f, 1.f)))
+			ScanSlice->SetMaterial(0, MID);
+		ScanSlice->SetVisibility(false);
+	}
 }
 
 void AWOTOLCoverStructure::TakeCoverDamage(float Amount, AUnitBase* InstigatorUnit)
@@ -264,8 +300,9 @@ void AWOTOLCoverStructure::Collapse()
 		const FVector Jit(FMath::FRandRange(-1.f, 1.f), FMath::FRandRange(-1.f, 1.f), 0.f);
 		FVector HDir = (Out * 0.7f + FallDir * 0.6f + Jit * 0.5f).GetSafeNormal();
 		const float HeightFactor = 1.f + Rel.Z / 700.f;       // les morceaux HAUTS sont projetes plus loin/haut
-		const float HSpeed = FMath::FRandRange(120.f, 300.f) * HeightFactor;
-		const float VSpeed = FMath::FRandRange(160.f, 380.f) + Rel.Z * 0.25f;
+		// Vitesses REDUITES (chute plus lente = ressenti SOUS-MARIN, demande joueur).
+		const float HSpeed = FMath::FRandRange(90.f, 220.f) * HeightFactor;
+		const float VSpeed = FMath::FRandRange(120.f, 280.f) + Rel.Z * 0.20f;
 		PartVel.Add(HDir * HSpeed + FVector(0, 0, VSpeed));
 		PartAngAxis.Add(FVector(FMath::FRandRange(-1.f, 1.f), FMath::FRandRange(-1.f, 1.f), FMath::FRandRange(-1.f, 1.f)).GetSafeNormal());
 		PartAngSpeed.Add(FMath::FRandRange(120.f, 340.f));    // deg/s
@@ -287,7 +324,7 @@ void AWOTOLCoverStructure::TickFall(float Dt)
 	if (!W) return;
 	FallElapsed += Dt;
 
-	const float Gravity = 1500.f;
+	const float Gravity = 900.f;  // gravite ADOUCIE -> les debris retombent lentement (sous l'eau)
 	const float RestZ   = 22.f;   // hauteur locale de repos des gravats (petit tas au sol)
 	int32 Remaining = 0;
 

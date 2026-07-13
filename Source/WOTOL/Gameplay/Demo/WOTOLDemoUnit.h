@@ -375,6 +375,9 @@ private:
 	// sur un groupe d'ennemis placés derrière). ──
 	float CoverTacticTimer = 0.f;
 	bool  bCoverTactic = false; // le TargetCover courant est un choix TACTIQUE de l'IA
+	bool  bPlayerCoverOrder = false; // ORDRE JOUEUR de detruire une ruine : PRIORITAIRE (l'unite
+	                                 // ne se laisse PAS detourner par un ennemi tant que ce n'est
+	                                 // pas detruit).
 	class AWOTOLCoverStructure* FindTacticalCover() const;
 
 	float LastKnownHealth = -1.f;

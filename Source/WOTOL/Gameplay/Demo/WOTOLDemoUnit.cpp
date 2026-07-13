@@ -225,7 +225,7 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	// varier). -> le modèle regarde l'ennemi et le coup part VERS L'AVANT (fini le "frappe
 	// en arrière"). Sinon, l'unité garde son orientation de déplacement (OrientToMovement).
 	bool bWantsAdvance = false; // veut rejoindre un ennemi encore HORS de portée (donc se déplace)
-	if (!bCreatureBrain)
+	if (!bCreatureBrain && !bPlayerCoverOrder) // en ordre de decor : on ne se tourne PAS vers l'ennemi
 	{
 		FRotator Desired = GetActorRotation();
 		bool bWant = false;
@@ -704,10 +704,31 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 void AWOTOLDemoUnit::OrderAttackCover(AWOTOLCoverStructure* Cover)
 {
 	TargetCover = Cover;
+	bCoverTactic = false;
 	LastPlayerOrderTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
-	// Coupe l'ordre de déplacement auto pour ne pas être détourné.
-	if (UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>())
-		S->bFollowingPlayerOrder = false;
+
+	if (Cover)
+	{
+		// ORDRE JOUEUR PRIORITAIRE : l'unite va DETRUIRE la ruine et ne se laisse PAS detourner
+		// par un ennemi qui la frappe. On COUPE l'auto-engagement (IA + controleur) tant que la
+		// structure n'est pas abattue -> plus de retour spontane au combat.
+		bPlayerCoverOrder = true;
+		if (UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>())
+		{
+			S->bFollowingPlayerOrder = false;
+			S->ForceTarget = nullptr;
+			S->SetAIActive(false);         // stoppe la recherche/poursuite d'ennemis
+		}
+		if (AAIAdaptiveController* AIC = Cast<AAIAdaptiveController>(GetController()))
+			AIC->StopMovement();           // annule tout ordre de deplacement en cours
+	}
+	else
+	{
+		// Annulation d'ordre de decor -> on rend la main a l'IA.
+		bPlayerCoverOrder = false;
+		if (UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>())
+			S->SetAIActive(true);
+	}
 }
 
 // IA TACTIQUE : cherche une structure DESTRUCTIBLE derrière laquelle des ennemis sont
@@ -759,7 +780,18 @@ AWOTOLCoverStructure* AWOTOLDemoUnit::FindTacticalCover() const
 void AWOTOLDemoUnit::TickAttackCover(float Dt)
 {
 	AWOTOLCoverStructure* Cov = TargetCover.Get();
-	if (!Cov || Cov->IsDestroyed()) { TargetCover = nullptr; bCoverTactic = false; return; }
+	if (!Cov || Cov->IsDestroyed())
+	{
+		TargetCover = nullptr; bCoverTactic = false;
+		// La ruine est tombee -> l'unite REPREND le combat normal (on reactive l'IA).
+		if (bPlayerCoverOrder)
+		{
+			bPlayerCoverOrder = false;
+			if (UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>())
+				S->SetAIActive(true);
+		}
+		return;
+	}
 	if (!IsAlive() || !UnitData) return;
 
 	FVector To = Cov->GetActorLocation() - GetActorLocation(); To.Z = 0.f;
@@ -817,6 +849,7 @@ float AWOTOLDemoUnit::GetAbilityCooldownFor(FName Id) const
 void AWOTOLDemoUnit::TickAbility(float Dt)
 {
 	if (!IsAlive() || !UnitData) return;
+	if (bPlayerCoverOrder) return; // sous ordre de destruction de decor : pas de competence sur l'ennemi
 
 	// Compétences uniquement EN BATAILLE (pas au placement).
 	if (UGameInstance* GI = GetGameInstance())
