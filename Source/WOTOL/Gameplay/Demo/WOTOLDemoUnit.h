@@ -411,6 +411,8 @@ private:
 	float LayerReactTimer = 0.f;   // compte à rebours avant de s'adapter
 	// Unité ennemie la plus proche (partagée par le cerveau boss et le combat vertical)
 	class AUnitBase* FindNearestEnemyUnit() const;
+	// Cible coordonnée « esprit de ruche » (ennemi affaibli/proche du front à concentrer).
+	class AUnitBase* FindHiveTargetEnemy() const;
 
 	// Cible de décor imposée par le joueur (attaquer une ruine/pilier jusqu'à destruction).
 	TWeakObjectPtr<class AWOTOLCoverStructure> TargetCover;

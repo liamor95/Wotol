@@ -649,6 +649,37 @@ AUnitBase* AWOTOLDemoUnit::FindNearestEnemyUnit() const
 	return Nearest;
 }
 
+// ESPRIT DE RUCHE — cible coordonnée : au lieu de frapper chacun l'ennemi le plus proche,
+// l'unité vise la cible que la FACTION a intérêt à concentrer (l'ennemi le plus AFFAIBLI et
+// proche du front) -> focus-fire naturel : plusieurs alliés convergent sur la même cible et
+// l'achèvent. Les AQUILORIS coordonnent LARGE (leur identité) ; les Noxéens plus localement.
+// Repli sur l'ennemi le plus proche si aucune cible dans le rayon de coordination.
+AUnitBase* AWOTOLDemoUnit::FindHiveTargetEnemy() const
+{
+	UWorld* W = GetWorld(); if (!W) return FindNearestEnemyUnit();
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>();
+	if (!Reg) return FindNearestEnemyUnit();
+
+	const EFactionID EnemyFac = (GetFaction() == EFactionID::Aquiloris)
+		? EFactionID::Noxeens : EFactionID::Aquiloris;
+	// Rayon de coordination : Aquiloris = large (esprit de ruche fort) ; Noxéens = local.
+	const float R = (GetFaction() == EFactionID::Aquiloris) ? 1500.f : 950.f;
+	const FVector MyLoc = GetActorLocation();
+
+	AUnitBase* Best = nullptr; float BestScore = -TNumericLimits<float>::Max();
+	for (AUnitBase* U : Reg->GetUnitsForFaction(EnemyFac))
+	{
+		if (!U || !U->IsAlive() || U->IsHiddenFromEnemies()) continue;
+		const float D = FVector::Dist2D(MyLoc, U->GetActorLocation());
+		if (D > R) continue;
+		// Score : ACHEVER les blessés (poids fort sur les PV manquants) + privilégier le proche.
+		const float Missing = 1.f - FMath::Clamp(U->GetHealthPercent(), 0.f, 1.f);
+		const float Score = Missing * 2.2f + (1.f - D / R) * 1.0f;
+		if (Score > BestScore) { BestScore = Score; Best = U; }
+	}
+	return Best ? Best : FindNearestEnemyUnit();
+}
+
 // Quand une CIBLE d'attaque est imposée (clic droit sur un ennemi), l'unité se cale
 // sur la COUCHE de cette cible pour la frapper à son niveau (plus de coups dans le
 // vide). N'écrase PAS le contrôle manuel de couche (qui n'impose pas de cible).
@@ -1149,7 +1180,7 @@ bool AWOTOLDemoUnit::Ability_Laser()
 				}
 	// 2) Sinon : ennemi le plus proche
 	if (!bHasTarget)
-		if (AUnitBase* Foe = FindNearestEnemyUnit())
+		if (AUnitBase* Foe = FindHiveTargetEnemy()) // focus-fire coordonné
 		{
 			Foe->TakeDamageFromUnit(520.f, this);
 			To = (Foe->GetFloatingTextAnchor() ? Foe->GetFloatingTextAnchor()->GetComponentLocation()
@@ -1204,7 +1235,7 @@ bool AWOTOLDemoUnit::Ability_Laser()
 bool AWOTOLDemoUnit::Ability_ProjectileBurst()
 {
 	UWorld* W = GetWorld(); if (!W) return false;
-	AUnitBase* Foe = FindNearestEnemyUnit(); if (!Foe) return false; // pas de cible -> capacité gardée
+	AUnitBase* Foe = FindHiveTargetEnemy(); if (!Foe) return false; // focus-fire coordonné // pas de cible -> capacité gardée
 	const FVector From = (GetFloatingTextAnchor() ? GetFloatingTextAnchor()->GetComponentLocation()
 		: GetActorLocation()) + FVector(0, 0, 40.f);
 	const FVector To = (Foe->GetFloatingTextAnchor() ? Foe->GetFloatingTextAnchor()->GetComponentLocation()
@@ -1280,7 +1311,7 @@ bool AWOTOLDemoUnit::Ability_Hydrolaser()
 	UWorld* W = GetWorld(); if (!W) return false;
 	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return false;
 	const EFactionID Enemy = (GetFaction() == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
-	AUnitBase* Nearest = FindNearestEnemyUnit(); if (!Nearest) return false;
+	AUnitBase* Nearest = FindHiveTargetEnemy(); if (!Nearest) return false; // focus-fire coordonné
 
 	const FVector Anchor = GetFloatingTextAnchor() ? GetFloatingTextAnchor()->GetComponentLocation() : GetActorLocation();
 	const FVector Muzzle = Anchor + GetActorForwardVector() * 100.f + FVector(0, 0, 30.f);
@@ -1326,7 +1357,7 @@ bool AWOTOLDemoUnit::Ability_Charge()
 	UWorld* W = GetWorld(); if (!W) return false;
 	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return false;
 	const EFactionID Enemy = (GetFaction() == EFactionID::Aquiloris) ? EFactionID::Noxeens : EFactionID::Aquiloris;
-	AUnitBase* Foe = FindNearestEnemyUnit(); if (!Foe) return false;
+	AUnitBase* Foe = FindHiveTargetEnemy(); if (!Foe) return false; // focus-fire coordonné
 	const FVector C   = GetActorLocation();
 	FVector Fwd = Foe->GetActorLocation() - C; Fwd.Z = 0.f; Fwd = Fwd.GetSafeNormal();
 
@@ -1385,7 +1416,7 @@ bool AWOTOLDemoUnit::Ability_LaserBig()
 	}
 
 	// 2) SINON : cible précise = ennemi le plus proche, dégâts colossaux (mono-cible).
-	AUnitBase* Foe = FindNearestEnemyUnit(); if (!Foe) return false;
+	AUnitBase* Foe = FindHiveTargetEnemy(); if (!Foe) return false; // focus-fire coordonné
 	const FVector To = (Foe->GetFloatingTextAnchor() ? Foe->GetFloatingTextAnchor()->GetComponentLocation()
 		: Foe->GetActorLocation()) + FVector(0, 0, 40.f);
 	const FRotator Aim = (To - From).Rotation();
@@ -1772,38 +1803,50 @@ void AWOTOLDemoUnit::UpdateAquilorisSynergy()
 {
 	SynergyDamageMult = 1.f;
 	bLanceGuarded     = false;
-	if (!IsAlive() || !UnitData || GetFaction() != EFactionID::Aquiloris) return;
-
-	const FName Id = UnitData->GetFName();
-	const bool bIsLance = (Id == TEXT("Aquilances"));
-	if (!bHasShield && !bIsLance) return; // seuls les boucliers et les lances tissent cette synergie
+	if (!IsAlive() || !UnitData) return;
 
 	UWorld* W = GetWorld(); if (!W) return;
 	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return;
-	const FVector Fwd   = GetActorForwardVector(); // vers l'ennemi quand l'unité combat
-	const FVector MyLoc = GetActorLocation();
 
-	for (AUnitBase* U : Reg->GetUnitsForFaction(EFactionID::Aquiloris))
+	const EFactionID Fac = GetFaction();
+	const FName Id       = UnitData->GetFName();
+	const bool  bIsLance = (Id == TEXT("Aquilances"));
+	const FVector Fwd    = GetActorForwardVector(); // vers l'ennemi quand l'unité combat
+	const FVector MyLoc  = GetActorLocation();
+
+	// ESPRIT DE RUCHE : un seul balayage des alliés PROCHES -> (a) compte le SOUTIEN mutuel
+	// (coordination), (b) détecte la synergie bouclier↔lance des Aquiloris.
+	int32 NearAllies = 0;
+	for (AUnitBase* U : Reg->GetUnitsForFaction(Fac))
 	{
 		if (!U || U == this || !U->IsAlive() || !U->GetUnitData()) continue;
 		AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U);
 		if (!D) continue;
 		FVector Rel = U->GetActorLocation() - MyLoc; Rel.Z = 0.f;
 		const float Dist = Rel.Size();
-		if (Dist > 360.f || Dist < 1.f) continue;
-		const float Along = FVector::DotProduct(Rel.GetSafeNormal(), Fwd); // >0 = devant, <0 = derrière
+		if (Dist > 500.f || Dist < 1.f) continue;
+		++NearAllies; // allié proche = soutien
 
-		if (bHasShield && D->GetUnitData()->GetFName() == TEXT("Aquilances") && Along < -0.25f)
+		// Synergie de FORMATION serrée (Aquiloris) : bouclier couvert par une lance / lance
+		// protégée par un bouclier (portée plus courte).
+		if (Fac == EFactionID::Aquiloris && Dist < 360.f)
 		{
-			// Une lance me couvre par l'arrière -> mon bouclier attaque plus fort.
-			SynergyDamageMult = 1.30f;
-		}
-		else if (bIsLance && D->HasShield() && Along > 0.25f)
-		{
-			// Un bouclier me protège par l'avant -> je suis couverte.
-			bLanceGuarded = true;
+			const float Along = FVector::DotProduct(Rel.GetSafeNormal(), Fwd); // >0 devant, <0 derrière
+			if (bHasShield && D->GetUnitData()->GetFName() == TEXT("Aquilances") && Along < -0.25f)
+				SynergyDamageMult = FMath::Max(SynergyDamageMult, 1.30f); // lance dans le dos -> +fort
+			else if (bIsLance && D->HasShield() && Along > 0.25f)
+				bLanceGuarded = true; // bouclier devant -> couverte
 		}
 	}
+
+	// COORDINATION (soutien mutuel) : bonus de dégâts qui MONTE avec le nombre d'alliés
+	// proches. Les AQUILORIS en tirent le plus (leur identité = coordination) ; les Noxéens
+	// un bonus plus léger. -> plus les unités « pensent/agissent ensemble », plus elles frappent.
+	const int32 Cap = FMath::Min(NearAllies, 4);
+	float Coord = 1.f;
+	if (Fac == EFactionID::Aquiloris)    Coord = 1.f + Cap * 0.05f;  // jusqu'à +20 %
+	else if (Fac == EFactionID::Noxeens) Coord = 1.f + Cap * 0.025f; // jusqu'à +10 %
+	SynergyDamageMult = FMath::Max(SynergyDamageMult, Coord);
 }
 
 // PERF : résout et MET EN CACHE le sous-système de flux -> plus de GetSubsystem répété
