@@ -2239,11 +2239,11 @@ void AWOTOLDemoUnit::ApplyFormationCohesion(float Dt)
 void AWOTOLDemoUnit::TickRoleTactics(float Dt)
 {
 	if (bIsBoss || bCreatureBrain || !UnitData || !IsBattleLive()) return;
-	if (bSelected) return; // le joueur garde le contrôle manuel des unités sélectionnées
+	if (IsSelected()) return; // le joueur garde le contrôle manuel des unités sélectionnées
 	if (UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>())
 		if (S->bFollowingPlayerOrder || S->bAttackMoveActive) return; // ordre joueur prioritaire
 
-	const EUnitRole Role = UnitData->Role;
+	const EUnitRole URole = UnitData->Role;
 	const FName Id = UnitData->GetFName();
 
 	// ── SOUTIEN / ZONE : LÉVIAPHÉNIX (aura mythique) et NOXÉONS (zone bioluminescente) ──
@@ -2294,7 +2294,7 @@ void AWOTOLDemoUnit::TickRoleTactics(float Dt)
 		return; // ces unités de soutien n'utilisent pas la tactique de kite à distance
 	}
 
-	const bool bRanged = (Role == EUnitRole::Distance) || (Id == TEXT("Noxedrake"));
+	const bool bRanged = (URole == EUnitRole::Distance) || (Id == TEXT("Noxedrake"));
 	if (!bRanged) return; // seules les unités à distance ont (pour l'instant) une tactique dédiée
 
 	AUnitBase* Foe = FindNearestEnemyUnit(); if (!Foe) return;
