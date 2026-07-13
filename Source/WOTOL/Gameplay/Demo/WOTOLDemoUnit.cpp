@@ -2200,6 +2200,55 @@ void AWOTOLDemoUnit::TickRoleTactics(float Dt)
 
 	const EUnitRole Role = UnitData->Role;
 	const FName Id = UnitData->GetFName();
+
+	// ── SOUTIEN / ZONE : LÉVIAPHÉNIX (aura mythique) et NOXÉONS (zone bioluminescente) ──
+	// Ils se tiennent au CENTRE de l'armée (leur aura/zone couvre alors le plus d'alliés) et
+	// se REPLIENT si un ennemi approche (fragiles / « totalement dépendants de la protection »).
+	// -> ils ne foncent pas au front, ils restent le cœur protégé de la formation.
+	if (Id == TEXT("Leviaphenix") || Id == TEXT("Noxeons"))
+	{
+		const bool bZone = (Id == TEXT("Noxeons")); // les Noxéons collent encore plus au centre
+		UWorld* Wc = GetWorld();
+		UFactionRegistrySubsystem* Reg = Wc ? Wc->GetSubsystem<UFactionRegistrySubsystem>() : nullptr;
+		if (Reg)
+		{
+			// Centre de l'armée alliée (hors boss).
+			FVector AC = FVector::ZeroVector; int32 N = 0;
+			for (AUnitBase* U : Reg->GetUnitsForFaction(GetFaction()))
+			{
+				if (!U || U == this || !U->IsAlive()) continue;
+				AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U);
+				if (D && (D->bIsBoss || D->bCreatureBrain)) continue;
+				AC += U->GetActorLocation(); ++N;
+			}
+			if (N > 0)
+			{
+				AC /= N;
+				FVector D = AC - GetActorLocation(); D.Z = 0.f;
+				const float DistC = D.Size();
+				const float StayR = bZone ? 260.f : 340.f; // reste dans ce rayon du centre
+				if (DistC > StayR)
+				{
+					const float Sp = (BaseWalkSpeed > 0.f ? BaseWalkSpeed : 300.f) * 0.7f;
+					AddActorWorldOffset(D.GetSafeNormal() * FMath::Min(DistC - StayR, Sp * Dt), true);
+				}
+			}
+		}
+		// Repli si un ennemi s'approche trop (le cœur de soutien ne se fait pas prendre).
+		if (AUnitBase* Foe = FindNearestEnemyUnit())
+		{
+			FVector To = Foe->GetActorLocation() - GetActorLocation(); To.Z = 0.f;
+			const float Dd = To.Size();
+			const float Safe = bZone ? 550.f : 650.f;
+			if (Dd > 1.f && Dd < Safe)
+			{
+				const float Sp = (BaseWalkSpeed > 0.f ? BaseWalkSpeed : 300.f) * 0.8f;
+				AddActorWorldOffset(-To.GetSafeNormal() * Sp * Dt, true);
+			}
+		}
+		return; // ces unités de soutien n'utilisent pas la tactique de kite à distance
+	}
+
 	const bool bRanged = (Role == EUnitRole::Distance) || (Id == TEXT("Noxedrake"));
 	if (!bRanged) return; // seules les unités à distance ont (pour l'instant) une tactique dédiée
 
