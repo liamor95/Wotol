@@ -184,6 +184,11 @@ private:
 	// Retourne le visuel de 180° (humanoïdes construits "dos à l'avant") : corps + rig
 	// tournent ensemble -> le personnage regarde et frappe enfin vers l'AVANT.
 	bool  bVisualYawFlip = false;
+	// Corps construit HORIZONTALEMENT (créatures quadrupèdes/serpentines : avant = +X,
+	// tête en hauteur). À la MORT, ces corps ne doivent PAS pointer le museau vers le ciel :
+	// ils s'affalent SUR LE FLANC (roll), à plat sur le sol -> vrai cadavre allongé.
+	// Les humanoïdes (construits debout le long de +Z) basculent, eux, vers l'avant (pitch).
+	bool  bHorizontalBody = false;
 	float AnimPhase    = 0.f;
 	float SwingProgress = 0.f; // 0..1 avancement d'un coup d'épée
 	float AttackAnimTimer = 0.f; // >0 = un coup vient d'être porté -> jouer l'anim d'attaque

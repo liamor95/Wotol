@@ -27,7 +27,7 @@ public:
 	// plus gros que le Noxar).
 	static AWOTOLBeam* Fire(UWorld* World, const FVector& Origin, float YawStart, float YawEnd,
 		float Length, const FLinearColor& Color, AUnitBase* Caster, float SweepDamage,
-		float Pitch = 0.f, float Thickness = 1.f, bool bBubbleTrail = false);
+		float Pitch = 0.f, float Thickness = 1.f, bool bBubbleTrail = false, float LifeTime = 0.9f);
 
 protected:
 	virtual void Tick(float DeltaSeconds) override;

@@ -35,7 +35,7 @@ AWOTOLBeam::AWOTOLBeam()
 }
 
 AWOTOLBeam* AWOTOLBeam::Fire(UWorld* World, const FVector& Origin, float YawStart, float YawEnd,
-	float Length, const FLinearColor& Color, AUnitBase* Caster, float SweepDamage, float Pitch, float Thickness, bool bBubbleTrail)
+	float Length, const FLinearColor& Color, AUnitBase* Caster, float SweepDamage, float Pitch, float Thickness, bool bBubbleTrail, float LifeTime)
 {
 	if (!World) return nullptr;
 	FActorSpawnParameters P;
@@ -43,6 +43,7 @@ AWOTOLBeam* AWOTOLBeam::Fire(UWorld* World, const FVector& Origin, float YawStar
 	AWOTOLBeam* B = World->SpawnActor<AWOTOLBeam>(AWOTOLBeam::StaticClass(), Origin, FRotator::ZeroRotator, P);
 	if (!B) return nullptr;
 
+	B->Duration = FMath::Max(0.15f, LifeTime);
 	B->OriginLoc = Origin;
 	B->Yaw0 = YawStart; B->Yaw1 = YawEnd; B->PitchAngle = Pitch; B->Len = Length;
 	B->CasterUnit = Caster; B->Damage = SweepDamage;

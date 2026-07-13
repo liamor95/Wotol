@@ -1299,10 +1299,15 @@ bool AWOTOLDemoUnit::Ability_LaserBig()
 	UWorld* W = GetWorld(); if (!W) return false;
 	// MUSEAU : le souffle sort de la GUEULE (avant de la tête), pas du buste. Le Noxedrake est
 	// une créature (avant = +X), on avance donc jusqu'au bord AVANT du modèle, à hauteur de tête.
+	// IMPORTANT : on part de la position VISUELLE du modèle (GetFloatingTextAnchor), pas de
+	// GetActorLocation (capsule au SOL) -> quand le drake est monté en couche haute, le rayon
+	// sort bien de sa tête EN HAUTEUR, et non du sol sous lui.
 	FVector BOri, BExt; GetActorBounds(true, BOri, BExt);
-	const FVector From = GetActorLocation()
+	const FVector VisBase = GetFloatingTextAnchor()
+		? GetFloatingTextAnchor()->GetComponentLocation() : GetActorLocation();
+	const FVector From = VisBase
 		+ GetActorForwardVector() * (BExt.X * 0.85f)   // jusqu'a l'avant de la gueule
-		+ FVector(0, 0, BExt.Z * 0.55f);               // a hauteur de tete
+		+ FVector(0, 0, BExt.Z * 0.35f);               // a hauteur de tete (au-dessus du centre)
 	const FLinearColor Beam(0.30f, 1.f, 0.45f, 1.f);       // vert Noxéen intense
 	const float Dmg = 700.f * NoxedrakeCharge;             // colossal, décuplé par la charge Noxar
 
@@ -1311,7 +1316,7 @@ bool AWOTOLDemoUnit::Ability_LaserBig()
 	{
 		const FVector To = Cov->GetActorLocation() + FVector(0, 0, 100.f);
 		const FRotator Aim = (To - From).Rotation();
-		AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (To - From).Size() + 100.f), Beam, this, 0.f, Aim.Pitch, /*Thickness=*/3.5f, /*bBubbleTrail=*/true);
+		AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (To - From).Size() + 100.f), Beam, this, 0.f, Aim.Pitch, /*Thickness=*/4.5f, /*bBubbleTrail=*/true, /*LifeTime=*/2.2f);
 		Cov->TakeCoverDamage(Dmg * 1.6f, this); // effondre la structure
 		AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 150.f), TEXT("Souffle d'Extinction"), Beam);
 		NoxedrakeCharge = 1.f; AttackAnimTimer = 0.6f;
@@ -1323,7 +1328,7 @@ bool AWOTOLDemoUnit::Ability_LaserBig()
 	const FVector To = (Foe->GetFloatingTextAnchor() ? Foe->GetFloatingTextAnchor()->GetComponentLocation()
 		: Foe->GetActorLocation()) + FVector(0, 0, 40.f);
 	const FRotator Aim = (To - From).Rotation();
-	AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (To - From).Size() + 120.f), Beam, this, 0.f, Aim.Pitch, /*Thickness=*/3.5f, /*bBubbleTrail=*/true);
+	AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (To - From).Size() + 120.f), Beam, this, 0.f, Aim.Pitch, /*Thickness=*/4.5f, /*bBubbleTrail=*/true, /*LifeTime=*/2.2f);
 	Foe->TakeDamageFromUnit(Dmg, this);
 	AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 150.f),
 		NoxedrakeCharge > 1.f ? TEXT("Souffle d'Extinction — SURCHARGE") : TEXT("Souffle d'Extinction"), Beam);
@@ -2025,6 +2030,7 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 	}
 	if (Id == TEXT("Aquilances")) // Montée (réf) : CAVALIER bleu+or sur MONTURE baleine/raie + LANCE d'énergie
 	{
+		bHorizontalBody = true; // monture horizontale -> cadavre à plat sur le flanc
 		// Avant = +X (pas de flip). MONTURE fidèle à la réf : grosse créature marine LISSE
 		// (baleine/raie), tête ronde émoussée, corps bulbeux, larges nageoires pectorales
 		// plates, dos moucheté d'or, queue qui S'AFFINE puis se termine par une NAGEOIRE
@@ -2157,6 +2163,7 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 	if (Id == TEXT("Leviaphenix")) // Mythique Aquiloris (réf) : dragon-phénix marin élancé,
 	{                              // écailles bleu nuit, crête + nageoires bleu glacé lumineuses,
 		// cœur d'énergie doré sur le torse, longue queue effilée. Avant = +X (pas de flip).
+		bHorizontalBody = true; // dragon-phénix horizontal -> cadavre à plat sur le flanc
 		const FLinearColor ScaleBody = AqArmor;
 		const FLinearColor FinGlow(0.45f, 0.95f, 1.75f, 1.f);   // membranes/crête bleu glacé lumineuses
 		const FLinearColor CoreGlow(2.00f, 1.55f, 0.55f, 1.f);  // cœur d'énergie doré lumineux
@@ -2319,6 +2326,7 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 	}
 	if (Id == TEXT("Noxebeast")) // Montée : QUADRUPÈDE cuirassé façon réf (dos hérissé, défenses, griffes)
 	{
+		bHorizontalBody = true; // quadrupède horizontal -> cadavre à plat sur le flanc
 		const FLinearColor Scale2(0.14f, 0.12f, 0.09f, 1.f);       // écailles bronze un peu plus claires
 		const FLinearColor EyeGlow(0.35f, 1.60f, 0.55f, 1.f);      // yeux verts LUMINEUX (émissif)
 		const FLinearColor TuskC(0.55f, 0.42f, 0.20f, 1.f);
@@ -2444,6 +2452,7 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		// grappe d'yeux verts, gueule à crocs, longue queue. Avant = +X (comme Noxebeast).
 		// NB : le boss NEUTRE de la phase 1 reste le Kraken céphalopode (chemin séparé dans
 		// BuildGreyboxShape) ; ce modèle-ci est le mythique Noxéen jouable de la phase 2.
+		bHorizontalBody = true; // dragon quadrupède horizontal -> cadavre à plat sur le flanc
 		const FLinearColor Scale(0.05f, 0.06f, 0.05f, 1.f);      // écailles noires
 		const FLinearColor Scale2(0.09f, 0.11f, 0.09f, 1.f);     // écailles plus claires
 		const FLinearColor GreenGlow(0.30f, 1.70f, 0.50f, 1.f);  // épines/yeux verts lumineux
@@ -3008,7 +3017,7 @@ void AWOTOLDemoUnit::AnimateBody(float Dt)
 	{
 		const float Amp  = bDead ? 0.f : (bMoving ? 2.5f : 5.5f);
 		const float Bob  = FMath::Sin(AnimClock * 1.6f + BobSeed) * Amp;
-		const float Roll = FMath::Sin(AnimClock * 1.25f + BobSeed) * 2.0f;
+		float Roll = bDead ? 0.f : FMath::Sin(AnimClock * 1.25f + BobSeed) * 2.0f;
 		float Pitch = 0.f, Lunge = 0.f;
 		// Attaque : à-coup vers l'AVANT (+X) — pour TOUTES les unités (articulées comprises),
 		// afin que la frappe se lise clairement vers l'ennemi (le corps se projette devant).
@@ -3018,7 +3027,17 @@ void AWOTOLDemoUnit::AnimateBody(float Dt)
 			Pitch = -5.f - 4.f * FMath::Abs(s);
 			Lunge = 14.f * FMath::Max(0.f, s); // projection nette vers l'avant
 		}
-		if (bDead) { Pitch = 70.f; }
+		// MORT : le cadavre s'allonge À PLAT sur le sol.
+		//  - Corps HORIZONTAL (créatures quadrupèdes/serpentines, avant = +X) : il ne doit
+		//    PAS pointer le museau vers le ciel -> il s'affale SUR LE FLANC (roll ~88°),
+		//    museau à l'horizontale.
+		//  - Corps DEBOUT (humanoïdes le long de +Z) : il BASCULE vers l'avant (pitch ~85°)
+		//    pour finir allongé.
+		if (bDead)
+		{
+			if (bHorizontalBody) { Pitch = 0.f; Roll = 88.f; }
+			else                 { Pitch = 85.f; }
+		}
 
 		const float FlipYaw = bVisualYawFlip ? 180.f : 0.f; // humanoïdes retournés
 		VisualRoot->SetRelativeLocation(
