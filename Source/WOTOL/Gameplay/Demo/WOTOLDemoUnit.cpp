@@ -185,6 +185,9 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		// COHÉSION DE FORMATION (blocs de 5) — throttlée, hors mêlée.
 		CohTimer -= DeltaSeconds;
 		if (CohTimer <= 0.f) { CohTimer = 0.15f; ApplyFormationCohesion(0.15f); }
+		// TACTIQUE DE RÔLE (distance = kite + hauteur, etc.) — throttlée.
+		RoleTimer -= DeltaSeconds;
+		if (RoleTimer <= 0.f) { RoleTimer = 0.12f; TickRoleTactics(0.12f); }
 		// Synergie Aquiloris (lance ↔ bouclier) réévaluée ~3 fois/s (pas chaque frame).
 		SynergyTimer -= DeltaSeconds;
 		if (SynergyTimer <= 0.f) { SynergyTimer = 0.33f; UpdateAquilorisSynergy(); }
@@ -666,6 +669,13 @@ AUnitBase* AWOTOLDemoUnit::FindHiveTargetEnemy() const
 	const float R = (GetFaction() == EFactionID::Aquiloris) ? 1500.f : 950.f;
 	const FVector MyLoc = GetActorLocation();
 
+	// RÔLE DU LANCEUR : les CHARGEURS (Montée) et les ASSASSINS (Aquilombres) plongent en
+	// PRIORITÉ sur l'arrière-garde ennemie fragile (Distance / Chef / Mythique) au lieu de
+	// buter sur la ligne de front -> comportement fidèle à leur rôle.
+	const EUnitRole MyRole = UnitData ? UnitData->Role : EUnitRole::Infanterie;
+	const bool bDiver = (MyRole == EUnitRole::Montee)
+		|| (MyRole == EUnitRole::Speciale && UnitData && UnitData->GetFName() == TEXT("Aquilombres"));
+
 	AUnitBase* Best = nullptr; float BestScore = -TNumericLimits<float>::Max();
 	for (AUnitBase* U : Reg->GetUnitsForFaction(EnemyFac))
 	{
@@ -674,7 +684,14 @@ AUnitBase* AWOTOLDemoUnit::FindHiveTargetEnemy() const
 		if (D > R) continue;
 		// Score : ACHEVER les blessés (poids fort sur les PV manquants) + privilégier le proche.
 		const float Missing = 1.f - FMath::Clamp(U->GetHealthPercent(), 0.f, 1.f);
-		const float Score = Missing * 2.2f + (1.f - D / R) * 1.0f;
+		float Score = Missing * 2.2f + (1.f - D / R) * 1.0f;
+		// Priorité de rôle : les plongeurs valorisent les cibles de grande valeur/fragiles.
+		if (bDiver)
+		{
+			const EUnitRole TRole = U->GetUnitData() ? U->GetUnitData()->Role : EUnitRole::Infanterie;
+			if (TRole == EUnitRole::Distance) Score += 1.6f;      // artilleurs ennemis
+			else if (TRole == EUnitRole::Chef || TRole == EUnitRole::Mythique) Score += 1.2f; // haute valeur
+		}
 		if (Score > BestScore) { BestScore = Score; Best = U; }
 	}
 	return Best ? Best : FindNearestEnemyUnit();
@@ -2167,6 +2184,43 @@ void AWOTOLDemoUnit::ApplyFormationCohesion(float Dt)
 	const float Speed = (BaseWalkSpeed > 0.f ? BaseWalkSpeed : 300.f) * 0.6f;
 	const float Move  = FMath::Min(Dist, Speed * Dt);
 	AddActorWorldOffset(Delta.GetSafeNormal() * Move, true);
+}
+
+// TACTIQUE DE RÔLE : programme le comportement de l'unité selon son RÔLE dans la faction et
+// ses COMPÉTENCES. Ici : les unités À DISTANCE / ARTILLERIE (Aquisphères, Noxeblast, et le
+// souffle du Noxedrake) gardent leurs distances (kite) et prennent la HAUTEUR pour tirer
+// par-dessus la mêlée (bonus d'attaque descendante). Les chargeurs/assassins, eux, plongent
+// déjà sur l'arrière-garde via FindHiveTargetEnemy (ciblage de rôle).
+void AWOTOLDemoUnit::TickRoleTactics(float Dt)
+{
+	if (bIsBoss || bCreatureBrain || !UnitData || !IsBattleLive()) return;
+	if (bSelected) return; // le joueur garde le contrôle manuel des unités sélectionnées
+	if (UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>())
+		if (S->bFollowingPlayerOrder || S->bAttackMoveActive) return; // ordre joueur prioritaire
+
+	const EUnitRole Role = UnitData->Role;
+	const FName Id = UnitData->GetFName();
+	const bool bRanged = (Role == EUnitRole::Distance) || (Id == TEXT("Noxedrake"));
+	if (!bRanged) return; // seules les unités à distance ont (pour l'instant) une tactique dédiée
+
+	AUnitBase* Foe = FindNearestEnemyUnit(); if (!Foe) return;
+	FVector To = Foe->GetActorLocation() - GetActorLocation(); To.Z = 0.f;
+	const float Dist = To.Size();
+	const float Range = UnitData->Stats.AttackRange * 200.f;
+
+	// HAUTEUR : quand un ennemi approche, l'unité à distance monte d'un cran pour tirer
+	// par-dessus la ligne de mêlée (et bénéficie du bonus d'attaque descendante).
+	if (Dist < Range * 1.2f)
+		SetDesiredZ(FMath::Max(GetDesiredZ(), FMath::Min(MaxLayerZ, 900.f)));
+
+	// KITE : si l'ennemi entre dans la distance MINI, l'unité recule pour rester à portée
+	// (elle ne se laisse pas coller en mêlée).
+	const float KiteMin = Range * 0.55f;
+	if (Dist > 1.f && Dist < KiteMin)
+	{
+		const float Speed = (BaseWalkSpeed > 0.f ? BaseWalkSpeed : 300.f) * 0.75f;
+		AddActorWorldOffset(-To.GetSafeNormal() * Speed * Dt, true); // recule en gardant la face
+	}
 }
 
 // Tailles réelles approximatives (mètres) — valeurs du GDD/document de démo

@@ -361,6 +361,11 @@ private:
 	// (ligne/carré) et se déplacent ensemble. En mêlée, la formation se libère.
 	void ApplyFormationCohesion(float DeltaSeconds);
 	float CohTimer = 0.f;
+	// TACTIQUE DE RÔLE : chaque unité se comporte selon son RÔLE + ses compétences (les unités
+	// à distance/artillerie gardent leurs distances et prennent la hauteur pour tirer par-dessus
+	// la mêlée ; les chargeurs/assassins plongent sur l'arrière-garde via FindHiveTargetEnemy).
+	void TickRoleTactics(float DeltaSeconds);
+	float RoleTimer = 0.f;
 
 	// AQUILANCES — lance sur articulation (coup de lance = poussée vers l'avant) + son ancrage.
 	UPROPERTY() TObjectPtr<USceneComponent> LanceJoint;
