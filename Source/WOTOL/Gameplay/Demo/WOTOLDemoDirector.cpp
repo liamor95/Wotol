@@ -39,11 +39,16 @@
 // « à peu près le même RÉSULTAT » (victoire + pertes comparables), SANS effacer leur identité
 // (ils restent plus fragiles que les Aquiloris). Appliqué à TOUTE armée, joueur comme rivale,
 // quelle que soit la phase -> chaque futur ajustement s'adapte automatiquement aux deux camps.
+// ÉGALISATION DES FACTIONS : les deux factions doivent avoir une FORCE DE COMBAT quasi
+// identique (S = mult PV × mult dégâts) pour que le joueur puisse gagner QUELLE QUE SOIT la
+// faction choisie. Noxéens = glass cannon (base PV faible, DPS haut) -> on relève leur mult PV ;
+// Aquiloris = tanky (base PV haute, DPS bas) -> on relève leur mult dégâts. Résultat visé :
+//   S_Aquiloris = 1.00 × 1.22 = 1.220 ;  S_Noxeens = 1.10 × 1.11 = 1.221  (≈ égal).
 static float FactionSurvivability(EFactionID F)
 {
 	switch (F)
 	{
-		case EFactionID::Noxeens:   return 1.12f; // fragiles -> compensation LÉGÈRE (ils restent glass cannon)
+		case EFactionID::Noxeens:   return 1.10f; // fragiles -> compensation PV (equilibrage)
 		case EFactionID::Aquiloris: return 1.00f; // référence (tanky, défensifs)
 		default:                    return 1.00f;
 	}
@@ -58,55 +63,56 @@ static float FactionDamage(EFactionID F)
 {
 	switch (F)
 	{
-		case EFactionID::Aquiloris: return 1.30f; // compense leur DPS/AoE plus faible
-		case EFactionID::Noxeens:   return 1.00f; // reference (glass cannon a haut DPS)
+		case EFactionID::Aquiloris: return 1.22f; // compense leur DPS/AoE plus faible
+		case EFactionID::Noxeens:   return 1.11f; // glass cannon (mais egalise avec Aquiloris)
 		default:                    return 1.00f;
 	}
 }
 
-// ── DIFFICULTÉ ────────────────────────────────────────────────────────────────────────────
-// Multiplicateur de PUISSANCE ENNEMIE (PV + dégâts de l'armée rivale ET du Kraken). Normal =
-// référence. Facile : ennemis affaiblis. Difficile : ennemis renforcés (+ IA plus agressive
-// géré ailleurs).
-static float DiffEnemyMult(EDemoDifficulty D)
+// ════════ MODÈLE D'ÉQUILIBRAGE UNIFIÉ (calculé, pas bricolé au cas par cas) ════════
+//
+// Objectif : le JOUEUR doit pouvoir GAGNER les 3 phases, avec n'importe quelle faction, à
+// chaque difficulté — juste plus dur en Difficile qu'en Facile.
+//
+// Force de combat d'un camp  S ≈ (multiplicateur de PV) × (multiplicateur de dégâts).
+// On vise un RATIO joueur/ennemi  R = S_joueur / S_ennemi  garanti > 1 à toutes les phases :
+//     Facile ≈ 1.93   |   Normal ≈ 1.40   |   Difficile ≈ 1.11  (dur mais gagnable).
+//
+// Levier unique de difficulté = k (appliqué À L'ENNEMI seulement, sur PV ET dégâts) :
+//     R = 1 / k²   ->   k = 1/√R.
+// Le joueur, lui, est INDÉPENDANT de la difficulté (baseline stable) : on ne fait que
+// renforcer/affaiblir l'ADVERSAIRE. Monotone par construction (kFacile < kNormal < kDifficile).
+static float EnemyDiffK(EDemoDifficulty D)
 {
 	switch (D)
 	{
-		case EDemoDifficulty::Facile:    return 0.80f;
-		case EDemoDifficulty::Difficile: return 1.30f;
-		default:                         return 0.90f; // Normal : leger avantage joueur
+		case EDemoDifficulty::Facile:    return 0.72f; // ennemi affaibli -> R≈1.93 (facile)
+		case EDemoDifficulty::Difficile: return 0.95f; // ennemi presque a parite -> R≈1.11 (dur)
+		default:                         return 0.845f; // Normal -> R≈1.40
 	}
 }
-// Multiplicateur de ROBUSTESSE du JOUEUR (PV de son armée). Facile : joueur plus coriace ;
-// Difficile : joueur un peu plus fragile -> pertes accrues.
-static float DiffPlayerMult(EDemoDifficulty D)
+
+// ÉVOLUTION DU JOUEUR PAR PHASE : le joueur a progressé entre les phases (améliorations,
+// niveaux) -> ses unités sont plus fortes en phase 3 qu'en phase 1. Appliqué au JOUEUR ET au
+// miroir ennemi de la phase 3 (même roster « évolué ») -> le RATIO de difficulté est préservé
+// (la grande bataille reste gagnable). Les ennemis distincts des phases 1/2 (Kraken, squad
+// rivale) sont calibrés via k, avec la même évolution de phase.
+static float PhaseEvoHP(EDemoPhase P)
 {
-	switch (D)
+	switch (P)
 	{
-		case EDemoDifficulty::Facile:    return 1.30f;
-		case EDemoDifficulty::Difficile: return 0.85f;
-		default:                         return 1.10f; // Normal : joueur plus solide
+		case EDemoPhase::Battle_Rival: return 1.12f; // phase 2
+		case EDemoPhase::Battle_Grand: return 1.25f; // phase 3 (pleinement évolué)
+		default:                       return 1.00f; // phase 1 (débuts)
 	}
 }
-// Multiplicateur de DÉGÂTS du JOUEUR (levier de difficulté côté offensif).
-static float DiffPlayerDamage(EDemoDifficulty D)
+static float PhaseEvoDMG(EDemoPhase P)
 {
-	switch (D)
+	switch (P)
 	{
-		case EDemoDifficulty::Facile:    return 1.30f;
-		case EDemoDifficulty::Difficile: return 0.85f;
-		default:                         return 1.12f; // Normal
-	}
-}
-// Multiplicateur de DÉGÂTS de l'ENNEMI. Facile : l'ennemi frappe BEAUCOUP moins (avant, la
-// difficulté ne touchait pas les dégâts des unités -> Facile restait mortel).
-static float DiffEnemyDamage(EDemoDifficulty D)
-{
-	switch (D)
-	{
-		case EDemoDifficulty::Facile:    return 0.65f;
-		case EDemoDifficulty::Difficile: return 1.30f;
-		default:                         return 0.85f; // Normal
+		case EDemoPhase::Battle_Rival: return 1.10f; // phase 2
+		case EDemoPhase::Battle_Grand: return 1.20f; // phase 3
+		default:                       return 1.00f; // phase 1
 	}
 }
 
@@ -516,11 +522,11 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	// pour que la dernière (mythique) reste DANS l'arène, sans jamais toucher les montagnes.
 	const float Depth = UnitSpacing * (bGrandBattle ? 1.15f : 1.5f); // espacement entre rangées (X)
 	const float GroundZ = 100.f;
-	// PV de CETTE armée = échelle de bataille × compensation d'identité de faction (Noxéens
-	// fragiles compensés) × robustesse liée à la DIFFICULTÉ × bonus PHASE 3 (le joueur perdait
-	// la grande bataille -> ses unités tiennent plus longtemps).
+	// PV du JOUEUR = échelle de bataille × égalisation de faction × ÉVOLUTION DE PHASE.
+	// Volontairement INDÉPENDANT de la difficulté : le joueur est une baseline stable, c'est
+	// l'ENNEMI qui est renforcé/affaibli (voir EnemyDiffK) -> garantit la winnabilité.
 	const float PScale = ArmyHealthScale * FactionSurvivability(Faction)
-		* DiffPlayerMult(Demo->GetDifficulty()) * (bGrandBattle ? 1.12f : 1.0f);
+		* PhaseEvoHP(Demo->GetPhase());
 
 	// Place un groupe en rangées (se replie sur plusieurs lignes vers l'arrière -X). En
 	// phase 3, les rangées sont bien plus LARGES -> la ligne s'étale sur la largeur du tiers
@@ -628,8 +634,12 @@ void AWOTOLDemoDirector::SpawnEnemyForCreature(EFactionID RivalFaction, const FV
 	const FName CreatureID = Demo
 		? Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Mythique)
 		: NAME_None;
+	// PHASE 1 : PV du Kraken × k(difficulté) -> même levier que les autres phases (Facile =
+	// Kraken bien plus fragile ; Difficile = à peine réduit). Sa frappe est modulée par
+	// DifficultyEnemyDamageMult() côté unité. La phase 1 reste gagnable aux 3 niveaux.
+	const float KrakenHP = CreatureHealthScale * (Demo ? EnemyDiffK(Demo->GetDifficulty()) : 0.845f);
 	if (AWOTOLDemoUnit* Creature = SpawnUnit(
-			CreatureID, Origin + FVector(0.f, 0.f, 80.f), Facing, 1.5f, CreatureHealthScale, /*bAsBoss=*/true))
+			CreatureID, Origin + FVector(0.f, 0.f, 80.f), Facing, 1.5f, KrakenHP, /*bAsBoss=*/true))
 	{
 		// bCreatureBrain reste FAUX pendant la préparation : le boss attend.
 		// Il est activé par StartBattleNow() au lancement de la bataille.
@@ -685,8 +695,12 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	// rivale reste tuable et fidele a son identite. La DIFFICULTE est le vrai curseur de defi.
 	// Phase 3 : PV rival ABAISSES (0.90) -> le joueur ne perd plus la grande bataille malgre
 	// des degats superieurs (l'ennemi etait plus tanky que lui).
-	const float RivalScale = ArmyHealthScale * (bGrandBattle ? 0.95f : 1.00f)
-		* FactionSurvivability(RivalFaction) * DiffEnemyMult(Demo->GetDifficulty());
+	// PV de l'ENNEMI = même baseline que le joueur (échelle × faction × ÉVOLUTION DE PHASE),
+	// puis × k(difficulté) : c'est le SEUL levier de difficulté (ennemi affaibli en Facile,
+	// presque à parité en Difficile). Ratio PV joueur/ennemi = 1/k, cumulé au ratio dégâts ->
+	// force de combat globale = 1/k² = R garanti > 1 (gagnable).
+	const float RivalScale = ArmyHealthScale * FactionSurvivability(RivalFaction)
+		* PhaseEvoHP(Demo->GetPhase()) * EnemyDiffK(Demo->GetDifficulty());
 
 	// PLACEMENT ALÉATOIRE par couche, PROPRE À LA FACTION : chaque unité peut être au sol
 	// ou en hauteur. Les caps de verticalité (ex. Noxebeast au grade 1) sont respectés
@@ -792,13 +806,13 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 	{
 		UDemoFlowSubsystem* Flow = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 		const EDemoDifficulty Diff = Flow ? Flow->GetDifficulty() : EDemoDifficulty::Normal;
+		const EDemoPhase Phase     = Flow ? Flow->GetPhase() : EDemoPhase::Battle_Creature;
 		const bool bPlayerSide = (Unit->GetFaction() == CachedPlayerFaction);
-		float M = bPlayerSide ? DiffPlayerDamage(Diff) : DiffEnemyDamage(Diff);
-		M *= FactionDamage(Unit->GetFaction()); // EGALISE les factions (Aquiloris renforces)
-		// Phase 3 (miroir 80v80) : defaite ecrasante observee (80-19) -> l'avance de DPS des
-		// Noxeens + facteurs mecaniques exigent un avantage offensif JOUEUR plus net et un
-		// ennemi bien tempere, pour que la grande bataille soit reellement gagnable.
-		if (bGrandBattle) M *= bPlayerSide ? 1.25f : 0.85f;
+		// Dégâts = égalisation de faction × ÉVOLUTION DE PHASE (identique aux deux camps), et
+		// côté ENNEMI × k(difficulté). Le joueur ne dépend PAS de la difficulté (baseline
+		// stable) -> tout le curseur de défi est sur l'ennemi. Ratio dégâts joueur/ennemi = 1/k.
+		float M = FactionDamage(Unit->GetFaction()) * PhaseEvoDMG(Phase);
+		if (!bPlayerSide) M *= EnemyDiffK(Diff);
 		Unit->BalanceDamageMult = M;
 	}
 
@@ -904,7 +918,7 @@ void AWOTOLDemoDirector::LaunchBattle()
 						// × difficulté : Facile amincit le Kraken, Difficile l'épaissit (compense
 						// aussi l'inflation de PV joueur en Facile pour que ce soit vraiment plus simple).
 						const float DMul = GetGameInstance() && GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()
-							? DiffEnemyMult(GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()->GetDifficulty()) : 1.f;
+							? EnemyDiffK(GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()->GetDifficulty()) : 0.845f;
 						const float TargetHP = FMath::Clamp(ArmyHP * 0.42f * DMul, 9000.f, 40000.f);
 						const int32 BaseMax  = FMath::Max(1, Boss->GetUnitData()->Stats.MaxHealth);
 						Boss->HealthScale    = FMath::Max(1.f, TargetHP / (float)BaseMax);
