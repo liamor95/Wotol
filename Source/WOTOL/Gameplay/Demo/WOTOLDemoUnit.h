@@ -327,7 +327,11 @@ private:
 	// entoure l'unité sélectionnée sans repeindre le modèle -> on distingue toujours
 	// la couleur des unités. Construit à la 1re sélection puis simplement masqué/affiché.
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> SelectionRingParts;
+	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> SelHaloMID; // matériau du halo (opacité animée)
+	float SelHaloAlpha  = 0.f;   // 0..1 : apparition RAPIDE (~0.4 s) puis stable — juste suggéré
+	float SelHaloTarget = 0.f;   // cible (1 = sélectionnée)
 	void BuildSelectionRing();
+	void TickSelectionHalo(float Dt); // apparition/disparition rapide et douce du halo
 
 	// Facteur d'ancrage au sol : 1 = bien planté au sol (couche 0), 0 = en pleine hauteur.
 	// Sert au blocage (meilleur au sol) et au recul (part plus loin en l'air).

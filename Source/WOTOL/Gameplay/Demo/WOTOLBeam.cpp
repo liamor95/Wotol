@@ -87,11 +87,59 @@ AWOTOLBeam* AWOTOLBeam::Fire(UWorld* World, const FVector& Origin, float YawStar
 	return B;
 }
 
+void AWOTOLBeam::SetFollow(AUnitBase* Anchor, AUnitBase* Target, float MuzzleFwdOffset, float MuzzleUpOffset)
+{
+	bFollow    = (Anchor != nullptr);
+	AnchorUnit = Anchor;
+	TargetUnit = Target;
+	MuzzleFwd  = MuzzleFwdOffset;
+	MuzzleUp   = MuzzleUpOffset;
+	UpdateFollow();
+}
+
+// Ré-ancre l'origine du rayon sur la TÊTE VISUELLE du lanceur (suit le modèle 3D en
+// verticalité) et le ré-oriente vers la cible -> le rayon accompagne le drake au lieu de
+// rester figé au sol pendant qu'il monte/descend.
+void AWOTOLBeam::UpdateFollow()
+{
+	AUnitBase* A = AnchorUnit.Get();
+	if (!A) { bFollow = false; return; }
+
+	const USceneComponent* Head = A->GetFloatingTextAnchor();
+	const FVector Base = Head ? Head->GetComponentLocation() : A->GetActorLocation();
+	OriginLoc = Base + A->GetActorForwardVector() * MuzzleFwd + FVector(0.f, 0.f, MuzzleUp);
+
+	FVector Aim = A->GetActorForwardVector();
+	if (AUnitBase* T = TargetUnit.Get())
+	{
+		const USceneComponent* TH = T->GetFloatingTextAnchor();
+		const FVector To = (TH ? TH->GetComponentLocation() : T->GetActorLocation()) + FVector(0, 0, 40.f);
+		const FVector D = To - OriginLoc;
+		if (!D.IsNearlyZero()) { Aim = D; Len = FMath::Max(600.f, D.Size() + 120.f); }
+	}
+	const FRotator R = Aim.Rotation();
+	Yaw0 = Yaw1 = R.Yaw; PitchAngle = R.Pitch;
+
+	// Réajuste la géométrie du trait (longueur -> échelle + position centrée).
+	if (Beam)
+	{
+		Beam->SetRelativeScale3D(FVector(Beam->GetRelativeScale3D().X, Beam->GetRelativeScale3D().Y, Len / 100.f));
+		Beam->SetRelativeLocation(FVector(Len * 0.5f, 0.f, 0.f));
+	}
+	Pivot->SetWorldLocationAndRotation(OriginLoc, FRotator(PitchAngle, Yaw0, 0.f));
+}
+
 void AWOTOLBeam::Tick(float Dt)
 {
 	Super::Tick(Dt);
 	Life += Dt;
 	const float a = FMath::Clamp(Life / Duration, 0.f, 1.f);
+
+	// SUIVI : le rayon reste accroché à la tête du lanceur (verticalité) et re-vise la cible.
+	if (bFollow)
+	{
+		UpdateFollow();
+	}
 
 	// Balayage : interpole le yaw du départ vers l'arrivée. Le pitch (visée verticale
 	// vers une couche différente) est conservé pendant tout le rayon.

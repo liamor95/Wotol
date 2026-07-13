@@ -34,6 +34,8 @@ namespace
 	const TCHAR* M_SPH  = TEXT("/Engine/BasicShapes/Sphere.Sphere");
 	const TCHAR* M_CYL  = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
 	const TCHAR* M_CONE = TEXT("/Engine/BasicShapes/Cone.Cone");
+	// Opacité MAX du halo de sélection : faible = juste suggéré (pas de gros voile lumineux).
+	constexpr float kSelHaloMaxOpacity = 0.14f;
 }
 
 AWOTOLDemoUnit::AWOTOLDemoUnit()
@@ -117,6 +119,7 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		AnimateBody(DeltaSeconds);
 		if (bArticulated) AnimateArticulated(DeltaSeconds);
 		AnimateWhips(DeltaSeconds);
+		TickSelectionHalo(DeltaSeconds);
 		return;
 	}
 
@@ -214,6 +217,7 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	UpdateCombatLayer(DeltaSeconds);
 
 	AnimateBody(DeltaSeconds);          // flottement de nage + couche visuelle + tentacules
+	TickSelectionHalo(DeltaSeconds);    // halo de sélection (apparition rapide)
 	if (bArticulated)
 	{
 		AnimateArticulated(DeltaSeconds); // rig détaillé (Aquiloryons)
@@ -547,9 +551,31 @@ void AWOTOLDemoUnit::HandleSelected(bool bSel)
 	{
 		BuildSelectionRing();
 	}
-	for (const TObjectPtr<UStaticMeshComponent>& C : SelectionRingParts)
+	// On ne fait que fixer la CIBLE : l'apparition/disparition du halo est ANIMÉE (rapide,
+	// ~0.4 s, juste suggérée) dans le Tick -> pas de « pop » brutal, fluide mais rapide.
+	SelHaloTarget = bSel ? 1.f : 0.f;
+	if (bSel)
 	{
-		if (C) C->SetVisibility(bSel);
+		for (const TObjectPtr<UStaticMeshComponent>& C : SelectionRingParts)
+			if (C) C->SetVisibility(true); // visible tout de suite, l'opacité monte vite
+	}
+}
+
+// Apparition/disparition RAPIDE et douce du halo de sélection (juste suggéré).
+void AWOTOLDemoUnit::TickSelectionHalo(float Dt)
+{
+	if (SelectionRingParts.Num() == 0) return;
+	// Atteint la cible en ~0.4 s (rapide) sans à-coup.
+	SelHaloAlpha = FMath::FInterpTo(SelHaloAlpha, SelHaloTarget, Dt, 9.f);
+	if (SelHaloMID)
+	{
+		// Opacité MAX faible (halo discret) : luminosité juste suggérée.
+		SelHaloMID->SetScalarParameterValue(TEXT("Opacity"), SelHaloAlpha * kSelHaloMaxOpacity);
+	}
+	if (SelHaloAlpha < 0.02f && SelHaloTarget <= 0.f)
+	{
+		for (const TObjectPtr<UStaticMeshComponent>& C : SelectionRingParts)
+			if (C && C->IsVisible()) C->SetVisibility(false);
 	}
 }
 
@@ -570,10 +596,11 @@ void AWOTOLDemoUnit::BuildSelectionRing()
 	const float HaloR  = FMath::Max(R * 2.1f, HalfH * 0.9f);
 	const float HaloRZ = HalfH * 1.15f;
 
-	// Couleur de faction, émissif DOUX (le bloom global est déjà bas) + opacité faible.
+	// Couleur de faction, émissif TRÈS DOUX (juste suggéré, pas de gros halo lumineux) +
+	// opacité faible (animée à l'apparition).
 	const FLinearColor Fac = FFactionColors::Get(GetFaction());
 	const float MaxC = FMath::Max3(Fac.R, Fac.G, Fac.B);
-	const float Boost = (MaxC > KINDA_SMALL_NUMBER) ? (1.10f / MaxC) : 1.f;
+	const float Boost = (MaxC > KINDA_SMALL_NUMBER) ? (0.95f / MaxC) : 1.f; // sous le seuil de bloom -> discret
 	const FLinearColor HaloCol(Fac.R * Boost, Fac.G * Boost, Fac.B * Boost, 1.f);
 
 	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
@@ -588,9 +615,10 @@ void AWOTOLDemoUnit::BuildSelectionRing()
 	}
 	C->SetRelativeLocation(FVector::ZeroVector);
 	C->SetRelativeScale3D(FVector(HaloR / SphereBase, HaloR / SphereBase, HaloRZ / SphereBase));
-	if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeHalo(this, HaloCol, 0.22f))
+	if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeHalo(this, HaloCol, 0.f))
 	{
 		C->SetMaterial(0, MID);
+		SelHaloMID = MID; // opacité pilotée par TickSelectionHalo (apparition rapide)
 	}
 	C->SetVisibility(false); // masqué tant que non sélectionné
 	SelectionRingParts.Add(C);
@@ -1344,7 +1372,9 @@ bool AWOTOLDemoUnit::Ability_LaserBig()
 	{
 		const FVector To = Cov->GetActorLocation() + FVector(0, 0, 100.f);
 		const FRotator Aim = (To - From).Rotation();
-		AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (To - From).Size() + 100.f), Beam, this, 0.f, Aim.Pitch, /*Thickness=*/4.5f, /*bBubbleTrail=*/true, /*LifeTime=*/2.2f);
+		// Rayon FIXE vers la structure (elle ne bouge pas) — réglages visuels du Noxar.
+		AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (To - From).Size() + 100.f),
+			Beam, this, 0.f, Aim.Pitch, /*Thickness=*/1.6f, /*bBubbleTrail=*/true, /*LifeTime=*/1.4f);
 		Cov->TakeCoverDamage(Dmg * 1.6f, this); // effondre la structure
 		AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 150.f), TEXT("Souffle d'Extinction"), Beam);
 		NoxedrakeCharge = 1.f; AttackAnimTimer = 0.6f;
@@ -1356,7 +1386,15 @@ bool AWOTOLDemoUnit::Ability_LaserBig()
 	const FVector To = (Foe->GetFloatingTextAnchor() ? Foe->GetFloatingTextAnchor()->GetComponentLocation()
 		: Foe->GetActorLocation()) + FVector(0, 0, 40.f);
 	const FRotator Aim = (To - From).Rotation();
-	AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (To - From).Size() + 120.f), Beam, this, 0.f, Aim.Pitch, /*Thickness=*/4.5f, /*bBubbleTrail=*/true, /*LifeTime=*/2.2f);
+	// MÊMES réglages VISUELS que le rayon du Noxar (trait fin continu, traînée de bulles),
+	// mais TIRÉ DEPUIS LA TÊTE et surtout qui SUIT le modèle 3D : quand le drake change de
+	// couche pendant le souffle, le rayon reste accroché à sa gueule (SetFollow) au lieu de
+	// rester figé au sol. Un peu plus épais/long que le Noxar (c'est un mythique).
+	if (AWOTOLBeam* B = AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (To - From).Size() + 120.f),
+			Beam, this, 0.f, Aim.Pitch, /*Thickness=*/1.6f, /*bBubbleTrail=*/true, /*LifeTime=*/1.4f))
+	{
+		B->SetFollow(this, Foe, BExt.X * 0.85f, BExt.Z * 0.35f);
+	}
 	Foe->TakeDamageFromUnit(Dmg, this);
 	AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 150.f),
 		NoxedrakeCharge > 1.f ? TEXT("Souffle d'Extinction — SURCHARGE") : TEXT("Souffle d'Extinction"), Beam);
@@ -1820,10 +1858,12 @@ void AWOTOLDemoUnit::ComputeGroupTag()
 
 	const FVector MyLoc = GetActorLocation();
 	const float GroupR2 = 300.f * 300.f;   // rayon de regroupement (formation locale)
-	const uint32 MyKey  = GetUniqueID();
-	uint32 RepKey = MyKey;                  // le plus petit id du voisinage = représentant
-	int32 Count = 1, SumCur = GroupTagCur, SumMax = GroupTagMax;
 
+	// 1) Voisinage : toutes les unités VIVANTES du MÊME type dans le rayon (moi inclus).
+	TArray<AWOTOLDemoUnit*> Cluster;
+	Cluster.Add(this);
+	FVector Centroid = MyLoc;
+	int32 SumCur = GroupTagCur, SumMax = GroupTagMax;
 	for (AUnitBase* U : Reg->GetUnitsForFaction(GetFaction()))
 	{
 		if (!U || U == this || !U->IsAlive()) continue;
@@ -1831,17 +1871,32 @@ void AWOTOLDemoUnit::ComputeGroupTag()
 		if (!D || !D->UnitData || D->UnitData->GetFName() != MyId) continue;
 		if (FVector::DistSquared2D(MyLoc, U->GetActorLocation()) > GroupR2) continue; // trop loin -> détachée
 		const int32 UMax = D->GetEffectiveMaxHealth();
-		++Count;
+		Cluster.Add(D);
+		Centroid += U->GetActorLocation();
 		SumCur += FMath::Clamp(FMath::RoundToInt(D->CurrentHealth), 0, UMax);
 		SumMax += UMax;
-		if (U->GetUniqueID() < RepKey) RepKey = U->GetUniqueID();
 	}
 
+	const int32 Count = Cluster.Num();
 	if (Count < 2) return; // seule de son type dans le rayon -> étiquette individuelle.
 
-	if (RepKey == MyKey)
+	// 2) REPRÉSENTANT = l'unité du MILIEU (la plus proche du centre du groupe) -> l'indicateur
+	//    cumulé s'affiche au CENTRE de la formation. Égalité départagée par id (déterministe).
+	Centroid /= Count;
+	AWOTOLDemoUnit* Rep = nullptr; float BestD2 = TNumericLimits<float>::Max();
+	for (AWOTOLDemoUnit* D : Cluster)
 	{
-		// Représentant : porte l'étiquette CUMULÉE du groupe.
+		if (!D) continue;
+		const float D2 = FVector::DistSquared2D(D->GetActorLocation(), Centroid);
+		if (D2 < BestD2 - 1.f || (FMath::Abs(D2 - BestD2) <= 1.f && (!Rep || D->GetUniqueID() < Rep->GetUniqueID())))
+		{
+			BestD2 = D2; Rep = D;
+		}
+	}
+
+	if (Rep == this)
+	{
+		// Représentant central : porte l'étiquette CUMULÉE du groupe.
 		bTagIsRep = true;
 		GroupTagCount = Count;
 		GroupTagCur = SumCur;
@@ -1849,7 +1904,7 @@ void AWOTOLDemoUnit::ComputeGroupTag()
 	}
 	else
 	{
-		// Couverte par un représentant plus prioritaire -> on masque son étiquette.
+		// Couverte par le représentant central -> on masque son étiquette.
 		bTagSuppressed = true;
 	}
 }

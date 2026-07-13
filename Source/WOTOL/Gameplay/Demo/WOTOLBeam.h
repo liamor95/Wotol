@@ -29,6 +29,11 @@ public:
 		float Length, const FLinearColor& Color, AUnitBase* Caster, float SweepDamage,
 		float Pitch = 0.f, float Thickness = 1.f, bool bBubbleTrail = false, float LifeTime = 0.9f);
 
+	// SUIVI : le rayon reste ANCRÉ sur la tête du lanceur (position VISUELLE : suit le modèle
+	// 3D même quand il change de couche/verticalité pendant le tir) et se ré-oriente vers la
+	// cible en continu (rayon mono-cible « continu » façon Noxedrake).
+	void SetFollow(AUnitBase* Anchor, AUnitBase* Target, float MuzzleFwdOffset, float MuzzleUpOffset);
+
 protected:
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -45,4 +50,11 @@ protected:
 	float Yaw0 = 0.f, Yaw1 = 0.f, PitchAngle = 0.f, Len = 1000.f, Life = 0.f, Duration = 0.9f, Damage = 0.f;
 	TWeakObjectPtr<AUnitBase> CasterUnit;
 	TSet<TWeakObjectPtr<AUnitBase>> AlreadyHit;
+
+	// Suivi de la tête du lanceur (verticalité).
+	bool bFollow = false;
+	TWeakObjectPtr<AUnitBase> AnchorUnit;  // lanceur à suivre (tête = position visuelle)
+	TWeakObjectPtr<AUnitBase> TargetUnit;  // cible à re-viser en continu
+	float MuzzleFwd = 0.f, MuzzleUp = 0.f; // décalage bouche depuis le centre visuel
+	void UpdateFollow();
 };
