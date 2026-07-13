@@ -189,6 +189,21 @@ private:
 	// ils s'affalent SUR LE FLANC (roll), à plat sur le sol -> vrai cadavre allongé.
 	// Les humanoïdes (construits debout le long de +Z) basculent, eux, vers l'avant (pitch).
 	bool  bHorizontalBody = false;
+
+	// ── Étiquettes de champ de bataille GROUPÉES (style Total War) ──
+	// Quand plusieurs unités du MÊME type sont proches, on n'affiche qu'UNE étiquette
+	// (nom + PV CUMULÉS du groupe) portée par un « représentant » ; les autres masquent la
+	// leur -> beaucoup moins de texte à l'écran ET moins de mises à jour (gain visuel + perf,
+	// crucial en phase 3). Une unité qui S'ÉLOIGNE du groupe (ou sélectionnée) retrouve sa
+	// propre étiquette (nom + PV individuels).
+	float GroupTagTimer = 0.f;      // throttle du recalcul (staggeré)
+	bool  bTagSuppressed = false;   // masquée : couverte par le représentant du groupe
+	bool  bTagIsRep      = false;   // porte l'étiquette CUMULÉE du groupe
+	int32 GroupTagCount  = 1;       // effectif agrégé
+	int32 GroupTagCur    = 0;       // PV cumulés courants
+	int32 GroupTagMax    = 0;       // PV cumulés max
+	void  ComputeGroupTag();        // recalcul du voisinage même-type (throttlé)
+
 	float AnimPhase    = 0.f;
 	float SwingProgress = 0.f; // 0..1 avancement d'un coup d'épée
 	float AttackAnimTimer = 0.f; // >0 = un coup vient d'être porté -> jouer l'anim d'attaque
@@ -411,5 +426,8 @@ private:
 	float   StuckCheckTimer = 0.f;   // cadence d'échantillonnage de la position
 	float   UnstickTimer = 0.f;      // >0 = manœuvre de dégagement en cours
 	FVector UnstickDir = FVector::ZeroVector;
+	int32   StuckCount = 0;          // nb d'échantillons consécutifs bloqués -> escalade
+	float   UnstickSide = 1.f;       // côté de contournement courant (garde le même sens)
+	float   UnstickZBoost = 0.f;     // remontée temporaire (nage AU-DESSUS de l'obstacle)
 	void    TickUnstick(float Dt, bool bWantsToMove);
 };

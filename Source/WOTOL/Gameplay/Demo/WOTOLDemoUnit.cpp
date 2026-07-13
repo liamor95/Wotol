@@ -302,11 +302,36 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	// NB : la furtivité d'Aquilombres est « invisible pour l'ENNEMI » seulement — le JOUEUR
 	// continue de la voir (silhouette fantôme) ET son nom/PV restent affichés pour la suivre.
 
-	// ANTI-EMPILEMENT : en pleine bataille, on n'affiche l'étiquette (nom + PV) que pour
-	// les unités SÉLECTIONNÉES (+ le boss) -> plus de bouillie de texte quand les unités se
-	// regroupent. En préparation/hors-jeu, on montre tout (les unités sont espacées).
-	// Étiquette nom + PV TOUJOURS visible (pour distinguer chaque unité). Le contour noir
-	// centré assure la lisibilité ; les formations espacent les unités.
+	// ── REGROUPEMENT DES ÉTIQUETTES (style Total War) ──
+	// EN BATAILLE, on recalcule périodiquement si l'unité est GROUPÉE (couverte par un
+	// représentant) ou non. Cela masque la plupart des étiquettes (une seule par groupe) ->
+	// écran lisible + beaucoup moins de mises à jour de texte. HORS bataille (placement), on
+	// n'agrège pas (les formations sont espacées, chaque unité montre son nom/PV).
+	if (IsBattleLive())
+	{
+		GroupTagTimer -= DeltaSeconds;
+		if (GroupTagTimer <= 0.f)
+		{
+			GroupTagTimer = 0.35f + FMath::FRand() * 0.12f; // staggeré -> pas tout le même frame
+			ComputeGroupTag();
+		}
+	}
+	else
+	{
+		bTagSuppressed = false; bTagIsRep = false;
+	}
+
+	// Étiquette MASQUÉE (couverte par le représentant du groupe) : on la cache et on SORT
+	// tout de suite -> on économise l'orientation caméra pour la majorité des unités.
+	if (bTagSuppressed)
+	{
+		if (NameTag->IsVisible())
+		{
+			NameTag->SetVisibility(false);
+			if (NameTagShadow) NameTagShadow->SetVisibility(false);
+		}
+		return;
+	}
 	if (!NameTag->IsVisible())
 	{
 		NameTag->SetVisibility(true);
@@ -322,8 +347,11 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	const int32 MaxHP = GetEffectiveMaxHealth();
 	const int32 CurHP = FMath::Clamp(FMath::RoundToInt(CurrentHealth), 0, MaxHP);
 
-	const FText TagText = FText::FromString(
-		FString::Printf(TEXT("%s\n%d / %d"), *DisplayName, CurHP, MaxHP));
+	// REPRÉSENTANT d'un groupe -> nom + effectif + PV CUMULÉS ("Aquiloryons x5\n7300 / 8500").
+	// Sinon (isolée / détachée / sélectionnée) -> nom + PV individuels.
+	const FText TagText = (bTagIsRep && GroupTagCount >= 2)
+		? FText::FromString(FString::Printf(TEXT("%s  x%d\n%d / %d"), *DisplayName, GroupTagCount, GroupTagCur, GroupTagMax))
+		: FText::FromString(FString::Printf(TEXT("%s\n%d / %d"), *DisplayName, CurHP, MaxHP));
 	NameTag->SetText(TagText);
 	if (NameTagShadow) NameTagShadow->SetText(TagText); // même texte, en noir, derrière
 
@@ -1766,18 +1794,81 @@ float AWOTOLDemoUnit::DifficultyEnemyDamageMult()
 // PAS LATÉRAL (perpendiculaire à sa direction de marche) pour CONTOURNER l'obstacle, puis
 // reprend sa route. Évite qu'une unité reste plantée contre un rocher jusqu'à ce qu'on la
 // pousse.
+// ÉTIQUETTES GROUPÉES (Total War) : détermine si CETTE unité doit porter l'étiquette
+// cumulée d'un groupe (représentant), la masquer (couverte), ou afficher la sienne
+// (isolée / détachée / sélectionnée). Throttlé : appelé ~2-3 fois/s, staggeré.
+void AWOTOLDemoUnit::ComputeGroupTag()
+{
+	// Par défaut : étiquette individuelle.
+	bTagSuppressed = false;
+	bTagIsRep      = false;
+	GroupTagCount  = 1;
+	const int32 MyMax = GetEffectiveMaxHealth();
+	GroupTagMax = MyMax;
+	GroupTagCur = FMath::Clamp(FMath::RoundToInt(CurrentHealth), 0, MyMax);
+
+	// Le boss garde TOUJOURS sa propre (grande) étiquette. Le regroupement des autres est
+	// purement basé sur la PROXIMITÉ (pas sur la sélection : au lancement TOUTE l'armée est
+	// sélectionnée -> on veut quand même regrouper à l'écran ; le roster du bas montre déjà
+	// les PV du groupe commandé).
+	if (bIsBoss || bCreatureBrain) return;
+
+	UWorld* W = GetWorld(); if (!W) return;
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return;
+	const FName MyId = UnitData ? UnitData->GetFName() : NAME_None;
+	if (MyId == NAME_None) return;
+
+	const FVector MyLoc = GetActorLocation();
+	const float GroupR2 = 300.f * 300.f;   // rayon de regroupement (formation locale)
+	const uint32 MyKey  = GetUniqueID();
+	uint32 RepKey = MyKey;                  // le plus petit id du voisinage = représentant
+	int32 Count = 1, SumCur = GroupTagCur, SumMax = GroupTagMax;
+
+	for (AUnitBase* U : Reg->GetUnitsForFaction(GetFaction()))
+	{
+		if (!U || U == this || !U->IsAlive()) continue;
+		AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U);
+		if (!D || !D->UnitData || D->UnitData->GetFName() != MyId) continue;
+		if (FVector::DistSquared2D(MyLoc, U->GetActorLocation()) > GroupR2) continue; // trop loin -> détachée
+		const int32 UMax = D->GetEffectiveMaxHealth();
+		++Count;
+		SumCur += FMath::Clamp(FMath::RoundToInt(D->CurrentHealth), 0, UMax);
+		SumMax += UMax;
+		if (U->GetUniqueID() < RepKey) RepKey = U->GetUniqueID();
+	}
+
+	if (Count < 2) return; // seule de son type dans le rayon -> étiquette individuelle.
+
+	if (RepKey == MyKey)
+	{
+		// Représentant : porte l'étiquette CUMULÉE du groupe.
+		bTagIsRep = true;
+		GroupTagCount = Count;
+		GroupTagCur = SumCur;
+		GroupTagMax = SumMax;
+	}
+	else
+	{
+		// Couverte par un représentant plus prioritaire -> on masque son étiquette.
+		bTagSuppressed = true;
+	}
+}
+
 void AWOTOLDemoUnit::TickUnstick(float Dt, bool bWantsToMove)
 {
-	// Manœuvre de dégagement en cours : on pousse latéralement puis on décrémente.
+	// Manœuvre de dégagement en cours : on pousse dans UnstickDir puis on décrémente.
 	if (UnstickTimer > 0.f)
 	{
 		UnstickTimer -= Dt;
 		const float Speed = (BaseWalkSpeed > 0.f ? BaseWalkSpeed : 300.f) * 0.9f;
 		AddActorWorldOffset(UnstickDir * Speed * Dt, true); // respecte la collision (glisse le long du décor)
+		// NAGE AU-DESSUS : pendant le contournement, l'unité monte d'une couche pour passer
+		// PAR-DESSUS l'obstacle (elle nage, elle n'est pas clouée au sol).
+		if (UnstickZBoost > 0.f) SetDesiredZ(FMath::Max(GetDesiredZ(), UnstickZBoost));
 		return;
 	}
 
-	if (!bWantsToMove) { StuckCheckTimer = 0.f; return; }
+	if (!bWantsToMove) { StuckCheckTimer = 0.f; StuckCount = 0; UnstickZBoost = 0.f; return; }
 
 	// Échantillonne la position ~2 fois/s : si l'unité a à peine bougé alors qu'elle veut
 	// avancer, elle est coincée.
@@ -1791,16 +1882,49 @@ void AWOTOLDemoUnit::TickUnstick(float Dt, bool bWantsToMove)
 	StuckLastPos = Pos;
 	if (!bWasSampled) return;
 
-	// Moins de ~40 uu parcourus en 0.5 s alors qu'on veut avancer -> bloquée : on se dégage.
-	if (Moved < 40.f * 40.f)
+	// A bien avancé -> plus bloquée : on relâche l'escalade progressivement.
+	if (Moved >= 40.f * 40.f)
 	{
-		FVector Fwd = GetActorForwardVector(); Fwd.Z = 0.f; Fwd = Fwd.GetSafeNormal();
-		if (Fwd.IsNearlyZero()) Fwd = FVector(1.f, 0.f, 0.f);
-		// Côté aléatoire pour éviter que deux unités coincées oscillent en miroir.
-		const FVector Side = FVector(-Fwd.Y, Fwd.X, 0.f) * (FMath::RandBool() ? 1.f : -1.f);
-		// Mélange latéral (contournement) + un peu d'avant pour dépasser l'angle du décor.
-		UnstickDir = (Side * 0.85f + Fwd * 0.35f).GetSafeNormal();
+		StuckCount = 0;
+		UnstickZBoost = 0.f;
+		return;
+	}
+
+	// Toujours coincée alors qu'elle veut avancer -> ESCALADE de la manœuvre.
+	++StuckCount;
+
+	FVector Fwd = GetActorForwardVector(); Fwd.Z = 0.f; Fwd = Fwd.GetSafeNormal();
+	if (Fwd.IsNearlyZero()) Fwd = FVector(1.f, 0.f, 0.f);
+	// On garde le MÊME côté de contournement d'une tentative à l'autre (pas d'oscillation
+	// en miroir) ; on n'en change qu'aux escalades fortes.
+	if (StuckCount == 1) UnstickSide = FMath::RandBool() ? 1.f : -1.f;
+	const FVector Side = FVector(-Fwd.Y, Fwd.X, 0.f) * UnstickSide;
+
+	if (StuckCount == 1)
+	{
+		// 1re fois : contournement latéral + un peu d'avant pour dépasser l'angle du décor.
+		UnstickDir   = (Side * 0.85f + Fwd * 0.35f).GetSafeNormal();
 		UnstickTimer = 0.6f;
+		UnstickZBoost = 0.f;
+	}
+	else if (StuckCount == 2)
+	{
+		// Encore bloquée : REBROUSSE CHEMIN (repart en arrière, par où elle est venue) tout
+		// en contournant sur le côté, ET commence à remonter pour passer au-dessus.
+		UnstickDir   = (-Fwd * 0.65f + Side * 0.75f).GetSafeNormal();
+		UnstickTimer = 0.9f;
+		UnstickZBoost = FMath::Min(MaxLayerZ, GetDesiredZ() + 500.f);
+	}
+	else
+	{
+		// Vraiment coincée : franc demi-tour (retrace la route) + fort décalage latéral +
+		// nage nettement AU-DESSUS de l'obstacle. On change de côté à chaque tentative pour
+		// finir par trouver le passage libre.
+		UnstickSide  = -UnstickSide;
+		const FVector Side2 = FVector(-Fwd.Y, Fwd.X, 0.f) * UnstickSide;
+		UnstickDir   = (-Fwd * 0.85f + Side2 * 0.6f).GetSafeNormal();
+		UnstickTimer = 1.2f;
+		UnstickZBoost = FMath::Min(MaxLayerZ, GetDesiredZ() + 900.f); // par-dessus les ruines
 	}
 }
 
