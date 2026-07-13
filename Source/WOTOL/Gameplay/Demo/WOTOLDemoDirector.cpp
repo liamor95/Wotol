@@ -187,7 +187,17 @@ void AWOTOLDemoDirector::UpdateMusicForScreen()
 	if (!Demo) return;
 
 	USoundBase* Target = MusicForScreen(static_cast<uint8>(Demo->GetScreen()));
-	if (Target == CurrentMusicAsset) return; // MÊME piste -> on NE relance PAS (continuité).
+	if (Target == CurrentMusicAsset)
+	{
+		// MÊME piste -> on ne relance PAS (continuité). MAIS si le morceau est ARRIVÉ AU BOUT,
+		// on le RELANCE -> boucle robuste, valable pour n'importe quel fichier importe (pas
+		// besoin de cocher "Looping" sur l'asset).
+		if (CurrentMusicAsset && CurrentMusic && !CurrentMusic->IsPlaying())
+		{
+			CurrentMusic->Play();
+		}
+		return;
+	}
 
 	CurrentMusicAsset = Target;
 	PlayMusic(Target, /*bLoop=*/true); // Target peut être nul (aucune piste) -> coupe la musique.
