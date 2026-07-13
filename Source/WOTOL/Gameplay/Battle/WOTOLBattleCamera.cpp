@@ -20,6 +20,12 @@ AWOTOLBattleCamera::AWOTOLBattleCamera()
 	SpringArm->TargetArmLength         = 1200.f;
 	SpringArm->bDoCollisionTest        = false;
 	SpringArm->bUsePawnControlRotation = false;
+	// LISSAGE (anti-saccade) : le bras retarde légèrement position ET rotation -> tout
+	// mouvement de caméra (pan, zoom, focus, suivi) devient fluide au lieu de sauter.
+	SpringArm->bEnableCameraLag         = true;
+	SpringArm->CameraLagSpeed           = 10.f;
+	SpringArm->bEnableCameraRotationLag = true;
+	SpringArm->CameraRotationLagSpeed   = 12.f;
 
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(SpringArm, USpringArmComponent::SocketName);
@@ -308,8 +314,9 @@ void AWOTOLBattleCamera::TickFollow(float DT)
 	if (N == 0) { StopFollow(); return; } // tout le groupe est mort -> fin du suivi
 
 	Centroid /= N;
-	// Suivi doux (pas de saccade) : la caméra glisse vers le centre du groupe.
-	const FVector New = FMath::VInterpTo(GetActorLocation(), Centroid, DT, 6.f);
+	// Suivi RÉACTIF mais lissé (le camera-lag du bras absorbe le reste) : la caméra
+	// se recale vite sur le centre du groupe sans saccade et « se joue » plus vif.
+	const FVector New = FMath::VInterpTo(GetActorLocation(), Centroid, DT, 9.f);
 	SetActorLocation(New);
 }
 

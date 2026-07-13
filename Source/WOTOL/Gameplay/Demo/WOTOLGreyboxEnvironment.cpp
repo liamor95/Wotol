@@ -334,7 +334,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			S.bOverride_SceneFringeIntensity = true; S.SceneFringeIntensity = 0.5f;
 			// Bloom DISCRET : assez pour un léger halo bioluminescent, PAS assez pour cramer
 			// un gros blob blanc au centre (les parties vives des unités ne bavent plus).
-			S.bOverride_BloomIntensity = true; S.BloomIntensity = 0.85f;
+			S.bOverride_BloomIntensity = true; S.BloomIntensity = 0.50f;
 		}
 
 		// Nuages masqués + SOLEIL adouci (lumière directionnelle atténuée et bleutée

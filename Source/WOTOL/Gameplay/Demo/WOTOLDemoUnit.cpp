@@ -538,7 +538,7 @@ void AWOTOLDemoUnit::BuildSelectionRing()
 	// Couleur de faction poussée LÉGÈREMENT au-dessus du seuil de bloom (>1.2) -> léger halo.
 	const FLinearColor Fac = FFactionColors::Get(GetFaction());
 	const float MaxC = FMath::Max3(Fac.R, Fac.G, Fac.B);
-	const float Boost = (MaxC > KINDA_SMALL_NUMBER) ? (1.45f / MaxC) : 1.f;
+	const float Boost = (MaxC > KINDA_SMALL_NUMBER) ? (1.25f / MaxC) : 1.f;
 	const FLinearColor RingCol(Fac.R * Boost, Fac.G * Boost, Fac.B * Boost, 1.f);
 
 	const int32 N = 24;
@@ -1883,7 +1883,7 @@ UStaticMeshComponent* AWOTOLDemoUnit::AddPart(const TCHAR* MeshPath, const FVect
 	const bool bEmissive = (Color.R > 1.2f || Color.G > 1.2f || Color.B > 1.2f);
 	// Émissif des unités PLAFONNÉ (~1.15) : les parties vives restent colorées/brillantes
 	// mais ne « bloomment » plus en gros pâté lumineux quand l'armée est massée (déploiement).
-	const FLinearColor UnitEmissive(FMath::Min(Color.R, 1.15f), FMath::Min(Color.G, 1.15f), FMath::Min(Color.B, 1.15f), 1.f);
+	const FLinearColor UnitEmissive(FMath::Min(Color.R, 1.02f), FMath::Min(Color.G, 1.02f), FMath::Min(Color.B, 1.02f), 1.f);
 	if (UMaterialInstanceDynamic* MID = bEmissive
 			? WOTOLGlow::MakeGlow(this, UnitEmissive) : WOTOLGlow::MakeMatte(this, Color))
 	{
@@ -1909,7 +1909,7 @@ void AWOTOLDemoUnit::SetupMainPart(const TCHAR* MeshPath, const FVector& RelLoc,
 	const bool bEmissive = (Color.R > 1.2f || Color.G > 1.2f || Color.B > 1.2f);
 	// Émissif des unités PLAFONNÉ (~1.15) : les parties vives restent colorées/brillantes
 	// mais ne « bloomment » plus en gros pâté lumineux quand l'armée est massée (déploiement).
-	const FLinearColor UnitEmissive(FMath::Min(Color.R, 1.15f), FMath::Min(Color.G, 1.15f), FMath::Min(Color.B, 1.15f), 1.f);
+	const FLinearColor UnitEmissive(FMath::Min(Color.R, 1.02f), FMath::Min(Color.G, 1.02f), FMath::Min(Color.B, 1.02f), 1.f);
 	if (UMaterialInstanceDynamic* MID = bEmissive
 			? WOTOLGlow::MakeGlow(this, UnitEmissive) : WOTOLGlow::MakeMatte(this, Color))
 	{
@@ -2674,7 +2674,7 @@ UStaticMeshComponent* AWOTOLDemoUnit::MakeBone(USceneComponent* Joint, const TCH
 	const bool bEmissive = (Color.R > 1.2f || Color.G > 1.2f || Color.B > 1.2f);
 	// Émissif des unités PLAFONNÉ (~1.15) : les parties vives restent colorées/brillantes
 	// mais ne « bloomment » plus en gros pâté lumineux quand l'armée est massée (déploiement).
-	const FLinearColor UnitEmissive(FMath::Min(Color.R, 1.15f), FMath::Min(Color.G, 1.15f), FMath::Min(Color.B, 1.15f), 1.f);
+	const FLinearColor UnitEmissive(FMath::Min(Color.R, 1.02f), FMath::Min(Color.G, 1.02f), FMath::Min(Color.B, 1.02f), 1.f);
 	if (UMaterialInstanceDynamic* MID = bEmissive
 			? WOTOLGlow::MakeGlow(this, UnitEmissive) : WOTOLGlow::MakeMatte(this, Color))
 	{
@@ -2989,7 +2989,9 @@ void AWOTOLDemoUnit::AnimateBody(float Dt)
 	// immobilise. On force la couche cible au sol et on descend TRÈS doucement.
 	if (bDead) DesiredZ = 0.f;
 	// Couche verticale VISUELLE : monte/descend vers DesiredZ (lentement si morte = elle coule).
-	CurLayer = FMath::FInterpTo(CurLayer, DesiredZ, Dt, bDead ? 0.5f : 2.5f);
+	// Vivante : montée/descente PLUS VIVE et fluide (le double-lissage CurLayer -> VisualRoot
+	// enlève la saccade) -> le changement de couche « répond » mieux.
+	CurLayer = FMath::FInterpTo(CurLayer, DesiredZ, Dt, bDead ? 0.5f : 4.0f);
 
 	// ── Flottement du conteneur visuel (nage) + inclinaison + couche ──
 	if (VisualRoot)
