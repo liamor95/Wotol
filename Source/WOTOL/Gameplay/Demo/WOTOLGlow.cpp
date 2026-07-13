@@ -7,6 +7,7 @@
 
 #if WITH_EDITOR
 #include "Materials/MaterialExpressionVectorParameter.h"
+#include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionConstant.h"
 #endif
 
@@ -16,6 +17,7 @@ namespace
 	// évite de recompiler à chaque fois).
 	TStrongObjectPtr<UMaterialInterface> GGlowParent;
 	TStrongObjectPtr<UMaterialInterface> GMatteParent;
+	TStrongObjectPtr<UMaterialInterface> GHaloParent;
 }
 
 namespace WOTOLGlow { bool bLowGpuVFX = false; }
@@ -131,6 +133,66 @@ UMaterialInstanceDynamic* WOTOLGlow::MakeMatte(UObject* Outer, const FLinearColo
 	if (MID)
 	{
 		MID->SetVectorParameterValue(TEXT("Color"), BaseColor);
+	}
+	return MID;
+}
+
+UMaterialInterface* WOTOLGlow::GetHaloParent()
+{
+	if (GHaloParent.IsValid())
+	{
+		return GHaloParent.Get();
+	}
+
+	UMaterialInterface* Result = nullptr;
+
+#if WITH_EDITOR
+	// Matériau UNLIT + TRANSLUCIDE : Emissive = « Color », Opacity = « Opacity ».
+	// -> coquille lumineuse transparente qui enveloppe le modèle sans le cacher.
+	if (UMaterial* M = NewObject<UMaterial>(GetTransientPackage(), NAME_None, RF_Transient))
+	{
+		M->SetShadingModel(MSM_Unlit);
+		M->BlendMode = BLEND_Translucent;
+
+		UMaterialExpressionVectorParameter* P = NewObject<UMaterialExpressionVectorParameter>(M);
+		P->ParameterName = TEXT("Color");
+		P->DefaultValue = FLinearColor::White;
+		M->GetExpressionCollection().AddExpression(P);
+		M->GetEditorOnlyData()->EmissiveColor.Expression = P;
+
+		UMaterialExpressionScalarParameter* O = NewObject<UMaterialExpressionScalarParameter>(M);
+		O->ParameterName = TEXT("Opacity");
+		O->DefaultValue = 0.25f;
+		M->GetExpressionCollection().AddExpression(O);
+		M->GetEditorOnlyData()->Opacity.Expression = O;
+
+		M->PostEditChange();
+		Result = M;
+	}
+#endif
+
+	if (!Result)
+	{
+		Result = LoadObject<UMaterialInterface>(
+			nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+	}
+
+	GHaloParent.Reset(Result);
+	return Result;
+}
+
+UMaterialInstanceDynamic* WOTOLGlow::MakeHalo(UObject* Outer, const FLinearColor& EmissiveHDR, float Opacity)
+{
+	UMaterialInterface* Parent = GetHaloParent();
+	if (!Parent)
+	{
+		return nullptr;
+	}
+	UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Parent, Outer);
+	if (MID)
+	{
+		MID->SetVectorParameterValue(TEXT("Color"), EmissiveHDR);
+		MID->SetScalarParameterValue(TEXT("Opacity"), Opacity);
 	}
 	return MID;
 }

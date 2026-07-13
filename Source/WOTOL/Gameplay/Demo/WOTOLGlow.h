@@ -35,4 +35,12 @@ namespace WOTOLGlow
 
 	/** MID mat prêt à l'emploi (couleur de base donnée, surface rugueuse non brillante). */
 	UMaterialInstanceDynamic* MakeMatte(UObject* Outer, const FLinearColor& BaseColor);
+
+	/** Matériau parent HALO : unlit ÉMISSIF + TRANSLUCIDE (paramètres « Color » et « Opacity »).
+	 *  Sert à envelopper un modèle d'une aura lumineuse SANS masquer le modèle dessous
+	 *  (coquille transparente colorée -> indicateur de sélection). */
+	UMaterialInterface* GetHaloParent();
+
+	/** MID halo prêt à l'emploi : coquille translucide émissive (couleur + opacité donnés). */
+	UMaterialInstanceDynamic* MakeHalo(UObject* Outer, const FLinearColor& EmissiveHDR, float Opacity);
 }

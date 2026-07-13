@@ -525,37 +525,47 @@ void AWOTOLDemoUnit::HandleSelected(bool bSel)
 	}
 }
 
-// Construit l'anneau de sélection au sol : petit contour lumineux (couleur de faction),
-// juste sous les pieds de l'unité. Discret : émissif modéré, pièces fines.
+// Construit le HALO de sélection : une COQUILLE lumineuse TRANSLUCIDE (couleur de faction)
+// qui ENVELOPPE le modèle 3D sans le masquer -> on distingue toujours parfaitement la
+// couleur/les motifs de l'unité, et le halo indique clairement qu'elle est sélectionnée.
+// Attaché à VisualRoot -> le halo SUIT le modèle quand il change de couche (verticalité).
 void AWOTOLDemoUnit::BuildSelectionRing()
 {
-	const float R = (GetCapsuleComponent()
-		? GetCapsuleComponent()->GetScaledCapsuleRadius() : 40.f) * 1.7f;
+	const float R = GetCapsuleComponent()
+		? GetCapsuleComponent()->GetScaledCapsuleRadius() : 40.f;
 	const float HalfH = GetCapsuleComponent()
 		? GetCapsuleComponent()->GetScaledCapsuleHalfHeight() : 90.f;
-	const float FeetZ = -HalfH + 6.f; // juste au-dessus du sol
 
-	// Couleur de faction poussée LÉGÈREMENT au-dessus du seuil de bloom (>1.2) -> léger halo.
+	// Sphère de base = rayon 50 uu. On l'agrandit pour englober le corps (un peu plus large
+	// que la capsule, hauteur ~ la silhouette), légèrement aplatie -> aura ovoïde douce.
+	const float SphereBase = 50.f;
+	const float HaloR  = FMath::Max(R * 2.1f, HalfH * 0.9f);
+	const float HaloRZ = HalfH * 1.15f;
+
+	// Couleur de faction, émissif DOUX (le bloom global est déjà bas) + opacité faible.
 	const FLinearColor Fac = FFactionColors::Get(GetFaction());
 	const float MaxC = FMath::Max3(Fac.R, Fac.G, Fac.B);
-	const float Boost = (MaxC > KINDA_SMALL_NUMBER) ? (1.25f / MaxC) : 1.f;
-	const FLinearColor RingCol(Fac.R * Boost, Fac.G * Boost, Fac.B * Boost, 1.f);
+	const float Boost = (MaxC > KINDA_SMALL_NUMBER) ? (1.10f / MaxC) : 1.f;
+	const FLinearColor HaloCol(Fac.R * Boost, Fac.G * Boost, Fac.B * Boost, 1.f);
 
-	const int32 N = 24;
-	for (int32 i = 0; i < N; ++i)
+	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
+	if (!C) return;
+	C->SetupAttachment(VisualRoot ? VisualRoot.Get() : RootComponent.Get());
+	C->RegisterComponent();
+	C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	C->SetCastShadow(false);
+	if (UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere")))
 	{
-		const float A = 2.f * PI * i / N;
-		UStaticMeshComponent* C = AddPart(
-			TEXT("/Engine/BasicShapes/Sphere.Sphere"),
-			FVector(FMath::Cos(A) * R, FMath::Sin(A) * R, FeetZ),
-			FVector(0.14f, 0.14f, 0.05f), // petites billes aplaties -> lit comme un fin anneau
-			FRotator::ZeroRotator, RingCol);
-		if (C)
-		{
-			C->SetVisibility(false); // masqué tant que non sélectionné
-			SelectionRingParts.Add(C);
-		}
+		C->SetStaticMesh(M);
 	}
+	C->SetRelativeLocation(FVector::ZeroVector);
+	C->SetRelativeScale3D(FVector(HaloR / SphereBase, HaloR / SphereBase, HaloRZ / SphereBase));
+	if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeHalo(this, HaloCol, 0.22f))
+	{
+		C->SetMaterial(0, MID);
+	}
+	C->SetVisibility(false); // masqué tant que non sélectionné
+	SelectionRingParts.Add(C);
 }
 
 AUnitBase* AWOTOLDemoUnit::FindNearestEnemyUnit() const

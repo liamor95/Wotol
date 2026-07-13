@@ -7,6 +7,19 @@
 #include "Components/InputComponent.h"
 #include "InputCoreTypes.h"
 #include "Gameplay/Units/UnitBase.h"
+#include "Components/SceneComponent.h"
+
+// Position VISUELLE d'une unité (le MODÈLE 3D peut être remonté en couche haute alors que
+// l'acteur/capsule reste au sol) -> la caméra doit viser le modèle, pas le sol sous lui.
+static FVector UnitVisualLocation(const AUnitBase* U)
+{
+	if (!U) return FVector::ZeroVector;
+	if (const USceneComponent* A = U->GetFloatingTextAnchor())
+	{
+		return A->GetComponentLocation();
+	}
+	return U->GetActorLocation();
+}
 
 AWOTOLBattleCamera::AWOTOLBattleCamera()
 {
@@ -278,7 +291,7 @@ void AWOTOLBattleCamera::FollowGroup(const TArray<AUnitBase*>& Units, float ArmL
 	{
 		if (!U || !U->IsAlive()) continue;
 		FollowUnits.Add(U);
-		Centroid += U->GetActorLocation();
+		Centroid += UnitVisualLocation(U);
 		++N;
 	}
 	if (N == 0) { bFollowing = false; return; }
@@ -308,7 +321,7 @@ void AWOTOLBattleCamera::TickFollow(float DT)
 	{
 		AUnitBase* U = W.Get();
 		if (!U || !U->IsAlive()) continue;
-		Centroid += U->GetActorLocation();
+		Centroid += UnitVisualLocation(U);
 		++N;
 	}
 	if (N == 0) { StopFollow(); return; } // tout le groupe est mort -> fin du suivi
