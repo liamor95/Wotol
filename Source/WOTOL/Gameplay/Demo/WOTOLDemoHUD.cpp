@@ -579,9 +579,21 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 	DrawGlowTitle(FString::Printf(TEXT("— %s —"), *Title), H * 0.06f, 2.8f, TitleCol);
 	const int32 Dur = FMath::RoundToInt(Demo->SummaryDurationSeconds);
 	const FString Sub = FString::Printf(TEXT("Resume de la bataille  —  duree : %d min %02d s"), Dur / 60, Dur % 60);
-	// Écrit en NOIR : ce sous-titre est dessiné SUR le disque clair du fond -> en clair il
-	// etait invisible. Noir = lisible (durée de bataille enfin visible).
-	DrawCenteredText(Sub, H * 0.17f, FLinearColor(0.02f, 0.03f, 0.08f, 1.f), 1.25f);
+	// NOIR GRAS, SANS ombre : dessiné sur le disque clair -> lisible. (L'ombre de DrawCenteredText
+	// rendait le noir sur noir illisible : on dessine donc en direct, plusieurs passes noires
+	// legerement decalees = effet GRAS, aucune ombre coloree.)
+	if (Canvas)
+	{
+		UFont* SF = GEngine ? GEngine->GetLargeFont() : nullptr;
+		float STW = 0.f, STH = 0.f; GetTextSize(Sub, STW, STH, SF, 1.4f);
+		const float SX = (Canvas->SizeX - STW) * 0.5f, SY = H * 0.16f;
+		const FLinearColor Blk(0.f, 0.f, 0.f, 1.f);
+		DrawText(Sub, Blk, SX - 1.f, SY, SF, 1.4f);
+		DrawText(Sub, Blk, SX + 1.f, SY, SF, 1.4f);
+		DrawText(Sub, Blk, SX, SY - 1.f, SF, 1.4f);
+		DrawText(Sub, Blk, SX, SY + 1.f, SF, 1.4f);
+		DrawText(Sub, Blk, SX, SY, SF, 1.4f);
+	}
 
 	// Deux colonnes : pertes de TON armée (gauche) / pertes de l'ennemi (droite).
 	// Hauteur bornée AU-DESSUS des boutons + interligne DYNAMIQUE -> tout tient, rien ne

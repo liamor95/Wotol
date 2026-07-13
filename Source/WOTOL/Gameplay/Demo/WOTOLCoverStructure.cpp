@@ -46,23 +46,35 @@ void AWOTOLCoverStructure::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (bFalling) { if (ScanSlice) ScanSlice->SetVisibility(false); TickFall(DeltaSeconds); return; }
+	if (bFalling) { TickFall(DeltaSeconds); return; }
 	if (bDestroyed || !HealthTag) return;
 
-	// HALO DE BALAYAGE : cycle ~4.5 s -> monte de la base au sommet en ~1.4 s, puis disparaît.
-	if (ScanSlice)
+	// VAGUE DE LUMIÈRE À TRAVERS LE MODÈLE : cycle ~4.5 s. Pendant ~1.4 s une onde monte de la
+	// base au sommet ; toute pièce dont la hauteur est proche de l'onde s'illumine (émissif +
+	// bloom, intensité selon la proximité), puis revient en pierre -> la lumière ÉPOUSE la
+	// forme du modèle (comme le cristal du Cristalliseur), pas un carré.
+	ScanTimer += DeltaSeconds;
+	const float Cycle = FMath::Fmod(ScanTimer, 4.5f);
+	const bool  bSweep = (Cycle < 1.4f);
+	const float SweepZ = bSweep ? (Cycle / 1.4f) * ScanTop : -100000.f;
+	const float Band   = FMath::Max(120.f, ScanTop * 0.22f);
+	for (int32 i = 0; i < Parts.Num(); ++i)
 	{
-		ScanTimer += DeltaSeconds;
-		const float Cycle = FMath::Fmod(ScanTimer, 4.5f);
-		if (Cycle < 1.4f)
+		UStaticMeshComponent* C = Parts[i];
+		if (!C || i >= PartPulseMID.Num()) continue;
+		const float Dist = FMath::Abs(PartZ[i] - SweepZ);
+		if (bSweep && Dist < Band)
 		{
-			const float t = Cycle / 1.4f;
-			ScanSlice->SetVisibility(true);
-			ScanSlice->SetRelativeLocation(FVector(0.f, 0.f, 20.f + t * ScanTop));
+			const float Inten = 1.f - Dist / Band;                 // 0 (bord) -> 1 (centre de l'onde)
+			if (PartPulseMID[i])
+				PartPulseMID[i]->SetVectorParameterValue(TEXT("Color"),
+					FLinearColor(0.5f + 1.4f * Inten, 1.6f + 1.2f * Inten, 2.2f + 1.0f * Inten, 1.f));
+			if (!PartGlowing[i]) { C->SetMaterial(0, PartPulseMID[i]); PartGlowing[i] = 1; }
 		}
-		else
+		else if (PartGlowing[i])
 		{
-			ScanSlice->SetVisibility(false);
+			if (PartRestMID[i]) C->SetMaterial(0, PartRestMID[i]); // retour pierre
+			PartGlowing[i] = 0;
 		}
 	}
 
@@ -205,22 +217,18 @@ void AWOTOLCoverStructure::BuildVisual()
 	PillarLen = TopZ;
 	ScanTop   = TopZ;
 
-	// HALO DE BALAYAGE (feedback d'interaction) : une fine tranche lumineuse qui monte à
-	// travers le modèle, par intermittence. Emissif (unlit) -> brille dans la pénombre.
-	ScanSlice = NewObject<UStaticMeshComponent>(this);
-	if (ScanSlice)
+	// FEEDBACK : pour CHAQUE pièce du modèle, on garde son matériau NORMAL (pierre) + on prépare
+	// un matériau ÉMISSIF (bloom) de la même pièce. La vague de lumière (Tick) fait BASCULER une
+	// pièce sur son émissif quand l'onde la traverse -> le MODÈLE s'illumine dans sa forme.
+	PartRestMID.Reset(); PartPulseMID.Reset(); PartZ.Reset(); PartGlowing.Reset();
+	for (UStaticMeshComponent* C : Parts)
 	{
-		ScanSlice->SetupAttachment(SceneRoot);
-		ScanSlice->RegisterComponent();
-		ScanSlice->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		ScanSlice->SetCanEverAffectNavigation(false);
-		if (UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, M_CUBE)) ScanSlice->SetStaticMesh(M);
-		// Large et TRÈS plate -> traverse le modèle comme un plan de scan.
-		ScanSlice->SetRelativeScale3D(FVector(5.2f, 5.2f, 0.05f));
-		ScanSlice->SetRelativeLocation(FVector(0.f, 0.f, 20.f));
-		if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeGlow(this, FLinearColor(0.35f, 1.5f, 2.1f, 1.f)))
-			ScanSlice->SetMaterial(0, MID);
-		ScanSlice->SetVisibility(false);
+		UMaterialInstanceDynamic* Rest = C ? Cast<UMaterialInstanceDynamic>(C->GetMaterial(0)) : nullptr;
+		UMaterialInstanceDynamic* Pulse = WOTOLGlow::MakeGlow(this, FLinearColor(0.5f, 1.6f, 2.2f, 1.f)); // cyan lumineux
+		PartRestMID.Add(Rest);
+		PartPulseMID.Add(Pulse);
+		PartZ.Add(C ? C->GetRelativeLocation().Z : 0.f);
+		PartGlowing.Add(0);
 	}
 }
 

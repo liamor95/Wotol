@@ -60,11 +60,16 @@ protected:
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> Parts;
 	UPROPERTY() TObjectPtr<UTextRenderComponent> HealthTag; // PV (visible si endommagé)
 
-	// FEEDBACK D'INTERACTION : un halo lumineux qui BALAIE le modèle de bas en haut, par
-	// intermittence -> signale au joueur qu'on peut interagir (détruire) cette structure.
-	UPROPERTY() TObjectPtr<UStaticMeshComponent> ScanSlice;
+	// FEEDBACK D'INTERACTION : une VAGUE DE LUMIÈRE qui monte de bas en haut À TRAVERS le
+	// MODÈLE lui-même (les pièces s'illuminent en émissif + bloom quand l'onde les traverse,
+	// puis reviennent en pierre) -> exactement comme la lumière qui jaillit du cristal. Pas de
+	// carré plat.
+	UPROPERTY() TArray<TObjectPtr<UMaterialInstanceDynamic>> PartRestMID;  // matériau normal (pierre)
+	UPROPERTY() TArray<TObjectPtr<UMaterialInstanceDynamic>> PartPulseMID; // matériau émissif (onde)
+	TArray<float>  PartZ;        // hauteur (Z relatif) de chaque pièce
+	TArray<uint8>  PartGlowing;  // pièce actuellement illuminée ?
 	float ScanTimer = 0.f;
-	float ScanTop   = 700.f; // hauteur balayée
+	float ScanTop   = 700.f;     // hauteur balayée
 
 	bool  bDestroyed = false;
 	float DebrisRadius = 380.f;
