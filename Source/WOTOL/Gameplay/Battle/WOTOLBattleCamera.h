@@ -36,7 +36,8 @@ public:
 	FVector BoundsMin = FVector(-8000.f, -8000.f, -14000.f); // Hadal = -12000 UE units
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Bounds")
-	FVector BoundsMax = FVector(8000.f, 8000.f, 500.f);      // Épipélagique + marge
+	FVector BoundsMax = FVector(8000.f, 8000.f, 3400.f);    // assez haut pour SUIVRE une unité
+	                                                        // montée jusqu'à la couche max (~2400)
 
 	// ─── Vitesses ─────────────────────────────────────────────────────────────
 

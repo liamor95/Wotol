@@ -1375,9 +1375,9 @@ bool AWOTOLDemoUnit::Ability_LaserBig()
 	{
 		const FVector To = Cov->GetActorLocation() + FVector(0, 0, 100.f);
 		const FRotator Aim = (To - From).Rotation();
-		// Rayon FIXE vers la structure (elle ne bouge pas) — réglages visuels du Noxar.
+		// Rayon FIXE vers la structure (elle ne bouge pas) — gros souffle du mythique.
 		AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (To - From).Size() + 100.f),
-			Beam, this, 0.f, Aim.Pitch, /*Thickness=*/1.6f, /*bBubbleTrail=*/true, /*LifeTime=*/1.4f);
+			Beam, this, 0.f, Aim.Pitch, /*Thickness=*/4.0f, /*bBubbleTrail=*/true, /*LifeTime=*/1.6f);
 		Cov->TakeCoverDamage(Dmg * 1.6f, this); // effondre la structure
 		AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 150.f), TEXT("Souffle d'Extinction"), Beam);
 		NoxedrakeCharge = 1.f; AttackAnimTimer = 0.6f;
@@ -1394,7 +1394,7 @@ bool AWOTOLDemoUnit::Ability_LaserBig()
 	// couche pendant le souffle, le rayon reste accroché à sa gueule (SetFollow) au lieu de
 	// rester figé au sol. Un peu plus épais/long que le Noxar (c'est un mythique).
 	if (AWOTOLBeam* B = AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (To - From).Size() + 120.f),
-			Beam, this, 0.f, Aim.Pitch, /*Thickness=*/1.6f, /*bBubbleTrail=*/true, /*LifeTime=*/1.4f))
+			Beam, this, 0.f, Aim.Pitch, /*Thickness=*/4.0f, /*bBubbleTrail=*/true, /*LifeTime=*/1.6f))
 	{
 		B->SetFollow(this, Foe, BExt.X * 0.85f, BExt.Z * 0.35f);
 	}
