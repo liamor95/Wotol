@@ -1467,7 +1467,13 @@ void AWOTOLDemoUnit::TickNoxeonZone(float /*Dt*/)
 		if (!U || !U->IsAlive()) continue;
 		if (FVector::DistSquared(C, U->GetActorLocation()) > R2) continue;
 		U->AuraDamageMult = FMath::Max(U->AuraDamageMult, 1.12f); // +12% dégâts dans la zone
-		if (AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U)) D->AuraCooldownRate = FMath::Max(D->AuraCooldownRate, 1.15f);
+		if (AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U))
+		{
+			D->AuraCooldownRate = FMath::Max(D->AuraCooldownRate, 1.15f);
+			// ANCRAGE ABYSSAL : régénération continue des Noxéens dans la zone (~1,2 %/s du
+			// max effectif -> 0,6 % par tick de 0,5 s). Fait durer et récompense l'ancrage.
+			D->HealEffective(D->GetEffectiveMaxHealth() * 0.006f);
+		}
 	}
 }
 
@@ -1561,9 +1567,18 @@ bool AWOTOLDemoUnit::Ability_ShadowStrike()
 	return true;
 }
 
+// SOIN respectant le MAX EFFECTIF (mise à l'échelle incluse).
+void AWOTOLDemoUnit::HealEffective(float Amount)
+{
+	if (!IsAlive() || Amount <= 0.f) return;
+	const float MaxHP = static_cast<float>(GetEffectiveMaxHealth());
+	CurrentHealth = FMath::Min(CurrentHealth + Amount, MaxHP);
+}
+
 // ══════════ LÉVIAPHÉNIX (mythique — réserve phase 3) ══════════
 // AURA passive (Résonance Technologique) : amplifie les alliés proches — +dégâts, +défense
-// (moins de dégâts subis), recharges accélérées. Rafraîchie tant qu'ils restent à portée.
+// (moins de dégâts subis), recharges accélérées, ET RÉGÉNÈRE lentement leurs PV (Rayonnement
+// Vital). Rafraîchie tant qu'ils restent à portée. Appelée toutes les 0,5 s.
 void AWOTOLDemoUnit::TickAura(float /*Dt*/)
 {
 	UWorld* W = GetWorld(); if (!W) return;
@@ -1579,7 +1594,13 @@ void AWOTOLDemoUnit::TickAura(float /*Dt*/)
 		// de la marge pour ne pas trivialiser la partie (pas de +70% qui la finit en 2 s).
 		U->AuraDamageMult  = FMath::Max(U->AuraDamageMult, 1.10f);   // +10% dégâts
 		U->AuraDefenseMult = FMath::Min(U->AuraDefenseMult, 0.92f);  // -8% dégâts subis
-		if (AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U)) D->AuraCooldownRate = FMath::Max(D->AuraCooldownRate, 1.20f); // recharges +20%
+		if (AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U))
+		{
+			D->AuraCooldownRate = FMath::Max(D->AuraCooldownRate, 1.20f); // recharges +20%
+			// RÉGÉNÉRATION (Rayonnement Vital) : ~1,5 %/s du MAX effectif -> 0,75 % par tick
+			// (0,5 s). Fait DURER les batailles sans les rendre inperdables (soin lent).
+			D->HealEffective(D->GetEffectiveMaxHealth() * 0.0075f);
+		}
 	}
 }
 
@@ -1596,7 +1617,9 @@ bool AWOTOLDemoUnit::Ability_Resonance()
 	{
 		if (!U || !U->IsAlive()) continue;
 		if (FVector::DistSquared(C, U->GetActorLocation()) > R2) continue;
-		U->TakeDamageFromUnit(-120.f, this);                       // soin (valeur négative)
+		// SOIN de pulse (Rayonnement Vital) : gros soin ponctuel, borné au max effectif.
+		if (AWOTOLDemoUnit* Dh = Cast<AWOTOLDemoUnit>(U)) Dh->HealEffective(Dh->GetEffectiveMaxHealth() * 0.14f);
+		else U->TakeDamageFromUnit(-120.f, this);
 		// Buff temporaire renforcé mais RAISONNABLE (cumul-aware) : le gros cooldown (20 s)
 		// évite l'empilement permanent -> pic ponctuel, pas un +X% constant.
 		U->AuraDamageMult  = FMath::Max(U->AuraDamageMult, 1.25f);

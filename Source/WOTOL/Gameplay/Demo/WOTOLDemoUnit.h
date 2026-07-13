@@ -419,6 +419,12 @@ private:
 	// Cible coordonnée « esprit de ruche » (ennemi affaibli/proche du front à concentrer).
 	class AUnitBase* FindHiveTargetEnemy() const;
 
+	// SOIN sûr : rend des PV en respectant le MAX EFFECTIF (avec HealthScale/équilibrage) ->
+	// contrairement au soin par dégâts négatifs qui plafonne au MaxHealth de base (et pouvait
+	// « soigner » en négatif = blesser une unité mise à l'échelle). Utilisé par les capacités
+	// de soin (Léviaphénix Rayonnement Vital, Noxéons Ancrage Abyssal).
+	void HealEffective(float Amount);
+
 	// Cible de décor imposée par le joueur (attaquer une ruine/pilier jusqu'à destruction).
 	TWeakObjectPtr<class AWOTOLCoverStructure> TargetCover;
 	void TickAttackCover(float DeltaSeconds);
