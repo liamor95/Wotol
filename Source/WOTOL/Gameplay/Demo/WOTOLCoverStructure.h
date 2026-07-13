@@ -64,14 +64,19 @@ protected:
 	float DebrisRadius = 380.f;
 	float DebrisDamage = 190.f;
 
-	// ── Chute animée ──
+	// ── Effondrement en FRAGMENTS (chaque morceau vole dans SA direction et retombe à SON
+	// endroit -> plusieurs points de chute, pas un seul bloc). ──
 	bool    bFalling = false;
 	float   FallElapsed = 0.f;
-	float   FallDuration = 1.1f;
-	FVector FallDir = FVector(1.f, 0.f, 0.f); // direction de bascule (horizontale)
-	float   PillarLen = 700.f;                // hauteur ~ (longueur qui balaie le sol)
-	TArray<TWeakObjectPtr<class AUnitBase>> AlreadyHit; // évite de blesser 2x pendant la chute
+	float   FallDuration = 3.0f;              // durée max avant de figer les gravats
+	FVector FallDir = FVector(1.f, 0.f, 0.f); // biais d'éjection (sens du tir)
+	float   PillarLen = 700.f;                // hauteur (position du texte / burst haut)
+	// État physique par morceau (parallèle à Parts).
+	TArray<FVector> PartVel;
+	TArray<FVector> PartAngAxis;
+	TArray<float>   PartAngSpeed;
+	TArray<uint8>   PartLanded;
 
-	FVector LastFireDir = FVector::ZeroVector; // direction du dernier tir reçu (sens de chute)
+	FVector LastFireDir = FVector::ZeroVector; // direction du dernier tir reçu (sens d'éjection)
 	bool    bHasFireDir = false;
 };

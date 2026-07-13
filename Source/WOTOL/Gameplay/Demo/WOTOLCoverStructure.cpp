@@ -31,6 +31,13 @@ AWOTOLCoverStructure::AWOTOLCoverStructure()
 void AWOTOLCoverStructure::BeginPlay()
 {
 	Super::BeginPlay();
+	// TOUT est destructible desormais : les anciennes structures "indestructibles" deviennent
+	// juste TRES resistantes (reperes solides), mais on peut FINIR par les abattre.
+	if (bIndestructible)
+	{
+		bIndestructible = false;
+		MaxHealth = FMath::Max(MaxHealth, 2600.f);
+	}
 	CurrentHealth = MaxHealth;
 	BuildVisual();
 }
@@ -42,19 +49,10 @@ void AWOTOLCoverStructure::Tick(float DeltaSeconds)
 	if (bFalling) { TickFall(DeltaSeconds); return; }
 	if (bDestroyed || !HealthTag) return;
 
-	// Étiquette TOUJOURS visible sur TOUTE structure : PV pour une ruine destructible,
-	// libellé "Indestructible" pour l'autre (cohérence : chaque élément a son étiquette).
+	// Étiquette PV TOUJOURS visible : toute structure est destructible.
 	HealthTag->SetVisibility(true);
-	if (bIndestructible)
-	{
-		HealthTag->SetText(FText::FromString(TEXT("Indestructible")));
-		HealthTag->SetTextRenderColor(FColor(150, 200, 230, 255)); // cyan froid : inaltérable
-	}
-	else
-	{
-		HealthTag->SetText(FText::FromString(FString::Printf(TEXT("Ruine  %d / %d"),
-			FMath::RoundToInt(CurrentHealth), FMath::RoundToInt(MaxHealth))));
-	}
+	HealthTag->SetText(FText::FromString(FString::Printf(TEXT("Ruine  %d / %d"),
+		FMath::RoundToInt(CurrentHealth), FMath::RoundToInt(MaxHealth))));
 	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
 		if (PC->PlayerCameraManager)
 		{
@@ -109,61 +107,85 @@ void AWOTOLCoverStructure::BuildVisual()
 		if (UStaticMeshComponent* C = AddCoverPiece(this, SceneRoot, Mesh, L, S, R, Col)) Parts.Add(C);
 	};
 
-	if (Variant == 1) // pan de mur en ruine
+	// Ruines d'une CITÉ ENGLOUTIE (réf. images) : temples anguleux effondrés, arches/anneaux
+	// de pierre, grands escaliers, colonnades, dalles pyramidales inclinées. HAUTES (la chute
+	// se voit) et bâties en MORCEAUX distincts (chaque bloc se détache à la destruction).
+	if (Variant == 1) // MUR DE TEMPLE À CORNICHE (pan de mur haut + pilastres + corniche)
 	{
-		Add(M_CUBE, FVector(0, 0, 140), FVector(0.6f, 4.5f, 3.0f), FRotator::ZeroRotator, Stone);
-		Add(M_CUBE, FVector(0, -160, 360), FVector(0.6f, 1.6f, 1.4f), FRotator(0, 0, 8.f), Stone); // créneau
-		Add(M_CUBE, FVector(0, 40, 40), FVector(0.9f, 5.2f, 0.6f), FRotator::ZeroRotator, Dark);   // socle
-		Add(M_CONE, FVector(0, 90, 300), FVector(0.15f, 0.15f, 1.2f), FRotator(0, 0, 0), Glow);    // conduit lumineux
+		Add(M_CUBE, FVector(0, 0, 40),  FVector(1.3f, 6.0f, 0.5f), FRotator::ZeroRotator, Dark);   // socle
+		Add(M_CUBE, FVector(0, 0, 330), FVector(0.6f, 5.4f, 5.4f), FRotator::ZeroRotator, Stone);  // grand mur
+		Add(M_CUBE, FVector(0, -230, 320), FVector(0.9f, 0.8f, 5.2f), FRotator::ZeroRotator, Dark); // pilastre G
+		Add(M_CUBE, FVector(0,  230, 320), FVector(0.9f, 0.8f, 5.2f), FRotator::ZeroRotator, Dark); // pilastre D
+		Add(M_CUBE, FVector(0, 0, 610), FVector(1.2f, 6.2f, 0.7f), FRotator(0, 0, 3.f), Stone);     // corniche
+		Add(M_CUBE, FVector(0, 190, 690), FVector(0.7f, 1.4f, 1.0f), FRotator(0, 0, 10.f), Stone);  // bloc de faîte brisé
+		Add(M_CONE, FVector(60, -120, 470), FVector(0.14f, 0.14f, 1.2f), FRotator::ZeroRotator, Glow);
 	}
-	else if (Variant == 2) // arche brisée
+	else if (Variant == 2) // ANNEAU / ARCHE DE PIERRE (portail rond en voussoirs, réf. images)
 	{
-		Add(M_CYL, FVector(0, -160, 220), FVector(0.5f, 0.5f, 4.4f), FRotator::ZeroRotator, Stone);
-		Add(M_CYL, FVector(0,  160, 160), FVector(0.5f, 0.5f, 3.2f), FRotator::ZeroRotator, Stone);
-		Add(M_CUBE, FVector(0, -20, 440), FVector(0.5f, 2.4f, 0.5f), FRotator(0, 0, 12.f), Stone);  // linteau penché
-		Add(M_CONE, FVector(0, -160, 470), FVector(0.3f, 0.3f, 0.8f), FRotator::ZeroRotator, Glow);
-	}
-	else if (Variant == 3) // FRAGMENT DE BÂTIMENT : coin de mur avec une OUVERTURE (porte/fenêtre)
-	{
-		Add(M_CUBE, FVector(0, -190, 200), FVector(0.6f, 1.2f, 4.0f), FRotator::ZeroRotator, Stone); // montant gauche
-		Add(M_CUBE, FVector(0,  190, 200), FVector(0.6f, 1.2f, 4.0f), FRotator::ZeroRotator, Stone); // montant droit
-		Add(M_CUBE, FVector(0, 0, 430), FVector(0.6f, 2.7f, 0.7f), FRotator::ZeroRotator, Stone);    // linteau au-dessus de l'ouverture
-		Add(M_CUBE, FVector(170, -320, 170), FVector(2.6f, 0.6f, 3.4f), FRotator::ZeroRotator, Stone); // mur de retour (le coin du bâtiment)
-		Add(M_CUBE, FVector(0, 0, 30), FVector(1.1f, 3.8f, 0.5f), FRotator::ZeroRotator, Dark);       // socle
-		Add(M_CONE, FVector(0, 300, 360), FVector(0.15f, 0.15f, 1.0f), FRotator::ZeroRotator, Glow);  // conduit lumineux
-	}
-	else if (Variant == 4) // TAS DE BLOCS EFFONDRÉS (décombres bas, irréguliers)
-	{
-		FRandomStream Rb(991);
-		for (int32 i = 0; i < 7; ++i)
+		Add(M_CUBE, FVector(0, 0, 30), FVector(1.4f, 4.6f, 0.5f), FRotator::ZeroRotator, Dark);     // dallage
+		Add(M_CUBE, FVector(0, -300, 220), FVector(0.9f, 0.9f, 4.4f), FRotator::ZeroRotator, Stone); // pied G
+		Add(M_CUBE, FVector(0,  300, 220), FVector(0.9f, 0.9f, 4.4f), FRotator::ZeroRotator, Stone); // pied D
+		// Demi-cercle de voussoirs (blocs le long d'un arc, plan Y-Z).
+		const int32 N = 7; const float Rad = 330.f; const float Cz = 440.f;
+		for (int32 i = 0; i < N; ++i)
 		{
-			const float s = Rb.FRandRange(0.8f, 1.8f);
-			Add(M_CUBE, FVector(Rb.FRandRange(-170.f, 170.f), Rb.FRandRange(-170.f, 170.f), s * 42.f),
-				FVector(s, s, s * 0.7f),
-				FRotator(Rb.FRandRange(0.f, 40.f), Rb.FRandRange(0.f, 360.f), Rb.FRandRange(0.f, 40.f)),
-				(Rb.FRand() < 0.5f) ? Stone : Dark);
+			const float a = PI * (0.10f + 0.80f * i / (N - 1)); // ~18°..162°
+			const FVector L(0.f, -FMath::Cos(a) * Rad, Cz + FMath::Sin(a) * Rad);
+			Add(M_CUBE, L, FVector(0.9f, 0.95f, 0.95f),
+				FRotator(0.f, 0.f, FMath::RadiansToDegrees(a) - 90.f), (i % 2) ? Stone : Dark);
 		}
-		Add(M_CONE, FVector(0, 0, 130), FVector(0.2f, 0.2f, 0.7f), FRotator::ZeroRotator, Glow);
+		Add(M_CONE, FVector(0, 0, Cz + Rad + 40.f), FVector(0.2f, 0.2f, 0.7f), FRotator::ZeroRotator, Glow);
 	}
-	else if (Variant == 5) // DALLE / MONOLITHE PENCHÉ + bloc tombé à côté
+	else if (Variant == 3) // TEMPLE À TOIT EN BÂTIÈRE EFFONDRÉ (grande halle engloutie, penchée)
 	{
-		Add(M_CUBE, FVector(0, 0, 230), FVector(0.7f, 2.6f, 4.8f), FRotator(0, 0, 22.f), Stone); // grande dalle inclinée
-		Add(M_CUBE, FVector(70, 0, 40), FVector(1.5f, 3.0f, 0.5f), FRotator::ZeroRotator, Dark); // socle
-		Add(M_CUBE, FVector(-140, 90, 70), FVector(0.9f, 0.9f, 0.9f), FRotator(10.f, 30.f, 10.f), Stone); // bloc tombé
-		Add(M_CONE, FVector(-30, 0, 500), FVector(0.2f, 0.2f, 1.0f), FRotator(22.f, 0, 0), Glow);
+		Add(M_CUBE, FVector(0, 0, 40),  FVector(4.6f, 5.4f, 0.6f), FRotator::ZeroRotator, Dark);     // plateforme
+		Add(M_CUBE, FVector(-140, -260, 260), FVector(3.2f, 0.7f, 4.2f), FRotator::ZeroRotator, Stone); // mur latéral G
+		Add(M_CUBE, FVector(-140,  260, 260), FVector(3.2f, 0.7f, 4.2f), FRotator::ZeroRotator, Stone); // mur latéral D
+		Add(M_CUBE, FVector(-360, 0, 300), FVector(0.7f, 4.4f, 4.6f), FRotator::ZeroRotator, Dark);   // mur du fond (porte sombre)
+		// Toit en bâtière (deux pans inclinés) qui s'effondre vers l'avant -> penché.
+		Add(M_CUBE, FVector(-40, -170, 560), FVector(3.6f, 2.0f, 0.5f), FRotator(0, 6.f, 42.f), Stone); // pan G
+		Add(M_CUBE, FVector(-40,  170, 560), FVector(3.6f, 2.0f, 0.5f), FRotator(0, 6.f, -42.f), Stone);// pan D
+		Add(M_CUBE, FVector(260, 0, 120), FVector(1.2f, 3.0f, 0.6f), FRotator(0, 0, 4.f), Dark);      // marches basses devant
+		Add(M_CONE, FVector(-140, 0, 360), FVector(0.2f, 0.2f, 1.1f), FRotator::ZeroRotator, Glow);   // lueur interne
 	}
-	else // grand pilier (défaut)
+	else if (Variant == 4) // GRAND ESCALIER + PLATEFORME (montée cérémonielle brisée)
 	{
-		Add(M_CYL, FVector(0, 0, 40), FVector(2.4f, 2.4f, 0.4f), FRotator::ZeroRotator, Dark);      // base large
-		Add(M_CYL, FVector(0, 0, 300), FVector(1.5f, 1.5f, 5.2f), FRotator::ZeroRotator, Stone);    // fût
-		Add(M_CUBE, FVector(0, 0, 560), FVector(1.9f, 1.9f, 0.5f), FRotator(0, 45.f, 6.f), Stone);  // chapiteau brisé
-		Add(M_CONE, FVector(20, 0, 640), FVector(0.5f, 0.5f, 1.6f), FRotator(14.f, 0, 0), Glow);    // cristal au sommet
+		for (int32 i = 0; i < 6; ++i) // volée de marches
+			Add(M_CUBE, FVector(-i * 90.f, 0, 40 + i * 70.f), FVector(0.9f, 4.4f, 0.7f), FRotator::ZeroRotator, (i % 2) ? Stone : Dark);
+		Add(M_CUBE, FVector(-620, 0, 470), FVector(3.0f, 4.6f, 0.7f), FRotator::ZeroRotator, Stone);  // plateforme haute
+		Add(M_CYL,  FVector(-620, -150, 720), FVector(0.7f, 0.7f, 3.2f), FRotator::ZeroRotator, Stone); // colonne brisée
+		Add(M_CUBE, FVector(-620, 160, 690), FVector(1.0f, 1.0f, 1.0f), FRotator(12.f, 20.f, 8.f), Dark); // bloc tombé
+		Add(M_CONE, FVector(-620, 0, 560), FVector(0.16f, 0.16f, 1.0f), FRotator::ZeroRotator, Glow);
+	}
+	else if (Variant == 5) // DALLE PYRAMIDALE INCLINÉE (haute tour-monolithe penchée, réf. image sombre)
+	{
+		Add(M_CUBE, FVector(0, 0, 40), FVector(2.2f, 2.6f, 0.6f), FRotator::ZeroRotator, Dark);       // socle
+		Add(M_CUBE, FVector(60, 0, 470), FVector(1.1f, 2.2f, 9.0f), FRotator(0, 0, 20.f), Stone);     // grande dalle TRES haute, penchée
+		Add(M_CUBE, FVector(-120, 0, 260), FVector(0.9f, 1.8f, 4.8f), FRotator(0, 0, -8.f), Dark);    // contrefort
+		Add(M_CUBE, FVector(-260, 130, 80), FVector(1.1f, 1.1f, 1.1f), FRotator(10.f, 30.f, 10.f), Stone); // bloc tombé
+		Add(M_CUBE, FVector(-240, -150, 70), FVector(0.9f, 0.9f, 0.9f), FRotator(8.f, 200.f, 6.f), Dark);  // bloc tombé
+		Add(M_CONE, FVector(90, 0, 860), FVector(0.24f, 0.24f, 1.2f), FRotator(20.f, 0, 0), Glow);    // cristal au sommet
+	}
+	else // COLONNADE DE TEMPLE (portique : rangée de colonnes + entablement) — repère majeur
+	{
+		Add(M_CUBE, FVector(0, 0, 40), FVector(2.4f, 7.2f, 0.6f), FRotator::ZeroRotator, Dark);       // stylobate (base)
+		Add(M_CUBE, FVector(0, 0, 120), FVector(2.0f, 6.8f, 0.5f), FRotator::ZeroRotator, Stone);     // gradin
+		const float Ys[4] = { -420.f, -140.f, 140.f, 420.f };
+		for (int32 i = 0; i < 4; ++i) // 4 colonnes (une brisée plus courte)
+		{
+			const float h = (i == 2) ? 3.6f : 6.0f; const float z = 200.f + h * 50.f;
+			Add(M_CYL, FVector(0, Ys[i], z), FVector(0.8f, 0.8f, h), FRotator::ZeroRotator, Stone);
+		}
+		Add(M_CUBE, FVector(0, -140, 730), FVector(1.4f, 6.4f, 0.8f), FRotator(0, 0, 2.f), Stone);    // architrave
+		Add(M_CUBE, FVector(0, 380, 790), FVector(1.0f, 1.6f, 0.9f), FRotator(0, 0, 14.f), Stone);    // fronton brisé
+		Add(M_CONE, FVector(40, 0, 560), FVector(0.18f, 0.18f, 1.4f), FRotator::ZeroRotator, Glow);
 	}
 
-	HealthTag->SetRelativeLocation(FVector(0.f, 0.f, (Variant == 0) ? 760.f : (Variant == 4) ? 260.f : 520.f));
-	// Longueur qui balaiera le sol en tombant (≈ hauteur de la structure).
-	PillarLen = (Variant == 0) ? 780.f : (Variant == 2) ? 560.f
-		: (Variant == 4) ? 300.f : (Variant == 3 || Variant == 5) ? 520.f : 460.f;
+	// Hauteur pour le texte / burst de sommet, selon la silhouette.
+	const float TopZ = (Variant == 5) ? 900.f : (Variant == 0) ? 820.f : (Variant == 2) ? 800.f
+		: (Variant == 4) ? 780.f : 700.f;
+	HealthTag->SetRelativeLocation(FVector(0.f, 0.f, TopZ + 60.f));
+	PillarLen = TopZ;
 }
 
 void AWOTOLCoverStructure::TakeCoverDamage(float Amount, AUnitBase* InstigatorUnit)
@@ -186,16 +208,11 @@ void AWOTOLCoverStructure::Collapse()
 	UWorld* W = GetWorld();
 	const FVector Origin = GetActorLocation();
 
-	// DIRECTION DE CHUTE :
-	//   1) dans le SENS DU TIR qui l'a abattue (elle tombe devant elle, vers les cibles) ;
-	//   2) sinon vers l'unité vivante la plus proche ; 3) sinon aléatoire.
+	// BIAIS D'ÉJECTION (les morceaux partent globalement dans ce sens) : sens du tir, sinon
+	// vers l'ennemi le plus proche, sinon aléatoire.
 	FVector Dir = FVector(FMath::FRandRange(-1.f, 1.f), FMath::FRandRange(-1.f, 1.f), 0.f).GetSafeNormal();
-	if (bHasFireDir)
-	{
-		Dir = LastFireDir;
-	}
+	if (bHasFireDir) Dir = LastFireDir;
 	else if (W)
-	{
 		if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
 		{
 			float Best = TNumericLimits<float>::Max();
@@ -209,68 +226,104 @@ void AWOTOLCoverStructure::Collapse()
 					if (D > 60.f && D < Best) { Best = D; Dir = To.GetSafeNormal(); }
 				}
 		}
-	}
 	FallDir = Dir.IsNearlyZero() ? FVector(1, 0, 0) : Dir;
 
-	// Démarre la BASCULE (animée dans TickFall). La collision est retirée pendant la chute.
-	bFalling = true;
-	FallElapsed = 0.f;
-	AlreadyHit.Reset();
-	for (UStaticMeshComponent* C : Parts)
-		if (C) C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	if (HealthTag) HealthTag->SetVisibility(false);
-
+	// ── DÉGÂTS D'EFFONDREMENT (une fois) : l'édifice s'abat -> zone autour de sa base. ──
 	if (W)
+		if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
+		{
+			const EFactionID Facs[2] = { EFactionID::Aquiloris, EFactionID::Noxeens };
+			for (EFactionID F : Facs)
+				for (AUnitBase* U : Reg->GetUnitsForFaction(F))
+				{
+					if (!U || !U->IsAlive()) continue;
+					FVector To = U->GetActorLocation() - Origin; To.Z = 0.f;
+					if (To.Size() <= DebrisRadius * 1.35f)
+					{
+						U->TakeDamageFromUnit(DebrisDamage, nullptr);
+						U->LaunchCharacter(To.GetSafeNormal() * 620.f + FVector(0, 0, 240.f), true, true);
+						AWOTOLBubbleBurst::Burst(W, U->GetActorLocation() + FVector(0, 0, 40.f),
+							FLinearColor(0.6f, 0.62f, 0.68f, 1.f), 10);
+					}
+				}
+		}
+
+	// ── ÉCLATEMENT EN FRAGMENTS : chaque morceau reçoit SA propre vitesse (dispersion) +
+	// rotation -> ils volent dans des directions differentes et retombent a des endroits
+	// differents (plusieurs points de chute, pas un seul bloc). ──
+	bFalling = true; FallElapsed = 0.f;
+	PartVel.Reset(); PartAngAxis.Reset(); PartAngSpeed.Reset(); PartLanded.Reset();
+	for (UStaticMeshComponent* C : Parts)
+	{
+		if (!C) { PartVel.Add(FVector::ZeroVector); PartAngAxis.Add(FVector::UpVector); PartAngSpeed.Add(0.f); PartLanded.Add(1); continue; }
+		C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		const FVector Rel = C->GetRelativeLocation();
+		FVector Out(Rel.X, Rel.Y, 0.f);                       // vers l'exterieur depuis l'axe
+		if (Out.IsNearlyZero()) Out = FVector(FMath::FRandRange(-1.f, 1.f), FMath::FRandRange(-1.f, 1.f), 0.f);
+		Out = Out.GetSafeNormal();
+		const FVector Jit(FMath::FRandRange(-1.f, 1.f), FMath::FRandRange(-1.f, 1.f), 0.f);
+		FVector HDir = (Out * 0.7f + FallDir * 0.6f + Jit * 0.5f).GetSafeNormal();
+		const float HeightFactor = 1.f + Rel.Z / 700.f;       // les morceaux HAUTS sont projetes plus loin/haut
+		const float HSpeed = FMath::FRandRange(120.f, 300.f) * HeightFactor;
+		const float VSpeed = FMath::FRandRange(160.f, 380.f) + Rel.Z * 0.25f;
+		PartVel.Add(HDir * HSpeed + FVector(0, 0, VSpeed));
+		PartAngAxis.Add(FVector(FMath::FRandRange(-1.f, 1.f), FMath::FRandRange(-1.f, 1.f), FMath::FRandRange(-1.f, 1.f)).GetSafeNormal());
+		PartAngSpeed.Add(FMath::FRandRange(120.f, 340.f));    // deg/s
+		PartLanded.Add(0);
+	}
+
+	if (HealthTag) HealthTag->SetVisibility(false);
+	if (W)
+	{
 		AWOTOLDamageNumber::SpawnText(W, Origin + FVector(0, 0, PillarLen), TEXT("Il s'effondre !"),
 			FLinearColor(0.9f, 0.85f, 0.6f, 1.f));
+		AWOTOLBubbleBurst::Burst(W, Origin + FVector(0, 0, PillarLen * 0.5f), FLinearColor(0.62f, 0.64f, 0.7f, 1.f), 26);
+	}
 }
 
 void AWOTOLCoverStructure::TickFall(float Dt)
 {
 	UWorld* W = GetWorld();
-	if (!W || !SceneRoot) return;
-
+	if (!W) return;
 	FallElapsed += Dt;
-	const float Alpha = FMath::Clamp(FallElapsed / FallDuration, 0.f, 1.f);
-	// Accélération de chute (ease-in) : lent au début, s'abat vite à la fin.
-	const float Eased = Alpha * Alpha;
-	const float Angle = Eased * (PI * 0.5f); // 0 -> 90° (à plat)
 
-	// Bascule autour de la base : axe horizontal perpendiculaire à la direction de chute.
-	const FVector Axis = FVector::CrossProduct(FVector::UpVector, FallDir).GetSafeNormal();
-	SceneRoot->SetWorldRotation(FQuat(Axis, Angle));
+	const float Gravity = 1500.f;
+	const float RestZ   = 22.f;   // hauteur locale de repos des gravats (petit tas au sol)
+	int32 Remaining = 0;
 
-	// La "pointe" (haut du pilier) qui s'abat : position courante = base + haut pivoté.
-	const FVector Origin = GetActorLocation();
-	const FVector Tip = Origin + FQuat(Axis, Angle).RotateVector(FVector(0, 0, PillarLen));
-
-	// Écrase les unités sur le passage de la pointe (une seule fois chacune).
-	if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
+	for (int32 i = 0; i < Parts.Num(); ++i)
 	{
-		const EFactionID Facs[2] = { EFactionID::Aquiloris, EFactionID::Noxeens };
-		for (EFactionID F : Facs)
-			for (AUnitBase* U : Reg->GetUnitsForFaction(F))
-			{
-				if (!U || !U->IsAlive()) continue;
-				if (AlreadyHit.Contains(U)) continue;
-				if (FVector::Dist(U->GetActorLocation(), Tip) <= DebrisRadius)
-				{
-					AlreadyHit.Add(U);
-					U->TakeDamageFromUnit(DebrisDamage, nullptr);
-					U->LaunchCharacter(FallDir * 650.f + FVector(0, 0, 260.f), true, true);
-					AWOTOLBubbleBurst::Burst(W, U->GetActorLocation() + FVector(0, 0, 40.f),
-						FLinearColor(0.6f, 0.62f, 0.68f, 1.f), 10);
-				}
-			}
+		UStaticMeshComponent* C = Parts[i];
+		if (!C || i >= PartVel.Num() || PartLanded[i]) continue;
+
+		PartVel[i].Z -= Gravity * Dt;
+		FVector Rel = C->GetRelativeLocation() + PartVel[i] * Dt;
+
+		// Rotation propre du fragment (culbute).
+		const FQuat Spin(PartAngAxis[i], FMath::DegreesToRadians(PartAngSpeed[i]) * Dt);
+		C->SetRelativeRotation((Spin * C->GetRelativeRotation().Quaternion()).Rotator());
+
+		if (Rel.Z <= RestZ)
+		{
+			Rel.Z = RestZ;
+			C->SetRelativeLocation(Rel);
+			// Aplatit un peu le fragment au sol (gravats).
+			const FVector S = C->GetRelativeScale3D();
+			C->SetRelativeScale3D(FVector(S.X, S.Y, FMath::Max(0.15f, S.Z * 0.5f)));
+			PartLanded[i] = 1;
+			AWOTOLBubbleBurst::Burst(W, C->GetComponentLocation() + FVector(0, 0, 20.f),
+				FLinearColor(0.62f, 0.64f, 0.7f, 1.f), 5);
+		}
+		else
+		{
+			C->SetRelativeLocation(Rel);
+			++Remaining;
+		}
 	}
 
-	if (Alpha >= 1.f)
+	if (Remaining == 0 || FallElapsed >= FallDuration)
 	{
-		// Fin de la chute : gravats au sol (visuel aplati), plus de mise à jour.
 		bFalling = false;
 		bDestroyed = true;
-		AWOTOLBubbleBurst::Burst(W, Tip + FVector(0, 0, 20.f), FLinearColor(0.62f, 0.64f, 0.7f, 1.f), 30);
-		for (UStaticMeshComponent* C : Parts)
-			if (C) { FVector S = C->GetRelativeScale3D(); C->SetRelativeScale3D(FVector(S.X, S.Y, S.Z * 0.4f)); }
 	}
 }
