@@ -303,6 +303,12 @@ private:
 	// voir la zone de pouvoir d'une unité morte -> il ne reste que le corps qui coule).
 	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> AuraRingParts;
 
+	// Anneau de SÉLECTION au sol : contour lumineux LÉGER (couleur de faction) qui
+	// entoure l'unité sélectionnée sans repeindre le modèle -> on distingue toujours
+	// la couleur des unités. Construit à la 1re sélection puis simplement masqué/affiché.
+	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> SelectionRingParts;
+	void BuildSelectionRing();
+
 	// Facteur d'ancrage au sol : 1 = bien planté au sol (couche 0), 0 = en pleine hauteur.
 	// Sert au blocage (meilleur au sol) et au recul (part plus loin en l'air).
 	float GetGroundedFactor() const;

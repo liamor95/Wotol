@@ -511,14 +511,50 @@ void AWOTOLDemoUnit::HandleDeath(AUnitBase* /*Unit*/)
 
 void AWOTOLDemoUnit::HandleSelected(bool bSel)
 {
-	// Sélectionnée = toutes les pièces en blanc lumineux ; sinon couleur de base
-	// propre à chaque pièce (conserve les accents or/violet au désélectionnement).
-	for (int32 i = 0; i < PartMIDs.Num(); ++i)
+	// AVANT : toutes les pièces passaient en BLANC lumineux -> gros bloom qui MASQUAIT la
+	// couleur des unités. MAINTENANT : on ne touche PLUS au modèle (les couleurs restent
+	// parfaitement lisibles) et on affiche un CONTOUR lumineux léger au sol (anneau de
+	// couleur de faction) autour de l'unité sélectionnée -> discret mais net.
+	if (bSel && SelectionRingParts.Num() == 0)
 	{
-		if (!PartMIDs[i]) continue;
-		const FLinearColor C = bSel ? FLinearColor(1.f, 1.f, 1.f, 1.f)
-			: (PartBaseColors.IsValidIndex(i) ? PartBaseColors[i] : FFactionColors::Get(GetFaction()));
-		PartMIDs[i]->SetVectorParameterValue(TEXT("Color"), C);
+		BuildSelectionRing();
+	}
+	for (const TObjectPtr<UStaticMeshComponent>& C : SelectionRingParts)
+	{
+		if (C) C->SetVisibility(bSel);
+	}
+}
+
+// Construit l'anneau de sélection au sol : petit contour lumineux (couleur de faction),
+// juste sous les pieds de l'unité. Discret : émissif modéré, pièces fines.
+void AWOTOLDemoUnit::BuildSelectionRing()
+{
+	const float R = (GetCapsuleComponent()
+		? GetCapsuleComponent()->GetScaledCapsuleRadius() : 40.f) * 1.7f;
+	const float HalfH = GetCapsuleComponent()
+		? GetCapsuleComponent()->GetScaledCapsuleHalfHeight() : 90.f;
+	const float FeetZ = -HalfH + 6.f; // juste au-dessus du sol
+
+	// Couleur de faction poussée LÉGÈREMENT au-dessus du seuil de bloom (>1.2) -> léger halo.
+	const FLinearColor Fac = FFactionColors::Get(GetFaction());
+	const float MaxC = FMath::Max3(Fac.R, Fac.G, Fac.B);
+	const float Boost = (MaxC > KINDA_SMALL_NUMBER) ? (1.45f / MaxC) : 1.f;
+	const FLinearColor RingCol(Fac.R * Boost, Fac.G * Boost, Fac.B * Boost, 1.f);
+
+	const int32 N = 24;
+	for (int32 i = 0; i < N; ++i)
+	{
+		const float A = 2.f * PI * i / N;
+		UStaticMeshComponent* C = AddPart(
+			TEXT("/Engine/BasicShapes/Sphere.Sphere"),
+			FVector(FMath::Cos(A) * R, FMath::Sin(A) * R, FeetZ),
+			FVector(0.14f, 0.14f, 0.05f), // petites billes aplaties -> lit comme un fin anneau
+			FRotator::ZeroRotator, RingCol);
+		if (C)
+		{
+			C->SetVisibility(false); // masqué tant que non sélectionné
+			SelectionRingParts.Add(C);
+		}
 	}
 }
 
