@@ -579,7 +579,9 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 	DrawGlowTitle(FString::Printf(TEXT("— %s —"), *Title), H * 0.06f, 2.8f, TitleCol);
 	const int32 Dur = FMath::RoundToInt(Demo->SummaryDurationSeconds);
 	const FString Sub = FString::Printf(TEXT("Resume de la bataille  —  duree : %d min %02d s"), Dur / 60, Dur % 60);
-	DrawCenteredText(Sub, H * 0.17f, FLinearColor(0.8f, 0.9f, 1.f, 1.f), 1.1f);
+	// Écrit en NOIR : ce sous-titre est dessiné SUR le disque clair du fond -> en clair il
+	// etait invisible. Noir = lisible (durée de bataille enfin visible).
+	DrawCenteredText(Sub, H * 0.17f, FLinearColor(0.02f, 0.03f, 0.08f, 1.f), 1.25f);
 
 	// Deux colonnes : pertes de TON armée (gauche) / pertes de l'ennemi (droite).
 	// Hauteur bornée AU-DESSUS des boutons + interligne DYNAMIQUE -> tout tient, rien ne
@@ -710,11 +712,15 @@ void AWOTOLDemoHUD::DrawInterlude(float W, float H, UDemoFlowSubsystem* Demo)
 		const float StartY = H * 0.17f;
 		const float AvailH = ButtonTop - 24.f - StartY;
 		const float Step   = (Lines.Num() > 1)
-			? FMath::Clamp(AvailH / Lines.Num(), 24.f, 34.f) : 30.f;
+			? FMath::Clamp(AvailH / Lines.Num(), 34.f, 50.f) : 42.f;
 		float Y = StartY;
+		// Texte PLUS GRAND + OMBRE NOIRE derrière + couleur CHAUDE -> bien plus lisible sur le
+		// fond bleu (avant : petit, bleu clair sur bleu = quasi invisible et "triste").
+		const float Sc = 1.35f;
 		for (const FString& Line : Lines)
 		{
-			DrawCenteredText(Line, Y, FLinearColor(0.92f, 0.96f, 1.f, 1.f), 1.0f);
+			DrawCenteredText(Line, Y + 2.f, FLinearColor(0.f, 0.f, 0.f, 0.9f), Sc);        // ombre
+			DrawCenteredText(Line, Y, FLinearColor(1.f, 0.92f, 0.62f, 1.f), Sc);           // texte doré chaud
 			Y += Step;
 		}
 	}

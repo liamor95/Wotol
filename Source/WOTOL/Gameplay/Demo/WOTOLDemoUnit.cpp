@@ -1673,7 +1673,7 @@ float AWOTOLDemoUnit::DifficultyEnemyDamageMult()
 	{
 		case EDemoDifficulty::Facile:    return 0.80f;
 		case EDemoDifficulty::Difficile: return 1.30f;
-		default:                         return 1.00f;
+		default:                         return 0.85f; // Normal : Kraken un peu moins mordant
 	}
 }
 

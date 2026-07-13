@@ -11,6 +11,8 @@
 #include "Gameplay/Demo/WOTOLDemoUnit.h"
 #include "Gameplay/Demo/WOTOLCoverStructure.h"
 #include "Core/WOTOLGameInstance.h"
+#include "Core/FactionRegistrySubsystem.h"
+#include "Components/SceneComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Engine/GameViewportClient.h"
@@ -536,13 +538,41 @@ AUnitBase* AWOTOLPlayerController_Battle::GetUnitUnderCursor() const
 	{
 		if (AUnitBase* U = Cast<AUnitBase>(Hit.GetActor())) return U;
 	}
-	// SECOURS : le Kraken FLOTTE en hauteur (mesh visuel décalé de sa capsule) -> le trace Pawn
-	// pouvait rater son corps -> le clic était traité comme un ordre de déplacement au lieu
-	// d'une attaque. On retente sur la VISIBILITÉ et on accepte toute unité touchée.
 	if (GetHitResultUnderCursorByChannel(
 			UEngineTypes::ConvertToTraceType(ECC_Visibility), true, Hit))
 	{
 		if (AUnitBase* U = Cast<AUnitBase>(Hit.GetActor())) return U;
+	}
+
+	// ── SÉLECTION PAR POSITION VISUELLE (robuste) ──
+	// Les unités en HAUTEUR (ou le Kraken) ont leur capsule au SOL mais leur MODÈLE 3D en l'air
+	// -> les traces physiques ratent le mesh flottant et le clic devenait un ordre de
+	// deplacement. Ici on teste le RAYON de la camera contre le CENTRE VISUEL de chaque unite
+	// -> cliquer sur le modele (meme haut) cible bien l'unite.
+	FVector RayO, RayD;
+	if (const_cast<AWOTOLPlayerController_Battle*>(this)->DeprojectMousePositionToWorld(RayO, RayD))
+	{
+		UWorld* W = GetWorld();
+		UFactionRegistrySubsystem* Reg = W ? W->GetSubsystem<UFactionRegistrySubsystem>() : nullptr;
+		if (Reg)
+		{
+			AUnitBase* Best = nullptr; float BestT = TNumericLimits<float>::Max();
+			const EFactionID Facs[2] = { EFactionID::Aquiloris, EFactionID::Noxeens };
+			for (EFactionID F : Facs)
+				for (AUnitBase* U : Reg->GetUnitsForFaction(F))
+				{
+					if (!U || !U->IsAlive()) continue;
+					USceneComponent* A = U->GetFloatingTextAnchor();
+					const FVector C = A ? A->GetComponentLocation() : U->GetActorLocation();
+					const float T = FVector::DotProduct(C - RayO, RayD);
+					if (T < 0.f) continue;                          // derriere la camera
+					const FVector Closest = RayO + RayD * T;
+					// Rayon de selection = taille visuelle (boss plus large).
+					const float PickR = (Cast<AWOTOLDemoUnit>(U) && Cast<AWOTOLDemoUnit>(U)->bIsBoss) ? 420.f : 150.f;
+					if (FVector::Dist(Closest, C) <= PickR && T < BestT) { BestT = T; Best = U; }
+				}
+			if (Best) return Best;
+		}
 	}
 	return nullptr;
 }

@@ -106,15 +106,21 @@ public:
 	UPROPERTY(Transient)
 	TObjectPtr<class USoundBase> CurrentMusicAsset;
 
+	// PLUSIEURS musiques de BATAILLE (BattleMusic, BattleMusic1..N) -> tirées AU HASARD au
+	// lancement d'un combat, et on enchaîne sur une AUTRE quand la piste se termine (variété).
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<class USoundBase>> BattleTracks;
+
+	uint8 CurrentMusicCat = 0;   // 0=aucune, 1=menu, 2=bataille, 3=résumé
 	FTimerHandle MusicPollHandle;
 
 	// Lance une musique (arrête l'ancienne en fondu). bLoop=false pour un stinger.
 	void PlayMusic(class USoundBase* Music, bool bLoop);
 
-	// Choisit la piste selon l'écran courant, et ne switche QUE si la piste change.
+	// Pilotage de la musique selon l'écran (catégorie), avec boucle et rotation aléatoire.
 	void UpdateMusicForScreen();
-	// Piste associée à un écran donné.
-	class USoundBase* MusicForScreen(uint8 Screen) const;
+	uint8 MusicCatForScreen(uint8 Screen) const;                 // écran -> catégorie
+	class USoundBase* PickMusicForCat(uint8 Cat, bool bAvoidCurrent); // choisit une piste
 
 	// Messages narratifs (le HUD/BP peut s'y abonner pour les afficher à l'écran)
 	UPROPERTY(BlueprintAssignable, Category = "Demo")

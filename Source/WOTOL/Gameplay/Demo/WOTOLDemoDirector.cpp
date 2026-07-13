@@ -74,7 +74,7 @@ static float DiffEnemyMult(EDemoDifficulty D)
 	{
 		case EDemoDifficulty::Facile:    return 0.80f;
 		case EDemoDifficulty::Difficile: return 1.30f;
-		default:                         return 1.00f; // Normal
+		default:                         return 0.90f; // Normal : leger avantage joueur
 	}
 }
 // Multiplicateur de ROBUSTESSE du JOUEUR (PV de son armée). Facile : joueur plus coriace ;
@@ -85,7 +85,7 @@ static float DiffPlayerMult(EDemoDifficulty D)
 	{
 		case EDemoDifficulty::Facile:    return 1.30f;
 		case EDemoDifficulty::Difficile: return 0.85f;
-		default:                         return 1.00f; // Normal
+		default:                         return 1.10f; // Normal : joueur plus solide
 	}
 }
 // Multiplicateur de DÉGÂTS du JOUEUR (levier de difficulté côté offensif).
@@ -95,7 +95,7 @@ static float DiffPlayerDamage(EDemoDifficulty D)
 	{
 		case EDemoDifficulty::Facile:    return 1.30f;
 		case EDemoDifficulty::Difficile: return 0.85f;
-		default:                         return 1.00f;
+		default:                         return 1.12f; // Normal
 	}
 }
 // Multiplicateur de DÉGÂTS de l'ENNEMI. Facile : l'ennemi frappe BEAUCOUP moins (avant, la
@@ -106,7 +106,7 @@ static float DiffEnemyDamage(EDemoDifficulty D)
 	{
 		case EDemoDifficulty::Facile:    return 0.65f;
 		case EDemoDifficulty::Difficile: return 1.30f;
-		default:                         return 1.00f;
+		default:                         return 0.85f; // Normal
 	}
 }
 
@@ -142,6 +142,16 @@ void AWOTOLDemoDirector::BeginPlay()
 	TryLoadMusic(BattleMusic,  TEXT("BattleMusic"));
 	TryLoadMusic(SummaryMusic, TEXT("SummaryMusic"));
 
+	// PLUSIEURS musiques de bataille : BattleMusic + BattleMusic1..BattleMusic5 si presentes.
+	BattleTracks.Reset();
+	if (BattleMusic) BattleTracks.Add(BattleMusic);
+	for (int32 i = 1; i <= 5; ++i)
+	{
+		TObjectPtr<USoundBase> Extra = nullptr;
+		TryLoadMusic(Extra, *FString::Printf(TEXT("BattleMusic%d"), i));
+		if (Extra) BattleTracks.Add(Extra);
+	}
+
 	// Visualisation du courant (traînées dérivantes sur les couches hautes) — persistante.
 	if (UWorld* W = GetWorld())
 	{
@@ -166,18 +176,37 @@ void AWOTOLDemoDirector::BeginPlay()
 		&AWOTOLDemoDirector::UpdateMusicForScreen, 0.25f, /*bLoop=*/true);
 }
 
-USoundBase* AWOTOLDemoDirector::MusicForScreen(uint8 Screen) const
+uint8 AWOTOLDemoDirector::MusicCatForScreen(uint8 Screen) const
 {
 	switch (static_cast<EDemoScreen>(Screen))
 	{
 	case EDemoScreen::MainMenu:
-	case EDemoScreen::FactionSelect: return MenuMusic;
+	case EDemoScreen::FactionSelect: return 1; // menu
 	case EDemoScreen::Prepare:
-	case EDemoScreen::Playing:       return BattleMusic;
+	case EDemoScreen::Playing:       return 2; // bataille
 	case EDemoScreen::Summary:
-	case EDemoScreen::Interlude:     return SummaryMusic;
-	default:                         return nullptr;
+	case EDemoScreen::Interlude:     return 3; // résumé
+	default:                         return 0;
 	}
+}
+
+USoundBase* AWOTOLDemoDirector::PickMusicForCat(uint8 Cat, bool bAvoidCurrent)
+{
+	if (Cat == 1) return MenuMusic;
+	if (Cat == 3) return SummaryMusic;
+	if (Cat == 2)
+	{
+		if (BattleTracks.Num() == 0) return BattleMusic; // secours
+		if (BattleTracks.Num() == 1) return BattleTracks[0];
+		// Tirage AU HASARD ; si demandé, on EVITE la piste courante (pas 2 fois de suite).
+		for (int32 Try = 0; Try < 8; ++Try)
+		{
+			USoundBase* Cand = BattleTracks[FMath::RandRange(0, BattleTracks.Num() - 1)];
+			if (!bAvoidCurrent || Cand != CurrentMusicAsset) return Cand;
+		}
+		return BattleTracks[0];
+	}
+	return nullptr;
 }
 
 void AWOTOLDemoDirector::UpdateMusicForScreen()
@@ -186,21 +215,31 @@ void AWOTOLDemoDirector::UpdateMusicForScreen()
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	if (!Demo) return;
 
-	USoundBase* Target = MusicForScreen(static_cast<uint8>(Demo->GetScreen()));
-	if (Target == CurrentMusicAsset)
+	const uint8 Cat = MusicCatForScreen(static_cast<uint8>(Demo->GetScreen()));
+
+	if (Cat != CurrentMusicCat)
 	{
-		// MÊME piste -> on ne relance PAS (continuité). MAIS si le morceau est ARRIVÉ AU BOUT,
-		// on le RELANCE -> boucle robuste, valable pour n'importe quel fichier importe (pas
-		// besoin de cocher "Looping" sur l'asset).
-		if (CurrentMusicAsset && CurrentMusic && !CurrentMusic->IsPlaying())
-		{
-			CurrentMusic->Play();
-		}
+		// Changement de catégorie (menu -> bataille -> résumé…) : nouvelle piste.
+		CurrentMusicCat = Cat;
+		CurrentMusicAsset = PickMusicForCat(Cat, /*bAvoidCurrent=*/false);
+		PlayMusic(CurrentMusicAsset, /*bLoop=*/true);
 		return;
 	}
 
-	CurrentMusicAsset = Target;
-	PlayMusic(Target, /*bLoop=*/true); // Target peut être nul (aucune piste) -> coupe la musique.
+	// MÊME catégorie : on ne coupe pas. Si la piste est arrivée au bout -> on enchaîne.
+	if (CurrentMusic && !CurrentMusic->IsPlaying())
+	{
+		if (Cat == 2 && BattleTracks.Num() > 1)
+		{
+			// Bataille : on passe à une AUTRE musique aléatoire (variété, pas de répétition).
+			CurrentMusicAsset = PickMusicForCat(Cat, /*bAvoidCurrent=*/true);
+			PlayMusic(CurrentMusicAsset, /*bLoop=*/true);
+		}
+		else if (CurrentMusicAsset)
+		{
+			CurrentMusic->Play(); // menu/résumé (ou 1 seule piste) : simple boucle
+		}
+	}
 }
 
 // ── MUSIQUE ── Joue une musique (arrête l'ancienne en fondu). bLoop=true = boucle
