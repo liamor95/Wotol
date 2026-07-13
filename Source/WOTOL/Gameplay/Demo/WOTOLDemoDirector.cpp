@@ -78,17 +78,32 @@ static float FactionDamage(EFactionID F)
 // On vise un RATIO joueur/ennemi  R = S_joueur / S_ennemi  garanti > 1 à toutes les phases :
 //     Facile ≈ 1.93   |   Normal ≈ 1.40   |   Difficile ≈ 1.11  (dur mais gagnable).
 //
-// Levier unique de difficulté = k (appliqué À L'ENNEMI seulement, sur PV ET dégâts) :
-//     R = 1 / k²   ->   k = 1/√R.
-// Le joueur, lui, est INDÉPENDANT de la difficulté (baseline stable) : on ne fait que
-// renforcer/affaiblir l'ADVERSAIRE. Monotone par construction (kFacile < kNormal < kDifficile).
-static float EnemyDiffK(EDemoDifficulty D)
+// Levier de difficulté = k (appliqué À L'ENNEMI seulement). Le joueur est INDÉPENDANT de la
+// difficulté (baseline stable) : on ne fait que renforcer/affaiblir l'ADVERSAIRE.
+//
+// RÉPARTITION ASYMÉTRIQUE (kHP ≠ kDMG) : même en Facile, l'ennemi doit infliger QUELQUES
+// PERTES (sinon aucun enjeu). On garde donc ses DÉGÂTS assez élevés (kDMG proche de 1) mais on
+// le rend FRAGILE (kHP plus bas -> il meurt vite = facile). Le PRODUIT kHP×kDMG reste = k²
+// (force de combat ennemie inchangée) -> le ratio R = 1/(kHP×kDMG) est conservé :
+//     Facile   kHP 0.65 × kDMG 0.80 = 0.52  -> R≈1.92
+//     Normal   kHP 0.79 × kDMG 0.90 = 0.711 -> R≈1.41
+//     Difficile kHP 0.93 × kDMG 0.97 = 0.902 -> R≈1.11
+static float EnemyDiffKHP(EDemoDifficulty D)
 {
 	switch (D)
 	{
-		case EDemoDifficulty::Facile:    return 0.72f; // ennemi affaibli -> R≈1.93 (facile)
-		case EDemoDifficulty::Difficile: return 0.95f; // ennemi presque a parite -> R≈1.11 (dur)
-		default:                         return 0.845f; // Normal -> R≈1.40
+		case EDemoDifficulty::Facile:    return 0.65f; // ennemi FRAGILE (meurt vite = facile)
+		case EDemoDifficulty::Difficile: return 0.93f;
+		default:                         return 0.79f; // Normal
+	}
+}
+static float EnemyDiffKDMG(EDemoDifficulty D)
+{
+	switch (D)
+	{
+		case EDemoDifficulty::Facile:    return 0.80f; // frappe ENCORE assez fort -> quelques pertes
+		case EDemoDifficulty::Difficile: return 0.97f;
+		default:                         return 0.90f; // Normal
 	}
 }
 
@@ -637,7 +652,7 @@ void AWOTOLDemoDirector::SpawnEnemyForCreature(EFactionID RivalFaction, const FV
 	// PHASE 1 : PV du Kraken × k(difficulté) -> même levier que les autres phases (Facile =
 	// Kraken bien plus fragile ; Difficile = à peine réduit). Sa frappe est modulée par
 	// DifficultyEnemyDamageMult() côté unité. La phase 1 reste gagnable aux 3 niveaux.
-	const float KrakenHP = CreatureHealthScale * (Demo ? EnemyDiffK(Demo->GetDifficulty()) : 0.845f);
+	const float KrakenHP = CreatureHealthScale * (Demo ? EnemyDiffKHP(Demo->GetDifficulty()) : 0.79f);
 	if (AWOTOLDemoUnit* Creature = SpawnUnit(
 			CreatureID, Origin + FVector(0.f, 0.f, 80.f), Facing, 1.5f, KrakenHP, /*bAsBoss=*/true))
 	{
@@ -700,7 +715,7 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	// presque à parité en Difficile). Ratio PV joueur/ennemi = 1/k, cumulé au ratio dégâts ->
 	// force de combat globale = 1/k² = R garanti > 1 (gagnable).
 	const float RivalScale = ArmyHealthScale * FactionSurvivability(RivalFaction)
-		* PhaseEvoHP(Demo->GetPhase()) * EnemyDiffK(Demo->GetDifficulty());
+		* PhaseEvoHP(Demo->GetPhase()) * EnemyDiffKHP(Demo->GetDifficulty());
 
 	// PLACEMENT ALÉATOIRE par couche, PROPRE À LA FACTION : chaque unité peut être au sol
 	// ou en hauteur. Les caps de verticalité (ex. Noxebeast au grade 1) sont respectés
@@ -812,7 +827,7 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 		// côté ENNEMI × k(difficulté). Le joueur ne dépend PAS de la difficulté (baseline
 		// stable) -> tout le curseur de défi est sur l'ennemi. Ratio dégâts joueur/ennemi = 1/k.
 		float M = FactionDamage(Unit->GetFaction()) * PhaseEvoDMG(Phase);
-		if (!bPlayerSide) M *= EnemyDiffK(Diff);
+		if (!bPlayerSide) M *= EnemyDiffKDMG(Diff); // degats ennemis peu reduits -> pertes garanties
 		Unit->BalanceDamageMult = M;
 	}
 
@@ -918,7 +933,7 @@ void AWOTOLDemoDirector::LaunchBattle()
 						// × difficulté : Facile amincit le Kraken, Difficile l'épaissit (compense
 						// aussi l'inflation de PV joueur en Facile pour que ce soit vraiment plus simple).
 						const float DMul = GetGameInstance() && GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()
-							? EnemyDiffK(GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()->GetDifficulty()) : 0.845f;
+							? EnemyDiffKHP(GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()->GetDifficulty()) : 0.79f;
 						const float TargetHP = FMath::Clamp(ArmyHP * 0.42f * DMul, 9000.f, 40000.f);
 						const int32 BaseMax  = FMath::Max(1, Boss->GetUnitData()->Stats.MaxHealth);
 						Boss->HealthScale    = FMath::Max(1.f, TargetHP / (float)BaseMax);

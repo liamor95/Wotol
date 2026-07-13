@@ -307,6 +307,26 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		GetCharacterMovement()->MaxWalkSpeed = (NowS < SlowUntil) ? BaseWalkSpeed * 0.4f : BaseWalkSpeed;
 	}
 
+	// SOIN À L'ÉCRAN : émet un « +N » VERT flottant (comme les dégâts) pour le soin CUMULÉ,
+	// ~toutes les 1,1 s -> on voit clairement les PV rendus sans saturer l'écran.
+	if (HealTextTimer > 0.f) HealTextTimer -= DeltaSeconds;
+	if (HealAccum >= 1.f && HealTextTimer <= 0.f)
+	{
+		HealTextTimer = 1.1f;
+		if (UWorld* Wh = GetWorld())
+		{
+			USceneComponent* Anchor = GetDamageTextAnchor();
+			const FVector HLoc = Anchor ? Anchor->GetComponentLocation() : GetActorLocation();
+			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(Wh, HLoc,
+					FString::Printf(TEXT("+%d"), FMath::RoundToInt(HealAccum)),
+					FLinearColor(0.35f, 1.f, 0.45f, 1.f))) // vert soin
+			{
+				N->SetFollow(Anchor, FVector(FMath::FRandRange(-24.f, 24.f), FMath::FRandRange(-24.f, 24.f), 120.f));
+			}
+		}
+		HealAccum = 0.f;
+	}
+
 	if (!NameTag) return;
 
 	// NB : la furtivité d'Aquilombres est « invisible pour l'ENNEMI » seulement — le JOUEUR
@@ -1572,7 +1592,9 @@ void AWOTOLDemoUnit::HealEffective(float Amount)
 {
 	if (!IsAlive() || Amount <= 0.f) return;
 	const float MaxHP = static_cast<float>(GetEffectiveMaxHealth());
+	const float Before = CurrentHealth;
 	CurrentHealth = FMath::Min(CurrentHealth + Amount, MaxHP);
+	HealAccum += (CurrentHealth - Before); // cumulé pour l'affichage « +N » (voir Tick)
 }
 
 // ══════════ LÉVIAPHÉNIX (mythique — réserve phase 3) ══════════

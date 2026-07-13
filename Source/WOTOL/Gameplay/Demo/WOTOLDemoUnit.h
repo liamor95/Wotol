@@ -424,6 +424,10 @@ private:
 	// « soigner » en négatif = blesser une unité mise à l'échelle). Utilisé par les capacités
 	// de soin (Léviaphénix Rayonnement Vital, Noxéons Ancrage Abyssal).
 	void HealEffective(float Amount);
+	// Affichage du SOIN reçu (nombre vert flottant, comme les dégâts) : on ACCUMULE les petits
+	// soins de régénération et on émet un « +N » périodique -> lisible sans spammer l'écran.
+	float HealAccum = 0.f;
+	float HealTextTimer = 0.f;
 
 	// Cible de décor imposée par le joueur (attaquer une ruine/pilier jusqu'à destruction).
 	TWeakObjectPtr<class AWOTOLCoverStructure> TargetCover;
