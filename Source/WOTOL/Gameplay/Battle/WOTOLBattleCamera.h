@@ -6,6 +6,7 @@
 
 class UCameraComponent;
 class USpringArmComponent;
+class AUnitBase;
 
 // Caméra de bataille libre 3D — Total War / Bannerlord style
 // Sous-marin → verticalité complète, 4 couches de profondeur navigables
@@ -94,6 +95,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Camera")
 	void SetInitialView(FVector Focus, float Yaw, float Pitch, float ArmLength);
 
+	// SUIVI (troisième personne) : la caméra se recule (ArmLength) et SUIT en continu
+	// le centre du groupe d'unités sans avoir à bouger la souris. Rotation/zoom restent
+	// libres pendant le suivi. Le suivi se coupe si l'on pan manuellement (WASD) ou via
+	// StopFollow() (clic sur le terrain).
+	UFUNCTION(BlueprintCallable, Category = "Camera")
+	void FollowGroup(const TArray<AUnitBase*>& Units, float ArmLength);
+
+	UFUNCTION(BlueprintCallable, Category = "Camera")
+	void StopFollow();
+
+	UFUNCTION(BlueprintPure, Category = "Camera")
+	bool IsFollowing() const { return bFollowing; }
+
 	// Aller directement à une couche verticale (Épipélagique = 0, Hadal = -12000)
 	UFUNCTION(BlueprintCallable, Category = "Camera")
 	void FocusOnLayer(float TargetZ);
@@ -123,6 +137,11 @@ private:
 	bool      bRotatingYaw   = false; // bouton milieu
 	bool      bRotatingPitch = false; // bouton droit (optionnel)
 	FVector2D LastMousePos;
+
+	// ─── Suivi de groupe (troisième personne) ──────────────────────────────────
+	bool bFollowing = false;
+	TArray<TWeakObjectPtr<AUnitBase>> FollowUnits;
+	void TickFollow(float DT);
 
 	// Rotation courante du bras (indépendante du contrôleur)
 	float CurrentYaw   = -45.f;

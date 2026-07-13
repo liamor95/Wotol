@@ -6,6 +6,7 @@
 #include "Engine/GameViewportClient.h"
 #include "Components/InputComponent.h"
 #include "InputCoreTypes.h"
+#include "Gameplay/Units/UnitBase.h"
 
 AWOTOLBattleCamera::AWOTOLBattleCamera()
 {
@@ -84,6 +85,7 @@ void AWOTOLBattleCamera::Tick(float DT)
 {
 	Super::Tick(DT);
 
+	TickFollow(DT);   // recentre sur le groupe suivi (avant le reste)
 	TickRotation(DT);
 	TickPan(DT);
 	TickZoom(DT);
@@ -145,6 +147,9 @@ void AWOTOLBattleCamera::InputMouseY(float V)
 void AWOTOLBattleCamera::TickPan(float DT)
 {
 	if (PanInput.IsNearlyZero() && FMath::IsNearlyZero(VerticalInput)) return;
+
+	// Pan manuel = on lâche le suivi de groupe (la caméra redevient libre).
+	if (bFollowing) StopFollow();
 
 	// Pan is relative to current yaw so WASD always moves in the viewed direction
 	const FRotator YawRot(0.f, CurrentYaw, 0.f);
@@ -257,6 +262,55 @@ void AWOTOLBattleCamera::FocusOnUnitClose(FVector WorldLocation, float ArmLength
 		SpringArm->TargetArmLength = FMath::Clamp(ArmLength, MinArmLength, MaxArmLength);
 	}
 	ClampPosition();
+}
+
+void AWOTOLBattleCamera::FollowGroup(const TArray<AUnitBase*>& Units, float ArmLength)
+{
+	FollowUnits.Reset();
+	FVector Centroid = FVector::ZeroVector; int32 N = 0;
+	for (AUnitBase* U : Units)
+	{
+		if (!U || !U->IsAlive()) continue;
+		FollowUnits.Add(U);
+		Centroid += U->GetActorLocation();
+		++N;
+	}
+	if (N == 0) { bFollowing = false; return; }
+
+	bFollowing = true;
+	SetActorLocation(Centroid / N);            // recentre immédiatement sur le groupe
+	if (SpringArm)
+	{
+		// Recul « troisième personne » (~5-10 m = 500-1000 uu).
+		SpringArm->TargetArmLength = FMath::Clamp(ArmLength, MinArmLength, MaxArmLength);
+	}
+	ClampPosition();
+}
+
+void AWOTOLBattleCamera::StopFollow()
+{
+	bFollowing = false;
+	FollowUnits.Reset();
+}
+
+void AWOTOLBattleCamera::TickFollow(float DT)
+{
+	if (!bFollowing) return;
+
+	FVector Centroid = FVector::ZeroVector; int32 N = 0;
+	for (const TWeakObjectPtr<AUnitBase>& W : FollowUnits)
+	{
+		AUnitBase* U = W.Get();
+		if (!U || !U->IsAlive()) continue;
+		Centroid += U->GetActorLocation();
+		++N;
+	}
+	if (N == 0) { StopFollow(); return; } // tout le groupe est mort -> fin du suivi
+
+	Centroid /= N;
+	// Suivi doux (pas de saccade) : la caméra glisse vers le centre du groupe.
+	const FVector New = FMath::VInterpTo(GetActorLocation(), Centroid, DT, 6.f);
+	SetActorLocation(New);
 }
 
 void AWOTOLBattleCamera::SetInitialView(FVector Focus, float Yaw, float Pitch, float ArmLength)

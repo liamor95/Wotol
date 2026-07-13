@@ -952,7 +952,9 @@ void AWOTOLDemoHUD::DrawBossBar(float W, float H, AWOTOLDemoUnit* Boss)
 }
 
 // Constantes de disposition PARTAGÉES entre le rendu et le hit-test (double-clic).
-static constexpr float kCardW = 172.f, kCardH = 90.f, kGap = 10.f, kPad = 12.f, kBandX = 12.f;
+// Cartes RÉDUITES (roster compact) -> prend moins de place en bas, surtout en phase 3
+// où de nombreux groupes s'affichent. On garde PV + effectif + icône.
+static constexpr float kCardW = 120.f, kCardH = 62.f, kGap = 6.f, kPad = 8.f, kBandX = 12.f;
 
 int32 AWOTOLDemoHUD::CommandCardMaxFit(float W)
 {
@@ -968,52 +970,88 @@ FBox2D AWOTOLDemoHUD::CommandCardRect(int32 Index, float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + kCardW, Y + kCardH));
 }
 
-void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
+// Construit les groupes du roster : TOUTES les unités vivantes de la faction joueur,
+// agrégées par nom, dans l'ordre du registre. Partagé HUD (rendu) ↔ PlayerController (clic).
+void AWOTOLDemoHUD::BuildRosterGroups(UWorld* World, EFactionID Faction,
+	TArray<FString>& OutOrder, TMap<FString, TArray<AUnitBase*>>& OutByName)
 {
+	OutOrder.Reset();
+	OutByName.Reset();
 	if (!World) return;
-	UUnitSelectionManager* Sel = World->GetSubsystem<UUnitSelectionManager>();
-	if (!Sel) return;
-
-	// Agrège les unités sélectionnées par nom (groupe) + PV totaux du groupe
-	struct FGroup { FString Name; int32 Count = 0; float HpSum = 0.f;
-		int32 HpCur = 0; int32 HpMax = 0; EFactionID Fac = EFactionID::None;
-		EUnitRole Role = EUnitRole::Infanterie; };
-	TArray<FGroup> Groups;
-	TMap<FString, int32> Index;
-	for (AUnitBase* U : Sel->GetSelectedUnits())
+	UFactionRegistrySubsystem* Reg = World->GetSubsystem<UFactionRegistrySubsystem>();
+	if (!Reg) return;
+	for (AUnitBase* U : Reg->GetUnitsForFaction(Faction))
 	{
 		if (!U || !U->IsAlive()) continue;
 		const FString Name = (U->GetUnitData() && !U->GetUnitData()->DisplayName.IsEmpty())
 			? U->GetUnitData()->DisplayName.ToString() : U->GetName();
-		const EUnitRole URole = U->GetUnitData() ? U->GetUnitData()->Role : EUnitRole::Infanterie;
-		int32* Found = Index.Find(Name);
-		FGroup& G = Found ? Groups[*Found]
-			: Groups[Index.Add(Name, Groups.Add(FGroup{ Name, 0, 0.f, 0, 0, U->GetFaction(), URole }))];
-		G.Count++;
-		// PV EFFECTIFS (multiplicateur de PV inclus) -> le courant ne dépasse plus le max.
-		float Pct; int32 UMax;
-		if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U))
+		if (!OutByName.Contains(Name)) OutOrder.Add(Name);
+		OutByName.FindOrAdd(Name).Add(U);
+	}
+}
+
+void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
+{
+	if (!World) return;
+	UUnitSelectionManager* Sel = World->GetSubsystem<UUnitSelectionManager>();
+
+	// Faction du joueur (source : subsystem de démo).
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	const EFactionID PlayerFac = Demo ? Demo->GetPlayerFaction() : EFactionID::None;
+	if (PlayerFac == EFactionID::None) return;
+
+	// Roster = TOUTES les unités vivantes du joueur (pas seulement la sélection) ->
+	// le roster reste complet même quand un seul groupe est actif.
+	TArray<FString> Order;
+	TMap<FString, TArray<AUnitBase*>> ByName;
+	BuildRosterGroups(World, PlayerFac, Order, ByName);
+	if (Order.Num() == 0) return;
+
+	// Ensemble des unités ACTUELLEMENT sélectionnées (= groupe actif) -> sert à
+	// surligner les cartes actives et à griser les autres (toujours affichées).
+	TSet<AUnitBase*> SelSet;
+	if (Sel) for (AUnitBase* U : Sel->GetSelectedUnits()) if (U) SelSet.Add(U);
+
+	// Agrégats par groupe (dans l'ordre du roster).
+	struct FGroup { FString Name; int32 Count = 0; float HpSum = 0.f;
+		int32 HpCur = 0; int32 HpMax = 0; EFactionID Fac = EFactionID::None;
+		EUnitRole Role = EUnitRole::Infanterie; bool bActive = false; };
+	TArray<FGroup> Groups;
+	Groups.Reserve(Order.Num());
+	for (const FString& Name : Order)
+	{
+		FGroup G; G.Name = Name; G.Fac = PlayerFac;
+		for (AUnitBase* U : ByName[Name])
 		{
-			Pct  = DU->GetEffectiveHealthPercent();
-			UMax = DU->GetEffectiveMaxHealth();
+			if (!U) continue;
+			G.Count++;
+			if (G.Role == EUnitRole::Infanterie && U->GetUnitData()) G.Role = U->GetUnitData()->Role;
+			if (SelSet.Contains(U)) G.bActive = true;
+			float Pct; int32 UMax;
+			if (AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U))
+			{
+				Pct  = DU->GetEffectiveHealthPercent();
+				UMax = DU->GetEffectiveMaxHealth();
+			}
+			else
+			{
+				Pct  = U->GetHealthPercent();
+				UMax = (U->GetUnitData()) ? U->GetUnitData()->Stats.MaxHealth : 100;
+			}
+			G.HpSum += Pct;
+			G.HpMax += UMax;
+			G.HpCur += FMath::RoundToInt(Pct * UMax);
 		}
-		else
-		{
-			Pct  = U->GetHealthPercent();
-			UMax = (U->GetUnitData()) ? U->GetUnitData()->Stats.MaxHealth : 100;
-		}
-		G.HpSum += Pct;
-		G.HpMax += UMax;
-		G.HpCur += FMath::RoundToInt(Pct * UMax);
+		if (G.Count > 0) Groups.Add(MoveTemp(G));
 	}
 	if (Groups.Num() == 0) return;
 
-	// Icône DISTINCTE par type d'unité (forme différente selon le rôle) — pour
-	// reconnaître l'unité d'un coup d'œil, pas seulement au nom.
+	// Icône DISTINCTE par type d'unité (forme différente selon le rôle).
 	auto DrawUnitIcon = [&](float CX, float CY, float R, EUnitRole IconRole, const FLinearColor& Fac)
 	{
 		if (!Canvas) return;
-		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.55f), CX - R - 3.f, CY - R - 3.f, (R + 3.f) * 2.f, (R + 3.f) * 2.f);
+		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.55f), CX - R - 2.f, CY - R - 2.f, (R + 2.f) * 2.f, (R + 2.f) * 2.f);
 		const FLinearColor Fill(FMath::Min(1.f, Fac.R + 0.15f), FMath::Min(1.f, Fac.G + 0.15f),
 			FMath::Min(1.f, Fac.B + 0.15f), 1.f);
 		switch (IconRole)
@@ -1027,16 +1065,16 @@ void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
 		}
 	};
 
-	// ── Bandeau ADAPTATIF : sa largeur = nombre de cartes affichées (pas plein écran) ──
+	// ── Bandeau ADAPTATIF, COMPACT : largeur = nombre de cartes affichées ──
 	const float CardW = kCardW, CardH = kCardH, Gap = kGap, Pad = kPad;
 	const int32 MaxFit = CommandCardMaxFit(W); // laisse la place aux boutons de couche (droite)
 	const int32 Shown = FMath::Min(Groups.Num(), MaxFit);
-	const float BandH = CardH + 12.f;
+	const float BandH = CardH + 10.f;
 	const float BandY = H - BandH;
 	const float BandW = Shown * (CardW + Gap) - Gap + Pad * 2.f;
-	const float BandX = 12.f;
+	const float BandX = kBandX;
 	DrawRect(FLinearColor(0.02f, 0.03f, 0.05f, 0.78f), BandX, BandY, BandW, BandH);
-	DrawRect(FLinearColor(0.30f, 0.62f, 1.f, 0.7f), BandX, BandY, BandW, 3.f); // liseré haut
+	DrawRect(FLinearColor(0.30f, 0.62f, 1.f, 0.7f), BandX, BandY, BandW, 2.f); // liseré haut
 
 	float X = BandX + Pad;
 	const float Y = BandY + (BandH - CardH) * 0.5f;
@@ -1044,23 +1082,35 @@ void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
 	{
 		const FGroup& G = Groups[gi];
 		const FLinearColor Fac = FFactionColors::Get(G.Fac);
-		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), X, Y, CardW, CardH);
-		DrawRect(Fac, X, Y, CardW, 4.f);                       // liseré couleur de faction
-		// Icône distincte par rôle
-		DrawUnitIcon(X + 30.f, Y + 34.f, 20.f, G.Role, Fac);
-		// Nom + nombre
-		DrawText(G.Name, FLinearColor::White, X + 58.f, Y + 10.f, GEngine->GetMediumFont(), 1.f);
-		DrawText(FString::Printf(TEXT("x%d"), G.Count), FLinearColor(1.f, 0.9f, 0.5f, 1.f),
-			X + 58.f, Y + 30.f, GEngine->GetMediumFont(), 1.2f);
-		// PV TOTAUX du groupe (restant / total), au-dessus de la barre
-		const FString HpTxt = FString::Printf(TEXT("PV %d / %d"), G.HpCur, G.HpMax);
-		DrawText(HpTxt, FLinearColor(0.85f, 0.95f, 0.85f, 1.f), X + 8.f, Y + CardH - 30.f,
-			GEngine->GetSmallFont(), 1.f);
+		// Groupe ACTIF (sélectionné) = fond plus clair + cadre lumineux ; inactif = grisé.
+		const float Dim = G.bActive ? 1.f : 0.55f;
+		DrawRect(FLinearColor(G.bActive ? 0.06f : 0.f, G.bActive ? 0.08f : 0.f,
+			G.bActive ? 0.14f : 0.f, G.bActive ? 0.82f : 0.6f), X, Y, CardW, CardH);
+		DrawRect(FLinearColor(Fac.R, Fac.G, Fac.B, Dim), X, Y, CardW, 3.f); // liseré faction
+		if (G.bActive)
+		{
+			// Cadre de sélection (4 bords cyan) autour de la carte active.
+			const FLinearColor Sel2(0.45f, 0.85f, 1.f, 1.f);
+			DrawLine(X, Y, X + CardW, Y, Sel2, 2.f);
+			DrawLine(X, Y + CardH, X + CardW, Y + CardH, Sel2, 2.f);
+			DrawLine(X, Y, X, Y + CardH, Sel2, 2.f);
+			DrawLine(X + CardW, Y, X + CardW, Y + CardH, Sel2, 2.f);
+		}
+		DrawUnitIcon(X + 20.f, Y + 22.f, 13.f, G.Role, FLinearColor(Fac.R * Dim, Fac.G * Dim, Fac.B * Dim, 1.f));
+		// Nom (compact) + effectif
+		const FLinearColor NameCol(Dim, Dim, Dim, 1.f);
+		DrawText(G.Name, NameCol, X + 38.f, Y + 6.f, GEngine->GetSmallFont(), 1.f);
+		DrawText(FString::Printf(TEXT("x%d"), G.Count), FLinearColor(1.f * Dim, 0.9f * Dim, 0.5f * Dim, 1.f),
+			X + 38.f, Y + 22.f, GEngine->GetSmallFont(), 1.1f);
+		// PV totaux du groupe (compact) au-dessus de la barre
+		const FString HpTxt = FString::Printf(TEXT("%d/%d"), G.HpCur, G.HpMax);
+		DrawText(HpTxt, FLinearColor(0.85f * Dim, 0.95f * Dim, 0.85f * Dim, 1.f), X + 6.f, Y + CardH - 24.f,
+			GEngine->GetSmallFont(), 0.9f);
 		// Mini-barre de vie moyenne du groupe
 		const float AvgHp = (G.Count > 0) ? G.HpSum / G.Count : 0.f;
 		const FLinearColor HpCol = FMath::Lerp(FLinearColor(0.8f, 0.1f, 0.1f, 1.f),
 			FLinearColor(0.2f, 0.85f, 0.2f, 1.f), AvgHp);
-		DrawBar(X + 8.f, Y + CardH - 14.f, CardW - 16.f, 8.f, AvgHp, HpCol,
+		DrawBar(X + 6.f, Y + CardH - 10.f, CardW - 12.f, 6.f, AvgHp, HpCol,
 			FLinearColor(0.12f, 0.12f, 0.12f, 0.9f));
 
 		X += CardW + Gap;

@@ -310,7 +310,7 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 bool AWOTOLPlayerController_Battle::HandleCommandBarClick(bool bDoubleClick)
 {
 	UUnitSelectionManager* Sel = GetSelectionManager();
-	if (!Sel || !Sel->HasSelection()) return false;
+	if (!Sel) return false;
 
 	FVector2D Vp;
 	if (!GetViewportSizeSafe(Vp)) return false;
@@ -318,18 +318,12 @@ bool AWOTOLPlayerController_Battle::HandleCommandBarClick(bool bDoubleClick)
 	if (!GetMousePosition(MX, MY)) return false;
 	const FVector2D M(MX, MY);
 
-	// Reconstitue l'ordre des groupes EXACTEMENT comme la barre de commandement
-	// (agrégation par nom, dans l'ordre d'itération de la sélection).
+	// Groupes du roster = TOUTES les unités vivantes du joueur (même ordre que le HUD),
+	// PAS seulement la sélection -> le roster reste affiché en entier et les index de
+	// cartes correspondent au rendu.
 	TArray<FString> Order;
 	TMap<FString, TArray<AUnitBase*>> ByName;
-	for (AUnitBase* U : Sel->GetSelectedUnits())
-	{
-		if (!U || !U->IsAlive()) continue;
-		const FString Name = (U->GetUnitData() && !U->GetUnitData()->DisplayName.IsEmpty())
-			? U->GetUnitData()->DisplayName.ToString() : U->GetName();
-		if (!ByName.Contains(Name)) Order.Add(Name);
-		ByName.FindOrAdd(Name).Add(U);
-	}
+	AWOTOLDemoHUD::BuildRosterGroups(GetWorld(), PlayerFaction, Order, ByName);
 	if (Order.Num() == 0) return false;
 
 	const int32 MaxFit = AWOTOLDemoHUD::CommandCardMaxFit(Vp.X);
@@ -339,23 +333,23 @@ bool AWOTOLPlayerController_Battle::HandleCommandBarClick(bool bDoubleClick)
 		if (!AWOTOLDemoHUD::CommandCardRect(i, Vp.X, Vp.Y).IsInside(M)) continue;
 
 		// Clic sur cette carte.
-		if (!bDoubleClick) return true; // simple clic : consommé, ne désélectionne pas.
+		if (!bDoubleClick) return true; // simple clic : consommé, ne change rien.
 
-		// DOUBLE clic : ne garde QUE ce groupe sélectionné + zoom caméra dessus,
-		// comme un double-clic sur l'unité, mais sans avoir à la chercher au sol.
+		// DOUBLE clic : ce groupe devient la sélection ACTIVE (les autres restent
+		// affichés dans le roster, juste grisés) + la caméra se recule et SUIT le groupe.
 		const TArray<AUnitBase*>& Grp = ByName[Order[i]];
 		Sel->ClearSelection();
-		for (int32 g = 0; g < Grp.Num(); ++g)
+		bool bFirst = true;
+		for (AUnitBase* U : Grp)
 		{
-			if (!Grp[g]) continue;
-			if (g == 0) Sel->SelectUnit(Grp[g], PlayerFaction);
-			else        Sel->AddToSelection(Grp[g], PlayerFaction);
+			if (!U || !U->IsAlive()) continue;
+			if (bFirst) { Sel->SelectUnit(U, PlayerFaction); bFirst = false; }
+			else        Sel->AddToSelection(U, PlayerFaction);
 		}
 		if (BattleCamera.IsValid())
 		{
-			FVector C = FVector::ZeroVector; int32 N = 0;
-			for (AUnitBase* U : Grp) { if (U) { C += U->GetActorLocation(); ++N; } }
-			if (N > 0) BattleCamera->FocusOnUnitClose(C / N, 1000.f);
+			// Recul « troisième personne » (~8 m) + suivi continu du groupe.
+			BattleCamera->FollowGroup(Grp, 800.f);
 		}
 		return true;
 	}
@@ -419,8 +413,8 @@ void AWOTOLPlayerController_Battle::OnLeftMousePressed()
 		{
 			if (U->GetFaction() == PlayerFaction && BattleCamera.IsValid())
 			{
-				// Zoom rapproché (~quelques mètres) centré sur l'unité
-				BattleCamera->FocusOnUnitClose(U->GetActorLocation(), 800.f);
+				// Recul « troisième personne » + suivi continu de cette unité.
+				BattleCamera->FollowGroup(TArray<AUnitBase*>{ U }, 800.f);
 				return; // pas de nouvelle sélection sur le double-clic
 			}
 		}
@@ -462,7 +456,10 @@ void AWOTOLPlayerController_Battle::OnLeftMouseReleased()
 		}
 		else if (!bAdditive)
 		{
-			SelectionMgr->ClearSelection();
+			// Clic sur le TERRAIN (aucune unité) : on lâche le ciblage/suivi caméra et
+			// on revient à l'armée ENTIÈRE sélectionnée (tout le roster redevient actif).
+			if (BattleCamera.IsValid()) BattleCamera->StopFollow();
+			SelectionMgr->SelectAllOfFaction(PlayerFaction);
 		}
 	}
 }

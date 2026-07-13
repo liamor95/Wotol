@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
+#include "Data/WOTOLTypes.h"
 #include "WOTOLDemoHUD.generated.h"
 
 // HUD de la démo dessiné 100% en C++ (Canvas) — AUCUN widget UMG requis.
@@ -43,6 +44,14 @@ public:
 	// Sert au double-clic : sélectionner + zoomer sur ce groupe d'unités.
 	static FBox2D CommandCardRect(int32 Index, float W, float H);
 	static int32  CommandCardMaxFit(float W);
+
+	// Construit la liste des GROUPES du roster : TOUTES les unités VIVANTES de la
+	// faction joueur, agrégées par nom (dans l'ordre du registre). Partagé entre le
+	// dessin du roster (HUD) et le clic (PlayerController) pour que les index de
+	// cartes correspondent EXACTEMENT — le roster reste affiché en entier même quand
+	// un seul groupe est actif (sélectionné).
+	static void BuildRosterGroups(class UWorld* World, EFactionID Faction,
+		TArray<FString>& OutOrder, TMap<FString, TArray<class AUnitBase*>>& OutByName);
 
 private:
 	void DrawCenteredText(const FString& Text, float Y, const FLinearColor& Color, float Scale);

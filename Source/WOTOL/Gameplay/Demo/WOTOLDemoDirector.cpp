@@ -397,6 +397,16 @@ void AWOTOLDemoDirector::StartBattleNow()
 			? TEXT("Phase 2 — La faction rivale attaque ! Defendez la zone !")
 			: TEXT("Phase 1 — Bataille contre le Kraken. Aneantissez-le !")));
 	LaunchBattle();
+
+	// Dès le lancement, TOUTES les unités du joueur sont déjà sélectionnées (groupe entier)
+	// -> le roster complet s'affiche, prêt à recevoir des ordres, sans clic préalable.
+	if (UWorld* W = GetWorld())
+	{
+		if (UUnitSelectionManager* Sel = W->GetSubsystem<UUnitSelectionManager>())
+		{
+			Sel->SelectAllOfFaction(ResolvePlayerFaction());
+		}
+	}
 }
 
 EFactionID AWOTOLDemoDirector::ResolvePlayerFaction() const
