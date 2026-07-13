@@ -531,41 +531,85 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	// Aquilances sur la rangée des Aquisphères vu en phase 2).
 	float BackCursor = 0.f;                                  // profondeur (en -X) de la prochaine catégorie
 	const float GroupGap = Depth * (bGrandBattle ? 0.5f : 1.0f); // couloir vide entre deux catégories
-	auto PlaceRows = [&](FName Id, int32 Count, int32 PerRow)
+
+	// DÉPLOIEMENT PAR BLOCS DE ~5 (style Total War) : chaque catégorie est découpée en petits
+	// groupes de 5 qui forment un mini-carré (2-1-2, l'unité CENTRALE porte l'étiquette) ou une
+	// LIGNE (si <5). Les blocs sont TUILÉS sur la LARGEUR (Y) puis sur la PROFONDEUR (X) -> des
+	// groupes bien distincts, espacés, sur la largeur ET la longueur de la zone de placement.
+	const float IntraY = Lat * 0.6f;      // écart latéral DANS un bloc
+	const float IntraX = Depth * 0.55f;   // écart de profondeur DANS un bloc
+	const float BlockStepY = Lat * 2.4f;  // pas entre blocs (Y)
+	const float BlockStepX = Depth * 2.4f;// pas entre bandes de blocs (X)
+	auto PlaceBlocks = [&](FName Id, int32 Count, int32 BlocksPerBand)
 	{
-		if (Id.IsNone() || Count <= 0 || PerRow <= 0) return;
-		const int32 Rows = (Count + PerRow - 1) / PerRow;   // rangées réellement utilisées
-		for (int32 i = 0; i < Count; ++i)
+		if (Id.IsNone() || Count <= 0) return;
+		BlocksPerBand = FMath::Max(1, BlocksPerBand);
+		const int32 NumBlocks = (Count + 4) / 5;
+		int32 BandsUsed = 0;
+		for (int32 b = 0; b < NumBlocks; ++b)
 		{
-			const int32 Row = i / PerRow, Col = i % PerRow;
-			// Chaque rangée d'une catégorie est CENTRÉE : les rangées incomplètes (dernière)
-			// restent alignées au centre, jamais décalées sur une autre ligne.
-			const int32 InThisRow = FMath::Min(PerRow, Count - Row * PerRow);
-			const float Y = (Col - (InThisRow - 1) * 0.5f) * Lat;
-			SpawnUnit(Id, Origin + FVector(-BackCursor - Row * Depth, Y, GroundZ), Facing, 1.f, PScale);
+			const int32 Band = b / BlocksPerBand, ColB = b % BlocksPerBand;
+			BandsUsed = FMath::Max(BandsUsed, Band + 1);
+			const int32 InThisBand = FMath::Min(BlocksPerBand, NumBlocks - Band * BlocksPerBand);
+			const float BlockY = (ColB - (InThisBand - 1) * 0.5f) * BlockStepY;
+			const float BlockX = -BackCursor - Band * BlockStepX;
+			const int32 N = FMath::Min(5, Count - b * 5);
+			const int32 Gid = NextFormationGroupId++;
+			for (int32 s = 0; s < N; ++s)
+			{
+				FVector2D Slot; bool bCenter = false;
+				if (N == 5)
+				{
+					// Carré 2-1-2 : 2 devant, 1 au centre (étiquette), 2 derrière.
+					switch (s)
+					{
+						case 0: Slot = FVector2D( IntraX, -IntraY); break; // avant-gauche
+						case 1: Slot = FVector2D( IntraX,  IntraY); break; // avant-droite
+						case 2: Slot = FVector2D( 0.f,    0.f);     bCenter = true; break; // centre
+						case 3: Slot = FVector2D(-IntraX, -IntraY); break; // arrière-gauche
+						default:Slot = FVector2D(-IntraX,  IntraY); break; // arrière-droite
+					}
+				}
+				else
+				{
+					// LIGNE centrée (blocs incomplets) ; l'unité du milieu porte l'étiquette.
+					Slot = FVector2D(0.f, (s - (N - 1) * 0.5f) * IntraY * 1.6f);
+					bCenter = (s == N / 2);
+				}
+				const FVector Loc = Origin + FVector(BlockX + Slot.X, BlockY + Slot.Y, GroundZ);
+				if (AWOTOLDemoUnit* U = SpawnUnit(Id, Loc, Facing, 1.f, PScale))
+				{
+					U->SetFormation(Gid, Slot, bCenter);
+				}
+			}
 		}
-		BackCursor += Rows * Depth + GroupGap;              // réserve la place de CETTE catégorie
+		BackCursor += BandsUsed * BlockStepX + GroupGap; // réserve la place de CETTE catégorie
 	};
-	const int32 PRinf = bGrandBattle ? 18 : 8;
-	const int32 PRmon = bGrandBattle ? 12 : 6;
-	const int32 PRdis = bGrandBattle ? 16 : 8;
-	const int32 PRspe = bGrandBattle ? 6  : 3;
 
-	// Chef en pointe (devant l'infanterie, centré).
-	SpawnUnit(Demo->GetUnitID(Faction, EDemoUnitCategory::Chef),
-		Origin + FVector(Depth, 0.f, GroundZ), Facing, 1.f, PScale);
+	// Nombre de blocs alignés sur la LARGEUR avant de passer à la bande suivante (profondeur).
+	const int32 BPBinf = bGrandBattle ? 6 : 3;
+	const int32 BPBmon = bGrandBattle ? 4 : 2;
+	const int32 BPBdis = bGrandBattle ? 5 : 3;
+	const int32 BPBspe = bGrandBattle ? 3 : 2;
 
-	// Rangées empilées de l'avant vers l'arrière, chaque catégorie sur ses propres lignes.
-	PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Infanterie), InfantryCount, PRinf);
-	PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Montee), MountedCount, PRmon);
+	// Chef en pointe (devant l'infanterie, centré) — son propre "groupe" solo.
+	if (AWOTOLDemoUnit* Chef = SpawnUnit(Demo->GetUnitID(Faction, EDemoUnitCategory::Chef),
+			Origin + FVector(Depth, 0.f, GroundZ), Facing, 1.f, PScale))
+	{
+		Chef->SetFormation(NextFormationGroupId++, FVector2D::ZeroVector, true);
+	}
+
+	// Blocs empilés de l'avant vers l'arrière, chaque catégorie sur ses propres bandes.
+	PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Infanterie), InfantryCount, BPBinf);
+	PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Montee), MountedCount, BPBmon);
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Distance))
 	{
-		PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Distance), RangedCount, PRdis);
+		PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Distance), RangedCount, BPBdis);
 	}
 	// PHASE 3 : SPÉCIALE (arrière-ligne) + MYTHIQUE (soutien) débloquées.
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Speciale))
 	{
-		PlaceRows(Demo->GetUnitID(Faction, EDemoUnitCategory::Speciale), SpecialCount, PRspe);
+		PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Speciale), SpecialCount, BPBspe);
 	}
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Mythique))
 	{

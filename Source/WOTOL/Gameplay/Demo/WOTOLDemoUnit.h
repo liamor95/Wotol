@@ -47,6 +47,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Greybox")
 	float HealthScale = 1.f;
 
+	// ── FORMATION (groupe de ~5, style Total War) ──────────────────────────────────
+	// Assigné au déploiement par le directeur : chaque unité appartient à un GROUPE (même
+	// faction + même type) qui tente de garder sa formation (ligne/carré). Le groupe partage
+	// UNE étiquette (PV cumulés) portée par l'unité CENTRALE. SlotOffset = position voulue
+	// dans la formation, relative à l'ancre du groupe (X = vers l'ennemi, Y = latéral).
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Formation") int32 FormationGroupId = -1;
+	FVector2D FormationSlot = FVector2D::ZeroVector; // décalage voulu dans la formation
+	bool      bFormationCenter = false;              // porte l'étiquette cumulée du groupe
+	void SetFormation(int32 GroupId, const FVector2D& SlotOffset, bool bCenter)
+	{ FormationGroupId = GroupId; FormationSlot = SlotOffset; bFormationCenter = bCenter; }
+
 	// Horodatage du dernier ordre MANUEL du joueur sur cette unité. La ré-évaluation
 	// tactique de l'IA (Director) laisse ces unités tranquilles pendant quelques secondes.
 	UPROPERTY(BlueprintReadWrite, Category = "Demo|Greybox")
@@ -345,6 +356,11 @@ private:
 	// SÉPARATION DOUCE (lisibilité) : écarte gentiment les unités d'une MÊME couche
 	// verticale pour éviter l'amas illisible, sans bloquer les couches différentes.
 	void ApplySoftSeparation(float DeltaSeconds);
+	// COHÉSION DE FORMATION : ramène doucement l'unité à sa position (slot) dans son groupe
+	// tant qu'aucun ennemi n'est en portée (voyage/attente) -> les blocs gardent leur forme
+	// (ligne/carré) et se déplacent ensemble. En mêlée, la formation se libère.
+	void ApplyFormationCohesion(float DeltaSeconds);
+	float CohTimer = 0.f;
 
 	// AQUILANCES — lance sur articulation (coup de lance = poussée vers l'avant) + son ancrage.
 	UPROPERTY() TObjectPtr<USceneComponent> LanceJoint;

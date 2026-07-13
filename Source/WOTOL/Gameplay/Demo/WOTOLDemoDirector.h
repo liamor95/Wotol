@@ -62,6 +62,10 @@ public:
 	bool  bGrandBattle    = false;  // vrai en phase 3 (formation large + gros roster)
 	int32 SpecialCount    = 3;      // nb d'unités spéciales par armée (relevé en phase 3)
 
+	// Compteur d'identifiants de GROUPE de formation (blocs de ~5) — unique sur toute la
+	// bataille (joueur + rivale) pour agréger les étiquettes et garder les formations.
+	int32 NextFormationGroupId = 0;
+
 	// Multiplicateur de PV de la créature/boss (réduit -> phase 1 gagnable)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
 	float CreatureHealthScale = 8.f;

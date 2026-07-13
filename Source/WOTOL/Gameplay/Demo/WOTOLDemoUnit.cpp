@@ -182,6 +182,9 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		// sans changement visible (les unités se démêlent tout aussi bien).
 		SepTimer -= DeltaSeconds;
 		if (SepTimer <= 0.f) { SepTimer = 0.08f; ApplySoftSeparation(0.08f); }
+		// COHÉSION DE FORMATION (blocs de 5) — throttlée, hors mêlée.
+		CohTimer -= DeltaSeconds;
+		if (CohTimer <= 0.f) { CohTimer = 0.15f; ApplyFormationCohesion(0.15f); }
 		// Synergie Aquiloris (lance ↔ bouclier) réévaluée ~3 fois/s (pas chaque frame).
 		SynergyTimer -= DeltaSeconds;
 		if (SynergyTimer <= 0.f) { SynergyTimer = 0.33f; UpdateAquilorisSynergy(); }
@@ -1857,6 +1860,51 @@ void AWOTOLDemoUnit::ComputeGroupTag()
 	if (MyId == NAME_None) return;
 
 	const FVector MyLoc = GetActorLocation();
+
+	// ── CAS PRINCIPAL : regroupement par GROUPE DE FORMATION explicite (bloc de ~5) ──
+	// L'étiquette cumulée est portée par l'unité CENTRALE du groupe. Une unité qui s'ÉLOIGNE
+	// trop du centre du groupe (détachée) retrouve sa propre étiquette individuelle.
+	if (FormationGroupId >= 0)
+	{
+		const float DetachR2 = 550.f * 550.f;
+		// Centre du groupe (membres vivants).
+		FVector GC = FVector::ZeroVector; int32 Members = 0;
+		for (AUnitBase* U : Reg->GetUnitsForFaction(GetFaction()))
+		{
+			AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U);
+			if (!D || !D->IsAlive() || D->FormationGroupId != FormationGroupId) continue;
+			GC += U->GetActorLocation(); ++Members;
+		}
+		if (Members < 1) return;
+		GC /= Members;
+
+		// Détachée du groupe -> étiquette individuelle.
+		if (FVector::DistSquared2D(MyLoc, GC) > DetachR2) return;
+
+		// Agrège les membres NON détachés ; désigne le porteur (centre déclaré, sinon le plus
+		// proche du centre).
+		int32 Cnt = 0, Cur = 0, Mx = 0;
+		AWOTOLDemoUnit* CenterUnit = nullptr;
+		AWOTOLDemoUnit* Nearest = nullptr; float BestD = TNumericLimits<float>::Max();
+		for (AUnitBase* U : Reg->GetUnitsForFaction(GetFaction()))
+		{
+			AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U);
+			if (!D || !D->IsAlive() || D->FormationGroupId != FormationGroupId) continue;
+			if (FVector::DistSquared2D(U->GetActorLocation(), GC) > DetachR2) continue; // détaché exclu
+			const int32 UMax = D->GetEffectiveMaxHealth();
+			++Cnt; Cur += FMath::Clamp(FMath::RoundToInt(D->CurrentHealth), 0, UMax); Mx += UMax;
+			if (D->bFormationCenter) CenterUnit = D;
+			const float d2 = FVector::DistSquared2D(U->GetActorLocation(), GC);
+			if (d2 < BestD) { BestD = d2; Nearest = D; }
+		}
+		if (Cnt < 2) return; // seule non détachée -> étiquette individuelle.
+		const AWOTOLDemoUnit* Carrier = CenterUnit ? CenterUnit : Nearest;
+		if (Carrier == this) { bTagIsRep = true; GroupTagCount = Cnt; GroupTagCur = Cur; GroupTagMax = Mx; }
+		else                 { bTagSuppressed = true; }
+		return;
+	}
+
+	// ── FALLBACK : regroupement par PROXIMITÉ (unités sans groupe assigné) ──
 	const float GroupR2 = 300.f * 300.f;   // rayon de regroupement (formation locale)
 
 	// 1) Voisinage : toutes les unités VIVANTES du MÊME type dans le rayon (moi inclus).
@@ -2033,6 +2081,49 @@ void AWOTOLDemoUnit::ApplySoftSeparation(float Dt)
 		const FVector Step = Push.GetClampedToMaxSize(180.f) * FMath::Min(1.f, 14.f * Dt);
 		AddActorWorldOffset(Step, true);
 	}
+}
+
+// COHÉSION DE FORMATION : ramène l'unité vers sa place (slot) dans son groupe tant qu'aucun
+// ennemi n'est en portée de combat (voyage / attente). En mêlée, on relâche -> le combat
+// reste libre. -> les blocs de 5 gardent leur forme (ligne/carré) et avancent ensemble.
+void AWOTOLDemoUnit::ApplyFormationCohesion(float Dt)
+{
+	if (FormationGroupId < 0 || bIsBoss || bCreatureBrain) return;
+	UWorld* W = GetWorld(); if (!W || !IsBattleLive()) return;
+
+	// En COMBAT (ennemi proche) : formation libérée -> on ne contraint pas.
+	const float AtkRange = UnitData ? UnitData->Stats.AttackRange * 200.f : 200.f;
+	if (AUnitBase* Foe = FindNearestEnemyUnit())
+	{
+		if (FVector::Dist2D(GetActorLocation(), Foe->GetActorLocation()) < AtkRange + 650.f) return;
+	}
+	// Sous ordre EXPLICITE du joueur : on n'entrave pas l'ordre (déplacement/attaque dirigé).
+	if (UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>())
+		if (S->bFollowingPlayerOrder || S->bAttackMoveActive) return;
+
+	UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>(); if (!Reg) return;
+
+	// Centre du groupe (membres vivants).
+	FVector GC = FVector::ZeroVector; int32 N = 0;
+	for (AUnitBase* U : Reg->GetUnitsForFaction(GetFaction()))
+	{
+		AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U);
+		if (!D || !D->IsAlive() || D->FormationGroupId != FormationGroupId) continue;
+		GC += U->GetActorLocation(); ++N;
+	}
+	if (N < 2) return;
+	GC /= N;
+
+	// Cible = centre du groupe + décalage de slot (X = vers l'ennemi +X pour l'armée joueur).
+	const FVector Target = GC + FVector(FormationSlot.X, FormationSlot.Y, 0.f);
+	FVector Delta = Target - GetActorLocation(); Delta.Z = 0.f;
+	const float Dist = Delta.Size();
+	if (Dist < 45.f) return; // déjà en place.
+
+	// Rappel DOUX vers le slot (respecte la collision décor).
+	const float Speed = (BaseWalkSpeed > 0.f ? BaseWalkSpeed : 300.f) * 0.6f;
+	const float Move  = FMath::Min(Dist, Speed * Dt);
+	AddActorWorldOffset(Delta.GetSafeNormal() * Move, true);
 }
 
 // Tailles réelles approximatives (mètres) — valeurs du GDD/document de démo
