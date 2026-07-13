@@ -510,7 +510,7 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	// fragiles compensés) × robustesse liée à la DIFFICULTÉ × bonus PHASE 3 (le joueur perdait
 	// la grande bataille -> ses unités tiennent plus longtemps).
 	const float PScale = ArmyHealthScale * FactionSurvivability(Faction)
-		* DiffPlayerMult(Demo->GetDifficulty()) * (bGrandBattle ? 1.20f : 1.0f);
+		* DiffPlayerMult(Demo->GetDifficulty()) * (bGrandBattle ? 1.12f : 1.0f);
 
 	// Place un groupe en rangées (se replie sur plusieurs lignes vers l'arrière -X). En
 	// phase 3, les rangées sont bien plus LARGES -> la ligne s'étale sur la largeur du tiers
@@ -631,7 +631,7 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	// rivale reste tuable et fidele a son identite. La DIFFICULTE est le vrai curseur de defi.
 	// Phase 3 : PV rival ABAISSES (0.90) -> le joueur ne perd plus la grande bataille malgre
 	// des degats superieurs (l'ennemi etait plus tanky que lui).
-	const float RivalScale = ArmyHealthScale * (bGrandBattle ? 0.90f : 1.00f)
+	const float RivalScale = ArmyHealthScale * (bGrandBattle ? 0.95f : 1.00f)
 		* FactionSurvivability(RivalFaction) * DiffEnemyMult(Demo->GetDifficulty());
 
 	// PLACEMENT ALÉATOIRE par couche, PROPRE À LA FACTION : chaque unité peut être au sol
@@ -744,7 +744,7 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 		// Phase 3 (miroir 80v80) : defaite ecrasante observee (80-19) -> l'avance de DPS des
 		// Noxeens + facteurs mecaniques exigent un avantage offensif JOUEUR plus net et un
 		// ennemi bien tempere, pour que la grande bataille soit reellement gagnable.
-		if (bGrandBattle) M *= bPlayerSide ? 1.40f : 0.70f;
+		if (bGrandBattle) M *= bPlayerSide ? 1.25f : 0.85f;
 		Unit->BalanceDamageMult = M;
 	}
 
