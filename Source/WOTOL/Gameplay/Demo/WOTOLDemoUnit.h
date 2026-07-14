@@ -191,6 +191,7 @@ private:
 	bool  bQuadrupedRig = false;
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> TailJoints; // chaîne de la queue (fouet)
 	float LastTargetYawRel = 0.f; // angle signé (deg) de la cible / avant du modèle (0 = devant)
+	bool  bRearFoeClose = false;  // un ennemi est-il PROCHE dans l'arc ARRIÈRE ? (déclenche le coup de queue)
 	float TailWhipPhase = 0.f;
 	void  AnimateQuadruped(float Dt);
 

@@ -243,6 +243,7 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		// LANCE : par défaut GARDE PASSIVE (diagonale). Passe en garde AGRESSIVE quand un
 		// ennemi est à portée d'engagement/charge OU pendant un coup.
 		LanceAggroTarget = (AttackAnimTimer > 0.f) ? 1.f : 0.f;
+		bRearFoeClose = false; // recalculé ci-dessous s'il y a un ennemi (sinon : pas de coup de queue)
 		// 1) Un ennemi à portée de combat -> on lui FAIT FACE (le coup part devant).
 		if (AUnitBase* Foe = FindNearestEnemyUnit())
 		{
@@ -252,6 +253,9 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 			const float AtkRange = UnitData ? UnitData->Stats.AttackRange * 200.f : 200.f;
 			// Angle SIGNÉ de la cible par rapport à l'AVANT du modèle (0 = pile devant, ±180 = dos).
 			LastTargetYawRel = FMath::FindDeltaAngleDegrees(GetActorRotation().Yaw, To.Rotation().Yaw);
+			// Y a-t-il un ennemi PROCHE dans l'arc ARRIÈRE ? (sert à ne déclencher le coup de queue
+			// QUE quand il y a vraiment quelque chose à fouetter derrière — jamais dans le vide).
+			bRearFoeClose = bQuadrupedRig && (FMath::Abs(LastTargetYawRel) > 95.f) && (Dist < AtkRange + 220.f);
 			// QUADRUPÈDE (drake/beast) : il ne PIVOTE PAS pour un ennemi DERRIÈRE (fini le 360° !) ->
 			// il le frappe d'un COUP DE QUEUE sur place. Il ne se tourne que vers l'avant (cône ~110°).
 			const bool bRearFoe = (bQuadrupedRig && FMath::Abs(LastTargetYawRel) > 110.f);
@@ -3508,9 +3512,10 @@ void AWOTOLDemoUnit::AnimateQuadruped(float Dt)
 	else if (bMoving) { rSho = s * 26.f; lSho = -s * 26.f; rHip = -s * 26.f; lHip = s * 26.f; }
 	else { rSho = 6.f + s * 3.f; lSho = 6.f - s * 3.f; rHip = s * 3.f; lHip = -s * 3.f; } // frémissement
 
-	// ── COUP DE GRIFFE (ennemi DEVANT) : la patte avant droite se lève puis abat vers l'avant. ──
-	const bool bFrontAtk = bAttacking && !bDead && FMath::Abs(LastTargetYawRel) <= 95.f;
-	const bool bRearAtk  = bAttacking && !bDead && FMath::Abs(LastTargetYawRel) >  95.f;
+	// COUP DE QUEUE UNIQUEMENT s'il y a un ennemi PROCHE DERRIÈRE (bRearFoeClose) -> jamais de
+	// balayage dans le vide. Sinon, coup de GRIFFE (ennemi devant) et queue au repos (ondoiement).
+	const bool bRearAtk  = bAttacking && !bDead && bRearFoeClose;
+	const bool bFrontAtk = bAttacking && !bDead && !bRearAtk;
 	if (bFrontAtk)
 	{
 		SwingProgress = FMath::Min(1.f, SwingProgress + Dt * 3.2f);
