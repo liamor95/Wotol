@@ -29,6 +29,10 @@ void AWOTOLPlayerController_Battle::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// PAUSE « caméra libre » : le contrôleur continue de tourner (et de traiter les entrées)
+	// même quand le jeu est en pause -> la caméra peut se déplacer alors que l'action est gelée.
+	bShouldPerformFullTickWhenPaused = true;
+
 	// Récupérer la faction depuis le GameInstance
 	if (UWOTOLGameInstance* GI = Cast<UWOTOLGameInstance>(GetGameInstance()))
 	{
@@ -98,10 +102,23 @@ bool AWOTOLPlayerController_Battle::GetViewportSizeSafe(FVector2D& Out) const
 	return false;
 }
 
+void AWOTOLPlayerController_Battle::ApplyPauseState()
+{
+	// Le jeu est en pause si l'action est GELÉE (bouton pause) OU si le menu réglages est ouvert.
+	UGameplayStatics::SetGamePaused(GetWorld(), bFrozen || bSettingsOpen);
+}
+
 void AWOTOLPlayerController_Battle::TogglePause()
 {
-	const bool bNowPaused = !UGameplayStatics::IsGamePaused(GetWorld());
-	UGameplayStatics::SetGamePaused(GetWorld(), bNowPaused);
+	// Bouton pause = GEL de l'action (la caméra reste libre). Reprise = garde la position caméra.
+	bFrozen = !bFrozen;
+	ApplyPauseState();
+}
+
+void AWOTOLPlayerController_Battle::ToggleSettings()
+{
+	bSettingsOpen = !bSettingsOpen;
+	ApplyPauseState();
 }
 
 AWOTOLDemoDirector* AWOTOLPlayerController_Battle::GetDemoDirector() const
@@ -162,7 +179,6 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 	float MX, MY;
 	if (!GetMousePosition(MX, MY)) return false;
 	const FVector2D M(MX, MY);
-	const bool bPaused = UGameplayStatics::IsGamePaused(GetWorld());
 
 	UDemoFlowSubsystem* Demo = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
@@ -278,33 +294,42 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		return true;
 	}
 
-	// Bouton pause (toujours actif en préparation / jeu)
+	// ENGRENAGE (réglages) : ouvre/ferme le menu Reprendre / Recommencer / Quitter.
+	if (AWOTOLDemoHUD::SettingsButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+	{
+		ToggleSettings();
+		return true;
+	}
+
+	// Bouton PAUSE = gel de l'action (icône pause <-> play). La caméra reste libre.
 	if (AWOTOLDemoHUD::PauseButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 	{
 		TogglePause();
 		return true;
 	}
 
-	if (!bPaused) return false;
-
-	// Boutons du menu pause
-	if (AWOTOLDemoHUD::MenuButtonRect(0, VpSize.X, VpSize.Y).IsInside(M)) // Reprendre
+	// Menu RÉGLAGES ouvert : ses 3 boutons.
+	if (bSettingsOpen)
 	{
-		UGameplayStatics::SetGamePaused(GetWorld(), false);
-		return true;
+		if (AWOTOLDemoHUD::MenuButtonRect(0, VpSize.X, VpSize.Y).IsInside(M)) // Reprendre (ferme)
+		{
+			bSettingsOpen = false; ApplyPauseState();
+			return true;
+		}
+		if (AWOTOLDemoHUD::MenuButtonRect(1, VpSize.X, VpSize.Y).IsInside(M)) // Recommencer
+		{
+			bSettingsOpen = false; UGameplayStatics::SetGamePaused(GetWorld(), false);
+			UGameplayStatics::OpenLevel(this, FName(*GetWorld()->GetName()));
+			return true;
+		}
+		if (AWOTOLDemoHUD::MenuButtonRect(2, VpSize.X, VpSize.Y).IsInside(M)) // Quitter
+		{
+			UKismetSystemLibrary::QuitGame(this, this, EQuitPreference::Quit, false);
+			return true;
+		}
+		return true; // menu ouvert : tout clic est consommé par le menu
 	}
-	if (AWOTOLDemoHUD::MenuButtonRect(1, VpSize.X, VpSize.Y).IsInside(M)) // Recommencer
-	{
-		UGameplayStatics::SetGamePaused(GetWorld(), false);
-		UGameplayStatics::OpenLevel(this, FName(*GetWorld()->GetName()));
-		return true;
-	}
-	if (AWOTOLDemoHUD::MenuButtonRect(2, VpSize.X, VpSize.Y).IsInside(M)) // Quitter
-	{
-		UKismetSystemLibrary::QuitGame(this, this, EQuitPreference::Quit, false);
-		return true;
-	}
-	return true; // en pause : tout clic est consommé par le menu
+	return false;
 }
 
 bool AWOTOLPlayerController_Battle::HandleCommandBarClick(bool bDoubleClick)

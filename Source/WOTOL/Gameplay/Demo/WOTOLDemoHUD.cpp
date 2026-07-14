@@ -24,6 +24,12 @@ FBox2D AWOTOLDemoHUD::PauseButtonRect(float W, float H)
 	return FBox2D(FVector2D(W - 58.f, 14.f), FVector2D(W - 18.f, 50.f));
 }
 
+FBox2D AWOTOLDemoHUD::SettingsButtonRect(float W, float H)
+{
+	// Engrenage juste à GAUCHE du bouton pause.
+	return FBox2D(FVector2D(W - 106.f, 14.f), FVector2D(W - 66.f, 50.f));
+}
+
 FBox2D AWOTOLDemoHUD::MenuButtonRect(int32 Index, float W, float H)
 {
 	const float BW = 280.f, BH = 54.f, Gap = 18.f;
@@ -239,11 +245,21 @@ void AWOTOLDemoHUD::DrawHUD()
 	DrawButton(LayerUpButtonRect(W, H),   TEXT("^ Monter"),    FLinearColor(0.3f, 0.7f, 1.f, 1.f), 1.f);
 	DrawButton(LayerDownButtonRect(W, H), TEXT("v Descendre"), FLinearColor(0.3f, 0.7f, 1.f, 1.f), 1.f);
 
-	// ─── 6) Bouton pause + voile du menu pause ───────────────────────────────
+	// ─── 6) Boutons ENGRENAGE (réglages) + PAUSE (gel) ───────────────────────
+	DrawSettingsButton(W, H);
 	DrawPauseButton(W, H);
-	if (UGameplayStatics::IsGamePaused(World))
+	// Menu réglages (engrenage) : voile + boutons. Gel simple (pause) : discret indicateur.
+	if (AWOTOLPlayerController_Battle* PC = Cast<AWOTOLPlayerController_Battle>(GetOwningPlayerController()))
 	{
-		DrawPauseOverlay(W, H);
+		if (PC->IsSettingsOpen())
+		{
+			DrawPauseOverlay(W, H); // menu Reprendre / Recommencer / Quitter
+		}
+		else if (PC->IsBattleFrozen())
+		{
+			// PAUSE simple : pas de voile (on veut voir le champ gelé + déplacer la caméra).
+			DrawCenteredText(TEXT("— PAUSE —"), 60.f, FLinearColor(1.f, 0.95f, 0.6f, 1.f), 1.4f);
+		}
 	}
 }
 
@@ -683,8 +699,9 @@ void AWOTOLDemoHUD::DrawCurrentIndicator(float W, float H, UWorld* World)
 	const float Ang = FMath::DegreesToRadians(WorldYaw - CamYaw);
 	const FVector2D Dir(FMath::Sin(Ang), -FMath::Cos(Ang)); // haut écran = avant caméra
 
-	// Panneau en haut à droite (à gauche du bouton pause).
-	const float BX = W - 210.f, BY = 8.f, BW = 150.f, BH = 58.f;
+	// Panneau en haut à droite, DÉCALÉ SOUS la rangée des boutons (pause + engrenage) pour ne
+	// pas les chevaucher.
+	const float BX = W - 168.f, BY = 60.f, BW = 150.f, BH = 58.f;
 	DrawRect(FLinearColor(0.02f, 0.05f, 0.09f, 0.82f), BX, BY, BW, BH);
 	DrawRect(FLinearColor(0.25f, 0.7f, 1.f, 0.9f), BX, BY, BW, 3.f);
 	DrawText(TEXT("COURANT"), FLinearColor(0.7f, 0.9f, 1.f, 1.f), BX + 10.f, BY + 8.f, GEngine->GetSmallFont(), 1.f);
@@ -833,18 +850,60 @@ void AWOTOLDemoHUD::DrawPauseButton(float W, float H)
 	const FBox2D R = PauseButtonRect(W, H);
 	const FVector2D Sz = R.Max - R.Min;
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.45f), R.Min.X, R.Min.Y, Sz.X, Sz.Y);
-	// deux barres ‖
-	const float BarW = 7.f, BarH = Sz.Y * 0.55f;
-	const float BarY = R.Min.Y + (Sz.Y - BarH) * 0.5f;
-	DrawRect(FLinearColor::White, R.Min.X + Sz.X * 0.30f - BarW * 0.5f, BarY, BarW, BarH);
-	DrawRect(FLinearColor::White, R.Min.X + Sz.X * 0.70f - BarW * 0.5f, BarY, BarW, BarH);
+
+	// GELÉ -> icône PLAY (triangle) pour REPRENDRE ; sinon icône PAUSE (deux barres).
+	bool bFrozen = false;
+	if (AWOTOLPlayerController_Battle* PC = Cast<AWOTOLPlayerController_Battle>(GetOwningPlayerController()))
+		bFrozen = PC->IsBattleFrozen();
+
+	if (bFrozen)
+	{
+		// Icône PLAY (triangle pointant à droite) tramée en bandes horizontales.
+		const float TriH = Sz.Y * 0.5f, TriW = Sz.X * 0.34f;
+		const float LX = R.Min.X + Sz.X * 0.34f, CY = R.Min.Y + Sz.Y * 0.5f;
+		const int32 Rows = 9;
+		for (int32 r = 0; r <= Rows; ++r)
+		{
+			const float t = (float)r / Rows;                 // 0 (haut) .. 1 (bas)
+			const float y = CY - TriH * 0.5f + t * TriH;
+			const float w = TriW * (1.f - FMath::Abs(t - 0.5f) * 2.f); // large au centre, pointe aux extrêmes
+			DrawRect(FLinearColor::White, LX, y - 1.f, w, 3.f);
+		}
+	}
+	else
+	{
+		const float BarW = 7.f, BarH = Sz.Y * 0.55f;
+		const float BarY = R.Min.Y + (Sz.Y - BarH) * 0.5f;
+		DrawRect(FLinearColor::White, R.Min.X + Sz.X * 0.30f - BarW * 0.5f, BarY, BarW, BarH);
+		DrawRect(FLinearColor::White, R.Min.X + Sz.X * 0.70f - BarW * 0.5f, BarY, BarW, BarH);
+	}
+}
+
+// Engrenage (réglages) : disque + dents (petits rectangles autour) + moyeu sombre.
+void AWOTOLDemoHUD::DrawSettingsButton(float W, float H)
+{
+	const FBox2D R = SettingsButtonRect(W, H);
+	const FVector2D Sz = R.Max - R.Min;
+	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.45f), R.Min.X, R.Min.Y, Sz.X, Sz.Y);
+	if (!Canvas) return;
+	const FVector2D C(R.Min.X + Sz.X * 0.5f, R.Min.Y + Sz.Y * 0.5f);
+	const float Rad = Sz.Y * 0.26f;
+	// dents
+	for (int32 i = 0; i < 8; ++i)
+	{
+		const float a = 2.f * PI * i / 8.f;
+		const FVector2D P(C.X + FMath::Cos(a) * Rad, C.Y + FMath::Sin(a) * Rad);
+		DrawRect(FLinearColor::White, P.X - 2.5f, P.Y - 2.5f, 5.f, 5.f);
+	}
+	Canvas->K2_DrawPolygon(nullptr, C, FVector2D(Rad, Rad), 12, FLinearColor(0.85f, 0.9f, 1.f, 1.f)); // disque
+	Canvas->K2_DrawPolygon(nullptr, C, FVector2D(Rad * 0.42f, Rad * 0.42f), 10, FLinearColor(0.05f, 0.07f, 0.12f, 1.f)); // moyeu
 }
 
 void AWOTOLDemoHUD::DrawPauseOverlay(float W, float H)
 {
 	// Voile sombre plein écran
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), 0.f, 0.f, W, H);
-	DrawCenteredText(TEXT("PAUSE"), H * 0.28f, FLinearColor::White, 2.6f);
+	DrawCenteredText(TEXT("REGLAGES"), H * 0.28f, FLinearColor::White, 2.6f);
 
 	const TCHAR* Labels[3] = { TEXT("Reprendre"), TEXT("Recommencer"), TEXT("Quitter") };
 	for (int32 i = 0; i < 3; ++i)

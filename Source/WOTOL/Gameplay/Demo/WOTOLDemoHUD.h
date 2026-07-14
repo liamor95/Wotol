@@ -19,6 +19,8 @@ public:
 	// ─── Zones cliquables (source de vérité partagée HUD ↔ PlayerController) ───
 	// Bouton pause (deux barres) en haut à droite.
 	static FBox2D PauseButtonRect(float W, float H);
+	// Bouton RÉGLAGES (engrenage), à gauche du bouton pause.
+	static FBox2D SettingsButtonRect(float W, float H);
 	// Boutons du menu pause (0 = Reprendre, 1 = Recommencer, 2 = Quitter).
 	static FBox2D MenuButtonRect(int32 Index, float W, float H);
 
@@ -56,6 +58,7 @@ public:
 private:
 	void DrawCenteredText(const FString& Text, float Y, const FLinearColor& Color, float Scale);
 	void DrawPauseButton(float W, float H);
+	void DrawSettingsButton(float W, float H);
 	void DrawPauseOverlay(float W, float H);
 
 	// Écrans du flux (menu / faction / préparation)

@@ -24,6 +24,9 @@ static FVector UnitVisualLocation(const AUnitBase* U)
 AWOTOLBattleCamera::AWOTOLBattleCamera()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	// La caméra continue de tourner MÊME quand le jeu est en PAUSE -> on peut survoler le champ
+	// de bataille gelé (l'action est figée, pas la caméra).
+	PrimaryActorTick.bTickEvenWhenPaused = true;
 
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	RootComponent = Root;

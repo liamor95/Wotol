@@ -61,8 +61,21 @@ private:
 	void OnRightMouseReleased();
 	void OnSelectAll();
 
-	// Pause (clavier + clics sur le menu)
-	void TogglePause();
+	// ── PAUSE (gel de l'action) & RÉGLAGES (menu de l'engrenage) — indépendants ──
+	// bFrozen : le bouton pause GÈLE la bataille (unités, décor, animaux figés) MAIS la caméra
+	//   reste libre de se déplacer. L'icône bascule pause <-> play. La reprise garde la position
+	//   caméra où le joueur l'a laissée.
+	// bSettingsOpen : l'engrenage ouvre le MENU (Reprendre / Recommencer / Quitter) — ce qui
+	//   apparaissait avant sur la pause. Il met aussi le jeu en pause tant qu'il est ouvert.
+	bool bFrozen = false;
+	bool bSettingsOpen = false;
+	void ApplyPauseState(); // pause moteur = (bFrozen || bSettingsOpen)
+	void TogglePause();     // bascule bFrozen
+	void ToggleSettings();  // ouvre/ferme le menu réglages
+public:
+	bool IsBattleFrozen() const { return bFrozen; }
+	bool IsSettingsOpen() const { return bSettingsOpen; }
+private:
 	// Traite un clic gauche sur l'UI (bouton pause / menu / écrans). Vrai = consommé.
 	bool HandleUIClick();
 	bool GetViewportSizeSafe(FVector2D& Out) const;
