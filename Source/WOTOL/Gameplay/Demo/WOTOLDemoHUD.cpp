@@ -1218,9 +1218,10 @@ void AWOTOLDemoHUD::DrawBattlefieldMarkers(float W, float H, UWorld* World)
 			AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U);
 			if (!D || !D->IsAlive()) continue;
 			if (D->bIsBoss || D->bCreatureBrain) continue; // le boss garde son grand nom 3D
-			// UN SEUL marqueur par GROUPE (représentant) : on n'affiche RIEN pour les unités
-			// couvertes NI pour les unités isolées/détachées -> écran bien plus lisible.
-			if (!(D->IsTagRep() && D->GetTagCount() >= 2)) continue;
+			// UN marqueur par GROUPE (le représentant central) ET un pour chaque unité SOLO/
+			// isolée (Chef, mythique…). On masque seulement les unités COUVERTES par un
+			// représentant -> chaque TYPE d'unité a au moins un indicateur, sans surcharge.
+			if (D->IsTagSuppressed()) continue;
 
 			// Position écran (au-dessus du modèle, en tenant compte de la couche/hauteur).
 			USceneComponent* A = D->GetFloatingTextAnchor();

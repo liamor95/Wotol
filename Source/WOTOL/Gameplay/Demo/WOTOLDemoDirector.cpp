@@ -770,10 +770,13 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	// jamais deux types sur la même ligne. Côté rival, l'arrière = +X (il fait face à -X).
 	float BackCursor = 0.f;
 	const float GroupGap = Depth * (bGrandBattle ? 0.5f : 1.0f);
+	// Décalages de slot (2-1-2) pour la COHÉSION + l'étiquette de groupe côté rival.
+	const float RIX = Depth * 0.5f, RIY = Lat * 0.55f;
 	auto PlaceRows = [&](FName Id, EDemoUnitCategory Cat, int32 Count, int32 PerRow)
 	{
 		if (Id.IsNone() || Count <= 0 || PerRow <= 0) return;
 		const int32 Rows = (Count + PerRow - 1) / PerRow;
+		int32 CurGid = -1;
 		for (int32 i = 0; i < Count; ++i)
 		{
 			const int32 Row = i / PerRow;
@@ -782,7 +785,24 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 			const float Y = (Col - (InThisRow - 1) * 0.5f) * Lat;
 			FVector Loc = O + FVector(BackCursor + Row * Depth, Y, 100.f);
 			Loc.X = FMath::Max(Loc.X, MirrorX); // ne pas franchir la limite de son tiers
-			SetLayer(SpawnUnit(Id, Loc, Facing, 1.f, RivalScale), PickLayer(Cat));
+			AWOTOLDemoUnit* U = SpawnUnit(Id, Loc, Facing, 1.f, RivalScale);
+			SetLayer(U, PickLayer(Cat));
+			// GROUPE DE 5 (comme le joueur) : étiquette groupée + unité CENTRALE porteuse -> UN
+			// marqueur par groupe côté ENNEMI aussi (fini un indicateur par unité verte).
+			const int32 ChunkStart = (i / 5) * 5;
+			const int32 ChunkSize = FMath::Min(5, Count - ChunkStart);
+			const int32 Pos = i - ChunkStart;
+			if (Pos == 0) CurGid = NextFormationGroupId++;
+			FVector2D Slot; const bool bCenter = (Pos == ChunkSize / 2);
+			switch (Pos)
+			{
+				case 0: Slot = FVector2D( RIX, -RIY); break;
+				case 1: Slot = FVector2D( RIX,  RIY); break;
+				case 2: Slot = FVector2D( 0.f,  0.f); break;
+				case 3: Slot = FVector2D(-RIX, -RIY); break;
+				default:Slot = FVector2D(-RIX,  RIY); break;
+			}
+			if (U) U->SetFormation(CurGid, Slot, bCenter);
 		}
 		BackCursor += Rows * Depth + GroupGap;
 	};

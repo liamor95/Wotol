@@ -3723,6 +3723,7 @@ void AWOTOLDemoUnit::AnimateBody(float Dt)
 // ─── KRAKEN : céphalopode géant + 2 fouets — design UNIQUE (indépendant de la faction)
 void AWOTOLDemoUnit::BuildKrakenCephalopod(float H)
 {
+	bHorizontalBody = true; // à la mort, le Kraken s'affale SUR LE FLANC (plus la tête en l'air)
 	const FRotator NoRot = FRotator::ZeroRotator;
 	const float h = H / 100.f;
 	// Palette fidèle à la réf : armure acier bleu-violet sombre, plaques + claires,
