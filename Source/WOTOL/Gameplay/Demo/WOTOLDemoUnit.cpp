@@ -2751,68 +2751,82 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 	if (Id == TEXT("Noxebeast")) // Montée : QUADRUPÈDE cuirassé façon réf (dos hérissé, défenses, griffes)
 	{
 		bHorizontalBody = true; // quadrupède horizontal -> cadavre à plat sur le flanc
-		const FLinearColor Scale2(0.14f, 0.12f, 0.09f, 1.f);       // écailles bronze un peu plus claires
-		const FLinearColor EyeGlow(0.35f, 1.60f, 0.55f, 1.f);      // yeux verts LUMINEUX (émissif)
-		const FLinearColor TuskC(0.55f, 0.42f, 0.20f, 1.f);
+		// RÉF : QUADRUPÈDE trapu LOURDEMENT BLINDÉ (écailles bronze/noires), posture VOÛTÉE et
+		// basse, grosse tête armée à YEUX VERTS, DEUX ÉNORMES DÉFENSES courbées vers le BAS, gueule
+		// à crocs, CARAPACE à POINTES (grosses aux épaules, rangée dorsale), 4 pattes ÉPAISSES à
+		// grosses griffes, queue épaisse. Avant = +X.
+		const FLinearColor Scale2(0.15f, 0.13f, 0.10f, 1.f);       // écailles bronze un peu plus claires
+		const FLinearColor EyeGlow(0.35f, 1.65f, 0.55f, 1.f);      // yeux verts LUMINEUX (émissif)
+		const FLinearColor TuskC(0.62f, 0.50f, 0.28f, 1.f);        // ivoire/bronze des défenses
+		const FLinearColor TuskTip(0.20f, 0.15f, 0.08f, 1.f);      // pointe sombre des défenses
 
-		// ── CORPS massif, épaules HAUTES à l'avant qui redescendent vers l'arrière (posture voûtée) ──
-		SetupMainPart(M_SPH, FVector(H * 0.05f, 0, -H * 0.06f), FVector(h * 1.05f, h * 0.95f, h * 0.78f), NoRot, NoxBronze); // poitrail bombé
-		AddPart(M_SPH, FVector(-H * 0.55f, 0, -H * 0.18f), FVector(h * 0.85f, h * 0.80f, h * 0.55f), NoRot, NoxBronze);      // croupe plus basse
-		AddPart(M_CYL, FVector(-H * 0.28f, 0, -H * 0.14f), FVector(h * 0.80f, h * 0.80f, h * 0.9f), FRotator(90.f, 0, 0), NoxBronze); // tronc
+		// ── CORPS TRAPU et VOÛTÉ : épaules HAUTES et LARGES à l'avant, croupe plus basse ──
+		AddPart(M_SPH, FVector(H * 0.14f, 0, H * 0.02f), FVector(h * 1.15f, h * 1.02f, h * 0.82f), NoRot, NoxBronze);       // masse d'épaules (haute, large)
+		SetupMainPart(M_SPH, FVector(-H * 0.22f, 0, -H * 0.10f), FVector(h * 1.02f, h * 0.90f, h * 0.66f), NoRot, NoxBronze); // tronc
+		AddPart(M_SPH, FVector(-H * 0.60f, 0, -H * 0.22f), FVector(h * 0.80f, h * 0.74f, h * 0.50f), NoRot, NoxBronze);      // croupe (plus basse)
+		AddPart(M_SPH, FVector(-H * 0.10f, 0, -H * 0.34f), FVector(h * 0.80f, h * 0.66f, h * 0.30f), NoRot, Scale2);         // ventre plus clair
 
-		// ── PLAQUES D'ÉCAILLES sur le dos et les flancs (relief cuirassé) ──
+		// ── CARAPACE : dalles d'écailles sur le dos + flancs (relief cuirassé) ──
 		for (int32 p = 0; p < 6; ++p)
 		{
-			const float px = H * (0.35f - p * 0.16f);
-			AddPart(M_CUBE, FVector(px, 0, H * 0.30f - p * 1.f), FVector(0.16f, 0.42f, 0.05f), FRotator(0, 0, 0), Scale2);      // dalle dorsale
-			AddPart(M_CUBE, FVector(px, H * 0.30f, -H * 0.10f), FVector(0.12f, 0.10f, 0.06f), FRotator(0, 0, 20.f), Scale2);   // écaille flanc D
-			AddPart(M_CUBE, FVector(px, -H * 0.30f, -H * 0.10f), FVector(0.12f, 0.10f, 0.06f), FRotator(0, 0, -20.f), Scale2); // écaille flanc G
+			const float px = H * (0.32f - p * 0.15f);
+			AddPart(M_CUBE, FVector(px, 0, H * 0.34f - p * H * 0.02f), FVector(0.18f, 0.46f, 0.06f), NoRot, Scale2);          // dalle dorsale
+			AddPart(M_CUBE, FVector(px, H * 0.34f, -H * 0.12f), FVector(0.14f, 0.10f, 0.07f), FRotator(0, 0, 22.f), Scale2);  // écaille flanc D
+			AddPart(M_CUBE, FVector(px, -H * 0.34f, -H * 0.12f), FVector(0.14f, 0.10f, 0.07f), FRotator(0, 0, -22.f), Scale2);// écaille flanc G
 		}
-
-		// ── RANGÉE DE PICS DORSAUX (de la nuque à la queue), taille décroissante ──
-		for (int32 s = 0; s < 7; ++s)
+		// Rangée de PICS DORSAUX (nuque -> queue), décroissants.
+		for (int32 s = 0; s < 8; ++s)
 		{
-			const float sx = H * (0.30f - s * 0.16f);
-			const float sh = h * (0.34f - s * 0.03f);
-			AddPart(M_CONE, FVector(sx, 0, H * 0.34f), FVector(0.10f, 0.10f, sh), FRotator(-18.f, 0, 0), Scale2);
+			const float sx = H * (0.34f - s * 0.14f);
+			const float sh = h * (0.40f - s * 0.035f);
+			AddPart(M_CONE, FVector(sx, 0, H * 0.40f - s * H * 0.015f), FVector(0.11f, 0.11f, sh), FRotator(-16.f, 0, 0), Scale2);
 		}
-		// PICS D'ÉPAULES (deux gros bouquets à l'avant, comme la réf)
+		// GROS PICS D'ÉPAULES : deux gros bouquets saillants à l'avant (identité de la réf).
+		for (int32 side = -1; side <= 1; side += 2)
+			for (int32 k = 0; k < 4; ++k)
+				AddPart(M_CONE, FVector(H * (0.16f + k * 0.05f), side * H * (0.36f + k * 0.02f), H * (0.02f + k * 0.09f)),
+					FVector(0.12f, 0.12f, h * (0.48f - k * 0.06f)), FRotator(0, 0, side * (62.f - k * 12.f)), Scale2);
+
+		// ── GROSSE TÊTE BLINDÉE basse + gueule + YEUX VERTS + DEUX ÉNORMES DÉFENSES vers le BAS ──
+		AddPart(M_SPH, FVector(H * 0.66f, 0, -H * 0.04f), FVector(h * 0.58f, h * 0.60f, h * 0.50f), NoRot, NoxBronze);   // crâne massif
+		AddPart(M_CONE, FVector(H * 0.94f, 0, -H * 0.16f), FVector(h * 0.40f, h * 0.36f, h * 0.34f), FRotator(80.f, 0, 0), NoxBronze); // museau large
+		AddPart(M_CONE, FVector(H * 0.90f, 0, -H * 0.30f), FVector(h * 0.34f, h * 0.30f, h * 0.26f), FRotator(98.f, 0, 0), Scale2);     // mâchoire basse
+		// Yeux verts lumineux (enfoncés sous une arcade épineuse).
+		AddPart(M_SPH, FVector(H * 0.80f, H * 0.16f, H * 0.10f), FVector(0.11f, 0.11f, 0.10f), NoRot, EyeGlow);
+		AddPart(M_SPH, FVector(H * 0.80f, -H * 0.16f, H * 0.10f), FVector(0.11f, 0.11f, 0.10f), NoRot, EyeGlow);
+		// Arcades/cornes de sourcil + pics de joue (tête épineuse).
 		for (int32 side = -1; side <= 1; side += 2)
 		{
-			for (int32 k = 0; k < 3; ++k)
-				AddPart(M_CONE, FVector(H * (0.10f + k * 0.05f), side * H * 0.34f, H * (0.05f + k * 0.06f)),
-					FVector(0.09f, 0.09f, h * (0.34f - k * 0.05f)), FRotator(0, 0, side * (55.f - k * 12.f)), Scale2);
+			AddPart(M_CONE, FVector(H * 0.72f, side * H * 0.14f, H * 0.22f), FVector(0.07f, 0.07f, h * 0.20f), FRotator(-10.f, 0, side * 34.f), Scale2); // corne sourcil
+			AddPart(M_CONE, FVector(H * 0.66f, side * H * 0.30f, -H * 0.02f), FVector(0.06f, 0.06f, h * 0.16f), FRotator(0, 0, side * 70.f), Scale2);     // pic de joue
+		}
+		// DEUX ÉNORMES DÉFENSES recourbées vers le BAS (depuis les côtés de la gueule).
+		for (int32 side = -1; side <= 1; side += 2)
+		{
+			AddPart(M_CONE, FVector(H * 0.88f, side * H * 0.20f, -H * 0.10f), FVector(0.14f, 0.14f, h * 0.42f), FRotator(196.f, 0, side * 14.f), TuskC);   // défense (grosse, vers le bas)
+			AddPart(M_CONE, FVector(H * 0.96f, side * H * 0.22f, -H * 0.46f), FVector(0.08f, 0.08f, h * 0.20f), FRotator(214.f, 0, side * 20.f), TuskTip); // pointe recourbée (avant)
 		}
 
-		// ── TÊTE basse + gueule + défenses recourbées + yeux verts lumineux ──
-		AddPart(M_SPH, FVector(H * 0.62f, 0, -H * 0.06f), FVector(h * 0.50f, h * 0.52f, h * 0.44f), NoRot, NoxBronze);   // crâne
-		AddPart(M_CONE, FVector(H * 0.86f, 0, -H * 0.14f), FVector(h * 0.34f, h * 0.30f, h * 0.30f), FRotator(78.f, 0, 0), NoxBronze); // museau
-		AddPart(M_SPH, FVector(H * 0.74f, 15, H * 0.06f), FVector(0.10f, 0.10f, 0.10f), NoRot, EyeGlow);                 // œil vert G
-		AddPart(M_SPH, FVector(H * 0.74f, -15, H * 0.06f), FVector(0.10f, 0.10f, 0.10f), NoRot, EyeGlow);                // œil vert D
-		AddPart(M_CONE, FVector(H * 0.70f, 12, H * 0.16f), FVector(0.06f, 0.06f, h * 0.14f), FRotator(0, 0, 40.f), Scale2);  // corne sourcil
-		AddPart(M_CONE, FVector(H * 0.70f, -12, H * 0.16f), FVector(0.06f, 0.06f, h * 0.14f), FRotator(0, 0, -40.f), Scale2);
-		// deux GRANDES défenses qui remontent (recourbées)
-		AddPart(M_CONE, FVector(H * 0.80f, 20, -H * 0.24f), FVector(0.10f, 0.10f, h * 0.40f), FRotator(150.f, 0, 12.f), TuskC);
-		AddPart(M_CONE, FVector(H * 0.80f, -20, -H * 0.24f), FVector(0.10f, 0.10f, h * 0.40f), FRotator(150.f, 0, -12.f), TuskC);
-
-		// ── 4 PATTES ÉPAISSES SEGMENTÉES (cuisse + tibia + pied à 3 griffes), animées ──
-		const float LegX = H * 0.40f, LegY = H * 0.36f;
-		auto BuildLeg = [&](USceneComponent* Joint)
+		// ── 4 PATTES TRÈS ÉPAISSES SEGMENTÉES (cuisse + tibia + gros pied à 3-4 grosses griffes) ──
+		auto BuildLeg = [&](USceneComponent* Joint, bool bFront)
 		{
-			MakeBone(Joint, M_CYL, FVector(0, 0, -H * 0.12f), FVector(0.22f, 0.22f, h * 0.24f), NoRot, NoxBronze);     // cuisse épaisse
-			MakeBone(Joint, M_CYL, FVector(H * 0.02f, 0, -H * 0.30f), FVector(0.17f, 0.17f, h * 0.22f), NoRot, NoxBronze); // tibia
-			MakeBone(Joint, M_SPH, FVector(H * 0.04f, 0, -H * 0.42f), FVector(0.20f, 0.24f, 0.14f), NoRot, NoxBronze);  // patte
-			for (int32 cclaw = -1; cclaw <= 1; ++cclaw) // 3 griffes vers l'avant
-				MakeBone(Joint, M_CONE, FVector(H * 0.12f, cclaw * 9.f, -H * 0.44f), FVector(0.05f, 0.05f, h * 0.12f), FRotator(70.f, 0, 0), TuskC);
+			const float t = bFront ? 1.12f : 1.f; // pattes AVANT plus épaisses (posture voûtée)
+			MakeBone(Joint, M_CYL, FVector(0, 0, -H * 0.12f), FVector(0.26f * t, 0.26f * t, h * 0.26f), NoRot, NoxBronze);      // cuisse épaisse
+			MakeBone(Joint, M_CYL, FVector(H * 0.03f, 0, -H * 0.32f), FVector(0.20f * t, 0.20f * t, h * 0.24f), NoRot, NoxBronze); // tibia
+			MakeBone(Joint, M_SPH, FVector(H * 0.06f, 0, -H * 0.46f), FVector(0.26f * t, 0.30f * t, 0.16f), NoRot, NoxBronze);  // gros pied
+			for (int32 cclaw = -1; cclaw <= 1; ++cclaw) // grosses griffes vers l'avant
+				MakeBone(Joint, M_CONE, FVector(H * 0.20f, cclaw * H * 0.06f, -H * 0.48f), FVector(0.07f, 0.07f, h * 0.18f), FRotator(66.f, 0, 0), TuskC);
 		};
-		JRShoulder = MakeJoint(VisualRoot, FVector(LegX, LegY, -H * 0.08f));   BuildLeg(JRShoulder);  // avant droit
-		JLShoulder = MakeJoint(VisualRoot, FVector(LegX, -LegY, -H * 0.08f));  BuildLeg(JLShoulder);  // avant gauche
-		JRHip = MakeJoint(VisualRoot, FVector(-LegX, LegY, -H * 0.12f));       BuildLeg(JRHip);       // arrière droit
-		JLHip = MakeJoint(VisualRoot, FVector(-LegX, -LegY, -H * 0.12f));      BuildLeg(JLHip);       // arrière gauche
+		const float LegX = H * 0.42f, LegY = H * 0.40f;
+		JRShoulder = MakeJoint(VisualRoot, FVector(LegX, LegY, -H * 0.02f));   BuildLeg(JRShoulder, true);  // avant droit
+		JLShoulder = MakeJoint(VisualRoot, FVector(LegX, -LegY, -H * 0.02f));  BuildLeg(JLShoulder, true);  // avant gauche
+		JRHip = MakeJoint(VisualRoot, FVector(-LegX, LegY, -H * 0.14f));       BuildLeg(JRHip, false);      // arrière droit
+		JLHip = MakeJoint(VisualRoot, FVector(-LegX, -LegY, -H * 0.14f));      BuildLeg(JLHip, false);      // arrière gauche
 
-		// ── QUEUE épaisse segmentée à pics, qui remue ──
-		RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.85f, 0, -H * 0.10f), FVector(0.18f, 0.18f, h * 0.45f), FRotator(-105.f, 0, 0), NoxBronze), 0.f);
-		RegisterWiggle(AddPart(M_CONE, FVector(-H * 1.15f, 0, -H * 0.02f), FVector(0.10f, 0.10f, h * 0.30f), FRotator(-100.f, 0, 0), Scale2), 0.6f);
+		// ── QUEUE ÉPAISSE segmentée à pics, qui remue ──
+		RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.92f, 0, -H * 0.14f), FVector(0.22f, 0.22f, h * 0.48f), FRotator(-108.f, 0, 0), NoxBronze), 0.f);
+		RegisterWiggle(AddPart(M_CONE, FVector(-H * 1.24f, 0, -H * 0.06f), FVector(0.14f, 0.14f, h * 0.34f), FRotator(-102.f, 0, 0), Scale2), 0.6f);
+		RegisterWiggle(AddPart(M_CONE, FVector(-H * 1.50f, 0, H * 0.00f), FVector(0.09f, 0.09f, h * 0.24f), FRotator(-98.f, 0, 0), Scale2), 1.0f);
 		bArticulated = true; // démarche quadrupède (les 4 pattes s'animent)
 		return;
 	}
@@ -2876,72 +2890,108 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		// grappe d'yeux verts, gueule à crocs, longue queue. Avant = +X (comme Noxebeast).
 		// NB : le boss NEUTRE de la phase 1 reste le Kraken céphalopode (chemin séparé dans
 		// BuildGreyboxShape) ; ce modèle-ci est le mythique Noxéen jouable de la phase 2.
-		bHorizontalBody = true; // dragon quadrupède horizontal -> cadavre à plat sur le flanc
-		const FLinearColor Scale(0.05f, 0.06f, 0.05f, 1.f);      // écailles noires
-		const FLinearColor Scale2(0.09f, 0.11f, 0.09f, 1.f);     // écailles plus claires
-		const FLinearColor GreenGlow(0.30f, 1.70f, 0.50f, 1.f);  // épines/yeux verts lumineux
-		const FLinearColor Fang(0.75f, 0.72f, 0.55f, 1.f);       // crocs ivoire
+		bHorizontalBody = true; // dragon horizontal -> cadavre à plat sur le flanc
+		// RÉF : dragon abyssal noir ÉLANCÉ, LONG COU dressé + tête à grappe d'yeux verts et
+		// longue mâchoire dentée (+ barbillons), GRANDE crête d'épines VERTES bioluminescentes du
+		// crâne à la queue, GRANDES pattes AVANT articulées (comme des bras levés), pattes arrière
+		// robustes, LONGUE queue. Veines vertes lumineuses le long du corps. Avant = +X.
+		const FLinearColor Scale (0.05f, 0.06f, 0.055f, 1.f);    // écailles noires
+		const FLinearColor Scale2(0.10f, 0.13f, 0.11f, 1.f);     // écailles un peu plus claires (ventre)
+		const FLinearColor GreenGlow(0.30f, 1.70f, 0.55f, 1.f);  // crête/yeux/veines verts lumineux
+		const FLinearColor GreenSoft(0.18f, 0.85f, 0.35f, 1.f);  // vert lumineux plus doux (veines)
+		const FLinearColor Fang(0.80f, 0.78f, 0.60f, 1.f);       // crocs ivoire
 
-		// Corps : poitrail avant haut -> tronc -> croupe
-		SetupMainPart(M_SPH, FVector(H * 0.10f, 0, -H * 0.02f), FVector(h * 0.95f, h * 0.80f, h * 0.66f), NoRot, Scale);
-		AddPart(M_SPH, FVector(-H * 0.52f, 0, -H * 0.16f), FVector(h * 0.72f, h * 0.66f, h * 0.48f), NoRot, Scale);
-		AddPart(M_CYL, FVector(-H * 0.24f, 0, -H * 0.10f), FVector(h * 0.68f, h * 0.68f, h * 0.82f), FRotator(90.f, 0, 0), Scale);
+		// ── CORPS massif et allongé : croupe (arrière -X) -> tronc -> poitrail relevé (avant +X) ──
+		AddPart(M_SPH, FVector(-H * 0.55f, 0, -H * 0.14f), FVector(h * 0.80f, h * 0.74f, h * 0.60f), NoRot, Scale); // croupe
+		SetupMainPart(M_SPH, FVector(-H * 0.12f, 0, -H * 0.06f), FVector(h * 1.05f, h * 0.86f, h * 0.72f), NoRot, Scale); // tronc
+		AddPart(M_SPH, FVector(H * 0.32f, 0, H * 0.10f), FVector(h * 0.82f, h * 0.72f, h * 0.70f), NoRot, Scale);   // poitrail relevé
+		AddPart(M_SPH, FVector(-H * 0.05f, 0, -H * 0.30f), FVector(h * 0.78f, h * 0.62f, h * 0.34f), NoRot, Scale2); // ventre plus clair
 
-		// Cou serpentin dressé + tête (avant +X, en hauteur)
-		AddPart(M_CYL, FVector(H * 0.48f, 0, H * 0.18f), FVector(h * 0.34f, h * 0.34f, h * 0.34f), FRotator(52.f, 0, 0), Scale);
-		AddPart(M_SPH, FVector(H * 0.72f, 0, H * 0.40f), FVector(h * 0.40f, h * 0.42f, h * 0.34f), NoRot, Scale);
-		AddPart(M_CONE, FVector(H * 0.96f, 0, H * 0.34f), FVector(h * 0.24f, h * 0.20f, h * 0.30f), FRotator(72.f, 0, 0), Scale); // museau allongé
-		// Grappe d'YEUX verts lumineux sur le crâne (devant)
-		for (int32 e = 0; e < 6; ++e)
+		// ── LONG COU serpentin dressé (segments qui montent vers +X/haut) + TÊTE en hauteur ──
+		AddPart(M_CYL, FVector(H * 0.55f, 0, H * 0.34f), FVector(h * 0.42f, h * 0.42f, h * 0.34f), FRotator(48.f, 0, 0), Scale); // base du cou
+		AddPart(M_CYL, FVector(H * 0.74f, 0, H * 0.62f), FVector(h * 0.34f, h * 0.34f, h * 0.32f), FRotator(58.f, 0, 0), Scale); // milieu du cou
+		AddPart(M_CYL, FVector(H * 0.88f, 0, H * 0.90f), FVector(h * 0.28f, h * 0.28f, h * 0.30f), FRotator(66.f, 0, 0), Scale); // haut du cou
+		// Tête allongée (crâne + long museau) tout en haut, avancée vers +X.
+		AddPart(M_SPH,  FVector(H * 1.02f, 0, H * 1.12f), FVector(h * 0.34f, h * 0.34f, h * 0.30f), NoRot, Scale);              // crâne
+		AddPart(M_CONE, FVector(H * 1.34f, 0, H * 1.04f), FVector(h * 0.20f, h * 0.17f, h * 0.42f), FRotator(78.f, 0, 0), Scale); // long museau (haut)
+		AddPart(M_CONE, FVector(H * 1.30f, 0, H * 0.92f), FVector(h * 0.17f, h * 0.15f, h * 0.34f), FRotator(96.f, 0, 0), Scale2); // mâchoire basse
+		// GRAPPE d'yeux verts lumineux sur le dessus du crâne (façon réf : ~7 petits dômes).
+		for (int32 e = 0; e < 7; ++e)
 		{
-			const float ey = FMath::Sin(e * 2.0f) * 12.f;
-			const float ez = H * 0.44f + FMath::Cos(e * 1.7f) * H * 0.03f;
-			AddPart(M_SPH, FVector(H * 0.82f, ey, ez), FVector(0.10f, 0.10f, 0.11f), NoRot, GreenGlow);
+			const float ey = FMath::Sin(e * 1.9f) * H * 0.10f;
+			const float ez = H * 1.20f + FMath::Cos(e * 1.5f) * H * 0.03f;
+			const float ex = H * (1.06f + 0.03f * (e % 3));
+			AddPart(M_SPH, FVector(ex, ey, ez), FVector(0.07f, 0.07f, 0.06f), NoRot, GreenGlow);
 		}
-		// Mâchoire basse + rangée de crocs
-		AddPart(M_CONE, FVector(H * 0.98f, 0, H * 0.26f), FVector(h * 0.18f, h * 0.16f, h * 0.18f), FRotator(-96.f, 0, 0), Scale2);
-		for (int32 f = 0; f < 5; ++f)
+		// Rangées de crocs (haut + bas) dans la gueule allongée.
+		for (int32 f = 0; f < 6; ++f)
 		{
-			const float fy = (f - 2) * 7.f;
-			AddPart(M_CONE, FVector(H * (0.90f + 0.02f * (f % 2)), fy, H * 0.30f), FVector(0.05f, 0.05f, h * 0.12f), FRotator(150.f, 0, 0), Fang);
+			const float fy = (f - 2.5f) * H * 0.045f;
+			AddPart(M_CONE, FVector(H * (1.34f + 0.02f * (f % 2)), fy, H * 0.99f), FVector(0.035f, 0.035f, h * 0.10f), FRotator(150.f, 0, 0), Fang);
+			AddPart(M_CONE, FVector(H * (1.30f + 0.02f * (f % 2)), fy, H * 0.92f), FVector(0.03f, 0.03f, h * 0.08f), FRotator(30.f, 0, 0), Fang);
 		}
-		// Barbillons sous la mâchoire (ondulent)
+		// Barbillons (tendrils) qui pendent sous la mâchoire et ondulent.
 		for (int32 s = -1; s <= 1; s += 2)
-			RegisterWiggle(AddPart(M_CONE, FVector(H * 0.94f, s * 10.f, H * 0.16f), FVector(0.03f, 0.03f, h * 0.22f), FRotator(150.f, 0, s * 10.f), Scale2), s < 0 ? 0.f : 2.0f);
-
-		// GRANDE CRÊTE + ÉPINES DORSALES vertes lumineuses (de la nuque +X vers la queue -X)
-		for (int32 s = 0; s < 10; ++s)
 		{
-			const float sx = H * (0.50f - s * 0.14f);
-			const float sz = H * (0.34f - s * 0.028f);
-			const float sh = h * (0.55f - s * 0.035f);
-			AddPart(M_CONE, FVector(sx, 0, sz), FVector(0.09f, 0.15f, sh), FRotator(-16.f, 0, 0), GreenGlow);
+			RegisterWiggle(AddPart(M_CONE, FVector(H * 1.24f, s * H * 0.06f, H * 0.78f), FVector(0.03f, 0.03f, h * 0.26f), FRotator(168.f, 0, s * 8.f), Scale2), s < 0 ? 0.f : 1.4f);
+			RegisterWiggle(AddPart(M_CONE, FVector(H * 1.12f, s * H * 0.05f, H * 0.80f), FVector(0.025f, 0.025f, h * 0.20f), FRotator(172.f, 0, s * 12.f), Scale2), s < 0 ? 0.6f : 2.1f);
 		}
-		// Lignes bioluminescentes vertes le long des flancs
-		for (int32 s = -1; s <= 1; s += 2)
-			for (int32 k = 0; k < 5; ++k)
-				AddPart(M_SPH, FVector(H * (0.30f - k * 0.16f), s * H * 0.34f, -H * 0.06f), FVector(0.05f, 0.05f, 0.05f), NoRot, GreenGlow);
 
-		// 4 PATTES SEGMENTÉES (cuisse + tibia + patte + 3 griffes), animées
-		const float LegX = H * 0.36f, LegY = H * 0.34f;
-		auto BuildLeg = [&](USceneComponent* Joint)
-		{
-			MakeBone(Joint, M_CYL, FVector(0, 0, -H * 0.10f), FVector(0.20f, 0.20f, h * 0.22f), NoRot, Scale);
-			MakeBone(Joint, M_CYL, FVector(H * 0.02f, 0, -H * 0.28f), FVector(0.15f, 0.15f, h * 0.20f), NoRot, Scale);
-			MakeBone(Joint, M_SPH, FVector(H * 0.04f, 0, -H * 0.40f), FVector(0.18f, 0.22f, 0.13f), NoRot, Scale);
-			for (int32 cl = -1; cl <= 1; ++cl)
-				MakeBone(Joint, M_CONE, FVector(H * 0.12f, cl * 8.f, -H * 0.42f), FVector(0.05f, 0.05f, h * 0.12f), FRotator(70.f, 0, 0), Fang);
+		// ── GRANDE CRÊTE d'ÉPINES VERTES bioluminescentes : membranes larges du CRÂNE, le long du
+		// COU (les plus GRANDES), du DOS, jusqu'à la QUEUE (décroissantes). ──
+		struct FSpine { FVector Pos; float Pitch; float Wide; float Tall; };
+		const FSpine Spines[] = {
+			{ FVector(H * 0.95f, 0, H * 1.05f), -22.f, 0.10f, 0.60f }, // nuque (grande)
+			{ FVector(H * 0.80f, 0, H * 0.80f), -26.f, 0.11f, 0.72f }, // cou haut (la plus grande)
+			{ FVector(H * 0.62f, 0, H * 0.52f), -30.f, 0.11f, 0.66f },
+			{ FVector(H * 0.42f, 0, H * 0.30f), -34.f, 0.10f, 0.56f },
+			{ FVector(H * 0.18f, 0, H * 0.22f), -20.f, 0.09f, 0.46f },
+			{ FVector(-H * 0.10f, 0, H * 0.16f), -16.f, 0.08f, 0.40f },
+			{ FVector(-H * 0.38f, 0, H * 0.06f), -14.f, 0.07f, 0.34f },
+			{ FVector(-H * 0.62f, 0, -H * 0.02f), -12.f, 0.06f, 0.28f },
 		};
-		JRShoulder = MakeJoint(VisualRoot, FVector(LegX, LegY, -H * 0.06f));   BuildLeg(JRShoulder);
-		JLShoulder = MakeJoint(VisualRoot, FVector(LegX, -LegY, -H * 0.06f));  BuildLeg(JLShoulder);
-		JRHip = MakeJoint(VisualRoot, FVector(-LegX, LegY, -H * 0.10f));       BuildLeg(JRHip);
-		JLHip = MakeJoint(VisualRoot, FVector(-LegX, -LegY, -H * 0.10f));      BuildLeg(JLHip);
+		for (const FSpine& Sp : Spines)
+			AddPart(M_CONE, Sp.Pos, FVector(0.05f, h * Sp.Wide, h * Sp.Tall), FRotator(Sp.Pitch, 0, 0), GreenGlow); // membrane large et fine
 
-		// LONGUE QUEUE segmentée qui ondule, terminée par un aiguillon caudal vert lumineux
-		RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.80f, 0, -H * 0.10f), FVector(0.20f, 0.20f, h * 0.5f), FRotator(-100.f, 0, 0), Scale), 0.f);
-		RegisterWiggle(AddPart(M_CONE, FVector(-H * 1.12f, 0, -H * 0.02f), FVector(0.13f, 0.13f, h * 0.42f), FRotator(-96.f, 0, 0), Scale2), 0.6f);
-		RegisterWiggle(AddPart(M_CONE, FVector(-H * 1.40f, 0, H * 0.04f), FVector(0.08f, 0.14f, h * 0.30f), FRotator(-90.f, 0, 0), GreenGlow), 1.0f);
-		bArticulated = true; // démarche quadrupède (les 4 pattes s'animent)
+		// Veines vertes lumineuses le long des flancs et du poitrail.
+		for (int32 s = -1; s <= 1; s += 2)
+			for (int32 k = 0; k < 6; ++k)
+				AddPart(M_SPH, FVector(H * (0.32f - k * 0.16f), s * H * 0.30f, -H * 0.04f - k * H * 0.01f), FVector(0.05f, 0.05f, 0.045f), NoRot, GreenSoft);
+
+		// ── GRANDES PATTES AVANT ARTICULÉES (comme des BRAS levés/pliés) : épaule -> avant-bras
+		// pointant vers l'avant -> grosse main à 3 griffes. Nettement plus GROSSES que l'arrière. ──
+		auto BuildArm = [&](USceneComponent* Joint)
+		{
+			MakeBone(Joint, M_CYL, FVector(0, 0, -H * 0.10f), FVector(0.26f, 0.26f, h * 0.26f), FRotator(18.f, 0, 0), Scale);      // épaule / bras (épais)
+			MakeBone(Joint, M_CYL, FVector(H * 0.14f, 0, -H * 0.34f), FVector(0.20f, 0.20f, h * 0.26f), FRotator(-28.f, 0, 0), Scale); // avant-bras (plié vers l'avant)
+			MakeBone(Joint, M_SPH, FVector(H * 0.26f, 0, -H * 0.52f), FVector(0.22f, 0.26f, 0.16f), NoRot, Scale);                 // grosse main
+			for (int32 cl = -1; cl <= 1; ++cl)
+				MakeBone(Joint, M_CONE, FVector(H * 0.36f, cl * H * 0.045f, -H * 0.54f), FVector(0.06f, 0.06f, h * 0.20f), FRotator(64.f, 0, cl * 10.f), Fang); // 3 grandes griffes
+		};
+		auto BuildHindLeg = [&](USceneComponent* Joint)
+		{
+			MakeBone(Joint, M_CYL, FVector(0, 0, -H * 0.12f), FVector(0.24f, 0.24f, h * 0.28f), NoRot, Scale);         // cuisse épaisse
+			MakeBone(Joint, M_CYL, FVector(H * 0.04f, 0, -H * 0.36f), FVector(0.18f, 0.18f, h * 0.24f), NoRot, Scale); // tibia
+			MakeBone(Joint, M_SPH, FVector(H * 0.08f, 0, -H * 0.50f), FVector(0.22f, 0.26f, 0.15f), NoRot, Scale);     // pied
+			for (int32 cl = -1; cl <= 1; ++cl)
+				MakeBone(Joint, M_CONE, FVector(H * 0.20f, cl * H * 0.05f, -H * 0.52f), FVector(0.055f, 0.055f, h * 0.15f), FRotator(70.f, 0, 0), Fang); // griffes
+		};
+		const float ArmX = H * 0.42f, ArmY = H * 0.40f, HipX = H * 0.52f, HipY = H * 0.38f;
+		JRShoulder = MakeJoint(VisualRoot, FVector(ArmX, ArmY, H * 0.02f));   BuildArm(JRShoulder);
+		JLShoulder = MakeJoint(VisualRoot, FVector(ArmX, -ArmY, H * 0.02f));  BuildArm(JLShoulder);
+		JRHip = MakeJoint(VisualRoot, FVector(-HipX, HipY, -H * 0.10f));      BuildHindLeg(JRHip);
+		JLHip = MakeJoint(VisualRoot, FVector(-HipX, -HipY, -H * 0.10f));     BuildHindLeg(JLHip);
+
+		// ── LONGUE QUEUE effilée (segments) qui ondule, avec épines vertes et pointe lumineuse. ──
+		RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.92f, 0, -H * 0.06f), FVector(0.24f, 0.24f, h * 0.55f), FRotator(-98.f, 0, 0), Scale), 0.f);
+		RegisterWiggle(AddPart(M_CONE, FVector(-H * 1.30f, 0, H * 0.00f), FVector(0.17f, 0.17f, h * 0.48f), FRotator(-94.f, 0, 0), Scale), 0.5f);
+		RegisterWiggle(AddPart(M_CONE, FVector(-H * 1.64f, 0, H * 0.06f), FVector(0.11f, 0.11f, h * 0.40f), FRotator(-90.f, 0, 0), Scale2), 0.9f);
+		RegisterWiggle(AddPart(M_CONE, FVector(-H * 1.92f, 0, H * 0.12f), FVector(0.07f, 0.12f, h * 0.32f), FRotator(-86.f, 0, 0), GreenGlow), 1.3f); // pointe lumineuse
+		// Petites épines vertes le long de la queue.
+		for (int32 t = 0; t < 4; ++t)
+			RegisterWiggle(AddPart(M_CONE, FVector(-H * (1.05f + t * 0.26f), 0, H * (0.06f + t * 0.03f)), FVector(0.04f, h * 0.05f, h * (0.22f - t * 0.03f)), FRotator(-30.f, 0, 0), GreenGlow), 0.4f + t * 0.3f);
+
+		bArticulated = true; // démarche + bras animés
 		return;
 	}
 
