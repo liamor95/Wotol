@@ -19,6 +19,7 @@
 #include "WOTOLBubbleBurst.h"
 #include "WOTOLCaptureObject.h"
 #include "WOTOLCoverStructure.h"
+#include "WOTOLDemoDirector.h"
 #include "EngineUtils.h"
 #include "WOTOLInkZone.h"
 #include "WOTOLBeam.h"
@@ -286,6 +287,9 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	// un décor, elle se dégage seule (ne concerne que les unités mobiles, pas le boss).
 	if (!bCreatureBrain && bBattleLive)
 		TickUnstick(DeltaSeconds, bWantsAdvance);
+
+	// GARDE-FOU : jamais hors de l'arène / sous la carte (anti-crash, anti-unité perdue).
+	TickArenaClamp();
 
 	// COURANT OCÉANIQUE : sur les couches HAUTES, la dérive pousse physiquement l'unité
 	// (joueur, ennemi ET Kraken). N'agit qu'EN BATAILLE (pas pendant le placement, sinon
@@ -1557,6 +1561,36 @@ bool AWOTOLDemoUnit::Ability_ShadowStrike()
 	AWOTOLBubbleBurst::Burst(W, Start + FVector(0, 0, 70.f), Smoke, 14);
 	AWOTOLDamageNumber::SpawnText(W, Target->GetActorLocation() + FVector(0, 0, 130.f), TEXT("Ombres Glissees"), FLinearColor(0.35f, 0.55f, 1.3f, 1.f));
 	return true;
+}
+
+// GARDE-FOU ARÈNE : maintient l'unité DANS la zone jouable. Empêche de tomber SOUS la carte
+// (void) ou de se perdre/coincer dans les montagnes/le décor -> plus de crash ni d'unité
+// injouable. Ramène doucement dans le rayon de l'arène et au-dessus du sol.
+void AWOTOLDemoUnit::TickArenaClamp()
+{
+	if (!bArenaCached)
+	{
+		bArenaCached = true;
+		ArenaCenter = FVector::ZeroVector;
+		for (TActorIterator<AWOTOLDemoDirector> It(GetWorld()); It; ++It) { ArenaCenter = It->GetActorLocation(); break; }
+	}
+
+	FVector L = GetActorLocation();
+	bool bChanged = false;
+
+	// XY : rester DANS le rayon de l'arène (dans le mur de montagnes ~4700 -> marge 4400).
+	FVector Flat = L - ArenaCenter; Flat.Z = 0.f;
+	const float R = 4400.f;
+	if (Flat.SizeSquared() > R * R)
+	{
+		const FVector XY = ArenaCenter + Flat.GetSafeNormal() * R;
+		L.X = XY.X; L.Y = XY.Y; bChanged = true;
+	}
+	// Z : ne JAMAIS passer sous le sol de l'arène (fini "sous la carte").
+	const float FloorZ = ArenaCenter.Z - 60.f;
+	if (L.Z < FloorZ) { L.Z = ArenaCenter.Z + 20.f; bChanged = true; }
+
+	if (bChanged) SetActorLocation(L, false);
 }
 
 // SOIN respectant le MAX EFFECTIF (mise à l'échelle incluse).

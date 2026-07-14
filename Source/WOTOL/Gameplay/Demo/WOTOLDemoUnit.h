@@ -477,6 +477,13 @@ private:
 	// (quelques fois par seconde) au lieu de chaque frame -> gros gain CPU, rendu identique.
 	float SepTimer = 0.f;
 
+	// GARDE-FOU ARÈNE : empêche toute unité de SORTIR de la zone jouable (tomber sous la carte,
+	// se perdre dans les montagnes/le décor -> crash / unité inutilisable). Ramène l'unité dans
+	// le rayon de l'arène et au-dessus du sol. Centre mis en cache au 1er tick.
+	bool    bArenaCached = false;
+	FVector ArenaCenter = FVector::ZeroVector;
+	void    TickArenaClamp();
+
 	// ── ANTI-BLOCAGE (lecture du terrain) : si l'unité VEUT avancer mais ne bouge quasiment
 	// plus (coincée contre un rocher/ruine), elle se DÉGAGE d'elle-même par un pas latéral. ──
 	FVector StuckLastPos = FVector::ZeroVector;
