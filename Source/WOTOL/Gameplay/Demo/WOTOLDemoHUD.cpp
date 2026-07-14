@@ -1183,13 +1183,13 @@ void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
 }
 
 // Icône distincte par rôle (même formes que le roster) — repère visuel du type d'unité.
-void AWOTOLDemoHUD::DrawRoleIcon(float CX, float CY, float R, EUnitRole Role, const FLinearColor& Fac)
+void AWOTOLDemoHUD::DrawRoleIcon(float CX, float CY, float R, EUnitRole IconRole, const FLinearColor& Fac)
 {
 	if (!Canvas) return;
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.55f), CX - R - 2.f, CY - R - 2.f, (R + 2.f) * 2.f, (R + 2.f) * 2.f);
 	const FLinearColor Fill(FMath::Min(1.f, Fac.R + 0.15f), FMath::Min(1.f, Fac.G + 0.15f),
 		FMath::Min(1.f, Fac.B + 0.15f), 1.f);
-	switch (Role)
+	switch (IconRole)
 	{
 		case EUnitRole::Chef:      Canvas->K2_DrawPolygon(nullptr, FVector2D(CX, CY), FVector2D(R, R), 3, Fill); break;
 		case EUnitRole::Mythique:  Canvas->K2_DrawPolygon(nullptr, FVector2D(CX, CY), FVector2D(R * 1.1f, R * 1.1f), 6, Fill); break;
@@ -1231,10 +1231,10 @@ void AWOTOLDemoHUD::DrawBattlefieldMarkers(float W, float H, UWorld* World)
 			const int32 Cur = bGroup ? D->GetTagCur() : FMath::RoundToInt(D->GetHealthPercent() * D->GetEffectiveMaxHealth());
 			const int32 Mx  = bGroup ? D->GetTagMax() : D->GetEffectiveMaxHealth();
 			const float Pct = (Mx > 0) ? (float)Cur / (float)Mx : 0.f;
-			const EUnitRole Role = D->GetUnitData() ? D->GetUnitData()->Role : EUnitRole::Infanterie;
+			const EUnitRole URole = D->GetUnitData() ? D->GetUnitData()->Role : EUnitRole::Infanterie;
 
 			const float IconR = bGroup ? 9.f : 6.f;
-			DrawRoleIcon(SP.X, SP.Y, IconR, Role, Fac);
+			DrawRoleIcon(SP.X, SP.Y, IconR, URole, Fac);
 			// Effectif à droite de l'icône (groupes seulement).
 			if (bGroup)
 				DrawText(FString::Printf(TEXT("x%d"), D->GetTagCount()), FLinearColor::White,
