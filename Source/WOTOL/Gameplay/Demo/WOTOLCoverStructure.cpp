@@ -108,10 +108,23 @@ static UStaticMeshComponent* AddCoverPiece(AActor* Owner, USceneComponent* Root,
 	if (UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, MeshPath)) C->SetStaticMesh(M);
 	C->SetRelativeLocationAndRotation(Loc, Rot);
 	C->SetRelativeScale3D(Scale);
-	// Bloque tout : unités (WorldStatic/Pawn) ET les tracés de tir (couverture).
-	C->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	// PASSAGE SOUS LES ARCHES : une pièce dont le BAS est plus haut que la taille d'une unité
+	// (~260 uu) est une TRAVÉE EN HAUTEUR (haut d'arche/portail) -> elle NE bloque PAS : les
+	// unités nagent/passent DESSOUS par l'ouverture (gain de mouvement). Les piliers et murs
+	// BAS (qui touchent le sol) continuent, eux, de bloquer -> on ne traverse pas un mur.
+	const float PartBottom = Loc.Z - FMath::Abs(Scale.Z) * 50.f; // demi-hauteur mesh de base ≈ 50
 	C->SetCollisionObjectType(ECC_WorldStatic);
-	C->SetCollisionResponseToAllChannels(ECR_Block);
+	if (PartBottom > 260.f)
+	{
+		// Travée haute : franchissable par-dessous (ni blocage unités ni blocage tir au sol).
+		C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+	else
+	{
+		// Base / pilier / mur : bloque unités (WorldStatic/Pawn) ET tracés de tir (couverture).
+		C->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		C->SetCollisionResponseToAllChannels(ECR_Block);
+	}
 	// Couleur vive (cristaux/conduits) -> émissif (brille) ; sinon -> mat rugueux.
 	const bool bEmissive = (Color.R > 1.2f || Color.G > 1.2f || Color.B > 1.2f);
 	if (UMaterialInstanceDynamic* MID = bEmissive

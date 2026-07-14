@@ -647,17 +647,17 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	}
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Mythique))
 	{
-		// BUGFIX : le curseur BackCursor pouvait pousser le mythique HORS de l'arène (invisible
-		// au placement ET absent de la bataille). On PLAFONNE son recul pour qu'il reste bien
-		// DANS le champ, derrière l'armée mais visible.
-		const float MythBack = FMath::Min(BackCursor, Depth * 5.f);
+		// BUGFIX (mythique « sous la map ») : le recul BackCursor pouvait le placer DERRIÈRE le
+		// bord du tiers -> clampé sur un point hors sol / invisible. On le place désormais à un
+		// endroit GARANTI dans le champ : juste derrière le CENTRE de l'armée, faible recul.
+		const float MythBack = Depth * 2.0f;
 		if (AWOTOLDemoUnit* Myth = SpawnUnit(Demo->GetUnitID(Faction, EDemoUnitCategory::Mythique),
 				Origin + FVector(-MythBack, 0.f, GroundZ), Facing, /*ScaleBoost=*/1.0f, /*HealthScale=*/3.0f * FactionSurvivability(Faction)))
 		{
-			// Le mythique NAGE AU-DESSUS de l'armée (couche haute) -> visible, sélectionnable
-			// SEUL (on clique sur son modèle en hauteur), et il ne gêne pas / n'est pas gêné par
-			// les unités au sol. Son IA de soutien le recentrera au-dessus du gros de l'armée.
-			Myth->SetDesiredZ(1000.f);
+			// Il NAGE AU-DESSUS de l'armée (couche haute) -> visible, sélectionnable SEUL (clic sur
+			// son modèle en hauteur), sans gêner/être gêné par les unités au sol. Son IA de soutien
+			// le recentrera au-dessus du gros de l'armée.
+			Myth->SetDesiredZ(900.f);
 			Myth->SetFormation(NextFormationGroupId++, FVector2D::ZeroVector, true);
 		}
 	}
