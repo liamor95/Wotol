@@ -337,18 +337,13 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	// représentant) ou non. Cela masque la plupart des étiquettes (une seule par groupe) ->
 	// écran lisible + beaucoup moins de mises à jour de texte. HORS bataille (placement), on
 	// n'agrège pas (les formations sont espacées, chaque unité montre son nom/PV).
-	if (IsBattleLive())
+	// Regroupement des étiquettes ACTIF dès le PLACEMENT (pas seulement en bataille) : une
+	// seule étiquette par groupe (nom + PV cumulés) portée par l'unité centrale, comme demandé.
+	GroupTagTimer -= DeltaSeconds;
+	if (GroupTagTimer <= 0.f)
 	{
-		GroupTagTimer -= DeltaSeconds;
-		if (GroupTagTimer <= 0.f)
-		{
-			GroupTagTimer = 0.35f + FMath::FRand() * 0.12f; // staggeré -> pas tout le même frame
-			ComputeGroupTag();
-		}
-	}
-	else
-	{
-		bTagSuppressed = false; bTagIsRep = false;
+		GroupTagTimer = 0.35f + FMath::FRand() * 0.12f; // staggeré -> pas tout le même frame
+		ComputeGroupTag();
 	}
 
 	// Étiquette MASQUÉE (couverte par le représentant du groupe) : on la cache et on SORT

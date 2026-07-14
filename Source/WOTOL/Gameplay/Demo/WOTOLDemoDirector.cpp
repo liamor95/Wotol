@@ -561,10 +561,23 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	const float IntraX = Depth * 0.6f;    // écart de profondeur DANS un bloc
 	const float BlockStepY = Lat * 3.1f;  // pas entre blocs (Y) — plus AÉRÉ (lisibilité)
 	const float BlockStepX = Depth * 3.0f;// pas entre bandes de blocs (X) — plus AÉRÉ
+	// ÉCARTEMENT PROPORTIONNEL À LA TAILLE : plus l'unité est massive (montures, mythiques),
+	// plus on espace pour qu'elles ne se chevauchent pas et que l'unité centrale reste visible.
+	auto SizeFactor = [](FName Id) -> float
+	{
+		const FString S = Id.ToString();
+		if (S.Contains(TEXT("Noxebeast")) || S.Contains(TEXT("Aquilances"))) return 1.9f; // montures massives
+		if (S.Contains(TEXT("Leviaphenix")) || S.Contains(TEXT("Noxedrake"))) return 2.4f; // mythiques
+		if (S.Contains(TEXT("Noxeons")))     return 1.5f;                                    // organismes larges
+		return 1.0f;
+	};
 	auto PlaceBlocks = [&](FName Id, int32 Count, int32 BlocksPerBand)
 	{
 		if (Id.IsNone() || Count <= 0) return;
 		BlocksPerBand = FMath::Max(1, BlocksPerBand);
+		const float SF = SizeFactor(Id);
+		const float IY = IntraY * SF, IX = IntraX * SF;      // écarts intra-bloc mis à l'échelle
+		const float BSY = BlockStepY * SF, BSX = BlockStepX * SF; // pas entre blocs mis à l'échelle
 		const int32 NumBlocks = (Count + 4) / 5;
 		int32 BandsUsed = 0;
 		for (int32 b = 0; b < NumBlocks; ++b)
@@ -572,8 +585,8 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 			const int32 Band = b / BlocksPerBand, ColB = b % BlocksPerBand;
 			BandsUsed = FMath::Max(BandsUsed, Band + 1);
 			const int32 InThisBand = FMath::Min(BlocksPerBand, NumBlocks - Band * BlocksPerBand);
-			const float BlockY = (ColB - (InThisBand - 1) * 0.5f) * BlockStepY;
-			const float BlockX = -BackCursor - Band * BlockStepX;
+			const float BlockY = (ColB - (InThisBand - 1) * 0.5f) * BSY;
+			const float BlockX = -BackCursor - Band * BSX;
 			const int32 N = FMath::Min(5, Count - b * 5);
 			const int32 Gid = NextFormationGroupId++;
 			for (int32 s = 0; s < N; ++s)
@@ -584,17 +597,17 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 					// Carré 2-1-2 : 2 devant, 1 au centre (étiquette), 2 derrière.
 					switch (s)
 					{
-						case 0: Slot = FVector2D( IntraX, -IntraY); break; // avant-gauche
-						case 1: Slot = FVector2D( IntraX,  IntraY); break; // avant-droite
-						case 2: Slot = FVector2D( 0.f,    0.f);     bCenter = true; break; // centre
-						case 3: Slot = FVector2D(-IntraX, -IntraY); break; // arrière-gauche
-						default:Slot = FVector2D(-IntraX,  IntraY); break; // arrière-droite
+						case 0: Slot = FVector2D( IX, -IY); break; // avant-gauche
+						case 1: Slot = FVector2D( IX,  IY); break; // avant-droite
+						case 2: Slot = FVector2D( 0.f, 0.f);  bCenter = true; break; // centre
+						case 3: Slot = FVector2D(-IX, -IY); break; // arrière-gauche
+						default:Slot = FVector2D(-IX,  IY); break; // arrière-droite
 					}
 				}
 				else
 				{
 					// LIGNE centrée (blocs incomplets) ; l'unité du milieu porte l'étiquette.
-					Slot = FVector2D(0.f, (s - (N - 1) * 0.5f) * IntraY * 1.6f);
+					Slot = FVector2D(0.f, (s - (N - 1) * 0.5f) * IY * 1.6f);
 					bCenter = (s == N / 2);
 				}
 				const FVector Loc = Origin + FVector(BlockX + Slot.X, BlockY + Slot.Y, GroundZ);
@@ -604,7 +617,7 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 				}
 			}
 		}
-		BackCursor += BandsUsed * BlockStepX + GroupGap; // réserve la place de CETTE catégorie
+		BackCursor += BandsUsed * BSX + GroupGap; // réserve la place de CETTE catégorie (mise à l'échelle)
 	};
 
 	// Nombre de blocs alignés sur la LARGEUR avant de passer à la bande suivante (profondeur).
