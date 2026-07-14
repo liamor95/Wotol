@@ -1403,9 +1403,10 @@ bool AWOTOLDemoUnit::Ability_LaserBig()
 	FVector BOri, BExt; GetActorBounds(true, BOri, BExt);
 	const FVector VisBase = GetFloatingTextAnchor()
 		? GetFloatingTextAnchor()->GetComponentLocation() : GetActorLocation();
-	const FVector From = VisBase
-		+ GetActorForwardVector() * (BExt.X * 0.85f)   // jusqu'a l'avant de la gueule
-		+ FVector(0, 0, BExt.Z * 0.35f);               // a hauteur de tete (au-dessus du centre)
+	// La gueule est EN HAUT et à l'AVANT du modèle (long cou dressé) -> on vise haut (0.80) et
+	// devant (0.80) pour que le souffle sorte bien de la GUEULE, pas du buste.
+	const float MuzzleFwd = BExt.X * 0.80f, MuzzleUp = BExt.Z * 0.80f;
+	const FVector From = VisBase + GetActorForwardVector() * MuzzleFwd + FVector(0, 0, MuzzleUp);
 	const FLinearColor Beam(0.30f, 1.f, 0.45f, 1.f);       // vert Noxéen intense
 	const float Dmg = 700.f * NoxedrakeCharge;             // colossal, décuplé par la charge Noxar
 
@@ -1435,7 +1436,7 @@ bool AWOTOLDemoUnit::Ability_LaserBig()
 	if (AWOTOLBeam* B = AWOTOLBeam::Fire(W, From, Aim.Yaw, Aim.Yaw, FMath::Max(600.f, (To - From).Size() + 120.f),
 			Beam, this, 0.f, Aim.Pitch, /*Thickness=*/4.0f, /*bBubbleTrail=*/true, /*LifeTime=*/1.6f))
 	{
-		B->SetFollow(this, Foe, BExt.X * 0.85f, BExt.Z * 0.35f);
+		B->SetFollow(this, Foe, MuzzleFwd, MuzzleUp); // reste accroché à la GUEULE (haut+avant)
 	}
 	Foe->TakeDamageFromUnit(Dmg, this);
 	AWOTOLDamageNumber::SpawnText(W, From + FVector(0, 0, 150.f),
@@ -2306,7 +2307,7 @@ float AWOTOLDemoUnit::GetUnitHeightMeters(FName UnitID)
 	if (UnitID == TEXT("Noxebeast"))   return 2.50f;
 	if (UnitID == TEXT("Noxeblast"))   return 1.60f;
 	if (UnitID == TEXT("Noxeons"))     return 1.80f;
-	if (UnitID == TEXT("Noxedrake"))   return 6.50f;
+	if (UnitID == TEXT("Noxedrake"))   return 4.60f; // mythique, mais pas plus imposant que le Leviaphenix
 	return 1.75f; // défaut prototype
 }
 
@@ -2985,21 +2986,27 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 
 		// ── GRANDES PATTES AVANT ARTICULÉES (comme des BRAS levés/pliés) : épaule -> avant-bras
 		// pointant vers l'avant -> grosse main à 3 griffes. Nettement plus GROSSES que l'arrière. ──
+		// Membres CONTINUS (pas de trous) : une SPHÈRE comble chaque articulation (épaule, coude,
+		// poignet) et les segments se CHEVAUCHENT -> un vrai bras plein, pas des bâtons espacés.
 		auto BuildArm = [&](USceneComponent* Joint)
 		{
-			MakeBone(Joint, M_CYL, FVector(0, 0, -H * 0.10f), FVector(0.26f, 0.26f, h * 0.26f), FRotator(18.f, 0, 0), Scale);      // épaule / bras (épais)
-			MakeBone(Joint, M_CYL, FVector(H * 0.14f, 0, -H * 0.34f), FVector(0.20f, 0.20f, h * 0.26f), FRotator(-28.f, 0, 0), Scale); // avant-bras (plié vers l'avant)
-			MakeBone(Joint, M_SPH, FVector(H * 0.26f, 0, -H * 0.52f), FVector(0.22f, 0.26f, 0.16f), NoRot, Scale);                 // grosse main
+			MakeBone(Joint, M_SPH, FVector(0, 0, 0), FVector(0.32f, 0.32f, 0.32f), NoRot, Scale);                          // ÉPAULE (comble le pivot)
+			MakeBone(Joint, M_CYL, FVector(0, 0, -H * 0.13f), FVector(0.27f, 0.27f, h * 0.34f), FRotator(16.f, 0, 0), Scale); // BRAS (long, chevauche l'épaule)
+			MakeBone(Joint, M_SPH, FVector(H * 0.10f, 0, -H * 0.28f), FVector(0.26f, 0.26f, 0.26f), NoRot, Scale);         // COUDE (comble)
+			MakeBone(Joint, M_CYL, FVector(H * 0.19f, 0, -H * 0.42f), FVector(0.22f, 0.22f, h * 0.34f), FRotator(-34.f, 0, 0), Scale); // AVANT-BRAS (chevauche le coude)
+			MakeBone(Joint, M_SPH, FVector(H * 0.31f, 0, -H * 0.56f), FVector(0.26f, 0.30f, 0.20f), NoRot, Scale);         // GROSSE MAIN
 			for (int32 cl = -1; cl <= 1; ++cl)
-				MakeBone(Joint, M_CONE, FVector(H * 0.36f, cl * H * 0.045f, -H * 0.54f), FVector(0.06f, 0.06f, h * 0.20f), FRotator(64.f, 0, cl * 10.f), Fang); // 3 grandes griffes
+				MakeBone(Joint, M_CONE, FVector(H * 0.42f, cl * H * 0.05f, -H * 0.58f), FVector(0.07f, 0.07f, h * 0.22f), FRotator(64.f, 0, cl * 10.f), Fang); // 3 grandes griffes
 		};
 		auto BuildHindLeg = [&](USceneComponent* Joint)
 		{
-			MakeBone(Joint, M_CYL, FVector(0, 0, -H * 0.12f), FVector(0.24f, 0.24f, h * 0.28f), NoRot, Scale);         // cuisse épaisse
-			MakeBone(Joint, M_CYL, FVector(H * 0.04f, 0, -H * 0.36f), FVector(0.18f, 0.18f, h * 0.24f), NoRot, Scale); // tibia
-			MakeBone(Joint, M_SPH, FVector(H * 0.08f, 0, -H * 0.50f), FVector(0.22f, 0.26f, 0.15f), NoRot, Scale);     // pied
+			MakeBone(Joint, M_SPH, FVector(0, 0, 0), FVector(0.32f, 0.32f, 0.32f), NoRot, Scale);                          // HANCHE (comble)
+			MakeBone(Joint, M_CYL, FVector(0, 0, -H * 0.15f), FVector(0.28f, 0.28f, h * 0.36f), NoRot, Scale);             // CUISSE (chevauche la hanche)
+			MakeBone(Joint, M_SPH, FVector(H * 0.03f, 0, -H * 0.32f), FVector(0.25f, 0.25f, 0.25f), NoRot, Scale);         // GENOU (comble)
+			MakeBone(Joint, M_CYL, FVector(H * 0.06f, 0, -H * 0.46f), FVector(0.22f, 0.22f, h * 0.32f), NoRot, Scale);     // TIBIA (chevauche le genou)
+			MakeBone(Joint, M_SPH, FVector(H * 0.10f, 0, -H * 0.58f), FVector(0.26f, 0.30f, 0.18f), NoRot, Scale);         // GROS PIED
 			for (int32 cl = -1; cl <= 1; ++cl)
-				MakeBone(Joint, M_CONE, FVector(H * 0.20f, cl * H * 0.05f, -H * 0.52f), FVector(0.055f, 0.055f, h * 0.15f), FRotator(70.f, 0, 0), Fang); // griffes
+				MakeBone(Joint, M_CONE, FVector(H * 0.24f, cl * H * 0.055f, -H * 0.60f), FVector(0.065f, 0.065f, h * 0.17f), FRotator(70.f, 0, 0), Fang); // griffes
 		};
 		const float ArmX = H * 0.42f, ArmY = H * 0.40f, HipX = H * 0.52f, HipY = H * 0.38f;
 		JRShoulder = MakeJoint(VisualRoot, FVector(ArmX, ArmY, H * 0.02f));   BuildArm(JRShoulder);
@@ -3012,18 +3019,20 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		// vertes, pointe lumineuse. Animée par AnimateQuadruped. ──
 		{
 			const int32 TSeg = 4;
-			const float TSegLen = H * 0.42f;
+			const float TSegLen = H * 0.40f;
 			USceneComponent* TParent = VisualRoot;
 			for (int32 i = 0; i < TSeg; ++i)
 			{
-				const FVector Off = (i == 0) ? FVector(-H * 0.72f, 0, -H * 0.04f) : FVector(-TSegLen, 0, 0);
+				const FVector Off = (i == 0) ? FVector(-H * 0.70f, 0, -H * 0.02f) : FVector(-TSegLen, 0, 0);
 				USceneComponent* TJ = MakeJoint(TParent, Off);
 				if (!TJ) break;
-				const float w = FMath::Lerp(0.24f, 0.07f, (float)i / (TSeg - 1));
+				const float w = FMath::Lerp(0.34f, 0.12f, (float)i / (TSeg - 1)); // ÉPAISSE (fini la queue fine)
 				const bool bTip = (i == TSeg - 1);
-				MakeBone(TJ, M_CONE, FVector(-TSegLen * 0.5f, 0, 0), FVector(w, w, TSegLen / 100.f), FRotator(-90.f, 0, 0), bTip ? GreenGlow : Scale); // segment (pointe -X)
+				// SPHÈRE à la jointure (comble le trou entre segments) + segment conique plein.
+				MakeBone(TJ, M_SPH, FVector::ZeroVector, FVector(w * 1.1f, w * 1.1f, w * 1.1f), NoRot, Scale);
+				MakeBone(TJ, M_CONE, FVector(-TSegLen * 0.5f, 0, 0), FVector(w, w, TSegLen / 100.f), FRotator(-90.f, 0, 0), bTip ? GreenGlow : Scale);
 				// épine dorsale verte sur le segment (ondule avec la queue).
-				MakeBone(TJ, M_CONE, FVector(-TSegLen * 0.4f, 0, w * 42.f), FVector(0.04f, h * 0.05f, h * (0.20f - i * 0.03f)), FRotator(-28.f, 0, 0), GreenGlow);
+				MakeBone(TJ, M_CONE, FVector(-TSegLen * 0.35f, 0, w * 52.f), FVector(0.05f, h * 0.06f, h * (0.24f - i * 0.03f)), FRotator(-28.f, 0, 0), GreenGlow);
 				TailJoints.Add(TJ);
 				TParent = TJ;
 			}

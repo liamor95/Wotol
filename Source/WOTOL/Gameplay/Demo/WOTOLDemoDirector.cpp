@@ -550,34 +550,38 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	// on avance le curseur du NOMBRE RÉEL de rangées qu'elle utilise + un espace de séparation.
 	// => JAMAIS deux types d'unités différents sur la même ligne (fini le chevauchement des
 	// Aquilances sur la rangée des Aquisphères vu en phase 2).
-	float BackCursor = 0.f;                                  // profondeur (en -X) de la prochaine catégorie
 	const float GroupGap = Depth * (bGrandBattle ? 0.5f : 1.0f); // couloir vide entre deux catégories
 
 	// DÉPLOIEMENT PAR BLOCS DE ~5 (style Total War) : chaque catégorie est découpée en petits
 	// groupes de 5 qui forment un mini-carré (2-1-2, l'unité CENTRALE porte l'étiquette) ou une
 	// LIGNE (si <5). Les blocs sont TUILÉS sur la LARGEUR (Y) puis sur la PROFONDEUR (X) -> des
 	// groupes bien distincts, espacés, sur la largeur ET la longueur de la zone de placement.
-	const float IntraY = Lat * 0.65f;     // écart latéral DANS un bloc
-	const float IntraX = Depth * 0.6f;    // écart de profondeur DANS un bloc
-	const float BlockStepY = Lat * 3.1f;  // pas entre blocs (Y) — plus AÉRÉ (lisibilité)
-	const float BlockStepX = Depth * 3.0f;// pas entre bandes de blocs (X) — plus AÉRÉ
-	// ÉCARTEMENT PROPORTIONNEL À LA TAILLE : plus l'unité est massive (montures, mythiques),
-	// plus on espace pour qu'elles ne se chevauchent pas et que l'unité centrale reste visible.
+	// Espacements GÉNÉREUX (fini l'empilement) : les blocs sont bien séparés et occupent la
+	// LARGEUR de la zone. La PROFONDEUR est économisée en plaçant les unités À DISTANCE et
+	// SPÉCIALES sur la COUCHE SUPÉRIEURE (au-dessus de la mêlée) au lieu de les empiler derrière.
+	const float IntraY = Lat * 0.95f;     // écart latéral DANS un bloc
+	const float IntraX = Depth * 0.85f;   // écart de profondeur DANS un bloc
+	const float BlockStepY = Lat * 4.2f;  // pas entre blocs (Y) — bien AÉRÉ
+	const float BlockStepX = Depth * 3.3f;// pas entre bandes de blocs (X)
+	// ÉCARTEMENT PROPORTIONNEL À LA TAILLE (montures/mythiques = beaucoup plus espacés).
 	auto SizeFactor = [](FName Id) -> float
 	{
 		const FString S = Id.ToString();
-		if (S.Contains(TEXT("Noxebeast")) || S.Contains(TEXT("Aquilances"))) return 1.9f; // montures massives
-		if (S.Contains(TEXT("Leviaphenix")) || S.Contains(TEXT("Noxedrake"))) return 2.4f; // mythiques
-		if (S.Contains(TEXT("Noxeons")))     return 1.5f;                                    // organismes larges
+		if (S.Contains(TEXT("Noxebeast")) || S.Contains(TEXT("Aquilances"))) return 2.6f; // montures massives
+		if (S.Contains(TEXT("Leviaphenix")) || S.Contains(TEXT("Noxedrake"))) return 3.2f; // mythiques
+		if (S.Contains(TEXT("Noxeons")))     return 1.8f;                                    // organismes larges
 		return 1.0f;
 	};
-	auto PlaceBlocks = [&](FName Id, int32 Count, int32 BlocksPerBand)
+	// Place une catégorie en blocs de 5. Cursor = profondeur (par ré-usage : mêlée au sol vs
+	// tireurs en l'air ont chacun LEUR curseur, ce qui les fait se SUPERPOSER en XY sur des
+	// couches différentes -> on gagne de la profondeur). LayerZ = hauteur de couche (0 = sol).
+	auto PlaceBlocks = [&](FName Id, int32 Count, int32 BlocksPerBand, float& Cursor, float LayerZ)
 	{
 		if (Id.IsNone() || Count <= 0) return;
 		BlocksPerBand = FMath::Max(1, BlocksPerBand);
 		const float SF = SizeFactor(Id);
-		const float IY = IntraY * SF, IX = IntraX * SF;      // écarts intra-bloc mis à l'échelle
-		const float BSY = BlockStepY * SF, BSX = BlockStepX * SF; // pas entre blocs mis à l'échelle
+		const float IY = IntraY * SF, IX = IntraX * SF;
+		const float BSY = BlockStepY * SF, BSX = BlockStepX * SF;
 		const int32 NumBlocks = (Count + 4) / 5;
 		int32 BandsUsed = 0;
 		for (int32 b = 0; b < NumBlocks; ++b)
@@ -586,7 +590,7 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 			BandsUsed = FMath::Max(BandsUsed, Band + 1);
 			const int32 InThisBand = FMath::Min(BlocksPerBand, NumBlocks - Band * BlocksPerBand);
 			const float BlockY = (ColB - (InThisBand - 1) * 0.5f) * BSY;
-			const float BlockX = -BackCursor - Band * BSX;
+			const float BlockX = -Cursor - Band * BSX;
 			const int32 N = FMath::Min(5, Count - b * 5);
 			const int32 Gid = NextFormationGroupId++;
 			for (int32 s = 0; s < N; ++s)
@@ -594,19 +598,17 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 				FVector2D Slot; bool bCenter = false;
 				if (N == 5)
 				{
-					// Carré 2-1-2 : 2 devant, 1 au centre (étiquette), 2 derrière.
 					switch (s)
 					{
-						case 0: Slot = FVector2D( IX, -IY); break; // avant-gauche
-						case 1: Slot = FVector2D( IX,  IY); break; // avant-droite
-						case 2: Slot = FVector2D( 0.f, 0.f);  bCenter = true; break; // centre
-						case 3: Slot = FVector2D(-IX, -IY); break; // arrière-gauche
-						default:Slot = FVector2D(-IX,  IY); break; // arrière-droite
+						case 0: Slot = FVector2D( IX, -IY); break;
+						case 1: Slot = FVector2D( IX,  IY); break;
+						case 2: Slot = FVector2D( 0.f, 0.f);  bCenter = true; break;
+						case 3: Slot = FVector2D(-IX, -IY); break;
+						default:Slot = FVector2D(-IX,  IY); break;
 					}
 				}
 				else
 				{
-					// LIGNE centrée (blocs incomplets) ; l'unité du milieu porte l'étiquette.
 					Slot = FVector2D(0.f, (s - (N - 1) * 0.5f) * IY * 1.6f);
 					bCenter = (s == N / 2);
 				}
@@ -614,17 +616,24 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 				if (AWOTOLDemoUnit* U = SpawnUnit(Id, Loc, Facing, 1.f, PScale))
 				{
 					U->SetFormation(Gid, Slot, bCenter);
+					if (LayerZ > 0.f) U->SetDesiredZ(LayerZ); // tireurs/spéciales : couche supérieure
 				}
 			}
 		}
-		BackCursor += BandsUsed * BSX + GroupGap; // réserve la place de CETTE catégorie (mise à l'échelle)
+		Cursor += BandsUsed * BSX + GroupGap;
 	};
 
-	// Nombre de blocs alignés sur la LARGEUR avant de passer à la bande suivante (profondeur).
-	const int32 BPBinf = bGrandBattle ? 6 : 3;
-	const int32 BPBmon = bGrandBattle ? 4 : 2;
-	const int32 BPBdis = bGrandBattle ? 5 : 3;
-	const int32 BPBspe = bGrandBattle ? 3 : 2;
+	// Blocs plus LARGES avant de passer en profondeur -> on étale sur la largeur de la zone.
+	const int32 BPBinf = bGrandBattle ? 8 : 5;
+	const int32 BPBmon = bGrandBattle ? 5 : 4;
+	const int32 BPBdis = bGrandBattle ? 7 : 5;
+	const int32 BPBspe = bGrandBattle ? 5 : 3;
+
+	// Deux CURSEURS de profondeur INDÉPENDANTS : la mêlée au SOL et les tireurs EN HAUTEUR
+	// partent tous les deux du front et se superposent en XY (couches différentes) -> profondeur
+	// au sol réduite de moitié (fini l'armée qui s'étire sur 5 rangs en profondeur).
+	float GroundCursor = 0.f, AirCursor = 0.f;
+	const float AirLayerZ = 700.f; // 1re couche au-dessus du sol
 
 	// Chef en pointe (devant l'infanterie, centré) — son propre "groupe" solo.
 	if (AWOTOLDemoUnit* Chef = SpawnUnit(Demo->GetUnitID(Faction, EDemoUnitCategory::Chef),
@@ -633,17 +642,19 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 		Chef->SetFormation(NextFormationGroupId++, FVector2D::ZeroVector, true);
 	}
 
-	// Blocs empilés de l'avant vers l'arrière, chaque catégorie sur ses propres bandes.
-	PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Infanterie), InfantryCount, BPBinf);
-	PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Montee), MountedCount, BPBmon);
+	// MÊLÉE au SOL (infanterie devant, montures derrière).
+	PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Infanterie), InfantryCount, BPBinf, GroundCursor, 0.f);
+	PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Montee), MountedCount, BPBmon, GroundCursor, 0.f);
+	// TIREURS en HAUTEUR (couche 1), superposés à la mêlée -> ils tirent par-dessus.
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Distance))
 	{
-		PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Distance), RangedCount, BPBdis);
+		PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Distance), RangedCount, BPBdis, AirCursor, AirLayerZ);
 	}
 	// PHASE 3 : SPÉCIALE (arrière-ligne) + MYTHIQUE (soutien) débloquées.
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Speciale))
 	{
-		PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Speciale), SpecialCount, BPBspe);
+		// Spéciale aussi EN HAUTEUR (couche 1), derrière les tireurs (même curseur aérien).
+		PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Speciale), SpecialCount, BPBspe, AirCursor, AirLayerZ);
 	}
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Mythique))
 	{
