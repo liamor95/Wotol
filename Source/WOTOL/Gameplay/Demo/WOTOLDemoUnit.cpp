@@ -3536,15 +3536,17 @@ void AWOTOLDemoUnit::AnimateQuadruped(float Dt)
 		float Yaw;
 		if (TailWhipPhase > 0.02f)
 		{
-			const float Local = FMath::Clamp(TailWhipPhase * 1.7f - i * 0.28f, 0.f, 1.f);
-			const float Sweep = FMath::Sin(Local * PI);              // 0 -> 1 -> 0 (propagé = fouet)
-			Yaw = FMath::Lerp(-60.f, 60.f, Sweep);                   // la pointe balaie fort d'un côté
+			// BALAYAGE LATÉRAL (horizontal, yaw) d'un côté à l'AUTRE : Local 0->1 fait passer la
+			// queue de -75° à +75° -> vrai coup de balai. Le retard par segment (i*0.30) donne
+			// l'effet FOUET (la pointe traîne puis claque en fin de course).
+			const float Local = FMath::Clamp(TailWhipPhase * 1.6f - i * 0.30f, 0.f, 1.f);
+			Yaw = FMath::Lerp(-75.f, 75.f, Local) * (1.f + i * 0.10f); // la pointe balaie encore plus large
 		}
 		else
 		{
 			Yaw = FMath::Sin(AnimClock * 1.6f + i * 0.6f) * 9.f;     // ondoiement au repos
 		}
-		const float sp = (TailWhipPhase > 0.02f) ? 16.f : 4.f;
+		const float sp = (TailWhipPhase > 0.02f) ? 18.f : 4.f;
 		TailJoints[i]->SetRelativeRotation(
 			FMath::RInterpTo(TailJoints[i]->GetRelativeRotation(), FRotator(0.f, Yaw, 0.f), Dt, sp));
 	}
