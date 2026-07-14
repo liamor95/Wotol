@@ -2239,7 +2239,9 @@ void AWOTOLDemoUnit::ApplyFormationCohesion(float Dt)
 void AWOTOLDemoUnit::TickRoleTactics(float Dt)
 {
 	if (bIsBoss || bCreatureBrain || !UnitData || !IsBattleLive()) return;
-	if (IsSelected()) return; // le joueur garde le contrôle manuel des unités sélectionnées
+	// IMPORTANT : on NE bloque PAS sur la sélection (au lancement TOUTE l'armée du joueur est
+	// sélectionnée -> sinon le joueur ne profiterait JAMAIS de l'IA de rôle alors que l'ennemi
+	// oui = asymétrie fatale). On ne s'efface QUE sous un ORDRE explicite du joueur.
 	if (UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>())
 		if (S->bFollowingPlayerOrder || S->bAttackMoveActive) return; // ordre joueur prioritaire
 

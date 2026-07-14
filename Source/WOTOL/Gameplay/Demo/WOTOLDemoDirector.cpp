@@ -557,10 +557,10 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	// groupes de 5 qui forment un mini-carré (2-1-2, l'unité CENTRALE porte l'étiquette) ou une
 	// LIGNE (si <5). Les blocs sont TUILÉS sur la LARGEUR (Y) puis sur la PROFONDEUR (X) -> des
 	// groupes bien distincts, espacés, sur la largeur ET la longueur de la zone de placement.
-	const float IntraY = Lat * 0.6f;      // écart latéral DANS un bloc
-	const float IntraX = Depth * 0.55f;   // écart de profondeur DANS un bloc
-	const float BlockStepY = Lat * 2.4f;  // pas entre blocs (Y)
-	const float BlockStepX = Depth * 2.4f;// pas entre bandes de blocs (X)
+	const float IntraY = Lat * 0.65f;     // écart latéral DANS un bloc
+	const float IntraX = Depth * 0.6f;    // écart de profondeur DANS un bloc
+	const float BlockStepY = Lat * 3.1f;  // pas entre blocs (Y) — plus AÉRÉ (lisibilité)
+	const float BlockStepX = Depth * 3.0f;// pas entre bandes de blocs (X) — plus AÉRÉ
 	auto PlaceBlocks = [&](FName Id, int32 Count, int32 BlocksPerBand)
 	{
 		if (Id.IsNone() || Count <= 0) return;
@@ -634,11 +634,19 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	}
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Mythique))
 	{
-		// ScaleBoost = 1.0 (le mythique est déjà grand ; le gonfler bloquait sa capsule).
-		// Placé DERRIÈRE la dernière catégorie via le curseur -> bien DANS l'arène, jamais
-		// sur une rangée occupée ni enterré dans les montagnes.
-		SpawnUnit(Demo->GetUnitID(Faction, EDemoUnitCategory::Mythique),
-			Origin + FVector(-BackCursor, 0.f, GroundZ), Facing, /*ScaleBoost=*/1.0f, /*HealthScale=*/3.0f * FactionSurvivability(Faction));
+		// BUGFIX : le curseur BackCursor pouvait pousser le mythique HORS de l'arène (invisible
+		// au placement ET absent de la bataille). On PLAFONNE son recul pour qu'il reste bien
+		// DANS le champ, derrière l'armée mais visible.
+		const float MythBack = FMath::Min(BackCursor, Depth * 5.f);
+		if (AWOTOLDemoUnit* Myth = SpawnUnit(Demo->GetUnitID(Faction, EDemoUnitCategory::Mythique),
+				Origin + FVector(-MythBack, 0.f, GroundZ), Facing, /*ScaleBoost=*/1.0f, /*HealthScale=*/3.0f * FactionSurvivability(Faction)))
+		{
+			// Le mythique NAGE AU-DESSUS de l'armée (couche haute) -> visible, sélectionnable
+			// SEUL (on clique sur son modèle en hauteur), et il ne gêne pas / n'est pas gêné par
+			// les unités au sol. Son IA de soutien le recentrera au-dessus du gros de l'armée.
+			Myth->SetDesiredZ(1000.f);
+			Myth->SetFormation(NextFormationGroupId++, FVector2D::ZeroVector, true);
+		}
 	}
 }
 

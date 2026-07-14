@@ -53,11 +53,13 @@ void AWOTOLCoverStructure::Tick(float DeltaSeconds)
 	// base au sommet ; toute pièce dont la hauteur est proche de l'onde s'illumine (émissif +
 	// bloom, intensité selon la proximité), puis revient en pierre -> la lumière ÉPOUSE la
 	// forme du modèle (comme le cristal du Cristalliseur), pas un carré.
+	// Onde RAPIDE et DISCRÈTE : le balayage traverse le modèle très vite (~0,4 s) et l'émissif
+	// reste FAIBLE (juste assez pour distinguer la forme, pas un blob blanc). Cycle court.
 	ScanTimer += DeltaSeconds;
-	const float Cycle = FMath::Fmod(ScanTimer, 4.5f);
-	const bool  bSweep = (Cycle < 1.4f);
-	const float SweepZ = bSweep ? (Cycle / 1.4f) * ScanTop : -100000.f;
-	const float Band   = FMath::Max(120.f, ScanTop * 0.22f);
+	const float Cycle = FMath::Fmod(ScanTimer, 2.6f);
+	const bool  bSweep = (Cycle < 0.4f);                       // passage TRÈS rapide
+	const float SweepZ = bSweep ? (Cycle / 0.4f) * ScanTop : -100000.f;
+	const float Band   = FMath::Max(90.f, ScanTop * 0.16f);   // onde fine
 	for (int32 i = 0; i < Parts.Num(); ++i)
 	{
 		UStaticMeshComponent* C = Parts[i];
@@ -67,8 +69,11 @@ void AWOTOLCoverStructure::Tick(float DeltaSeconds)
 		{
 			const float Inten = 1.f - Dist / Band;                 // 0 (bord) -> 1 (centre de l'onde)
 			if (PartPulseMID[i])
+				// Cyan DOUX (luminosité fortement réduite) : on voit la lumière épouser la
+				// forme, sans cramer en blanc. Peak ≈ (0.32, 0.75, 1.0) -> à peine au-dessus
+				// du seuil de bloom, très léger.
 				PartPulseMID[i]->SetVectorParameterValue(TEXT("Color"),
-					FLinearColor(0.5f + 1.4f * Inten, 1.6f + 1.2f * Inten, 2.2f + 1.0f * Inten, 1.f));
+					FLinearColor(0.12f + 0.20f * Inten, 0.35f + 0.40f * Inten, 0.50f + 0.50f * Inten, 1.f));
 			if (!PartGlowing[i]) { C->SetMaterial(0, PartPulseMID[i]); PartGlowing[i] = 1; }
 		}
 		else if (PartGlowing[i])
