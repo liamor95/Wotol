@@ -327,28 +327,22 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		HealAccum = 0.f;
 	}
 
-	if (!NameTag) return;
-
-	// NB : la furtivité d'Aquilombres est « invisible pour l'ENNEMI » seulement — le JOUEUR
-	// continue de la voir (silhouette fantôme) ET son nom/PV restent affichés pour la suivre.
-
-	// ── REGROUPEMENT DES ÉTIQUETTES (style Total War) ──
-	// EN BATAILLE, on recalcule périodiquement si l'unité est GROUPÉE (couverte par un
-	// représentant) ou non. Cela masque la plupart des étiquettes (une seule par groupe) ->
-	// écran lisible + beaucoup moins de mises à jour de texte. HORS bataille (placement), on
-	// n'agrège pas (les formations sont espacées, chaque unité montre son nom/PV).
-	// Regroupement des étiquettes ACTIF dès le PLACEMENT (pas seulement en bataille) : une
-	// seule étiquette par groupe (nom + PV cumulés) portée par l'unité centrale, comme demandé.
+	// ── ÉTIQUETTES : recalcul du GROUPE (throttlé) qui alimente les MARQUEURS du HUD ──
+	// Les noms/PV ne sont PLUS des textes 3D par unité (illisible + coûteux en masse) : le HUD
+	// dessine UN marqueur par groupe (icône du type + effectif + petite barre de vie), façon
+	// Total War. On garde ici uniquement le calcul de regroupement (bTagIsRep / bTagSuppressed
+	// / GroupTag*), lu par le HUD.
 	GroupTagTimer -= DeltaSeconds;
 	if (GroupTagTimer <= 0.f)
 	{
-		GroupTagTimer = 0.35f + FMath::FRand() * 0.12f; // staggeré -> pas tout le même frame
+		GroupTagTimer = 0.35f + FMath::FRand() * 0.12f; // staggeré
 		ComputeGroupTag();
 	}
 
-	// Étiquette MASQUÉE (couverte par le représentant du groupe) : on la cache et on SORT
-	// tout de suite -> on économise l'orientation caméra pour la majorité des unités.
-	if (bTagSuppressed)
+	// Le BOSS (Kraken) garde son GRAND nom 3D au-dessus de lui. Toutes les autres unités
+	// n'ont PLUS de texte 3D (le HUD s'en charge) -> énorme gain de perf et lisibilité.
+	if (!NameTag) return;
+	if (!(bIsBoss || bCreatureBrain))
 	{
 		if (NameTag->IsVisible())
 		{
@@ -363,38 +357,13 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		if (NameTagShadow) NameTagShadow->SetVisibility(true);
 	}
 
-	// Le boss s'appelle "Kraken" (créature neutre), pas le nom du mythique rival
-	const FString DisplayName = (bCreatureBrain || bIsBoss)
-		? FString(TEXT("Kraken"))
-		: ((UnitData && !UnitData->DisplayName.IsEmpty()) ? UnitData->DisplayName.ToString() : GetName());
-
-	// VRAIES valeurs de PV (ex: "1700 / 2000"), boss inclus (HealthScale)
 	const int32 MaxHP = GetEffectiveMaxHealth();
 	const int32 CurHP = FMath::Clamp(FMath::RoundToInt(CurrentHealth), 0, MaxHP);
-
-	// REPRÉSENTANT d'un groupe -> nom + effectif + PV CUMULÉS ("Aquiloryons x5\n7300 / 8500").
-	// Sinon (isolée / détachée / sélectionnée) -> nom + PV individuels.
-	const FText TagText = (bTagIsRep && GroupTagCount >= 2)
-		? FText::FromString(FString::Printf(TEXT("%s  x%d\n%d / %d"), *DisplayName, GroupTagCount, GroupTagCur, GroupTagMax))
-		: FText::FromString(FString::Printf(TEXT("%s\n%d / %d"), *DisplayName, CurHP, MaxHP));
+	const FText TagText = FText::FromString(FString::Printf(TEXT("Kraken\n%d / %d"), CurHP, MaxHP));
 	NameTag->SetText(TagText);
-	if (NameTagShadow) NameTagShadow->SetText(TagText); // même texte, en noir, derrière
+	if (NameTagShadow) NameTagShadow->SetText(TagText);
+	NameTag->SetTextRenderColor(FLinearColor(1.00f, 0.55f, 1.00f, 1.f).ToFColor(false)); // violet vif
 
-	// Couleur d'étiquette VIVE et LUMINEUSE, distincte par camp (survoltée pour "briller"
-	// sur l'ombre noire = fort contraste, lisible dans l'ambiance sous-marine sombre) :
-	// BLEU Aquiloris, VERT Noxéens, VIOLET Kraken.
-	// Teintes poussées au MAXIMUM de luminance non-éclairée (le TextRender est un matériau
-	// UNLIT : la couleur = émissif direct). Sur l'ambiance sombre du fond, ça donne des
-	// lettres/chiffres qui BRILLENT comme les cristaux/yeux (même lecture lumineuse).
-	FLinearColor TagColor;
-	if (bCreatureBrain || bIsBoss)                 TagColor = FLinearColor(1.00f, 0.55f, 1.00f, 1.f); // violet vif
-	else if (GetFaction() == EFactionID::Aquiloris) TagColor = FLinearColor(0.55f, 1.00f, 1.00f, 1.f); // cyan éclatant
-	else if (GetFaction() == EFactionID::Noxeens)   TagColor = FLinearColor(0.55f, 1.00f, 0.65f, 1.f); // vert éclatant
-	else                                            TagColor = FFactionColors::Get(GetFaction()) * 1.5f;
-	NameTag->SetTextRenderColor(TagColor.ToFColor(false)); // false = pas de clamp sRGB -> lettres au max de brillance
-
-	// L'étiquette + son ombre font face à la caméra ; l'ombre est décalée derrière et
-	// en bas-droite (en espace écran) pour créer un fort contraste (liseré noir).
 	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
 	{
 		if (PC->PlayerCameraManager)
@@ -406,9 +375,6 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 			NameTag->SetWorldRotation(Face);
 			if (NameTagShadow)
 			{
-				// CONTOUR (pas d'ombre décalée) : le noir est CENTRÉ et un peu plus gros,
-				// juste DERRIÈRE le texte -> il déborde en fin liseré = lettres bien
-				// détourées, sans double-vision.
 				NameTagShadow->SetWorldRotation(Face);
 				NameTagShadow->SetWorldLocation(NameLoc - Face.Vector() * 1.5f);
 			}

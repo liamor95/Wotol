@@ -232,6 +232,12 @@ void AWOTOLDemoHUD::DrawHUD()
 		}
 	}
 
+	// ─── 4b) Marqueurs de groupe sur le champ (icône + effectif + barre de vie) ──
+	if (Screen == EDemoScreen::Playing || Screen == EDemoScreen::Prepare)
+	{
+		DrawBattlefieldMarkers(W, H, World);
+	}
+
 	// ─── 5) Barre de commandement (bas) : cartes d'unités sélectionnées ──────
 	DrawCommandBar(W, H, World);
 
@@ -1173,6 +1179,73 @@ void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
 			FLinearColor(0.12f, 0.12f, 0.12f, 0.9f));
 
 		X += CardW + Gap;
+	}
+}
+
+// Icône distincte par rôle (même formes que le roster) — repère visuel du type d'unité.
+void AWOTOLDemoHUD::DrawRoleIcon(float CX, float CY, float R, EUnitRole Role, const FLinearColor& Fac)
+{
+	if (!Canvas) return;
+	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.55f), CX - R - 2.f, CY - R - 2.f, (R + 2.f) * 2.f, (R + 2.f) * 2.f);
+	const FLinearColor Fill(FMath::Min(1.f, Fac.R + 0.15f), FMath::Min(1.f, Fac.G + 0.15f),
+		FMath::Min(1.f, Fac.B + 0.15f), 1.f);
+	switch (Role)
+	{
+		case EUnitRole::Chef:      Canvas->K2_DrawPolygon(nullptr, FVector2D(CX, CY), FVector2D(R, R), 3, Fill); break;
+		case EUnitRole::Mythique:  Canvas->K2_DrawPolygon(nullptr, FVector2D(CX, CY), FVector2D(R * 1.1f, R * 1.1f), 6, Fill); break;
+		case EUnitRole::Montee:    Canvas->K2_DrawPolygon(nullptr, FVector2D(CX, CY), FVector2D(R, R), 5, Fill); break;
+		case EUnitRole::Distance:  Canvas->K2_DrawPolygon(nullptr, FVector2D(CX, CY), FVector2D(R, R), 4, Fill); break;
+		case EUnitRole::Speciale:  Canvas->K2_DrawPolygon(nullptr, FVector2D(CX, CY), FVector2D(R, R), 8, Fill); break;
+		default:                   DrawRect(Fill, CX - R * 0.8f, CY - R * 0.8f, R * 1.6f, R * 1.6f); break;
+	}
+}
+
+// MARQUEURS DE GROUPE (Total War) : pour chaque groupe (représentant) et chaque unité isolée,
+// on projette sa position à l'écran et on dessine UN repère compact (icône + effectif + barre
+// de vie). Les unités couvertes par un représentant ne dessinent RIEN. -> écran lisible.
+void AWOTOLDemoHUD::DrawBattlefieldMarkers(float W, float H, UWorld* World)
+{
+	if (!World) return;
+	UFactionRegistrySubsystem* Reg = World->GetSubsystem<UFactionRegistrySubsystem>();
+	if (!Reg) return;
+
+	const EFactionID Facs[2] = { EFactionID::Aquiloris, EFactionID::Noxeens };
+	for (const EFactionID F : Facs)
+	{
+		const FLinearColor Fac = FFactionColors::Get(F);
+		for (AUnitBase* U : Reg->GetUnitsForFaction(F))
+		{
+			AWOTOLDemoUnit* D = Cast<AWOTOLDemoUnit>(U);
+			if (!D || !D->IsAlive()) continue;
+			if (D->bIsBoss || D->bCreatureBrain) continue; // le boss garde son grand nom 3D
+			if (D->IsTagSuppressed()) continue;            // couverte par un représentant
+
+			// Position écran (au-dessus du modèle, en tenant compte de la couche/hauteur).
+			USceneComponent* A = D->GetFloatingTextAnchor();
+			const FVector WLoc = (A ? A->GetComponentLocation() : D->GetActorLocation()) + FVector(0, 0, 120.f);
+			const FVector SP = Project(WLoc);
+			if (SP.Z <= 0.f) continue;                     // derrière la caméra
+			if (SP.X < -40.f || SP.X > W + 40.f || SP.Y < -40.f || SP.Y > H + 40.f) continue;
+
+			const bool bGroup = D->IsTagRep() && D->GetTagCount() >= 2;
+			const int32 Cur = bGroup ? D->GetTagCur() : FMath::RoundToInt(D->GetHealthPercent() * D->GetEffectiveMaxHealth());
+			const int32 Mx  = bGroup ? D->GetTagMax() : D->GetEffectiveMaxHealth();
+			const float Pct = (Mx > 0) ? (float)Cur / (float)Mx : 0.f;
+			const EUnitRole Role = D->GetUnitData() ? D->GetUnitData()->Role : EUnitRole::Infanterie;
+
+			const float IconR = bGroup ? 9.f : 6.f;
+			DrawRoleIcon(SP.X, SP.Y, IconR, Role, Fac);
+			// Effectif à droite de l'icône (groupes seulement).
+			if (bGroup)
+				DrawText(FString::Printf(TEXT("x%d"), D->GetTagCount()), FLinearColor::White,
+					SP.X + IconR + 4.f, SP.Y - 8.f, GEngine->GetSmallFont(), 1.f);
+			// Petite barre de vie sous l'icône.
+			const float BarW = bGroup ? 34.f : 22.f, BarH = 4.f;
+			const FLinearColor HpCol = FMath::Lerp(FLinearColor(0.85f, 0.12f, 0.12f, 1.f),
+				FLinearColor(0.2f, 0.9f, 0.25f, 1.f), Pct);
+			DrawBar(SP.X - BarW * 0.5f, SP.Y + IconR + 4.f, BarW, BarH, Pct, HpCol,
+				FLinearColor(0.05f, 0.05f, 0.05f, 0.85f));
+		}
 	}
 }
 

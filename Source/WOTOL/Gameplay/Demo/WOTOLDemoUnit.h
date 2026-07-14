@@ -214,6 +214,14 @@ private:
 	int32 GroupTagCur    = 0;       // PV cumulés courants
 	int32 GroupTagMax    = 0;       // PV cumulés max
 	void  ComputeGroupTag();        // recalcul du voisinage même-type (throttlé)
+public:
+	// Lus par le HUD pour dessiner les MARQUEURS de groupe (icône + effectif + barre de vie).
+	bool  IsTagRep() const        { return bTagIsRep; }        // porte le marqueur du groupe
+	bool  IsTagSuppressed() const { return bTagSuppressed; }   // couverte -> aucun marqueur
+	int32 GetTagCount() const     { return GroupTagCount; }
+	int32 GetTagCur() const       { return GroupTagCur; }
+	int32 GetTagMax() const       { return GroupTagMax; }
+private:
 
 	float AnimPhase    = 0.f;
 	float SwingProgress = 0.f; // 0..1 avancement d'un coup d'épée

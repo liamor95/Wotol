@@ -90,6 +90,11 @@ private:
 	void DrawTopBar(float W, float H, class UWorld* World, class UDemoFlowSubsystem* Demo);
 	void DrawBossBar(float W, float H, class AWOTOLDemoUnit* Boss);
 	void DrawCommandBar(float W, float H, class UWorld* World);
+	// MARQUEURS DE GROUPE sur le champ de bataille (façon Total War) : un seul repère par
+	// groupe (icône du type + effectif + petite barre de vie), projeté à l'écran -> remplace
+	// les noms 3D par unité (perf + lisibilité).
+	void DrawBattlefieldMarkers(float W, float H, class UWorld* World);
+	void DrawRoleIcon(float CX, float CY, float R, EUnitRole Role, const FLinearColor& Fac);
 	// Petite barre encadrée générique (fond + remplissage + cadre).
 	void DrawBar(float X, float Y, float BarW, float BarH, float Pct,
 		const FLinearColor& Fill, const FLinearColor& Back);
