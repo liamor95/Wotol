@@ -131,6 +131,18 @@ static float PhaseEvoDMG(EDemoPhase P)
 	}
 }
 
+// CORRECTIF CIBLÉ (Aquiloris, phase 3, NORMAL uniquement) : dans le miroir 80v80, les Noxéens
+// écrasent les Aquiloris (rout 80-8 observé) alors que le joueur Noxéen, lui, gagne bien. On
+// booste donc UNIQUEMENT l'armée du JOUEUR quand il est AQUILORIS en phase 3 NORMAL. Comme la
+// RIVALE n'est jamais « le joueur », cela ne touche PAS le cas joueur-Noxéen (rivale Aquiloris)
+// -> les 3 phases Noxéens et les phases 1/2 Aquiloris restent INCHANGÉES. Facile/Difficile aussi.
+static bool IsAquiP3Normal(EFactionID F, EDemoPhase P, EDemoDifficulty D)
+{
+	return F == EFactionID::Aquiloris && P == EDemoPhase::Battle_Grand && D == EDemoDifficulty::Normal;
+}
+static float AquiP3NormalHP(EFactionID F, EDemoPhase P, EDemoDifficulty D)  { return IsAquiP3Normal(F, P, D) ? 1.45f : 1.f; }
+static float AquiP3NormalDMG(EFactionID F, EDemoPhase P, EDemoDifficulty D) { return IsAquiP3Normal(F, P, D) ? 1.45f : 1.f; }
+
 AWOTOLDemoDirector::AWOTOLDemoDirector()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -541,7 +553,8 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	// Volontairement INDÉPENDANT de la difficulté : le joueur est une baseline stable, c'est
 	// l'ENNEMI qui est renforcé/affaibli (voir EnemyDiffK) -> garantit la winnabilité.
 	const float PScale = ArmyHealthScale * FactionSurvivability(Faction)
-		* PhaseEvoHP(Demo->GetPhase());
+		* PhaseEvoHP(Demo->GetPhase())
+		* AquiP3NormalHP(Faction, Demo->GetPhase(), Demo->GetDifficulty()); // correctif ciblé
 
 	// Place un groupe en rangées (se replie sur plusieurs lignes vers l'arrière -X). En
 	// phase 3, les rangées sont bien plus LARGES -> la ligne s'étale sur la largeur du tiers
@@ -880,6 +893,7 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 		// stable) -> tout le curseur de défi est sur l'ennemi. Ratio dégâts joueur/ennemi = 1/k.
 		float M = FactionDamage(Unit->GetFaction()) * PhaseEvoDMG(Phase);
 		if (!bPlayerSide) M *= EnemyDiffKDMG(Diff); // degats ennemis peu reduits -> pertes garanties
+		else M *= AquiP3NormalDMG(Unit->GetFaction(), Phase, Diff); // correctif cible joueur Aquiloris P3 Normal
 		Unit->BalanceDamageMult = M;
 	}
 
