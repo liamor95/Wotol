@@ -183,6 +183,17 @@ private:
 	UPROPERTY() TObjectPtr<USceneComponent> JRKnee;
 	UPROPERTY() TObjectPtr<USceneComponent> JLKnee;
 
+	// ── RIG QUADRUPÈDE (créatures : Noxedrake, Noxebeast) ──
+	// Rig dédié (au lieu du rig humanoïde) : les 4 pattes marchent, et l'ATTAQUE anime
+	// UNIQUEMENT les membres (pas de rotation 360° du corps) : ennemi DEVANT (cône avant) =
+	// COUP DE GRIFFE d'une patte avant ; ennemi DERRIÈRE/sur le côté = COUP DE QUEUE qui
+	// FOUETTE (queue articulée en chaîne, comme les tentacules du Kraken).
+	bool  bQuadrupedRig = false;
+	UPROPERTY() TArray<TObjectPtr<USceneComponent>> TailJoints; // chaîne de la queue (fouet)
+	float LastTargetYawRel = 0.f; // angle signé (deg) de la cible / avant du modèle (0 = devant)
+	float TailWhipPhase = 0.f;
+	void  AnimateQuadruped(float Dt);
+
 	// Couche verticale = décalage VISUEL (l'unité apparaît en hauteur) ; le corps
 	// physique reste au sol -> déplacement + attaques fonctionnent à toute hauteur.
 	float DesiredZ     = 0.f;   // décalage de couche cible (0 = fond)

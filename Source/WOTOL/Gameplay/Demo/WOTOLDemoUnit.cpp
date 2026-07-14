@@ -117,7 +117,7 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 			}
 
 		AnimateBody(DeltaSeconds);
-		if (bArticulated) AnimateArticulated(DeltaSeconds);
+		if (bArticulated) { if (bQuadrupedRig) AnimateQuadruped(DeltaSeconds); else AnimateArticulated(DeltaSeconds); }
 		AnimateWhips(DeltaSeconds);
 		TickSelectionHalo(DeltaSeconds);
 		return;
@@ -226,7 +226,8 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 	TickSelectionHalo(DeltaSeconds);    // halo de sélection (apparition rapide)
 	if (bArticulated)
 	{
-		AnimateArticulated(DeltaSeconds); // rig détaillé (Aquiloryons)
+		if (bQuadrupedRig) AnimateQuadruped(DeltaSeconds); // créatures : pattes + griffe/queue
+		else               AnimateArticulated(DeltaSeconds); // rig humanoïde (Aquiloryons…)
 	}
 	AnimateWhips(DeltaSeconds);          // fouets du Kraken (no-op si l'unité n'en a pas)
 
@@ -249,7 +250,12 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 			To.Z = 0.f;
 			const float Dist = To.Size();
 			const float AtkRange = UnitData ? UnitData->Stats.AttackRange * 200.f : 200.f;
-			if (Dist > 1.f && Dist < AtkRange + 500.f) { Desired = To.Rotation(); bWant = true; }
+			// Angle SIGNÉ de la cible par rapport à l'AVANT du modèle (0 = pile devant, ±180 = dos).
+			LastTargetYawRel = FMath::FindDeltaAngleDegrees(GetActorRotation().Yaw, To.Rotation().Yaw);
+			// QUADRUPÈDE (drake/beast) : il ne PIVOTE PAS pour un ennemi DERRIÈRE (fini le 360° !) ->
+			// il le frappe d'un COUP DE QUEUE sur place. Il ne se tourne que vers l'avant (cône ~110°).
+			const bool bRearFoe = (bQuadrupedRig && FMath::Abs(LastTargetYawRel) > 110.f);
+			if (Dist > 1.f && Dist < AtkRange + 500.f && !bRearFoe) { Desired = To.Rotation(); bWant = true; }
 			// Ennemi encore LOIN -> l'unité cherche à AVANCER vers lui : candidate au déblocage.
 			bWantsAdvance = (Dist > AtkRange + 120.f);
 			// Lance abaissée (agressive) dès que l'ennemi est en portée d'engagement/charge.
@@ -2823,11 +2829,26 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		JRHip = MakeJoint(VisualRoot, FVector(-LegX, LegY, -H * 0.14f));       BuildLeg(JRHip, false);      // arrière droit
 		JLHip = MakeJoint(VisualRoot, FVector(-LegX, -LegY, -H * 0.14f));      BuildLeg(JLHip, false);      // arrière gauche
 
-		// ── QUEUE ÉPAISSE segmentée à pics, qui remue ──
-		RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.92f, 0, -H * 0.14f), FVector(0.22f, 0.22f, h * 0.48f), FRotator(-108.f, 0, 0), NoxBronze), 0.f);
-		RegisterWiggle(AddPart(M_CONE, FVector(-H * 1.24f, 0, -H * 0.06f), FVector(0.14f, 0.14f, h * 0.34f), FRotator(-102.f, 0, 0), Scale2), 0.6f);
-		RegisterWiggle(AddPart(M_CONE, FVector(-H * 1.50f, 0, H * 0.00f), FVector(0.09f, 0.09f, h * 0.24f), FRotator(-98.f, 0, 0), Scale2), 1.0f);
-		bArticulated = true; // démarche quadrupède (les 4 pattes s'animent)
+		// ── QUEUE ÉPAISSE ARTICULÉE (chaîne, pointe -X) : sert au COUP DE QUEUE qui FOUETTE les
+		// ennemis derrière/sur les côtés (les ennemis devant reçoivent un coup de griffe). ──
+		{
+			const int32 TSeg = 3;
+			const float TSegLen = H * 0.40f;
+			USceneComponent* TParent = VisualRoot;
+			for (int32 i = 0; i < TSeg; ++i)
+			{
+				const FVector Off = (i == 0) ? FVector(-H * 0.80f, 0, -H * 0.12f) : FVector(-TSegLen, 0, 0);
+				USceneComponent* TJ = MakeJoint(TParent, Off);
+				if (!TJ) break;
+				const float w = FMath::Lerp(0.22f, 0.09f, (float)i / (TSeg - 1));
+				MakeBone(TJ, M_CONE, FVector(-TSegLen * 0.5f, 0, 0), FVector(w, w, TSegLen / 100.f), FRotator(-90.f, 0, 0), NoxBronze);
+				MakeBone(TJ, M_CONE, FVector(-TSegLen * 0.4f, 0, w * 40.f), FVector(0.05f, 0.05f, h * (0.20f - i * 0.04f)), FRotator(-24.f, 0, 0), Scale2); // pic dorsal
+				TailJoints.Add(TJ);
+				TParent = TJ;
+			}
+		}
+		bQuadrupedRig = true;
+		bArticulated = true;
 		return;
 	}
 	if (Id == TEXT("Noxeons")) // Spéciale (réf) : colosse abyssal noir couvert de pustules
@@ -2982,16 +3003,30 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		JRHip = MakeJoint(VisualRoot, FVector(-HipX, HipY, -H * 0.10f));      BuildHindLeg(JRHip);
 		JLHip = MakeJoint(VisualRoot, FVector(-HipX, -HipY, -H * 0.10f));     BuildHindLeg(JLHip);
 
-		// ── LONGUE QUEUE effilée (segments) qui ondule, avec épines vertes et pointe lumineuse. ──
-		RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.92f, 0, -H * 0.06f), FVector(0.24f, 0.24f, h * 0.55f), FRotator(-98.f, 0, 0), Scale), 0.f);
-		RegisterWiggle(AddPart(M_CONE, FVector(-H * 1.30f, 0, H * 0.00f), FVector(0.17f, 0.17f, h * 0.48f), FRotator(-94.f, 0, 0), Scale), 0.5f);
-		RegisterWiggle(AddPart(M_CONE, FVector(-H * 1.64f, 0, H * 0.06f), FVector(0.11f, 0.11f, h * 0.40f), FRotator(-90.f, 0, 0), Scale2), 0.9f);
-		RegisterWiggle(AddPart(M_CONE, FVector(-H * 1.92f, 0, H * 0.12f), FVector(0.07f, 0.12f, h * 0.32f), FRotator(-86.f, 0, 0), GreenGlow), 1.3f); // pointe lumineuse
-		// Petites épines vertes le long de la queue.
-		for (int32 t = 0; t < 4; ++t)
-			RegisterWiggle(AddPart(M_CONE, FVector(-H * (1.05f + t * 0.26f), 0, H * (0.06f + t * 0.03f)), FVector(0.04f, h * 0.05f, h * (0.22f - t * 0.03f)), FRotator(-30.f, 0, 0), GreenGlow), 0.4f + t * 0.3f);
+		// ── LONGUE QUEUE ARTICULÉE (chaîne) pointant vers l'ARRIÈRE (-X) : sert au COUP DE QUEUE
+		// qui FOUETTE (sweep horizontal) les ennemis derrière/sur les côtés. Effilée, épines
+		// vertes, pointe lumineuse. Animée par AnimateQuadruped. ──
+		{
+			const int32 TSeg = 4;
+			const float TSegLen = H * 0.42f;
+			USceneComponent* TParent = VisualRoot;
+			for (int32 i = 0; i < TSeg; ++i)
+			{
+				const FVector Off = (i == 0) ? FVector(-H * 0.72f, 0, -H * 0.04f) : FVector(-TSegLen, 0, 0);
+				USceneComponent* TJ = MakeJoint(TParent, Off);
+				if (!TJ) break;
+				const float w = FMath::Lerp(0.24f, 0.07f, (float)i / (TSeg - 1));
+				const bool bTip = (i == TSeg - 1);
+				MakeBone(TJ, M_CONE, FVector(-TSegLen * 0.5f, 0, 0), FVector(w, w, TSegLen / 100.f), FRotator(-90.f, 0, 0), bTip ? GreenGlow : Scale); // segment (pointe -X)
+				// épine dorsale verte sur le segment (ondule avec la queue).
+				MakeBone(TJ, M_CONE, FVector(-TSegLen * 0.4f, 0, w * 42.f), FVector(0.04f, h * 0.05f, h * (0.20f - i * 0.03f)), FRotator(-28.f, 0, 0), GreenGlow);
+				TailJoints.Add(TJ);
+				TParent = TJ;
+			}
+		}
 
-		bArticulated = true; // démarche + bras animés
+		bQuadrupedRig = true; // rig dédié : pattes + coup de griffe (avant) / coup de queue (arrière)
+		bArticulated = true;
 		return;
 	}
 
@@ -3442,6 +3477,76 @@ void AWOTOLDemoUnit::AnimateArticulated(float Dt)
 	{
 		ShapeMesh->SetRelativeRotation(
 			FMath::RInterpTo(ShapeMesh->GetRelativeRotation(), FRotator(torsoPitch, 0, torsoRoll), Dt, 8.f));
+	}
+}
+
+// RIG QUADRUPÈDE (Noxedrake, Noxebeast) : marche des 4 pattes + ATTAQUE par MEMBRE (aucune
+// rotation du corps) — COUP DE GRIFFE (patte avant) si l'ennemi est DEVANT, COUP DE QUEUE qui
+// FOUETTE (chaîne de la queue) si l'ennemi est DERRIÈRE/sur le côté.
+void AWOTOLDemoUnit::AnimateQuadruped(float Dt)
+{
+	const bool bDead = !IsAlive();
+	const bool bAttacking = (AttackAnimTimer > 0.f);
+
+	EUnitAIState St = EUnitAIState::Idle; bool bOrderMove = false;
+	if (UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>())
+	{
+		St = S->GetCurrentState();
+		bOrderMove = S->bFollowingPlayerOrder || S->bAttackMoveActive;
+	}
+	const float Speed = GetVelocity().Size2D();
+	const bool bInMove = (St == EUnitAIState::Seeking || St == EUnitAIState::Patrolling
+		|| St == EUnitAIState::Retreating || bOrderMove);
+	const bool bMoving = !bAttacking && (Speed > 6.f || bInMove);
+
+	AnimPhase += Dt * (bMoving ? 8.f : 2.f);
+	const float s = FMath::Sin(AnimPhase);
+
+	// Démarche : pattes en DIAGONALE (avant-droit + arrière-gauche ensemble, etc.).
+	float rSho = 0.f, lSho = 0.f, rHip = 0.f, lHip = 0.f;
+	if (bDead) { rSho = lSho = rHip = lHip = 55.f; }         // pattes repliées (cadavre)
+	else if (bMoving) { rSho = s * 26.f; lSho = -s * 26.f; rHip = -s * 26.f; lHip = s * 26.f; }
+	else { rSho = 6.f + s * 3.f; lSho = 6.f - s * 3.f; rHip = s * 3.f; lHip = -s * 3.f; } // frémissement
+
+	// ── COUP DE GRIFFE (ennemi DEVANT) : la patte avant droite se lève puis abat vers l'avant. ──
+	const bool bFrontAtk = bAttacking && !bDead && FMath::Abs(LastTargetYawRel) <= 95.f;
+	const bool bRearAtk  = bAttacking && !bDead && FMath::Abs(LastTargetYawRel) >  95.f;
+	if (bFrontAtk)
+	{
+		SwingProgress = FMath::Min(1.f, SwingProgress + Dt * 3.2f);
+		const float Sw = FMath::Sin(FMath::Clamp(SwingProgress, 0.f, 1.f) * PI); // 0 -> 1 -> 0
+		rSho += FMath::Lerp(-15.f, -95.f, Sw); // lève haut puis frappe vers l'avant/bas (griffe)
+	}
+	else SwingProgress = FMath::Max(0.f, SwingProgress - Dt * 2.f);
+
+	auto Set = [&](USceneComponent* J, const FRotator& T, float sp)
+	{ if (J) J->SetRelativeRotation(FMath::RInterpTo(J->GetRelativeRotation(), T, Dt, sp)); };
+	Set(JRShoulder, FRotator(rSho, 0, 0), bFrontAtk ? 16.f : 9.f);
+	Set(JLShoulder, FRotator(lSho, 0, 0), 9.f);
+	Set(JRHip,      FRotator(rHip, 0, 0), 9.f);
+	Set(JLHip,      FRotator(lHip, 0, 0), 9.f);
+
+	// ── COUP DE QUEUE (ennemi DERRIÈRE) : la chaîne de la queue FOUETTE horizontalement (sweep
+	// en yaw, propagé segment par segment = effet fouet) ; sinon ondoiement doux. ──
+	if (bRearAtk) TailWhipPhase = FMath::Min(1.f, TailWhipPhase + Dt * 2.4f);
+	else          TailWhipPhase = FMath::Max(0.f, TailWhipPhase - Dt * 1.6f);
+	for (int32 i = 0; i < TailJoints.Num(); ++i)
+	{
+		if (!TailJoints[i]) continue;
+		float Yaw;
+		if (TailWhipPhase > 0.02f)
+		{
+			const float Local = FMath::Clamp(TailWhipPhase * 1.7f - i * 0.28f, 0.f, 1.f);
+			const float Sweep = FMath::Sin(Local * PI);              // 0 -> 1 -> 0 (propagé = fouet)
+			Yaw = FMath::Lerp(-60.f, 60.f, Sweep);                   // la pointe balaie fort d'un côté
+		}
+		else
+		{
+			Yaw = FMath::Sin(AnimClock * 1.6f + i * 0.6f) * 9.f;     // ondoiement au repos
+		}
+		const float sp = (TailWhipPhase > 0.02f) ? 16.f : 4.f;
+		TailJoints[i]->SetRelativeRotation(
+			FMath::RInterpTo(TailJoints[i]->GetRelativeRotation(), FRotator(0.f, Yaw, 0.f), Dt, sp));
 	}
 }
 
