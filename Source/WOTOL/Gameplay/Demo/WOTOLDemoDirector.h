@@ -284,6 +284,11 @@ private:
 	UPROPERTY()
 	TObjectPtr<AWOTOLCaptureObject> CaptureObject;
 
+	// Structures de défense posées autour du bâtiment (tourelles/sentinelles).
+	UPROPERTY()
+	TArray<TObjectPtr<class AWOTOLDefenseStructure>> DefenseStructures;
+	void ClearDefenseStructures();
+
 	FTimerHandle BattleStartHandle;
 	FTimerHandle BattleCheckHandle;
 	FTimerHandle PhaseHandle;

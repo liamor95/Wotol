@@ -10,6 +10,7 @@
 #include "Gameplay/Units/UnitDataAsset.h"
 #include "Gameplay/Battle/RTSBattleManager.h"
 #include "Gameplay/Battle/TerritoryStateManager.h"
+#include "WOTOLDefenseStructure.h"
 #include "Gameplay/Battle/UnitSelectionManager.h"
 #include "Gameplay/AI/AIAdaptiveController.h"
 #include "Gameplay/Units/UnitAIStateComponent.h"
@@ -894,13 +895,26 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 
 	const FTransform SpawnTM(Facing, SafeLoc, FVector(ScaleBoost));
 
+	// ── PROGRESSION DE BÂTIMENT (cité du joueur) : niveau du bâtiment = niveau de l'unité.
+	// Niv 1 = ×1.0, Niv 2 = ×1.15, Niv 3 = ×1.30 (PV + dégâts). Ne s'applique qu'aux unités
+	// de la faction du joueur (ce sont SES bâtiments qu'il améliore). Voir SYSTEME_CITE_ET_DEFENSE.md.
+	float BuildFactor = 1.f;
+	if (!bAsBoss && Data->Faction == CachedPlayerFaction)
+	{
+		if (UDemoFlowSubsystem* Flow = GI->GetSubsystem<UDemoFlowSubsystem>())
+		{
+			const int32 Lvl = Flow->GetBuildingLevel(UDemoFlowSubsystem::GetCategoryForUnit(UnitID));
+			BuildFactor = 1.f + 0.15f * (float)(Lvl - 1);
+		}
+	}
+
 	AWOTOLDemoUnit* Unit = GetWorld()->SpawnActorDeferred<AWOTOLDemoUnit>(
 		DemoUnitClass, SpawnTM, this, nullptr,
 		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
 	if (!Unit) return nullptr;
 
 	Unit->UnitData    = Data;
-	Unit->HealthScale = HealthScale;   // appliqué dans BeginPlay (avant FinishSpawning)
+	Unit->HealthScale = HealthScale * BuildFactor;   // appliqué dans BeginPlay (avant FinishSpawning)
 	Unit->bIsBoss     = bAsBoss;       // AVANT FinishSpawning -> silhouette Kraken forcée
 	UGameplayStatics::FinishSpawningActor(Unit, SpawnTM);
 
@@ -918,6 +932,7 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 		float M = FactionDamage(Unit->GetFaction()) * PhaseEvoDMG(Phase);
 		if (!bPlayerSide) M *= EnemyDiffKDMG(Diff); // degats ennemis peu reduits -> pertes garanties
 		else M *= AquiP3NormalDMG(Unit->GetFaction(), Phase, Diff); // correctif cible joueur Aquiloris P3 Normal
+		M *= BuildFactor; // niveau de bâtiment -> dégâts de l'unité (progression de cité)
 		Unit->BalanceDamageMult = M;
 	}
 
@@ -1545,6 +1560,16 @@ void AWOTOLDemoDirector::CleanupUnits()
 		if (U) U->Destroy();
 	}
 	SpawnedUnits.Empty();
+	ClearDefenseStructures();
+}
+
+void AWOTOLDemoDirector::ClearDefenseStructures()
+{
+	for (TObjectPtr<AWOTOLDefenseStructure>& D : DefenseStructures)
+	{
+		if (D) D->Destroy();
+	}
+	DefenseStructures.Empty();
 }
 
 void AWOTOLDemoDirector::SpawnCaptureObject(EFactionID Faction)
@@ -1571,6 +1596,30 @@ void AWOTOLDemoDirector::SpawnCaptureObject(EFactionID Faction)
 		}
 	}
 	Obj->OnCaptureDestroyed.AddDynamic(this, &AWOTOLDemoDirector::HandleCaptureDestroyed);
+
+	// ── STRUCTURES DE DÉFENSE autour du bâtiment (Docs/SYSTEME_CITE_ET_DEFENSE.md) ──
+	// Le Cristalliseur seul ne suffit pas : on pose des tourelles (Aquiloris) / sentinelles
+	// (Noxéens) en couronne, qui tirent sur les assaillants. Débloquées via recherche = à venir ;
+	// ici, dotation de base pour rendre la défense crédible (pattern tower-defense).
+	if (UWorld* W = GetWorld())
+	{
+		const FVector C = Obj->GetActorLocation();
+		const int32 NumDef = 4;
+		const float Ring = 750.f;
+		for (int32 i = 0; i < NumDef; ++i)
+		{
+			const float A = (float)i / NumDef * 2.f * PI;
+			const FVector Loc = C + FVector(FMath::Cos(A) * Ring, FMath::Sin(A) * Ring, -200.f);
+			FActorSpawnParameters SP;
+			SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			if (AWOTOLDefenseStructure* Def = W->SpawnActor<AWOTOLDefenseStructure>(
+					AWOTOLDefenseStructure::StaticClass(), Loc, FRotator::ZeroRotator, SP))
+			{
+				Def->OwnerFaction = Faction;
+				DefenseStructures.Add(Def);
+			}
+		}
+	}
 }
 
 // SIÈGE : périodiquement, chaque unité rivale proche du bâtiment lui inflige des dégâts

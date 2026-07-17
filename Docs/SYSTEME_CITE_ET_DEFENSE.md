@@ -5,10 +5,11 @@ Ce n'est **pas** un simple recrutement façon Bannerlord : c'est un vrai systèm
 faction/cité, avec progression des bâtiments, arbres de compétences, et **défense de forteresse
 jouable**. Mise en place **progressive** (après stabilisation de la boucle démo 0.8).
 
-Jeux de référence : **V Rising** (château + bâtiments + défenses + raids), **Age of Empires /
-Age of Mythology** (bâtiment → âge/niveau → améliore les unités), **Stronghold** (défense de
-château en temps réel), **They Are Billions** (défenses en couches contre des vagues),
-**Total War** (batailles de siège = défense de forteresse jouable).
+Jeux de référence (patterns STR éprouvés) : **Age of Empires / Age of Mythology** (bâtiment →
+âge/niveau → améliore les unités), **Stronghold** (défense de château en temps réel),
+**They Are Billions** (défenses en couches contre des vagues), **Total War** (batailles de siège =
+défense de forteresse jouable). *(V Rising a un système proche château + défenses + raids, cité à
+titre indicatif — non demandé par Liamor.)*
 
 ---
 
