@@ -69,6 +69,32 @@ défense, et écrans de transition/chargement.
 
 ---
 
+## Maquettes UI de référence (`Content/UI/Reference/Maquettes/`)
+
+Fournies par Liamor — cibles visuelles pour styliser les écrans C++.
+
+| Maquette | Écran cible | Enseignements de style |
+|---|---|---|
+| `UI_ReglageJoueur` | sélection faction/difficulté | panneau encadré (coins ornés bleus), Facile/Normal/Difficile, modes Ironman/Aléatoire |
+| `UI_PersonnalisationHero` | perso héros (futur) | prénom + héritage + spécialité + portrait |
+| `UI_ResumePartie` | récap avant lancement | portrait + résumé + « Lancer la partie » |
+| `UI_Chargement_Faction` / `_Intro` | **écran de chargement** | titre faction + **texte de lore** + **barre de progression** + « Astuce » |
+| `UI_FenetreObjectif` | **fenêtre d'objectif** | panneau encadré, sous-titre, **icônes de récompense**, bouton ACCEPTER |
+| `UI_EscouadeSelection` | **cité / escouade** | cartes d'unités (portrait + catégorie + compteur x/y), « 5 max », CONFIRMER |
+| `UI_Tutoriel_Verticalite_01..03` | **tuto phase 1** | panneau latéral + flèches verticales (placement en hauteur, déplacement entre niveaux) |
+| `UI_HUD_JaugeVerticale` | HUD bataille | **jauge verticale SURFACE / MID / SOL** à gauche |
+| `UI_HUD_Complet` / `_8Ressources` | HUD bataille | barre haute (menu G / timer C / pause·vitesse·réglages D), **8 ressources**, panneau héros (PV+ressource+niveau+capacités), roster groupé (effectifs), minimap |
+| `UI_HUD_Bataille_01/02` | HUD bataille | ressources G, objectif D, roue de capacités, minimap |
+| `UI_Bataille_Creature` | bataille créature | échelle créature vs armée, ambiance |
+
+### Écarts de nommage dans les maquettes (⚠️ ne PAS suivre)
+Les maquettes affichent d'anciens noms (Aquistance, Aquiloryon, Aquilance, « Thalassidras (A) »
+comme faction jouée, héros « Aquilian/Aquilance Roi des Profondeurs »). Le **canon du code** prévaut :
+Akis / Akilorions / Aquilans / Akisfères / Aquilombre, factions démo = Aquiloris + Noxéens.
+Les maquettes servent pour le **style visuel**, pas pour les noms.
+
+---
+
 ## Ordre de compilation conseillé au retour du PC
 1. Pull `feature/v0.8-jeu-complet`, recompiler, vérifier que **ça build** (modules 1-4).
 2. Valider visuellement : **vert Noxéen** + **échelle Noxedrake** + **fenêtre d'objectif**.
