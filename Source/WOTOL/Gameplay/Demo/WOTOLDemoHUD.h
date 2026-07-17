@@ -45,6 +45,15 @@ public:
 	// Bouton « Continuer » de la fenêtre d'objectif MODALE (validation manuelle v0.8).
 	static FBox2D ObjectiveContinueButtonRect(float W, float H);
 
+	// ─── Vue CITÉ (phases 2 & 9 — production) ───────────────────────────────────
+	// Cartes de production (bâtiments) le long du bas de l'écran.
+	static FBox2D CityCardRect(int32 Index, float W, float H);
+	// Bouton « Partir en expédition » (bas-droite).
+	static FBox2D CityDepartButtonRect(float W, float H);
+	// Catégories productibles en cité, dans l'ordre des cartes (hors Chef).
+	static int32 CityCardCount();
+	static EDemoUnitCategory CityCardCategory(int32 Index);
+
 	// Carte de la barre de commandement (bas-gauche) pour l'index de groupe donné.
 	// Sert au double-clic : sélectionner + zoomer sur ce groupe d'unités.
 	static FBox2D CommandCardRect(int32 Index, float W, float H);
@@ -69,6 +78,14 @@ private:
 	// Écrans du flux (menu / faction / préparation)
 	void DrawMainMenu(float W, float H);
 	void DrawFactionSelect(float W, float H);
+	// Vue cité : fond + cristaux + cartes de production + bouton d'expédition.
+	void DrawCityView(float W, float H, class UDemoFlowSubsystem* Demo);
+	// Écran de chargement (fond animé + logo + anneau + astuce).
+	void DrawLoadingScreen(float W, float H, class UDemoFlowSubsystem* Demo);
+	// Fond de cité chargé depuis le disque selon la faction (mis en cache).
+	class UTexture2D* GetCityBackground(EFactionID Faction);
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> CityBgTexture = nullptr;
+	EFactionID CityBgFaction = EFactionID::None;
 	void DrawPrepareBar(float W, float H);
 	void DrawSummary(float W, float H, class UDemoFlowSubsystem* Demo);
 	void DrawInterlude(float W, float H, class UDemoFlowSubsystem* Demo);

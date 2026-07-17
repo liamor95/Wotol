@@ -196,6 +196,29 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		return true;
 	}
 
+	// ── Vue CITÉ : cartes de production + bouton d'expédition ──
+	if (Screen == EDemoScreen::City)
+	{
+		if (Demo)
+		{
+			for (int32 i = 0; i < AWOTOLDemoHUD::CityCardCount(); ++i)
+			{
+				if (AWOTOLDemoHUD::CityCardRect(i, VpSize.X, VpSize.Y).IsInside(M))
+				{
+					Demo->ProduceUnit(AWOTOLDemoHUD::CityCardCategory(i));
+					return true;
+				}
+			}
+			if (AWOTOLDemoHUD::CityDepartButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+			{
+				// TODO module 10 : lancer réellement l'expédition via le Director.
+				// Pour l'instant, quitte la cité vers la phase de jeu.
+				Demo->SetScreen(EDemoScreen::Playing);
+			}
+		}
+		return true; // la cité capte tout clic
+	}
+
 	// ── Menu principal ──
 	if (Screen == EDemoScreen::MainMenu)
 	{

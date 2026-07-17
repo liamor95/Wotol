@@ -137,6 +137,8 @@ void AWOTOLDemoHUD::DrawHUD()
 	if (Screen == EDemoScreen::FactionSelect) { DrawFactionSelect(W, H); return; }
 	if (Screen == EDemoScreen::Summary)    { DrawSummary(W, H, DemoFlow); return; }
 	if (Screen == EDemoScreen::Interlude)  { DrawInterlude(W, H, DemoFlow); return; }
+	if (Screen == EDemoScreen::City)       { DrawCityView(W, H, DemoFlow); return; }
+	if (Screen == EDemoScreen::Loading)    { DrawLoadingScreen(W, H, DemoFlow); return; }
 
 	// ─── 1) Boîte de sélection (rectangle de drag) ───────────────────────────
 	if (AWOTOLPlayerController_Battle* PC =
@@ -636,6 +638,189 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 									  : FLinearColor(0.45f, 0.5f, 0.6f, 1.f); // autre : grisé
 		DrawButton(DifficultyButtonRect(i, W, H), DLabels[i], Col, bSel ? 1.3f : 1.05f);
 	}
+}
+
+// ─── Vue CITÉ ────────────────────────────────────────────────────────────────
+int32 AWOTOLDemoHUD::CityCardCount() { return 5; }
+
+EDemoUnitCategory AWOTOLDemoHUD::CityCardCategory(int32 Index)
+{
+	static const EDemoUnitCategory Cats[5] = {
+		EDemoUnitCategory::Infanterie, EDemoUnitCategory::Distance,
+		EDemoUnitCategory::Montee,     EDemoUnitCategory::Speciale,
+		EDemoUnitCategory::Mythique };
+	return Cats[FMath::Clamp(Index, 0, 4)];
+}
+
+FBox2D AWOTOLDemoHUD::CityCardRect(int32 Index, float W, float H)
+{
+	const int32 N = CityCardCount();
+	const float CW = FMath::Min(230.f, (W * 0.82f) / N);
+	const float CH = 168.f;
+	const float Gap = 16.f;
+	const float TotalW = N * CW + (N - 1) * Gap;
+	const float StartX = (W - TotalW) * 0.5f;
+	const float Y = H - CH - 46.f;
+	const float X = StartX + Index * (CW + Gap);
+	return FBox2D(FVector2D(X, Y), FVector2D(X + CW, Y + CH));
+}
+
+FBox2D AWOTOLDemoHUD::CityDepartButtonRect(float W, float H)
+{
+	const float BW = 340.f, BH = 60.f;
+	return FBox2D(FVector2D(W - BW - 40.f, 40.f), FVector2D(W - 40.f, 40.f + BH));
+}
+
+// Nom du bâtiment producteur (Aquiloris) / générique Noxéen, par catégorie.
+static FString CityBuildingLabel(EFactionID Fac, EDemoUnitCategory Cat)
+{
+	const bool bAq = (Fac != EFactionID::Noxeens);
+	switch (Cat)
+	{
+		case EDemoUnitCategory::Infanterie: return bAq ? TEXT("Academie") : TEXT("Nid Noxeflare");
+		case EDemoUnitCategory::Distance:   return bAq ? TEXT("Champ de Tir") : TEXT("Fosse Noxeblast");
+		case EDemoUnitCategory::Montee:     return bAq ? TEXT("Dome des montures") : TEXT("Antre Noxebeast");
+		case EDemoUnitCategory::Speciale:   return bAq ? TEXT("Nexus des Ombres") : TEXT("Sanctuaire Noxeon");
+		case EDemoUnitCategory::Mythique:   return bAq ? TEXT("Coeur-Eclat") : TEXT("Couvain Noxedrake");
+		default: return TEXT("");
+	}
+}
+
+// Nom d'unité affiché sur la carte, par catégorie/faction.
+static FString CityUnitLabel(EFactionID Fac, EDemoUnitCategory Cat)
+{
+	const bool bAq = (Fac != EFactionID::Noxeens);
+	switch (Cat)
+	{
+		case EDemoUnitCategory::Infanterie: return bAq ? TEXT("Akilorions") : TEXT("Nox Flare");
+		case EDemoUnitCategory::Distance:   return bAq ? TEXT("Akisferes")  : TEXT("Nox Blast");
+		case EDemoUnitCategory::Montee:     return bAq ? TEXT("Aquilans")   : TEXT("Nox Beast");
+		case EDemoUnitCategory::Speciale:   return bAq ? TEXT("Aquilombre") : TEXT("Noxeon");
+		case EDemoUnitCategory::Mythique:   return bAq ? TEXT("Leviaphenix"): TEXT("Noxedrake");
+		default: return TEXT("");
+	}
+}
+
+UTexture2D* AWOTOLDemoHUD::GetCityBackground(EFactionID Faction)
+{
+	if (CityBgTexture && CityBgFaction == Faction) return CityBgTexture;
+	CityBgFaction = Faction;
+	CityBgTexture = nullptr;
+	const TCHAR* File = (Faction == EFactionID::Noxeens)
+		? TEXT("UI/Reference/Faille_Noxeens.png")
+		: TEXT("UI/Reference/Cite_Aquiloris.png");
+	const FString PngPath = FPaths::ProjectContentDir() / File;
+	if (FPaths::FileExists(PngPath))
+	{
+		if (UTexture2D* Loaded = FImageUtils::ImportFileAsTexture2D(PngPath))
+		{
+			CityBgTexture = Loaded;
+		}
+	}
+	return CityBgTexture;
+}
+
+void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
+{
+	if (!Demo) { DrawUnderwaterBackground(W, H); return; }
+	const EFactionID Fac = Demo->GetPlayerFaction();
+
+	// Fond de cité (image de référence) ou repli dégradé sous-marin.
+	if (UTexture2D* BG = GetCityBackground(Fac))
+	{
+		DrawTexture(BG, 0.f, 0.f, W, H, 0.f, 0.f, 1.f, 1.f);
+		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.30f), 0.f, 0.f, W, H * 0.16f);          // bandeau haut
+		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.42f), 0.f, H * 0.66f, W, H * 0.34f);    // bandeau bas (cartes)
+	}
+	else
+	{
+		DrawUnderwaterBackground(W, H);
+	}
+
+	const bool bAq = (Fac != EFactionID::Noxeens);
+	const FLinearColor Accent = bAq ? FLinearColor(0.45f, 0.85f, 1.f, 1.f)
+	                                : FLinearColor(0.30f, 0.95f, 0.50f, 1.f);
+	const FString CityName = bAq ? TEXT("CITE D'AQUILOR") : TEXT("FAILLE NOXEENNE");
+	DrawGlowTitle(CityName, H * 0.04f, 2.2f, Accent);
+
+	// Compteur de cristaux (haut-gauche).
+	const FString Res = bAq ? TEXT("Cristaux") : TEXT("Biolumens");
+	DrawText(FString::Printf(TEXT("%s : %d"), *Res, Demo->GetCrystals()),
+		FLinearColor(1.f, 0.95f, 0.6f, 1.f), 44.f, 44.f, GEngine ? GEngine->GetLargeFont() : nullptr, 1.5f);
+
+	// Instruction.
+	DrawCenteredText(TEXT("Produisez des unites, puis partez en expedition"),
+		H * 0.60f, FLinearColor(0.9f, 0.95f, 1.f, 0.95f), 1.1f);
+
+	// Cartes de production (bâtiments).
+	for (int32 i = 0; i < CityCardCount(); ++i)
+	{
+		const EDemoUnitCategory Cat = CityCardCategory(i);
+		const FBox2D R = CityCardRect(i, W, H);
+		const int32 Cost = Demo->GetProductionCost(Cat);
+		const bool bUnlocked = Demo->IsCategoryUnlocked(Cat);
+		const bool bAfford = Demo->CanProduce(Cat);
+		const FName UnitID = Demo->GetUnitID(Fac, Cat);
+		const int32 InReserve = Demo->GetReserveCount(UnitID);
+
+		// Fond de carte : vif si productible, grisé si verrouillé/insuffisant.
+		const FLinearColor CardBg = !bUnlocked ? FLinearColor(0.10f, 0.10f, 0.13f, 0.85f)
+			: bAfford ? FLinearColor(0.08f, 0.16f, 0.24f, 0.92f)
+			          : FLinearColor(0.14f, 0.12f, 0.10f, 0.90f);
+		DrawRect(CardBg, R.Min.X, R.Min.Y, R.Max.X - R.Min.X, R.Max.Y - R.Min.Y);
+		const FLinearColor Border = bAfford ? Accent : FLinearColor(0.4f, 0.42f, 0.48f, 1.f);
+		DrawLine(R.Min.X, R.Min.Y, R.Max.X, R.Min.Y, Border, 2.f);
+		DrawLine(R.Min.X, R.Max.Y, R.Max.X, R.Max.Y, Border, 2.f);
+		DrawLine(R.Min.X, R.Min.Y, R.Min.X, R.Max.Y, Border, 2.f);
+		DrawLine(R.Max.X, R.Min.Y, R.Max.X, R.Max.Y, Border, 2.f);
+
+		const float CX = R.Min.X + 12.f;
+		DrawText(CityBuildingLabel(Fac, Cat), Border, CX, R.Min.Y + 10.f, GEngine ? GEngine->GetMediumFont() : nullptr, 0.95f);
+		DrawText(CityUnitLabel(Fac, Cat), FLinearColor::White, CX, R.Min.Y + 40.f, GEngine ? GEngine->GetLargeFont() : nullptr, 1.15f);
+
+		if (!bUnlocked)
+		{
+			DrawText(TEXT("Verrouille"), FLinearColor(0.7f, 0.7f, 0.75f, 1.f), CX, R.Min.Y + 78.f, nullptr, 1.f);
+		}
+		else
+		{
+			DrawText(FString::Printf(TEXT("Cout : %d"), Cost),
+				bAfford ? FLinearColor(1.f, 0.95f, 0.6f, 1.f) : FLinearColor(1.f, 0.55f, 0.5f, 1.f),
+				CX, R.Min.Y + 78.f, nullptr, 1.f);
+			DrawText(FString::Printf(TEXT("En reserve : %d"), InReserve),
+				FLinearColor(0.75f, 0.9f, 1.f, 1.f), CX, R.Min.Y + 104.f, nullptr, 1.f);
+			DrawCenteredText(bAfford ? TEXT("+ Produire") : TEXT("Cristaux insuffisants"),
+				R.Max.Y - 22.f, bAfford ? Accent : FLinearColor(0.7f, 0.5f, 0.5f, 1.f), 0.95f);
+		}
+	}
+
+	// Bouton d'expédition.
+	DrawButton(CityDepartButtonRect(W, H), TEXT("PARTIR EN EXPEDITION"),
+		FLinearColor(1.f, 0.7f, 0.25f, 1.f), 1.3f);
+}
+
+void AWOTOLDemoHUD::DrawLoadingScreen(float W, float H, UDemoFlowSubsystem* Demo)
+{
+	DrawUnderwaterBackground(W, H);
+	DrawGlowTitle(TEXT("WOTOL"), H * 0.30f, 3.4f, FLinearColor(0.5f, 0.85f, 1.f, 1.f));
+
+	// Anneau de chargement animé (arc tournant).
+	const float T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	if (Canvas)
+	{
+		const FVector2D C(W * 0.5f, H * 0.56f);
+		const int32 Dots = 12;
+		for (int32 i = 0; i < Dots; ++i)
+		{
+			const float a = (float)i / Dots * 2.f * PI;
+			const float fade = 0.25f + 0.75f * (0.5f + 0.5f * FMath::Sin(T * 4.f - a));
+			const FVector2D P(C.X + FMath::Cos(a) * 46.f, C.Y + FMath::Sin(a) * 46.f);
+			Canvas->K2_DrawPolygon(nullptr, P, FVector2D(7.f, 7.f), 12,
+				FLinearColor(0.5f, 0.85f, 1.f, fade));
+		}
+	}
+	const FString Msg = (Demo && !Demo->CurrentMessage.IsEmpty()) ? Demo->CurrentMessage : TEXT("Chargement...");
+	DrawCenteredText(Msg, H * 0.70f, FLinearColor(0.85f, 0.92f, 1.f, 1.f), 1.2f);
 }
 
 void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
