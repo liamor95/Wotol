@@ -49,7 +49,10 @@ enum class EDemoScreen : uint8
 	Prepare       UMETA(DisplayName = "Préparation (placement)"),
 	Playing       UMETA(DisplayName = "En jeu"),
 	Summary       UMETA(DisplayName = "Résumé de bataille"),
-	Interlude     UMETA(DisplayName = "Transition narrative (hors-champ)")
+	Interlude     UMETA(DisplayName = "Transition narrative (hors-champ)"),
+	City          UMETA(DisplayName = "Cité (production Aquiloris)"),
+	WorldMap      UMETA(DisplayName = "Monde ouvert / carte"),
+	Loading       UMETA(DisplayName = "Écran de chargement")
 };
 
 // Ligne de résumé : pertes d'un type d'unité (nom + perdus / total) pour une faction.
@@ -222,7 +225,7 @@ public:
 
 	// Réinitialise la progression (déblocages) pour rejouer la démo depuis le début.
 	UFUNCTION(BlueprintCallable, Category = "Demo")
-	void ResetProgress() { Progress = FDemoProgress(); CurrentPhase = EDemoPhase::None; }
+	void ResetProgress() { Progress = FDemoProgress(); CurrentPhase = EDemoPhase::None; PlayerCrystals = 0; ReserveUnits.Empty(); }
 
 	// Difficulté choisie (défaut Normal = l'équilibrage de référence).
 	UPROPERTY(BlueprintReadOnly, Category = "Demo")
@@ -274,6 +277,43 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void SetInterludeText(const FString& Text) { InterludeText = Text; }
+
+	// ─── ÉCONOMIE DE LA CITÉ (phases 2 & 9 — production Aquiloris) ──────────────
+	// Ressource de faction (Cristaux d'énergie Aquiloris / Biolumens Noxéens). Sert à
+	// produire des unités dans la cité entre deux batailles et à réparer le Cristalliseur.
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	int32 PlayerCrystals = 0;
+
+	// Unités produites en cité, en attente de déploiement à la bataille suivante
+	// (clé = ID d'unité canonique, valeur = nombre en réserve).
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	TMap<FName, int32> ReserveUnits;
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	int32 GetCrystals() const { return PlayerCrystals; }
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|City")
+	void AddCrystals(int32 Amount) { PlayerCrystals = FMath::Max(0, PlayerCrystals + Amount); }
+
+	// Coût en cristaux pour produire une unité de cette catégorie (0 = non productible ici).
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	int32 GetProductionCost(EDemoUnitCategory Category) const;
+
+	// Vrai si la catégorie est débloquée ET abordable maintenant.
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	bool CanProduce(EDemoUnitCategory Category) const;
+
+	// Produit une unité (dépense les cristaux, l'ajoute à la réserve). Renvoie faux si refusé.
+	UFUNCTION(BlueprintCallable, Category = "Demo|City")
+	bool ProduceUnit(EDemoUnitCategory Category);
+
+	// Nombre d'unités de ce type en réserve (prêtes à déployer).
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	int32 GetReserveCount(FName UnitID) const;
+
+	// Consomme toute la réserve (appelé quand la bataille commence -> transfert au Director).
+	UFUNCTION(BlueprintCallable, Category = "Demo|City")
+	void DrainReserve(TMap<FName, int32>& OutUnits);
 
 	// ─── Fenêtre d'objectif MODALE (validation manuelle — canon v0.8) ───────────
 	// Aucune phase ne s'enchaîne automatiquement : on ouvre une fenêtre (« Objectif

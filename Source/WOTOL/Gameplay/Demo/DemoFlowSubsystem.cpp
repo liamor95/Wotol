@@ -138,6 +138,51 @@ void UDemoFlowSubsystem::MarkZoneCaptured()        { Progress.bZoneCaptured = tr
 void UDemoFlowSubsystem::MarkZoneDamaged()         { Progress.bZoneDamaged = true; }
 void UDemoFlowSubsystem::MarkZoneRepaired()        { Progress.bZoneRepaired = true; }
 
+// ─── ÉCONOMIE DE LA CITÉ ─────────────────────────────────────────────────────
+int32 UDemoFlowSubsystem::GetProductionCost(EDemoUnitCategory Category) const
+{
+	// Coûts inspirés des coûts d'unité du GDD (échelle réduite pour la démo).
+	switch (Category)
+	{
+		case EDemoUnitCategory::Infanterie: return 130;
+		case EDemoUnitCategory::Distance:   return 140;
+		case EDemoUnitCategory::Montee:     return 180;
+		case EDemoUnitCategory::Speciale:   return 160;
+		case EDemoUnitCategory::Mythique:   return 400;
+		case EDemoUnitCategory::Chef:       return 0;   // le chef n'est pas produit en série
+	}
+	return 0;
+}
+
+bool UDemoFlowSubsystem::CanProduce(EDemoUnitCategory Category) const
+{
+	const int32 Cost = GetProductionCost(Category);
+	return Cost > 0 && IsCategoryUnlocked(Category) && PlayerCrystals >= Cost;
+}
+
+bool UDemoFlowSubsystem::ProduceUnit(EDemoUnitCategory Category)
+{
+	if (!CanProduce(Category)) return false;
+	const int32 Cost = GetProductionCost(Category);
+	const FName UnitID = GetUnitID(GetPlayerFaction(), Category);
+	if (UnitID.IsNone()) return false;
+	PlayerCrystals -= Cost;
+	ReserveUnits.FindOrAdd(UnitID) += 1;
+	return true;
+}
+
+int32 UDemoFlowSubsystem::GetReserveCount(FName UnitID) const
+{
+	const int32* Found = ReserveUnits.Find(UnitID);
+	return Found ? *Found : 0;
+}
+
+void UDemoFlowSubsystem::DrainReserve(TMap<FName, int32>& OutUnits)
+{
+	OutUnits = ReserveUnits;
+	ReserveUnits.Empty();
+}
+
 EDemoUnitCategory UDemoFlowSubsystem::GetCategoryForUnit(FName UnitID)
 {
 	if (UnitID == TEXT("Aquis")       || UnitID == TEXT("Noxar"))     return EDemoUnitCategory::Chef;
