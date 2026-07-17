@@ -211,9 +211,16 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 			}
 			if (AWOTOLDemoHUD::CityDepartButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 			{
-				// TODO module 10 : lancer réellement l'expédition via le Director.
-				// Pour l'instant, quitte la cité vers la phase de jeu.
-				Demo->SetScreen(EDemoScreen::Playing);
+				// Part en expédition : le Director lance la défense du Cristalliseur (phase 10),
+				// en déployant aussi les unités produites en cité (réserve).
+				if (AWOTOLDemoDirector* Dir = GetDemoDirector())
+				{
+					Dir->LaunchDefenseFromCity();
+				}
+				else
+				{
+					Demo->SetScreen(EDemoScreen::Playing);
+				}
 			}
 		}
 		return true; // la cité capte tout clic

@@ -49,7 +49,7 @@ défense, et écrans de transition/chargement.
 - Pion nageur ZQSD + montée/descente, caméra 3e personne, zone neutre ~70 m².
 - Transition automatique à ~5–10 m de la créature → bataille (fenêtre d'objectif).
 
-### 8. Séquence Cristalliseur → Cœur-Éclat → œuf ⏳
+### 8. Séquence Cristalliseur → Cœur-Éclat → œuf ✅ 🧪 (acteurs + fenetres d objectif)
 - Après victoire créature : fenêtre « Placez le Cristalliseur » → pose → Cœur-Éclat apparaît →
   fenêtre « Récupérez le Cœur-Éclat » → œuf de Léviaphénix (récompense).
 
@@ -57,7 +57,7 @@ défense, et écrans de transition/chargement.
 - Bâtiment avec PV/bonus/réparation (`WOTOLCaptureObject` existe déjà — à étendre).
 - Destruction = **échec immédiat** (fenêtre rouge) → zone neutre. Pas de bâtiment ennemi posé.
 
-### 10. Câblage du flux 13 phases dans le Director ⏳
+### 10. Câblage du flux 13 phases dans le Director 🔨 (interrupteur bEnableFullFlowV08)
 - Remplacer l'enchaînement 3-batailles par la machine 13 phases pilotée par les fenêtres
   d'objectif (`OnObjectiveConfirmed` → `Director` agit → phase suivante).
 

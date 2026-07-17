@@ -4,11 +4,13 @@
 #include "GameFramework/Actor.h"
 #include "Data/WOTOLTypes.h"
 #include "DemoFlowSubsystem.h" // EDemoPhase (mémorisation de la phase à rejouer)
+#include "WOTOLRewardActor.h"  // EWOTOLRewardType (séquence Cœur-Éclat / œuf — module 8)
 #include "WOTOLDemoDirector.generated.h"
 
 class AWOTOLDemoUnit;
 class AWOTOLCaptureObject;
 class AWOTOLCoverStructure;
+class AWOTOLRewardActor;
 class UUnitDataAsset;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDemoMessage, const FString&, Message);
@@ -183,7 +185,37 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	// ── MODULE 8 — Séquence post-créature (Cristalliseur → Cœur-Éclat → œuf) ──
+	// Point d'entrée : ouvre la 1ère fenêtre d'objectif de la séquence. Enchaîné ensuite
+	// par les validations de fenêtre (OnObjectiveConfirmed). Exposé pour le câblage du flux
+	// (module 10) et testable directement depuis un Blueprint.
+	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
+	void BeginPostCreatureSequence();
+
+	// Interrupteur du FLUX 13 PHASES v0.8 (module 10). Désactivé par défaut : la démo
+	// conserve son enchaînement 3-batailles testé. Activé (éditeur ou BP) : la victoire
+	// créature enchaîne la séquence Cristalliseur → Cœur-Éclat → œuf → cité → défense.
+	// À basculer sur true UNE FOIS le projet recompilé et le flux validé.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Flux")
+	bool bEnableFullFlowV08 = false;
+
+	// Lance la défense du Cristalliseur depuis la cité (bouton « Partir en expédition »).
+	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
+	void LaunchDefenseFromCity();
+
 private:
+	// Réagit à la validation d'une fenêtre d'objectif -> avance la séquence.
+	UFUNCTION()
+	void HandleObjectiveConfirmed(FName StepId);
+	// Réagit à la récupération d'une récompense (Cœur-Éclat / œuf) par proximité.
+	UFUNCTION()
+	void HandleRewardCollected(EWOTOLRewardType Type);
+	// Fait apparaître une récompense greybox flottante à l'emplacement donné.
+	AWOTOLRewardActor* SpawnReward(EWOTOLRewardType Type, const FVector& Loc);
+
+	UPROPERTY()
+	TObjectPtr<AWOTOLRewardActor> ActiveReward;
+
 	EFactionID ResolvePlayerFaction() const;
 	EFactionID RivalOf(EFactionID Faction) const;
 	int32 CountAlive(EFactionID Faction) const;

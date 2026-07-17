@@ -200,6 +200,8 @@ void AWOTOLDemoDirector::BeginPlay()
 		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
 		{
 			Demo->SetScreen(EDemoScreen::MainMenu);
+			// Module 8/10 : le Director réagit aux validations des fenêtres d'objectif.
+			Demo->OnObjectiveConfirmed.AddDynamic(this, &AWOTOLDemoDirector::HandleObjectiveConfirmed);
 		}
 	}
 
@@ -1167,6 +1169,8 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 		BuildBattleSummary(true, /*bFinal=*/false, TEXT("KRAKEN VAINCU"));
 		if (Demo) Demo->SetScreen(EDemoScreen::Summary);
 		Say(TEXT("Le Kraken est vaincu ! Consultez le resume, puis lancez la defense."));
+		// FLUX v0.8 : après le résumé, on enchaînera la séquence de purification via
+		// BeginPostCreatureSequence (déclenchée au clic « Continuer » — voir OnSummaryContinue).
 	}
 	else if (Phase == EDemoPhase::Battle_Rival)
 	{
@@ -1333,6 +1337,14 @@ void AWOTOLDemoDirector::ContinueToPhase2()
 		return;
 	}
 
+	// FLUX v0.8 (module 10) : au lieu d'aller directement à la défense, on joue la
+	// séquence de purification (Cristalliseur → Cœur-Éclat → œuf → cité → puis défense).
+	if (bEnableFullFlowV08)
+	{
+		BeginPostCreatureSequence();
+		return;
+	}
+
 	if (Demo)
 	{
 		Demo->UnlockRangedUnit();  // distance débloquée pour la phase 2
@@ -1340,6 +1352,16 @@ void AWOTOLDemoDirector::ContinueToPhase2()
 	}
 	SpawnCaptureObject(CachedPlayerFaction); // objet à défendre (visible en phase 2)
 	StartRivalDefense();                     // -> phase 2 en PRÉPARATION
+}
+
+// Bouton « Partir en expédition » de la cité (module 5) -> lance la défense (phase 10).
+void AWOTOLDemoDirector::LaunchDefenseFromCity()
+{
+	if (UGameInstance* GI = GetGameInstance())
+		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
+			Demo->SetScreen(EDemoScreen::Playing);
+	SpawnCaptureObject(CachedPlayerFaction); // Cristalliseur à défendre
+	StartRivalDefense();                     // -> défense en PRÉPARATION
 }
 
 // PHASE 3 — grande bataille rangée en ZONE NEUTRE : on débloque TOUT le roster (spéciale +
@@ -1533,6 +1555,110 @@ void AWOTOLDemoDirector::SpawnCaptureObject(EFactionID Faction)
 // SIÈGE : périodiquement, chaque unité rivale proche du bâtiment lui inflige des dégâts
 // -> la barre de vie du bâtiment descend en temps réel. Le joueur doit tuer/écarter les
 // assiégeants avant qu'il ne tombe à 0.
+// ─────────────────────────────────────────────────────────────────────────────
+// MODULE 8 — Séquence post-créature : Cristalliseur → Cœur-Éclat → œuf.
+// Pilotée par les fenêtres d'objectif (validation manuelle = clic « Continuer »),
+// avec récompenses greybox flottantes récupérables aussi par proximité du héros.
+// ─────────────────────────────────────────────────────────────────────────────
+void AWOTOLDemoDirector::BeginPostCreatureSequence()
+{
+	UGameInstance* GI = GetGameInstance();
+	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+	Demo->SetPhase(EDemoPhase::Capture_Zone);
+	Demo->OpenObjectiveWindow(TEXT("seq_victory"),
+		TEXT("OBJECTIF REMPLI"),
+		TEXT("Vous avez vaincu la creature.\nLa zone peut desormais etre purifiee."),
+		TEXT("Continuer"));
+}
+
+AWOTOLRewardActor* AWOTOLDemoDirector::SpawnReward(EWOTOLRewardType Type, const FVector& Loc)
+{
+	UWorld* W = GetWorld();
+	if (!W) return nullptr;
+	FActorSpawnParameters P;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AWOTOLRewardActor* R = W->SpawnActor<AWOTOLRewardActor>(
+		AWOTOLRewardActor::StaticClass(), Loc, FRotator::ZeroRotator, P);
+	if (R)
+	{
+		R->RewardType = Type;
+		R->OnRewardCollected.AddDynamic(this, &AWOTOLDemoDirector::HandleRewardCollected);
+		ActiveReward = R;
+	}
+	return R;
+}
+
+void AWOTOLDemoDirector::HandleRewardCollected(EWOTOLRewardType Type)
+{
+	// Récupération par PROXIMITÉ = équivalent au clic « Continuer » de la fenêtre en cours.
+	UGameInstance* GI = GetGameInstance();
+	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+	if (Demo->IsObjectiveWindowOpen())
+	{
+		Demo->ConfirmObjectiveWindow(); // déclenche HandleObjectiveConfirmed avec l'étape courante
+	}
+}
+
+void AWOTOLDemoDirector::HandleObjectiveConfirmed(FName StepId)
+{
+	UGameInstance* GI = GetGameInstance();
+	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+
+	const FVector Center = GetActorLocation();
+
+	if (StepId == TEXT("seq_victory"))
+	{
+		// Étape 7 : demander la pose du Cristalliseur.
+		Demo->OpenObjectiveWindow(TEXT("seq_place_crystalliser"),
+			TEXT("PURIFICATION DE LA ZONE"),
+			TEXT("Placez le Cristalliseur pour stabiliser le territoire."),
+			TEXT("Placer le Cristalliseur"));
+	}
+	else if (StepId == TEXT("seq_place_crystalliser"))
+	{
+		// Pose du Cristalliseur (joueur) + apparition du Cœur-Éclat à proximité.
+		SpawnCaptureObject(CachedPlayerFaction);
+		if (CaptureObject) CaptureObject->ClaimZone();
+		Demo->MarkZoneCaptured();
+		SpawnReward(EWOTOLRewardType::HeartShard, Center + FVector(350.f, 0.f, 120.f));
+		Demo->OpenObjectiveWindow(TEXT("seq_collect_heart"),
+			TEXT("COEUR-ECLAT"),
+			TEXT("Un Coeur-Eclat a surgi pres du Cristalliseur.\nApprochez-vous pour le recuperer."),
+			TEXT("Recuperer"));
+	}
+	else if (StepId == TEXT("seq_collect_heart"))
+	{
+		if (ActiveReward) { ActiveReward->Collect(); ActiveReward = nullptr; }
+		// L'œuf de Léviaphénix apparaît (récompense finale de la conquête).
+		SpawnReward(EWOTOLRewardType::LeviaphenixEgg, Center + FVector(-350.f, 0.f, 60.f));
+		Demo->DiscoverMythic();
+		Demo->OpenObjectiveWindow(TEXT("seq_collect_egg"),
+			TEXT("OEUF DE LEVIAPHENIX"),
+			TEXT("Un oeuf de Leviaphenix vous attend.\nRecuperez-le : ce sera votre allie mythique."),
+			TEXT("Recuperer l'oeuf"));
+	}
+	else if (StepId == TEXT("seq_collect_egg"))
+	{
+		if (ActiveReward) { ActiveReward->Collect(); ActiveReward = nullptr; }
+		// Récompense : mythique débloqué + cristaux pour la cité, retour à la cité.
+		Demo->UnlockRangedUnit();
+		Demo->AddCrystals(600);
+		Demo->SetPhase(EDemoPhase::City_Unlock);
+		Demo->OpenObjectiveWindow(TEXT("seq_return_city"),
+			TEXT("RETOUR A LA CITE"),
+			TEXT("Rapportez l'oeuf a Aquilor.\nProduisez des renforts avant la contre-attaque noxeenne."),
+			TEXT("Retour a la cite"));
+	}
+	else if (StepId == TEXT("seq_return_city"))
+	{
+		Demo->SetScreen(EDemoScreen::City);
+	}
+	// (Les autres étapes du flux 13 phases seront ajoutées au module 10.)
+}
+
 void AWOTOLDemoDirector::SiegeTick()
 {
 	if (bBattleConcluded || !CaptureObject) return;
@@ -1560,43 +1686,8 @@ void AWOTOLDemoDirector::SiegeTick()
 		// sauvent largement. [Réglable : cap 24 = équilibré, plus haut = plus dur]
 		const float Damage = FMath::Min(Attackers * 3.f, 24.f);
 		CaptureObject->ApplyDamage(Damage);
-
-		// ── RÈGLE NON NÉGOCIABLE §16 (v0.8) : si le bâtiment DÉFENDU PAR LE JOUEUR est
-		// DÉTRUIT, la bataille est IMMÉDIATEMENT perdue (pas d'attente du chrono). La zone
-		// redevient neutre ; le Noxéen ne pose pas son propre bâtiment (§18). ──
-		if (CaptureObject->CurrentHealth <= 0.f
-			&& CaptureObject->OwnerFaction == CachedPlayerFaction)
-		{
-			bBattleConcluded = true;
-			GetWorldTimerManager().ClearTimer(BattleCheckHandle);
-			GetWorldTimerManager().ClearTimer(SiegeHandle);
-			// Zone rendue NEUTRE (§17) : on retire l'enregistrement de capture -> plus d'owner.
-			const FName LostZone = CaptureObject->ZoneID;
-			if (UTerritoryStateManager* Terr = W->GetSubsystem<UTerritoryStateManager>())
-				Terr->UnregisterZone(LostZone);
-			// Le bâtiment tombe : on le retire pour que le check de fin ne le compte plus « debout ».
-			CaptureObject->Destroy();
-			CaptureObject = nullptr;
-			if (UGameInstance* GI = GetGameInstance())
-				if (UDemoFlowSubsystem* D = GI->GetSubsystem<UDemoFlowSubsystem>())
-					D->SetCaptureObject(nullptr);
-			// Défaite immédiate, en NOMMANT la cause (clair pour le joueur).
-			BuildBattleSummary(false, /*bFinal=*/true, TEXT("CRISTALLISEUR DETRUIT"));
-			if (URTSBattleManager* RTS = W->GetSubsystem<URTSBattleManager>())
-				RTS->EndBattle(CachedRivalFaction, EBattleResult::Defeat);
-			GetWorldTimerManager().ClearTimer(TacticalHandle);
-			if (UGameInstance* GI = GetGameInstance())
-			{
-				if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
-				{
-					ReplayPhase = Demo->GetPhase();
-					Demo->bDemoVictory = false;
-					Demo->SetPhase(EDemoPhase::DemoEnd);
-					Demo->SetScreen(EDemoScreen::Summary);
-				}
-			}
-			return;
-		}
+		// NB : la destruction (PV <= 0) déclenche OnCaptureDestroyed -> HandleCaptureDestroyed,
+		// qui applique la DÉFAITE IMMÉDIATE (§16). Rien à faire de plus ici.
 	}
 }
 
@@ -2047,6 +2138,16 @@ void AWOTOLDemoDirector::HandleCaptureDestroyed()
 	GetWorldTimerManager().ClearTimer(BattleCheckHandle);
 	GetWorldTimerManager().ClearTimer(SiegeHandle);
 	GetWorldTimerManager().ClearTimer(TacticalHandle);
+
+	// §17 (v0.8) : après la destruction du bâtiment défendu, la ZONE REDEVIENT NEUTRE.
+	// Le Noxéen NE POSE PAS son propre bâtiment (§18) -> on retire juste la capture.
+	if (CaptureObject)
+	{
+		if (UWorld* W = GetWorld())
+			if (UTerritoryStateManager* Terr = W->GetSubsystem<UTerritoryStateManager>())
+				Terr->UnregisterZone(CaptureObject->ZoneID);
+	}
+
 	OnPlayerDefeat();
 }
 
