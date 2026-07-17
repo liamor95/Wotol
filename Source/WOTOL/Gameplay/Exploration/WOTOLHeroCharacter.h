@@ -43,7 +43,8 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Hero")
 	EFactionID Faction = EFactionID::None;
 
-	// Mouvement
+	// Mouvement (nage en volume)
 	void MoveForward(float Value);
 	void MoveRight(float Value);
+	void MoveUp(float Value); // montée / descente verticale
 };

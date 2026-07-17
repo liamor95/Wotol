@@ -19,8 +19,18 @@ AWOTOLHeroCharacter::AWOTOLHeroCharacter()
 	Camera->bUsePawnControlRotation = false;
 
 	bUseControllerRotationYaw = false;
-	GetCharacterMovement()->bOrientRotationToMovement = true;
-	GetCharacterMovement()->MaxWalkSpeed = 400.f;
+
+	// ── NAGE EN VOLUME (canon WOTOL) : pas de marche terrestre. Le héros FLOTTE et se
+	// déplace librement en 3D (avant/arrière/gauche/droite + monter/descendre), sans
+	// gravité. On utilise le mode Flying du CharacterMovement pour un contrôle simple.
+	UCharacterMovementComponent* Move = GetCharacterMovement();
+	Move->bOrientRotationToMovement = true;   // le corps s'oriente vers la nage
+	Move->RotationRate = FRotator(0.f, 360.f, 0.f);
+	Move->DefaultLandMovementMode = MOVE_Flying;
+	Move->MaxFlySpeed = 600.f;
+	Move->MaxAcceleration = 1400.f;
+	Move->BrakingDecelerationFlying = 1200.f; // dérive douce (sensation aquatique)
+	Move->GravityScale = 0.f;
 }
 
 void AWOTOLHeroCharacter::BeginPlay()
@@ -48,6 +58,7 @@ void AWOTOLHeroCharacter::SetupPlayerInputComponent(UInputComponent* Input)
 
 	Input->BindAxis("MoveForward", this, &AWOTOLHeroCharacter::MoveForward);
 	Input->BindAxis("MoveRight",   this, &AWOTOLHeroCharacter::MoveRight);
+	Input->BindAxis("MoveUp",      this, &AWOTOLHeroCharacter::MoveUp);
 	Input->BindAxis("Turn",        this, &ACharacter::AddControllerYawInput);
 	Input->BindAxis("LookUp",      this, &ACharacter::AddControllerPitchInput);
 }
@@ -64,4 +75,12 @@ void AWOTOLHeroCharacter::MoveRight(float Value)
 	if (Value == 0.f) return;
 	const FRotator Rot(0.f, GetControlRotation().Yaw, 0.f);
 	AddMovementInput(FRotationMatrix(Rot).GetUnitAxis(EAxis::Y), Value);
+}
+
+void AWOTOLHeroCharacter::MoveUp(float Value)
+{
+	// Montée / descente verticale (nage) — indépendante de l'orientation caméra pour
+	// rester simple à comprendre : Espace = monter, Maj/Ctrl = descendre.
+	if (Value == 0.f) return;
+	AddMovementInput(FVector::UpVector, Value);
 }
