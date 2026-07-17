@@ -6,7 +6,7 @@
 
 static void FillAquis(UUnitDataAsset* A)
 {
-	A->DisplayName   = FText::FromString(TEXT("Aquis"));
+	A->DisplayName   = FText::FromString(TEXT("Akis"));
 	A->Description   = FText::FromString(TEXT("Chef des Aquiloris — Lame Photonique (Cône)"));
 	A->Faction       = EFactionID::Aquiloris;
 	A->Role          = EUnitRole::Chef;
@@ -76,7 +76,7 @@ static void FillLeviaphenix(UUnitDataAsset* A)
 
 static void FillAquiloryons(UUnitDataAsset* A)
 {
-	A->DisplayName   = FText::FromString(TEXT("Aquiloryons"));
+	A->DisplayName   = FText::FromString(TEXT("Akilorions"));
 	A->Description   = FText::FromString(TEXT("Infanterie Aquiloris — Mur de Cristal (Mono)"));
 	A->Faction       = EFactionID::Aquiloris;
 	A->Role          = EUnitRole::Infanterie;
@@ -111,7 +111,7 @@ static void FillAquiloryons(UUnitDataAsset* A)
 
 static void FillAquilances(UUnitDataAsset* A)
 {
-	A->DisplayName   = FText::FromString(TEXT("Aquilances"));
+	A->DisplayName   = FText::FromString(TEXT("Aquilans"));
 	A->Description   = FText::FromString(TEXT("Montée Aquiloris — Percée Ondulatoire (Charge ligne)"));
 	A->Faction       = EFactionID::Aquiloris;
 	A->Role          = EUnitRole::Montee;
@@ -146,7 +146,7 @@ static void FillAquilances(UUnitDataAsset* A)
 
 static void FillAquipheres(UUnitDataAsset* A)
 {
-	A->DisplayName   = FText::FromString(TEXT("Aquisphères"));
+	A->DisplayName   = FText::FromString(TEXT("Akisfères"));
 	A->Description   = FText::FromString(TEXT("Distance Aquiloris — Hydrolaser (Petite zone)"));
 	A->Faction       = EFactionID::Aquiloris;
 	A->Role          = EUnitRole::Distance;
@@ -181,7 +181,7 @@ static void FillAquipheres(UUnitDataAsset* A)
 
 static void FillAquilombres(UUnitDataAsset* A)
 {
-	A->DisplayName   = FText::FromString(TEXT("Aquilombres"));
+	A->DisplayName   = FText::FromString(TEXT("Aquilombre"));
 	A->Description   = FText::FromString(TEXT("Spéciale Aquiloris — Ombres Glissées (Mono)"));
 	A->Faction       = EFactionID::Aquiloris;
 	A->Role          = EUnitRole::Speciale;

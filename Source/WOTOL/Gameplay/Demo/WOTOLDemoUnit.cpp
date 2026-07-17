@@ -1284,10 +1284,10 @@ bool AWOTOLDemoUnit::Ability_BlindFlash()
 	}
 	// LÉGITIMITÉ : aucun ennemi devant à portée -> on garde la capacité (pas de flash inutile).
 	if (Hit == 0) return false;
-	// Flash VIOLET (éblouissement bioluminescent des Noxeflare).
-	AWOTOLBubbleBurst::Burst(W, Origin + Fwd * 120.f + FVector(0, 0, 60.f), FLinearColor(0.7f, 0.35f, 1.f, 1.f), 20);
+	// Flash VERT bioluminescent (éblouissement des Noxeflare — canon v0.8, plus de violet).
+	AWOTOLBubbleBurst::Burst(W, Origin + Fwd * 120.f + FVector(0, 0, 60.f), FLinearColor(0.35f, 1.55f, 0.60f, 1.f), 20);
 	AWOTOLDamageNumber::SpawnText(W, Origin + FVector(0, 0, 150.f), TEXT("Eblouissement"),
-		FLinearColor(0.72f, 0.4f, 1.f, 1.f));
+		FLinearColor(0.40f, 1.55f, 0.62f, 1.f));
 	return true;
 }
 
@@ -2334,14 +2334,14 @@ float AWOTOLDemoUnit::GetUnitHeightMeters(FName UnitID)
 	if (UnitID == TEXT("Aquilances"))  return 2.00f;
 	if (UnitID == TEXT("Aquipheres"))  return 1.70f;
 	if (UnitID == TEXT("Aquilombres")) return 1.55f;
-	if (UnitID == TEXT("Leviaphenix")) return 4.00f;
+	if (UnitID == TEXT("Leviaphenix")) return 3.80f; // canon v0.8 : 3,5–4 m
 	// Noxéens
 	if (UnitID == TEXT("Noxar"))       return 1.50f;
 	if (UnitID == TEXT("Noxeflare"))   return 1.70f;
 	if (UnitID == TEXT("Noxebeast"))   return 2.50f;
 	if (UnitID == TEXT("Noxeblast"))   return 1.60f;
 	if (UnitID == TEXT("Noxeons"))     return 1.80f;
-	if (UnitID == TEXT("Noxedrake"))   return 4.60f; // mythique, mais pas plus imposant que le Leviaphenix
+	if (UnitID == TEXT("Noxedrake"))   return 6.75f; // canon v0.8 : 6,5–7 m (mythique dominant)
 	return 1.75f; // défaut prototype
 }
 
@@ -2721,10 +2721,11 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		RegisterWiggle(AddPart(M_CONE, FVector(16, -18, H * 0.32f), FVector(0.055f, 0.055f, h * 1.0f), FRotator(42.f, 0, -42.f), BlueGlow), 3.14f);
 		return;
 	}
-	if (Id == TEXT("Noxeflare")) // Infanterie (réf 4082) : humanoïde VIOLET, AMAS D'YEUX + couronne de cornes
+	if (Id == TEXT("Noxeflare")) // Infanterie (réf 4082) : humanoïde ABYSSAL SOMBRE, AMAS D'YEUX + couronne de cornes
 	{
-		const FLinearColor Violet(0.10f, 0.05f, 0.16f, 1.f);   // corps violet sombre
-		const FLinearColor VioGlow(0.80f, 0.30f, 1.75f, 1.f);  // yeux/taches violets LUMINEUX
+		// Canon v0.8 : identité Noxéenne = VERT bioluminescent, AUCUN violet (le violet = Muréniens).
+		const FLinearColor Violet(0.05f, 0.09f, 0.08f, 1.f);   // corps abyssal vert-noir sombre
+		const FLinearColor VioGlow(0.22f, 1.70f, 0.62f, 1.f);  // yeux/taches VERTES bioluminescentes
 		BuildArticulatedHumanoid(H, Violet, 0.34f);
 		// AMAS D'YEUX violets sur le VISAGE (-X = devant) : plusieurs petits yeux groupés
 		for (int32 e = 0; e < 8; ++e)
@@ -2760,11 +2761,12 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		}
 		return;
 	}
-	if (Id == TEXT("Noxeblast")) // Distance : humanoïde VIOLET à taches bioluminescentes + PLUSIEURS tentacules (réf 123)
+	if (Id == TEXT("Noxeblast")) // Distance : humanoïde ABYSSAL SOMBRE à taches bioluminescentes + PLUSIEURS tentacules (réf 123)
 	{
-		const FLinearColor Violet(0.10f, 0.05f, 0.16f, 1.f);   // corps violet sombre
-		const FLinearColor VioGlow(0.75f, 0.30f, 1.70f, 1.f);  // taches/énergie violettes LUMINEUSES
-		const FLinearColor BlueEye(0.35f, 0.75f, 1.80f, 1.f);  // yeux bleus lumineux
+		// Canon v0.8 : bioluminescence VERTE Noxéenne, AUCUN violet (violet = Muréniens).
+		const FLinearColor Violet(0.05f, 0.09f, 0.08f, 1.f);   // corps abyssal vert-noir sombre
+		const FLinearColor VioGlow(0.20f, 1.65f, 0.58f, 1.f);  // taches/énergie VERTES bioluminescentes
+		const FLinearColor BlueEye(0.30f, 1.60f, 0.75f, 1.f);  // yeux VERTS lumineux
 		BuildArticulatedHumanoid(H, Violet, 0.36f);
 		// AVANT = -X (après flip). Visage/taches DEVANT, tentacules DERRIÈRE (+X).
 		// Deux grands yeux bleus lumineux (sur le visage)
@@ -3140,7 +3142,7 @@ void AWOTOLDemoUnit::BuildGreyboxShape()
 	const FLinearColor Base   = FFactionColors::Get(GetFaction());
 	const FLinearColor Accent = (GetFaction() == EFactionID::Aquiloris)
 		? FLinearColor(0.98f, 0.80f, 0.25f, 1.f)   // or/cyan Aquiloris
-		: FLinearColor(0.65f, 0.20f, 0.95f, 1.f);  // violet bioluminescent Noxéen
+		: FLinearColor(0.20f, 1.65f, 0.58f, 1.f);  // VERT bioluminescent Noxéen (canon v0.8, plus de violet)
 
 	AssembleSilhouette(UnitID, UnitRole, HeightU, Base, Accent);
 
@@ -3377,7 +3379,8 @@ void AWOTOLDemoUnit::OnAttackAnimTrigger()
 			? ((Foe->GetFloatingTextAnchor() ? Foe->GetFloatingTextAnchor()->GetComponentLocation() : Foe->GetActorLocation()) + FVector(0, 0, 40.f))
 			: (GetActorLocation() + GetActorForwardVector() * 90.f + FVector(0, 0, 60.f));
 		const FLinearColor NoxGreen(0.30f, 1.20f, 0.50f, 1.f);
-		const FLinearColor NoxViolet(0.75f, 0.35f, 1.40f, 1.f);
+		// Canon v0.8 : plus de violet Noxéen -> vert vif d'aveuglement/éblouissement.
+		const FLinearColor NoxViolet(0.35f, 1.55f, 0.60f, 1.f);
 		auto Slash = [&](const FLinearColor& Col, int32 n)
 		{
 			if (!W) return;
