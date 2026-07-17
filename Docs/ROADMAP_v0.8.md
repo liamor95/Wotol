@@ -95,7 +95,20 @@ Les maquettes servent pour le **style visuel**, pas pour les noms.
 
 ---
 
+## Conception : voir `Docs/JEUX_DE_REFERENCE.md`
+Chaque boucle WOTOL est mappée à un jeu éprouvé (Total War, Homeworld, XCOM, Company of Heroes,
+Warcraft III) avec les patterns concrets à copier. Synthèse : *« campagne Total War sous-marine,
+en volume Homeworld »*.
+
+## Reste à faire (nécessite un PC pour compiler/valider)
+- **Activer le flux 13 phases** : mettre `bEnableFullFlowV08 = true` sur le Director (une fois compilé),
+  puis tester l'enchaînement créature → Cristalliseur → Cœur-Éclat → œuf → cité → défense.
+- **HUD** : jauge verticale SURFACE/MID/SOL (Homeworld), panneau héros + capacités, restyle fenêtre d'objectif.
+- **Module 11** : intégrer logo/emblèmes/icônes de rôles (assets de référence).
+- **Module 12** : build autonome (packaging Windows) — côté éditeur.
+
 ## Ordre de compilation conseillé au retour du PC
-1. Pull `feature/v0.8-jeu-complet`, recompiler, vérifier que **ça build** (modules 1-4).
-2. Valider visuellement : **vert Noxéen** + **échelle Noxedrake** + **fenêtre d'objectif**.
-3. On enchaîne modules 5→10 (je les prépare d'ici là).
+1. Pull `feature/v0.8-jeu-complet`, recompiler, **vérifier que ça build** (tous les modules).
+2. Valider visuellement : **vert Noxéen**, **échelle Noxedrake**, **fenêtre d'objectif**, **vue cité**, **nage**.
+3. Basculer `bEnableFullFlowV08 = true` et tester la boucle 13 phases complète.
+4. On restyle le HUD d'après les maquettes + on package.
