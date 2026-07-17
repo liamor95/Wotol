@@ -802,25 +802,53 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 void AWOTOLDemoHUD::DrawLoadingScreen(float W, float H, UDemoFlowSubsystem* Demo)
 {
 	DrawUnderwaterBackground(W, H);
-	DrawGlowTitle(TEXT("WOTOL"), H * 0.30f, 3.4f, FLinearColor(0.5f, 0.85f, 1.f, 1.f));
 
-	// Anneau de chargement animé (arc tournant).
-	const float T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
-	if (Canvas)
+	const EFactionID Fac = Demo ? Demo->GetPlayerFaction() : EFactionID::None;
+	const bool bNox = (Fac == EFactionID::Noxeens);
+	const FLinearColor Accent = bNox ? FLinearColor(0.30f, 0.95f, 0.50f, 1.f)
+	                                 : FLinearColor(0.50f, 0.85f, 1.f, 1.f);
+
+	// Titre : nom de faction si connue, sinon le logo du jeu (comme les maquettes).
+	const FString Title = (Fac == EFactionID::None) ? TEXT("WOTOL")
+		: (bNox ? TEXT("NOXEENS") : TEXT("AQUILORIS"));
+	DrawGlowTitle(Title, H * 0.22f, 3.0f, Accent);
+	if (Fac == EFactionID::None)
+		DrawCenteredText(TEXT("WAR OF THE OCEAN'S LEGACY"), H * 0.40f, Accent.CopyWithNewOpacity(0.85f), 1.3f);
+
+	// Texte de lore (façon maquette de chargement).
+	const FString Lore = bNox
+		? TEXT("Peuple des abysses, les Noxeens rodent dans la faille bioluminescente,\ntapis entre les plaques du monde, prets a jaillir de l'obscurite.")
+		: TEXT("Nobles et technologues, les Aquiloris veillent depuis la cite de cristal\nd'Aquilor, gardiens de l'energie bleue des profondeurs.");
+	if (Fac != EFactionID::None)
 	{
-		const FVector2D C(W * 0.5f, H * 0.56f);
-		const int32 Dots = 12;
-		for (int32 i = 0; i < Dots; ++i)
-		{
-			const float a = (float)i / Dots * 2.f * PI;
-			const float fade = 0.25f + 0.75f * (0.5f + 0.5f * FMath::Sin(T * 4.f - a));
-			const FVector2D P(C.X + FMath::Cos(a) * 46.f, C.Y + FMath::Sin(a) * 46.f);
-			Canvas->K2_DrawPolygon(nullptr, P, FVector2D(7.f, 7.f), 12,
-				FLinearColor(0.5f, 0.85f, 1.f, fade));
-		}
+		TArray<FString> Lines; Lore.ParseIntoArray(Lines, TEXT("\n"), false);
+		float LY = H * 0.48f;
+		for (const FString& L : Lines) { DrawCenteredText(L, LY, FLinearColor(0.88f, 0.93f, 1.f, 0.95f), 1.0f); LY += 30.f; }
 	}
+
+	// Barre de progression INDÉTERMINÉE (pas de vrai % en démo synchrone) : remplissage
+	// qui va-et-vient, façon "chargement en cours".
+	const float T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	const float BarW = W * 0.42f, BarH = 16.f;
+	const float BX = (W - BarW) * 0.5f, BY = H * 0.72f;
+	DrawRect(FLinearColor(0.05f, 0.08f, 0.12f, 0.9f), BX, BY, BarW, BarH);
+	const float Pulse = 0.5f + 0.5f * FMath::Sin(T * 2.2f);
+	const float FillW = BarW * (0.25f + 0.55f * Pulse);
+	DrawRect(Accent.CopyWithNewOpacity(0.85f), BX, BY, FillW, BarH);
+	DrawLine(BX, BY, BX + BarW, BY, Accent, 1.5f);
+	DrawLine(BX, BY + BarH, BX + BarW, BY + BarH, Accent, 1.5f);
+
 	const FString Msg = (Demo && !Demo->CurrentMessage.IsEmpty()) ? Demo->CurrentMessage : TEXT("Chargement...");
-	DrawCenteredText(Msg, H * 0.70f, FLinearColor(0.85f, 0.92f, 1.f, 1.f), 1.2f);
+	DrawCenteredText(Msg, BY + 34.f, FLinearColor(0.85f, 0.92f, 1.f, 1.f), 1.1f);
+
+	// Astuce (comme les maquettes) — tourne parmi quelques conseils.
+	static const TCHAR* Tips[4] = {
+		TEXT("Astuce : attaquez depuis une couche inferieure pour un bonus de degats ascendant."),
+		TEXT("Astuce : les Aquilombre sont invisibles a l'arret — approchez pour frapper dans le dos."),
+		TEXT("Astuce : gardez vos unites groupees, la coordination Aquiloris renforce le groupe."),
+		TEXT("Astuce : les Noxeens sont plus puissants dans les zones bioluminescentes vertes.") };
+	const int32 Idx = ((int32)(T * 0.2f)) % 4;
+	DrawCenteredText(Tips[Idx], H * 0.86f, FLinearColor(0.75f, 0.85f, 0.95f, 0.9f), 0.95f);
 }
 
 void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
