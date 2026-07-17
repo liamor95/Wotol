@@ -9,6 +9,7 @@
 #include "Gameplay/Units/UnitBase.h"
 #include "Gameplay/Units/UnitDataAsset.h"
 #include "Gameplay/Battle/RTSBattleManager.h"
+#include "Gameplay/Battle/TerritoryStateManager.h"
 #include "Gameplay/Battle/UnitSelectionManager.h"
 #include "Gameplay/AI/AIAdaptiveController.h"
 #include "Gameplay/Units/UnitAIStateComponent.h"
@@ -1559,6 +1560,43 @@ void AWOTOLDemoDirector::SiegeTick()
 		// sauvent largement. [Réglable : cap 24 = équilibré, plus haut = plus dur]
 		const float Damage = FMath::Min(Attackers * 3.f, 24.f);
 		CaptureObject->ApplyDamage(Damage);
+
+		// ── RÈGLE NON NÉGOCIABLE §16 (v0.8) : si le bâtiment DÉFENDU PAR LE JOUEUR est
+		// DÉTRUIT, la bataille est IMMÉDIATEMENT perdue (pas d'attente du chrono). La zone
+		// redevient neutre ; le Noxéen ne pose pas son propre bâtiment (§18). ──
+		if (CaptureObject->CurrentHealth <= 0.f
+			&& CaptureObject->OwnerFaction == CachedPlayerFaction)
+		{
+			bBattleConcluded = true;
+			GetWorldTimerManager().ClearTimer(BattleCheckHandle);
+			GetWorldTimerManager().ClearTimer(SiegeHandle);
+			// Zone rendue NEUTRE (§17) : on retire l'enregistrement de capture -> plus d'owner.
+			const FName LostZone = CaptureObject->ZoneID;
+			if (UTerritoryStateManager* Terr = W->GetSubsystem<UTerritoryStateManager>())
+				Terr->UnregisterZone(LostZone);
+			// Le bâtiment tombe : on le retire pour que le check de fin ne le compte plus « debout ».
+			CaptureObject->Destroy();
+			CaptureObject = nullptr;
+			if (UGameInstance* GI = GetGameInstance())
+				if (UDemoFlowSubsystem* D = GI->GetSubsystem<UDemoFlowSubsystem>())
+					D->SetCaptureObject(nullptr);
+			// Défaite immédiate, en NOMMANT la cause (clair pour le joueur).
+			BuildBattleSummary(false, /*bFinal=*/true, TEXT("CRISTALLISEUR DETRUIT"));
+			if (URTSBattleManager* RTS = W->GetSubsystem<URTSBattleManager>())
+				RTS->EndBattle(CachedRivalFaction, EBattleResult::Defeat);
+			GetWorldTimerManager().ClearTimer(TacticalHandle);
+			if (UGameInstance* GI = GetGameInstance())
+			{
+				if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
+				{
+					ReplayPhase = Demo->GetPhase();
+					Demo->bDemoVictory = false;
+					Demo->SetPhase(EDemoPhase::DemoEnd);
+					Demo->SetScreen(EDemoScreen::Summary);
+				}
+			}
+			return;
+		}
 	}
 }
 

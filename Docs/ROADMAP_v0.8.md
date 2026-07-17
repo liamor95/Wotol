@@ -45,7 +45,7 @@ défense, et écrans de transition/chargement.
 - HUD `DrawLoading` (fond animé + logo + barre/anneau + astuce). Écran `Loading` intercalé
   entre phases lourdes (cité↔bataille, monde↔bataille).
 
-### 7. Monde ouvert / nage libre 3D ⏳
+### 7. Monde ouvert / nage libre 3D ✅ 🧪 (commit `89a8e32`)
 - Pion nageur ZQSD + montée/descente, caméra 3e personne, zone neutre ~70 m².
 - Transition automatique à ~5–10 m de la créature → bataille (fenêtre d'objectif).
 
@@ -53,7 +53,7 @@ défense, et écrans de transition/chargement.
 - Après victoire créature : fenêtre « Placez le Cristalliseur » → pose → Cœur-Éclat apparaît →
   fenêtre « Récupérez le Cœur-Éclat » → œuf de Léviaphénix (récompense).
 
-### 9. Défense du Cristalliseur (phases 10-12) ⏳
+### 9. Défense du Cristalliseur (phases 10-12) ✅ 🧪
 - Bâtiment avec PV/bonus/réparation (`WOTOLCaptureObject` existe déjà — à étendre).
 - Destruction = **échec immédiat** (fenêtre rouge) → zone neutre. Pas de bâtiment ennemi posé.
 
