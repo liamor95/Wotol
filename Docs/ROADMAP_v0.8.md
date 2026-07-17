@@ -34,14 +34,14 @@ défense, et écrans de transition/chargement.
 - Écrans `EDemoScreen::City/WorldMap/Loading` (enum).
 - Commit `48c77d5`.
 
-### 5. Vue cité — rendu & interaction ⏳
+### 5. Vue cité — rendu & interaction ✅ 🧪 (commit `2ffba03`)
 - HUD `DrawCityView` : fond `Cite_Aquiloris.png`, compteur de cristaux, cartes de bâtiments
   cliquables (Académie→Akilorions, Dôme→Aquilans, Champ de tir→Akisfères, Nexus→Aquilombre,
   Cœur-Éclat→Léviaphénix), bouton « Partir en expédition ».
 - PlayerController : clics des cartes → `ProduceUnit`, bouton départ → lance la phase suivante.
 - Director : au spawn de l'armée joueur, `DrainReserve` pour ajouter les unités produites.
 
-### 6. Écran de chargement + transitions ⏳
+### 6. Écran de chargement + transitions ✅ 🧪 (commit `35dcc65`, écran de base)
 - HUD `DrawLoading` (fond animé + logo + barre/anneau + astuce). Écran `Loading` intercalé
   entre phases lourdes (cité↔bataille, monde↔bataille).
 
