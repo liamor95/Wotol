@@ -69,6 +69,8 @@ private:
 	//   apparaissait avant sur la pause. Il met aussi le jeu en pause tant qu'il est ouvert.
 	bool bFrozen = false;
 	bool bSettingsOpen = false;
+	// Suivi de l'état de la fenêtre d'objectif modale (gèle l'action tant qu'ouverte).
+	bool bObjectivePausedLast = false;
 	void ApplyPauseState(); // pause moteur = (bFrozen || bSettingsOpen)
 	void TogglePause();     // bascule bFrozen
 	void ToggleSettings();  // ouvre/ferme le menu réglages

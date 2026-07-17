@@ -267,6 +267,57 @@ void AWOTOLDemoHUD::DrawHUD()
 			DrawCenteredText(TEXT("— PAUSE —"), 60.f, FLinearColor(1.f, 0.95f, 0.6f, 1.f), 1.4f);
 		}
 	}
+
+	// ─── Fenêtre d'objectif MODALE (dessinée EN DERNIER = par-dessus tout) ────
+	if (DemoFlow && DemoFlow->IsObjectiveWindowOpen())
+	{
+		DrawObjectiveWindow(W, H, DemoFlow);
+	}
+}
+
+// Rectangle du bouton « Continuer » de la fenêtre d'objectif (centré sous le corps).
+FBox2D AWOTOLDemoHUD::ObjectiveContinueButtonRect(float W, float H)
+{
+	const float BW = 340.f, BH = 64.f;
+	const float X = W * 0.5f - BW * 0.5f;
+	const float Y = H * 0.5f + 70.f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
+void AWOTOLDemoHUD::DrawObjectiveWindow(float W, float H, class UDemoFlowSubsystem* Demo)
+{
+	if (!Demo) return;
+
+	// Voile sombre pour concentrer l'attention (l'action est gelée en dessous).
+	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.55f), 0, 0, W, H);
+
+	const bool bFail = Demo->bObjWinIsFailure;
+	const FLinearColor Accent = bFail ? FLinearColor(1.f, 0.35f, 0.30f, 1.f)
+	                                  : FLinearColor(0.35f, 0.85f, 1.f, 1.f);
+
+	// Panneau central.
+	const float PW = 760.f, PH = 300.f;
+	const float PX = W * 0.5f - PW * 0.5f;
+	const float PY = H * 0.5f - PH * 0.5f - 20.f;
+	DrawRect(FLinearColor(0.04f, 0.07f, 0.12f, 0.94f), PX, PY, PW, PH);
+	// Liseré haut coloré (bleu = objectif, rouge = échec).
+	DrawRect(Accent.CopyWithNewOpacity(0.9f), PX, PY, PW, 6.f);
+
+	// Titre.
+	DrawCenteredText(Demo->ObjWinTitle, PY + 34.f, Accent, 1.7f);
+	// Corps (peut être multi-lignes séparées par \n).
+	TArray<FString> Lines;
+	Demo->ObjWinBody.ParseIntoArray(Lines, TEXT("\n"), false);
+	float LineY = PY + 100.f;
+	for (const FString& L : Lines)
+	{
+		DrawCenteredText(L, LineY, FLinearColor(0.90f, 0.94f, 1.f, 1.f), 1.1f);
+		LineY += 34.f;
+	}
+
+	// Bouton « Continuer ».
+	const FBox2D BR = ObjectiveContinueButtonRect(W, H);
+	DrawButton(BR, Demo->ObjWinButton, Accent, 1.3f);
 }
 
 void AWOTOLDemoHUD::DrawButton(const FBox2D& R, const FString& Label, const FLinearColor& Tint, float TextScale)

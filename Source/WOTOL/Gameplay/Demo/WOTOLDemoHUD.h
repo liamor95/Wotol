@@ -42,6 +42,9 @@ public:
 	static FBox2D SummaryQuitButtonRect(float W, float H);          // final : quitter
 	static FBox2D InterludeContinueButtonRect(float W, float H);    // transition -> phase 2
 
+	// Bouton « Continuer » de la fenêtre d'objectif MODALE (validation manuelle v0.8).
+	static FBox2D ObjectiveContinueButtonRect(float W, float H);
+
 	// Carte de la barre de commandement (bas-gauche) pour l'index de groupe donné.
 	// Sert au double-clic : sélectionner + zoomer sur ce groupe d'unités.
 	static FBox2D CommandCardRect(int32 Index, float W, float H);
@@ -60,6 +63,8 @@ private:
 	void DrawPauseButton(float W, float H);
 	void DrawSettingsButton(float W, float H);
 	void DrawPauseOverlay(float W, float H);
+	// Fenêtre d'objectif modale (titre + corps + bouton Continuer), dessinée par-dessus tout.
+	void DrawObjectiveWindow(float W, float H, class UDemoFlowSubsystem* Demo);
 
 	// Écrans du flux (menu / faction / préparation)
 	void DrawMainMenu(float W, float H);

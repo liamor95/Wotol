@@ -35,6 +35,26 @@ void UDemoFlowSubsystem::AdvancePhase()
 	}
 }
 
+void UDemoFlowSubsystem::OpenObjectiveWindow(FName StepId, const FString& Title, const FString& Body,
+	const FString& ButtonLabel, bool bFailure)
+{
+	ObjWinStepId       = StepId;
+	ObjWinTitle        = Title;
+	ObjWinBody         = Body;
+	ObjWinButton       = ButtonLabel.IsEmpty() ? TEXT("Continuer") : ButtonLabel;
+	bObjWinIsFailure   = bFailure;
+	bObjectiveWindowOpen = true;
+}
+
+void UDemoFlowSubsystem::ConfirmObjectiveWindow()
+{
+	if (!bObjectiveWindowOpen) return;
+	const FName Step = ObjWinStepId;
+	bObjectiveWindowOpen = false;
+	ObjWinStepId = NAME_None;
+	OnObjectiveConfirmed.Broadcast(Step);
+}
+
 EBattleType UDemoFlowSubsystem::GetCurrentBattleType() const
 {
 	return (CurrentPhase == EDemoPhase::Battle_Rival || CurrentPhase == EDemoPhase::Battle_Grand)

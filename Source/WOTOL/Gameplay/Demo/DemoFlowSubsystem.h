@@ -107,6 +107,9 @@ struct FDemoProgress
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDemoPhaseChanged,
 	EDemoPhase, NewPhase, EDemoPhase, PreviousPhase);
 
+// Diffusé quand le joueur valide une fenêtre d'objectif modale (paramètre = ID d'étape).
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnObjectiveConfirmed, FName, StepId);
+
 UCLASS()
 class WOTOL_API UDemoFlowSubsystem : public UGameInstanceSubsystem
 {
@@ -271,6 +274,46 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void SetInterludeText(const FString& Text) { InterludeText = Text; }
+
+	// ─── Fenêtre d'objectif MODALE (validation manuelle — canon v0.8) ───────────
+	// Aucune phase ne s'enchaîne automatiquement : on ouvre une fenêtre (« Objectif
+	// rempli », « Placez le Cristalliseur »…) et le joueur clique « Continuer ». Quand
+	// il valide, OnObjectiveConfirmed est diffusé avec l'ID d'étape -> le Director agit.
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Objective")
+	bool bObjectiveWindowOpen = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Objective")
+	FString ObjWinTitle;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Objective")
+	FString ObjWinBody;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Objective")
+	FString ObjWinButton;
+
+	// Identifiant de l'étape en attente de validation (le Director le lit pour agir).
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Objective")
+	FName ObjWinStepId;
+
+	// Vrai = fenêtre d'ÉCHEC (rouge, ex. « Le Cristalliseur a été détruit »).
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Objective")
+	bool bObjWinIsFailure = false;
+
+	// Ouvre une fenêtre d'objectif. Gèle l'action tant qu'elle est ouverte.
+	UFUNCTION(BlueprintCallable, Category = "Demo|Objective")
+	void OpenObjectiveWindow(FName StepId, const FString& Title, const FString& Body,
+		const FString& ButtonLabel = TEXT("Continuer"), bool bFailure = false);
+
+	// Valide la fenêtre courante (clic « Continuer ») -> diffuse OnObjectiveConfirmed.
+	UFUNCTION(BlueprintCallable, Category = "Demo|Objective")
+	void ConfirmObjectiveWindow();
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Objective")
+	bool IsObjectiveWindowOpen() const { return bObjectiveWindowOpen; }
+
+	// Diffusé quand le joueur valide la fenêtre (paramètre = ObjWinStepId).
+	UPROPERTY(BlueprintAssignable, Category = "Demo|Objective")
+	FOnObjectiveConfirmed OnObjectiveConfirmed;
 
 private:
 	TWeakObjectPtr<AActor> BossActor;

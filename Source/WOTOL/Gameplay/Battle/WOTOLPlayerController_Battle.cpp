@@ -184,6 +184,18 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	const EDemoScreen Screen = Demo ? Demo->GetScreen() : EDemoScreen::Playing;
 
+	// ── Fenêtre d'objectif MODALE (priorité absolue, sur tous les écrans) ──
+	// Tant qu'elle est ouverte, elle capte TOUT clic : seul le bouton « Continuer »
+	// la valide, le reste du clic est absorbé (l'action reste gelée).
+	if (Demo && Demo->IsObjectiveWindowOpen())
+	{
+		if (AWOTOLDemoHUD::ObjectiveContinueButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+		{
+			Demo->ConfirmObjectiveWindow();
+		}
+		return true;
+	}
+
 	// ── Menu principal ──
 	if (Screen == EDemoScreen::MainMenu)
 	{
@@ -384,6 +396,22 @@ bool AWOTOLPlayerController_Battle::HandleCommandBarClick(bool bDoubleClick)
 void AWOTOLPlayerController_Battle::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+	// La fenêtre d'objectif MODALE gèle l'action (la caméra reste libre, comme la pause).
+	// On synchronise chaque frame : ouverte -> pause ; fermée -> on rend la main à l'état
+	// pause/réglages normal.
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
+		{
+			const bool bWin = Demo->IsObjectiveWindowOpen();
+			if (bWin != bObjectivePausedLast)
+			{
+				bObjectivePausedLast = bWin;
+				UGameplayStatics::SetGamePaused(GetWorld(), bWin || bFrozen || bSettingsOpen);
+			}
+		}
+	}
 
 	if (bIsBoxSelecting)
 	{
