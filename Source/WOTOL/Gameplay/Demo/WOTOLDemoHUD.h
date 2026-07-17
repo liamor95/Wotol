@@ -127,6 +127,8 @@ private:
 	// groupe (icône du type + effectif + petite barre de vie), projeté à l'écran -> remplace
 	// les noms 3D par unité (perf + lisibilité).
 	void DrawBattlefieldMarkers(float W, float H, class UWorld* World);
+	// Jauge verticale SURFACE / MID / SOL (Homeworld) : indique la couche de la sélection.
+	void DrawVerticalLayerGauge(float W, float H, class UWorld* World);
 	void DrawRoleIcon(float CX, float CY, float R, EUnitRole IconRole, const FLinearColor& Fac);
 	// Petite barre encadrée générique (fond + remplissage + cadre).
 	void DrawBar(float X, float Y, float BarW, float BarH, float Pct,

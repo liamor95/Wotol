@@ -250,7 +250,11 @@ void AWOTOLDemoHUD::DrawHUD()
 		DrawPrepareBar(W, H);
 	}
 
-	// ─── Boutons de couche verticale (nage) ─────────────────────────────────
+	// ─── Jauge verticale SURFACE/MID/SOL + boutons de couche (nage) ──────────
+	if (Screen == EDemoScreen::Playing || Screen == EDemoScreen::Prepare)
+	{
+		DrawVerticalLayerGauge(W, H, World);
+	}
 	DrawButton(LayerUpButtonRect(W, H),   TEXT("^ Monter"),    FLinearColor(0.3f, 0.7f, 1.f, 1.f), 1.f);
 	DrawButton(LayerDownButtonRect(W, H), TEXT("v Descendre"), FLinearColor(0.3f, 0.7f, 1.f, 1.f), 1.f);
 
@@ -865,6 +869,59 @@ static FString SkillAxisLabel(EFactionID Fac, EDemoUnitCategory Cat, int32 Axis)
 		                                               : (Axis==1?TEXT("Devastation Totale"):TEXT("Dominion Radieux"));
 		default: return (Axis==1?TEXT("Axe 1"):TEXT("Axe 2"));
 	}
+}
+
+void AWOTOLDemoHUD::DrawVerticalLayerGauge(float W, float H, UWorld* World)
+{
+	if (!World || !Canvas) return;
+	UDemoFlowSubsystem* Demo = GetGameInstance() ? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	UFactionRegistrySubsystem* Reg = World->GetSubsystem<UFactionRegistrySubsystem>();
+	if (!Demo || !Reg) return;
+	const EFactionID Fac = Demo->GetPlayerFaction();
+
+	// Couche moyenne de la SÉLECTION (sinon de toute l'armée). DesiredZ : 0=SOL .. 2400=SURFACE.
+	float SumZ = 0.f; int32 N = 0; int32 SumSel = 0;
+	for (AUnitBase* U : Reg->GetUnitsForFaction(Fac))
+	{
+		AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U);
+		if (!DU || !DU->IsAlive()) continue;
+		if (DU->IsSelected()) { SumZ += DU->GetDesiredZ(); ++SumSel; }
+	}
+	if (SumSel > 0) { N = SumSel; }
+	else
+	{
+		for (AUnitBase* U : Reg->GetUnitsForFaction(Fac))
+		{
+			AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U);
+			if (!DU || !DU->IsAlive()) continue;
+			SumZ += DU->GetDesiredZ(); ++N;
+		}
+	}
+	if (N == 0) return;
+	const float AvgZ = SumZ / N;            // 0..2400
+	const float Frac = FMath::Clamp(AvgZ / 2400.f, 0.f, 1.f);
+
+	// Barre verticale à gauche, centrée verticalement.
+	const float GX = 34.f, GW = 26.f;
+	const float GTop = H * 0.30f, GBot = H * 0.70f, GH = GBot - GTop;
+	DrawRect(FLinearColor(0.03f, 0.06f, 0.10f, 0.75f), GX - 6.f, GTop - 30.f, GW + 12.f, GH + 60.f);
+	// 3 bandes : SURFACE (haut) / MID / SOL (bas).
+	const TCHAR* Labels[3] = { TEXT("SURFACE"), TEXT("MID"), TEXT("SOL") };
+	for (int32 b = 0; b < 3; ++b)
+	{
+		const float y0 = GTop + GH * (b / 3.f);
+		const float h  = GH / 3.f;
+		// La bande active (contenant la couche moyenne) est mise en avant.
+		const int32 ActiveBand = (Frac >= 0.66f) ? 0 : (Frac >= 0.33f ? 1 : 2);
+		const bool bAct = (b == ActiveBand);
+		DrawRect(bAct ? FLinearColor(0.15f, 0.45f, 0.75f, 0.55f) : FLinearColor(0.08f, 0.14f, 0.20f, 0.5f),
+			GX, y0, GW, h - 2.f);
+		DrawText(Labels[b], bAct ? FLinearColor(0.7f, 0.95f, 1.f, 1.f) : FLinearColor(0.5f, 0.6f, 0.7f, 1.f),
+			GX + GW + 6.f, y0 + h * 0.5f - 8.f, nullptr, 0.85f);
+	}
+	// Curseur de la couche courante (petit repère).
+	const float My = GBot - GH * Frac;
+	DrawRect(FLinearColor(0.5f, 0.9f, 1.f, 1.f), GX - 4.f, My - 2.f, GW + 8.f, 4.f);
 }
 
 void AWOTOLDemoHUD::DrawSkillsView(float W, float H, UDemoFlowSubsystem* Demo)
