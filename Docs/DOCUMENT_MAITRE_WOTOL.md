@@ -201,3 +201,90 @@ transitions monde ouvert ↔ combat, données d'unités structurées. Tableur Ex
 | `Embleme_Aquiloris.png` | Emblème « A » bleu | UI faction Aquiloris |
 
 > Images de **référence/concept** (générées) — pas nécessairement des assets finaux cookés.
+
+---
+
+## 16. CONTRAINTES MATÉRIELLES (à respecter dans le code)
+
+Machine réelle de test : **Lenovo Legion, Intel i5-7300, 8 Go RAM** (→ 16/24 Go envisagé), SSD 1 To,
+Windows 10 Home, **NVIDIA GTX** (pilote 472.84). Erreur **« Video memory exhausted »** déjà rencontrée.
+
+**Conséquences imposées au projet :**
+- optimisation des textures ; limitation des meshes lourds ; **niveaux de détail (LOD)** ;
+- éclairage maîtrisé ; réduction des assets inutiles ;
+- **prudence avec Nanite, Lumen et les très hautes résolutions** ;
+- **tester sur la machine réellement utilisée**.
+
+> Impact greybox : garder les primitives légères, éviter d'importer les 10 PNG de référence
+> (~3 Mo chacun) comme textures runtime pleine résolution ; les downscaler si utilisés en UI.
+
+---
+
+## 17. RÈGLES DE COHÉRENCE NON NÉGOCIABLES (§23 du doc)
+
+1. Sous l'eau : **aucun bateau de surface** comme élément pirate principal.
+2. Noxéens = **bioluminescence verte**, pas violette.
+3. Violet = **Muréniens**.
+4. Muréniens = **queue**, pas de jambes.
+5. **Noxar a des jambes**.
+6. Aquiloris = blanc/bleu/énergie bleue.
+7. **Aquilombre translucide**.
+8. **Nuxim** montrée entièrement.
+9. Vaisseau pirate = cité mobile + fief mythique.
+10. Une unité demandée séparément = **image séparée**.
+11. Une correction locale **ne modifie pas** les éléments déjà validés.
+12. Tailles d'unités **respectées**.
+13. Terme officiel : **« unité spéciale »**.
+14. Noms validés : **Leviaphenix**, **Noxedrake**.
+15. Les phases **ne s'enchaînent pas** automatiquement sans interface.
+16. Destruction du bâtiment défendu = **défaite immédiate** (v0.8).
+17. Après défaite défensive : territoire **neutre**.
+18. Noxéen **ne pose pas** son bâtiment après cette défaite (v0.8).
+19. Monde **coloré et lisible** même dans les abysses.
+20. Reliefs/failles/galeries/niveaux verticaux = essentiels au level design.
+
+---
+
+## 18. HIÉRARCHIE DES SOURCES (§25 du doc)
+
+1. La **validation explicite la plus récente de Liamor** prévaut.
+2. Décision de gameplay validée > ancien concept.
+3. Tableur de données le plus récent > valeurs d'anciens messages.
+4. Images validées = références visuelles.
+5. Une nouvelle génération n'écrase pas silencieusement une décision antérieure.
+6. Toute modif importante : identifiée, vérifiée, justifiée.
+7. Anciennes appellations = **historique uniquement**, pas réintroduites en production.
+
+---
+
+## 19. OBJECTIF DE PRODUCTION IMMÉDIAT (§26 du doc) — PRIORITÉ
+
+Transformer la greybox en **démo stable et présentable** (cible **Pictanovo, 1er sept. 2026**) :
+boucle complète fonctionnelle, sans blocage, caméra contrôlable, objectifs lisibles, tuto → cité →
+exploration → créature → Cristalliseur → œuf → défense → victoire/défaite, **build autonome**,
+compat UE 5.7 vérifiée, code relu.
+
+**Ne pas s'éparpiller** dans toutes les factions / la carte mondiale / les assets finaux avant que
+la boucle soit stable. La démo doit prouver : combat en volume, lisibilité des unités, caméra
+agréable, conquête compréhensible, enjeu de défense, identité visuelle/stratégique distincte.
+
+---
+
+## 20. POINTS ENCORE OUVERTS (§24 — NE PAS VERROUILLER)
+
+Nom lore du Cristalliseur · nom équivalent noxéen · rôle de Thalior vs Akis · nom mythique Thalassidra ·
+nom/définition du Kraken · les 4 cartes de bataille · ordre Cœur-Éclat ↔ Cristalliseur · contenu du craft
+post-bataille 1 · valeurs des 3 niveaux territoriaux · bonus de chaque bâtiment · graphie « 3DÉCORS » ·
+relations juridiques · accès GitHub par outil · version finale du logo · intégration des 5 drapeaux ·
+cités des autres factions · plan de production matériel · frontière exacte démo 0.8 / jeu complet.
+
+> **Claude ne doit pas inventer** ces valeurs ; attendre une décision explicite de Liamor.
+
+---
+
+## 21. WORKFLOW COLLABORATIF (§19 du doc)
+
+Mutualisation ChatGPT ↔ Claude Code via **GitHub comme intermédiaire** (les deux IA ne communiquent
+pas directement). Claude développe et pousse → ChatGPT relit, signale les incompat UE 5.7, corrige
+bugs/oublis → chaque itération vérifiée des deux côtés. Dépôt : `github.com/liamor95/Wotol`.
+→ Corollaire code : **commits clairs et bien décrits** (déjà appliqué), pour faciliter la relecture externe.
