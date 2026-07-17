@@ -52,7 +52,8 @@ enum class EDemoScreen : uint8
 	Interlude     UMETA(DisplayName = "Transition narrative (hors-champ)"),
 	City          UMETA(DisplayName = "Cité (production Aquiloris)"),
 	WorldMap      UMETA(DisplayName = "Monde ouvert / carte"),
-	Loading       UMETA(DisplayName = "Écran de chargement")
+	Loading       UMETA(DisplayName = "Écran de chargement"),
+	Skills        UMETA(DisplayName = "Compétences (arbre / axes)")
 };
 
 // Ligne de résumé : pertes d'un type d'unité (nom + perdus / total) pour une faction.

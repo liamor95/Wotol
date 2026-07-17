@@ -138,6 +138,7 @@ void AWOTOLDemoHUD::DrawHUD()
 	if (Screen == EDemoScreen::Summary)    { DrawSummary(W, H, DemoFlow); return; }
 	if (Screen == EDemoScreen::Interlude)  { DrawInterlude(W, H, DemoFlow); return; }
 	if (Screen == EDemoScreen::City)       { DrawCityView(W, H, DemoFlow); return; }
+	if (Screen == EDemoScreen::Skills)     { DrawSkillsView(W, H, DemoFlow); return; }
 	if (Screen == EDemoScreen::Loading)    { DrawLoadingScreen(W, H, DemoFlow); return; }
 
 	// ─── 1) Boîte de sélection (rectangle de drag) ───────────────────────────
@@ -815,9 +816,89 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		}
 	}
 
-	// Bouton d'expédition.
+	// Bouton d'expédition + bouton compétences.
 	DrawButton(CityDepartButtonRect(W, H), TEXT("PARTIR EN EXPEDITION"),
 		FLinearColor(1.f, 0.7f, 0.25f, 1.f), 1.3f);
+	DrawButton(CitySkillsButtonRect(W, H), TEXT("COMPETENCES"),
+		FLinearColor(0.6f, 0.8f, 1.f, 1.f), 1.2f);
+}
+
+FBox2D AWOTOLDemoHUD::CitySkillsButtonRect(float W, float H)
+{
+	const float BW = 220.f, BH = 60.f;
+	return FBox2D(FVector2D(40.f, 40.f + 70.f), FVector2D(40.f + BW, 40.f + 70.f + BH));
+}
+
+FBox2D AWOTOLDemoHUD::SkillsAxisRect(int32 CatIndex, int32 AxisIndex, float W, float H)
+{
+	const float RowTop = H * 0.20f;
+	const float RowH   = 92.f;
+	const float BX     = W * 0.34f;      // colonne des boutons d'axe (après le nom)
+	const float BW     = 210.f, BH = 66.f, Gap = 18.f;
+	const float X = BX + AxisIndex * (BW + Gap);
+	const float Y = RowTop + CatIndex * RowH;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
+FBox2D AWOTOLDemoHUD::SkillsBackButtonRect(float W, float H)
+{
+	const float BW = 220.f, BH = 60.f;
+	return FBox2D(FVector2D(40.f, H - BH - 40.f), FVector2D(40.f + BW, H - 40.f));
+}
+
+// Nom de la VOIE (axe) par faction/catégorie (0=Base, 1=Axe1, 2=Axe2) — d'après le GDD §7.
+static FString SkillAxisLabel(EFactionID Fac, EDemoUnitCategory Cat, int32 Axis)
+{
+	if (Axis == 0) return TEXT("Base");
+	const bool bAq = (Fac != EFactionID::Noxeens);
+	switch (Cat)
+	{
+		case EDemoUnitCategory::Infanterie: return bAq ? (Axis==1?TEXT("Mur amplifie"):TEXT("Double Lames"))
+		                                               : (Axis==1?TEXT("Voile Profond"):TEXT("Frappe Aveugle"));
+		case EDemoUnitCategory::Distance:   return bAq ? (Axis==1?TEXT("Hydrosniper"):TEXT("Hydropompe"))
+		                                               : (Axis==1?TEXT("Rayon Perforant"):TEXT("Explosion Biolum."));
+		case EDemoUnitCategory::Montee:     return bAq ? (Axis==1?TEXT("Percee amplifiee"):TEXT("Rempart Synth."))
+		                                               : (Axis==1?TEXT("Bastion Brutal"):TEXT("Defoncement"));
+		case EDemoUnitCategory::Speciale:   return bAq ? (Axis==1?TEXT("Critiques +"):TEXT("Ombres Projetees"))
+		                                               : (Axis==1?TEXT("Reacteur de Guerre"):TEXT("Ancrage Abyssal"));
+		case EDemoUnitCategory::Mythique:   return bAq ? (Axis==1?TEXT("Rayon. Stabilisateur"):TEXT("Rayon. Vital"))
+		                                               : (Axis==1?TEXT("Devastation Totale"):TEXT("Dominion Radieux"));
+		default: return (Axis==1?TEXT("Axe 1"):TEXT("Axe 2"));
+	}
+}
+
+void AWOTOLDemoHUD::DrawSkillsView(float W, float H, UDemoFlowSubsystem* Demo)
+{
+	DrawUnderwaterBackground(W, H);
+	if (!Demo) return;
+	const EFactionID Fac = Demo->GetPlayerFaction();
+	const bool bNox = (Fac == EFactionID::Noxeens);
+	const FLinearColor Accent = bNox ? FLinearColor(0.30f, 0.95f, 0.50f, 1.f) : FLinearColor(0.45f, 0.85f, 1.f, 1.f);
+
+	DrawGlowTitle(TEXT("COMPETENCES"), H * 0.06f, 2.2f, Accent);
+	DrawCenteredText(TEXT("Choisissez la VOIE de chaque type d'unite (change son axe tactique)"),
+		H * 0.14f, FLinearColor(0.9f, 0.95f, 1.f, 0.95f), 1.05f);
+
+	for (int32 i = 0; i < CityCardCount(); ++i)
+	{
+		const EDemoUnitCategory Cat = CityCardCategory(i);
+		const FBox2D R0 = SkillsAxisRect(i, 0, W, H);
+		// Nom de l'unité à gauche de la ligne.
+		DrawText(CityUnitLabel(Fac, Cat), FLinearColor::White, W * 0.08f, R0.Min.Y + 18.f,
+			GEngine ? GEngine->GetLargeFont() : nullptr, 1.15f);
+		const bool bUnlocked = Demo->IsCategoryUnlocked(Cat);
+		const int32 Cur = Demo->GetUnitAxis(Cat);
+		for (int32 a = 0; a < 3; ++a)
+		{
+			const FBox2D R = SkillsAxisRect(i, a, W, H);
+			const bool bSel = (Cur == a);
+			FLinearColor Tint = !bUnlocked ? FLinearColor(0.4f, 0.4f, 0.45f, 1.f)
+				: bSel ? Accent : FLinearColor(0.55f, 0.6f, 0.7f, 1.f);
+			DrawButton(R, SkillAxisLabel(Fac, Cat, a), Tint, bSel ? 1.05f : 0.9f);
+		}
+	}
+
+	DrawButton(SkillsBackButtonRect(W, H), TEXT("RETOUR"), FLinearColor(0.8f, 0.8f, 0.4f, 1.f), 1.2f);
 }
 
 void AWOTOLDemoHUD::DrawLoadingScreen(float W, float H, UDemoFlowSubsystem* Demo)

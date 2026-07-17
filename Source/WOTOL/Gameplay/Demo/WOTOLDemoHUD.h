@@ -52,6 +52,13 @@ public:
 	static FBox2D CityCardUpgradeRect(int32 Index, float W, float H);
 	// Bouton « Partir en expédition » (bas-droite).
 	static FBox2D CityDepartButtonRect(float W, float H);
+	// Bouton « Compétences » de la cité (ouvre l'onglet des axes).
+	static FBox2D CitySkillsButtonRect(float W, float H);
+
+	// ─── Onglet COMPÉTENCES (axes par unité) ───────────────────────────────────
+	// Bouton d'axe (ligne = catégorie d'unité, col 0=Base,1=Axe1,2=Axe2).
+	static FBox2D SkillsAxisRect(int32 CatIndex, int32 AxisIndex, float W, float H);
+	static FBox2D SkillsBackButtonRect(float W, float H);
 	// Catégories productibles en cité, dans l'ordre des cartes (hors Chef).
 	static int32 CityCardCount();
 	static EDemoUnitCategory CityCardCategory(int32 Index);
@@ -82,6 +89,8 @@ private:
 	void DrawFactionSelect(float W, float H);
 	// Vue cité : fond + cristaux + cartes de production + bouton d'expédition.
 	void DrawCityView(float W, float H, class UDemoFlowSubsystem* Demo);
+	// Onglet compétences : choix de l'axe (voie) de chaque type d'unité.
+	void DrawSkillsView(float W, float H, class UDemoFlowSubsystem* Demo);
 	// Écran de chargement (fond animé + logo + anneau + astuce).
 	void DrawLoadingScreen(float W, float H, class UDemoFlowSubsystem* Demo);
 	// Fond de cité chargé depuis le disque selon la faction (mis en cache).

@@ -216,6 +216,11 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 					return true;
 				}
 			}
+			if (AWOTOLDemoHUD::CitySkillsButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+			{
+				Demo->SetScreen(EDemoScreen::Skills); // ouvre l'onglet compétences
+				return true;
+			}
 			if (AWOTOLDemoHUD::CityDepartButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 			{
 				// Part en expédition : le Director lance la défense du Cristalliseur (phase 10),
@@ -231,6 +236,32 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 			}
 		}
 		return true; // la cité capte tout clic
+	}
+
+	// ── Onglet COMPÉTENCES : choix de l'axe par unité + retour ──
+	if (Screen == EDemoScreen::Skills)
+	{
+		if (Demo)
+		{
+			for (int32 i = 0; i < AWOTOLDemoHUD::CityCardCount(); ++i)
+			{
+				const EDemoUnitCategory Cat = AWOTOLDemoHUD::CityCardCategory(i);
+				if (!Demo->IsCategoryUnlocked(Cat)) continue;
+				for (int32 a = 0; a < 3; ++a)
+				{
+					if (AWOTOLDemoHUD::SkillsAxisRect(i, a, VpSize.X, VpSize.Y).IsInside(M))
+					{
+						Demo->SetUnitAxis(Cat, a);
+						return true;
+					}
+				}
+			}
+			if (AWOTOLDemoHUD::SkillsBackButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+			{
+				Demo->SetScreen(EDemoScreen::City);
+			}
+		}
+		return true;
 	}
 
 	// ── Menu principal ──
