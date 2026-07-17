@@ -183,6 +183,48 @@ void UDemoFlowSubsystem::DrainReserve(TMap<FName, int32>& OutUnits)
 	ReserveUnits.Empty();
 }
 
+// ─── PROGRESSION DES BÂTIMENTS ───────────────────────────────────────────────
+int32 UDemoFlowSubsystem::GetBuildingLevel(EDemoUnitCategory Category) const
+{
+	const int32* Found = BuildingLevels.Find(Category);
+	return Found ? *Found : 1; // niveau 1 par défaut
+}
+
+int32 UDemoFlowSubsystem::GetBuildingUpgradeCost(EDemoUnitCategory Category) const
+{
+	const int32 Level = GetBuildingLevel(Category);
+	if (Level >= MaxBuildingLevel) return 0; // déjà au max
+	// Coût croissant : 250 pour lvl 1->2, 500 pour lvl 2->3.
+	return 250 * Level;
+}
+
+bool UDemoFlowSubsystem::CanUpgradeBuilding(EDemoUnitCategory Category) const
+{
+	const int32 Cost = GetBuildingUpgradeCost(Category);
+	return Cost > 0 && PlayerCrystals >= Cost;
+}
+
+bool UDemoFlowSubsystem::UpgradeBuilding(EDemoUnitCategory Category)
+{
+	if (!CanUpgradeBuilding(Category)) return false;
+	const int32 Cost = GetBuildingUpgradeCost(Category);
+	PlayerCrystals -= Cost;
+	BuildingLevels.FindOrAdd(Category) = GetBuildingLevel(Category) + 1;
+	return true;
+}
+
+// ─── AXE / VOIE par type d'unité ─────────────────────────────────────────────
+int32 UDemoFlowSubsystem::GetUnitAxis(EDemoUnitCategory Category) const
+{
+	const int32* Found = UnitAxes.Find(Category);
+	return Found ? *Found : 0; // base par défaut
+}
+
+void UDemoFlowSubsystem::SetUnitAxis(EDemoUnitCategory Category, int32 Axis)
+{
+	UnitAxes.FindOrAdd(Category) = FMath::Clamp(Axis, 0, 2);
+}
+
 EDemoUnitCategory UDemoFlowSubsystem::GetCategoryForUnit(FName UnitID)
 {
 	if (UnitID == TEXT("Aquis")       || UnitID == TEXT("Noxar"))     return EDemoUnitCategory::Chef;

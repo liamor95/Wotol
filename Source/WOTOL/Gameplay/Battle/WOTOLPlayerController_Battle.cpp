@@ -203,6 +203,13 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		{
 			for (int32 i = 0; i < AWOTOLDemoHUD::CityCardCount(); ++i)
 			{
+				// Bandeau HAUT de la carte = améliorer le bâtiment (niv. bâtiment -> niv. unités).
+				if (AWOTOLDemoHUD::CityCardUpgradeRect(i, VpSize.X, VpSize.Y).IsInside(M))
+				{
+					Demo->UpgradeBuilding(AWOTOLDemoHUD::CityCardCategory(i));
+					return true;
+				}
+				// Reste de la carte = produire une unité.
 				if (AWOTOLDemoHUD::CityCardRect(i, VpSize.X, VpSize.Y).IsInside(M))
 				{
 					Demo->ProduceUnit(AWOTOLDemoHUD::CityCardCategory(i));

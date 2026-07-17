@@ -665,6 +665,13 @@ FBox2D AWOTOLDemoHUD::CityCardRect(int32 Index, float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + CW, Y + CH));
 }
 
+FBox2D AWOTOLDemoHUD::CityCardUpgradeRect(int32 Index, float W, float H)
+{
+	// Bandeau supérieur de la carte (les ~34 px du haut).
+	const FBox2D R = CityCardRect(Index, W, H);
+	return FBox2D(R.Min, FVector2D(R.Max.X, R.Min.Y + 34.f));
+}
+
 FBox2D AWOTOLDemoHUD::CityDepartButtonRect(float W, float H)
 {
 	const float BW = 340.f, BH = 60.f;
@@ -775,22 +782,36 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		DrawLine(R.Max.X, R.Min.Y, R.Max.X, R.Max.Y, Border, 2.f);
 
 		const float CX = R.Min.X + 12.f;
-		DrawText(CityBuildingLabel(Fac, Cat), Border, CX, R.Min.Y + 10.f, GEngine ? GEngine->GetMediumFont() : nullptr, 0.95f);
-		DrawText(CityUnitLabel(Fac, Cat), FLinearColor::White, CX, R.Min.Y + 40.f, GEngine ? GEngine->GetLargeFont() : nullptr, 1.15f);
-
-		if (!bUnlocked)
+		// Bandeau HAUT : niveau du bâtiment + bouton « Améliorer » (niv. bâtiment = niv. unités).
+		const int32 BLevel = Demo->GetBuildingLevel(Cat);
+		const int32 UpCost = Demo->GetBuildingUpgradeCost(Cat);
+		const bool  bCanUp = Demo->CanUpgradeBuilding(Cat);
+		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.35f), R.Min.X, R.Min.Y, R.Max.X - R.Min.X, 34.f);
+		DrawText(FString::Printf(TEXT("Niv.%d"), BLevel), Accent, CX, R.Min.Y + 8.f, nullptr, 1.0f);
+		if (UpCost > 0)
 		{
-			DrawText(TEXT("Verrouille"), FLinearColor(0.7f, 0.7f, 0.75f, 1.f), CX, R.Min.Y + 78.f, nullptr, 1.f);
+			DrawText(FString::Printf(TEXT("Ameliorer (%d)"), UpCost),
+				bCanUp ? FLinearColor(1.f, 0.9f, 0.5f, 1.f) : FLinearColor(0.6f, 0.6f, 0.65f, 1.f),
+				CX + 78.f, R.Min.Y + 8.f, nullptr, 0.95f);
 		}
 		else
 		{
-			DrawText(FString::Printf(TEXT("Cout : %d"), Cost),
+			DrawText(TEXT("Niveau max"), FLinearColor(0.6f, 0.7f, 0.6f, 1.f), CX + 78.f, R.Min.Y + 8.f, nullptr, 0.95f);
+		}
+		DrawText(CityBuildingLabel(Fac, Cat), Border, CX, R.Min.Y + 40.f, GEngine ? GEngine->GetMediumFont() : nullptr, 0.9f);
+		DrawText(CityUnitLabel(Fac, Cat), FLinearColor::White, CX, R.Min.Y + 66.f, GEngine ? GEngine->GetLargeFont() : nullptr, 1.1f);
+
+		if (!bUnlocked)
+		{
+			DrawText(TEXT("Verrouille"), FLinearColor(0.7f, 0.7f, 0.75f, 1.f), CX, R.Min.Y + 96.f, nullptr, 1.f);
+		}
+		else
+		{
+			DrawText(FString::Printf(TEXT("Cout : %d   Reserve : %d"), Cost, InReserve),
 				bAfford ? FLinearColor(1.f, 0.95f, 0.6f, 1.f) : FLinearColor(1.f, 0.55f, 0.5f, 1.f),
-				CX, R.Min.Y + 78.f, nullptr, 1.f);
-			DrawText(FString::Printf(TEXT("En reserve : %d"), InReserve),
-				FLinearColor(0.75f, 0.9f, 1.f, 1.f), CX, R.Min.Y + 104.f, nullptr, 1.f);
+				CX, R.Min.Y + 96.f, nullptr, 0.95f);
 			DrawCenteredText(bAfford ? TEXT("+ Produire") : TEXT("Cristaux insuffisants"),
-				R.Max.Y - 22.f, bAfford ? Accent : FLinearColor(0.7f, 0.5f, 0.5f, 1.f), 0.95f);
+				R.Max.Y - 20.f, bAfford ? Accent : FLinearColor(0.7f, 0.5f, 0.5f, 1.f), 0.95f);
 		}
 	}
 

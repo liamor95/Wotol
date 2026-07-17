@@ -48,6 +48,8 @@ public:
 	// ─── Vue CITÉ (phases 2 & 9 — production) ───────────────────────────────────
 	// Cartes de production (bâtiments) le long du bas de l'écran.
 	static FBox2D CityCardRect(int32 Index, float W, float H);
+	// Bandeau HAUT de la carte = bouton « Améliorer le bâtiment » (niveau -> niveau des unités).
+	static FBox2D CityCardUpgradeRect(int32 Index, float W, float H);
 	// Bouton « Partir en expédition » (bas-droite).
 	static FBox2D CityDepartButtonRect(float W, float H);
 	// Catégories productibles en cité, dans l'ordre des cartes (hors Chef).

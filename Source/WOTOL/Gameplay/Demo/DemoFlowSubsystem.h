@@ -225,7 +225,7 @@ public:
 
 	// Réinitialise la progression (déblocages) pour rejouer la démo depuis le début.
 	UFUNCTION(BlueprintCallable, Category = "Demo")
-	void ResetProgress() { Progress = FDemoProgress(); CurrentPhase = EDemoPhase::None; PlayerCrystals = 0; ReserveUnits.Empty(); }
+	void ResetProgress() { Progress = FDemoProgress(); CurrentPhase = EDemoPhase::None; PlayerCrystals = 0; ReserveUnits.Empty(); BuildingLevels.Empty(); UnitAxes.Empty(); }
 
 	// Difficulté choisie (défaut Normal = l'équilibrage de référence).
 	UPROPERTY(BlueprintReadOnly, Category = "Demo")
@@ -315,6 +315,33 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Demo|City")
 	void DrainReserve(TMap<FName, int32>& OutUnits);
 
+	// ─── PROGRESSION DES BÂTIMENTS (1 bâtiment par type d'unité, amélioré indépendamment) ──
+	// Le NIVEAU du bâtiment = le NIVEAU des unités qu'il produit (façon Age of Empires).
+	// Voir Docs/SYSTEME_CITE_ET_DEFENSE.md. Niveau 1 par défaut, jusqu'à MaxBuildingLevel.
+	static constexpr int32 MaxBuildingLevel = 3;
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	int32 GetBuildingLevel(EDemoUnitCategory Category) const;
+
+	// Coût d'amélioration du bâtiment vers le niveau suivant (0 si déjà au max).
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	int32 GetBuildingUpgradeCost(EDemoUnitCategory Category) const;
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	bool CanUpgradeBuilding(EDemoUnitCategory Category) const;
+
+	// Améliore le bâtiment (dépense les cristaux). Renvoie faux si au max / insuffisant.
+	UFUNCTION(BlueprintCallable, Category = "Demo|City")
+	bool UpgradeBuilding(EDemoUnitCategory Category);
+
+	// ─── AXE / VOIE par type d'unité (futur onglet Compétences — Axe 1 / Axe 2 du GDD) ──
+	// 0 = base, 1 = Axe 1, 2 = Axe 2. Change l'identité tactique de tout le groupe de ce type.
+	UFUNCTION(BlueprintPure, Category = "Demo|Skills")
+	int32 GetUnitAxis(EDemoUnitCategory Category) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Skills")
+	void SetUnitAxis(EDemoUnitCategory Category, int32 Axis);
+
 	// ─── Fenêtre d'objectif MODALE (validation manuelle — canon v0.8) ───────────
 	// Aucune phase ne s'enchaîne automatiquement : on ouvre une fenêtre (« Objectif
 	// rempli », « Placez le Cristalliseur »…) et le joueur clique « Continuer ». Quand
@@ -361,4 +388,9 @@ private:
 
 	EDemoPhase    CurrentPhase = EDemoPhase::None;
 	FDemoProgress Progress;
+
+	// Niveau de chaque bâtiment (clé = catégorie d'unité). Absent = niveau 1.
+	TMap<EDemoUnitCategory, int32> BuildingLevels;
+	// Axe/voie choisi par type d'unité (clé = catégorie). Absent = 0 (base).
+	TMap<EDemoUnitCategory, int32> UnitAxes;
 };
