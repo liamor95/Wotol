@@ -559,6 +559,27 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 		* PhaseEvoHP(Demo->GetPhase())
 		* AquiP3NormalHP(Faction, Demo->GetPhase(), Demo->GetDifficulty()); // correctif ciblé
 
+	// ── RENFORTS DE CITÉ (pattern Total War / XCOM) : les unités PRODUITES en cité
+	// (réserve) rejoignent l'armée pour cette bataille. On draine la réserve et on gonfle
+	// les effectifs par catégorie. Réserve vide (ex. bataille créature) = aucun effet. ──
+	int32 EffInfantry = InfantryCount, EffMounted = MountedCount;
+	int32 EffRanged   = RangedCount,   EffSpecial = SpecialCount;
+	{
+		TMap<FName, int32> Reserve;
+		Demo->DrainReserve(Reserve);
+		for (const TPair<FName, int32>& Pair : Reserve)
+		{
+			switch (UDemoFlowSubsystem::GetCategoryForUnit(Pair.Key))
+			{
+				case EDemoUnitCategory::Infanterie: EffInfantry += Pair.Value; break;
+				case EDemoUnitCategory::Distance:   EffRanged   += Pair.Value; break;
+				case EDemoUnitCategory::Montee:     EffMounted  += Pair.Value; break;
+				case EDemoUnitCategory::Speciale:   EffSpecial  += Pair.Value; break;
+				default: break; // chef / mythique : gérés séparément
+			}
+		}
+	}
+
 	// Place un groupe en rangées (se replie sur plusieurs lignes vers l'arrière -X). En
 	// phase 3, les rangées sont bien plus LARGES -> la ligne s'étale sur la largeur du tiers
 	// (fini l'empilement). Toutes les unités reçoivent l'échelle de PV de la bataille.
@@ -658,19 +679,19 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 		Chef->SetFormation(NextFormationGroupId++, FVector2D::ZeroVector, true);
 	}
 
-	// MÊLÉE au SOL (infanterie devant, montures derrière).
-	PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Infanterie), InfantryCount, BPBinf, GroundCursor, 0.f);
-	PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Montee), MountedCount, BPBmon, GroundCursor, 0.f);
+	// MÊLÉE au SOL (infanterie devant, montures derrière). Effectifs = base + renforts cité.
+	PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Infanterie), EffInfantry, BPBinf, GroundCursor, 0.f);
+	PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Montee), EffMounted, BPBmon, GroundCursor, 0.f);
 	// TIREURS en HAUTEUR (couche 1), superposés à la mêlée -> ils tirent par-dessus.
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Distance))
 	{
-		PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Distance), RangedCount, BPBdis, AirCursor, AirLayerZ);
+		PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Distance), EffRanged, BPBdis, AirCursor, AirLayerZ);
 	}
 	// PHASE 3 : SPÉCIALE (arrière-ligne) + MYTHIQUE (soutien) débloquées.
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Speciale))
 	{
 		// Spéciale aussi EN HAUTEUR (couche 1), derrière les tireurs (même curseur aérien).
-		PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Speciale), SpecialCount, BPBspe, AirCursor, AirLayerZ);
+		PlaceBlocks(Demo->GetUnitID(Faction, EDemoUnitCategory::Speciale), EffSpecial, BPBspe, AirCursor, AirLayerZ);
 	}
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Mythique))
 	{
