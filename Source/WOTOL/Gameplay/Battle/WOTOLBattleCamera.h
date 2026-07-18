@@ -33,7 +33,11 @@ public:
 	// ─── Limites de la carte ──────────────────────────────────────────────────
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Bounds")
-	FVector BoundsMin = FVector(-8000.f, -8000.f, -14000.f); // Hadal = -12000 UE units
+	// Z borné AU-DESSUS DU SOL de l'arène (top du sol ≈ 0) : la caméra peut descendre au ras
+	// du sol mais JAMAIS passer sous la carte (le pivot descendait à -14000 -> vue « sous la map »
+	// en contre-plongée, défaut visuel). La verticalité de la greybox est VISUELLE (les unités
+	// montent depuis le sol), donc la caméra n'a jamais besoin d'aller sous le plateau.
+	FVector BoundsMin = FVector(-8000.f, -8000.f, 20.f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Bounds")
 	FVector BoundsMax = FVector(8000.f, 8000.f, 3400.f);    // assez haut pour SUIVRE une unité
