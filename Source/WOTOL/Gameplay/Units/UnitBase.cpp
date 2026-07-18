@@ -169,15 +169,10 @@ float AUnitBase::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit)
 	const float MaxHP = UnitData ? static_cast<float>(UnitData->Stats.MaxHealth) : CurrentHealth;
 	OnHealthChanged.Broadcast(CurrentHealth, MaxHP);
 
-	// Choc moral proportionnel (perte > 20% PV max = malus moral)
-	if (MoraleComp && UnitData)
-	{
-		const float DamageRatio = EffDamage / static_cast<float>(UnitData->Stats.MaxHealth);
-		if (DamageRatio > 0.2f)
-		{
-			MoraleComp->ApplyMoraleHit(DamageRatio * 20.f);
-		}
-	}
+	// MORAL DÉSACTIVÉ (décision Liamor, validée) : pas de système de moral/déroute en bataille.
+	// Le composant reste présent mais n'a AUCUN effet sur le combat -> les unités ne perdent
+	// jamais le moral et ne fuient jamais.
+	// (ancien : choc moral proportionnel sur perte de PV — retiré)
 
 	if (CurrentHealth <= 0.f)
 	{
@@ -191,8 +186,8 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 {
 	if (!Target || !Target->IsAlive() || !UnitData) return;
 
-	// Unité en déroute = ne peut pas attaquer
-	if (MoraleComp && MoraleComp->IsRouting()) return;
+	// MORAL DÉSACTIVÉ (décision Liamor) : la déroute ne bloque PLUS l'attaque -> une unité
+	// combat toujours, quel que soit son « moral ». (ancien : if (routing) return;)
 
 	const float Now = GetWorld()->GetTimeSeconds();
 	if (Now - LastAttackTime < UnitData->Stats.AttackCooldown) return;

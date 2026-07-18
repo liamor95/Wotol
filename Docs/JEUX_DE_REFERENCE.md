@@ -15,7 +15,7 @@ Principe directeur (Liamor) : **interface claire et simple, compréhensible par 
 | Unités en **groupes/régiments** (une carte = un groupe, pas 1 soldat) | Marqueurs groupés (icône+effectif+barre) | ✅ fait |
 | **Roster** d'unités en bas d'écran, clic = sélection du groupe | Barre de commandement | ✅ fait |
 | **Formations** (blocs, ligne, cohésion) | Blocs de 5, `SetFormation` | ✅ fait |
-| **Moral** : un groupe qui craque fuit (rout) | Jauge de moral → Routing | ✅ existe (à polir) |
+| ~~Moral / déroute~~ | **RETIRÉ** (décision Liamor, validée — pas de moral en bataille) | ❌ désactivé |
 | **Sélection à la boîte** + double-clic = focus caméra | Box-select + suivi caméra | ✅ fait |
 | **Objectif de bataille** affiché en clair (haut d'écran) | Bandeau objectif | ✅ fait |
 | Barre de **PV du boss** en bas/haut | `DrawBossBar` | ✅ fait |
