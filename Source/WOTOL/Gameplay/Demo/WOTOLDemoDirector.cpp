@@ -895,13 +895,26 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 
 	const FTransform SpawnTM(Facing, SafeLoc, FVector(ScaleBoost));
 
+	// ── PROGRESSION (niveau de bâtiment / grade) : PRISE EN COMPTE dans les stats (décision
+	// Liamor). Le niveau du bâtiment de la catégorie multiplie PV + dégâts des unités du JOUEUR
+	// (Niv 1 = ×1.0, Niv 2 = ×1.15, Niv 3 = ×1.30). Voir Docs/SYSTEME_CITE_ET_DEFENSE.md. ──
+	float ProgFactor = 1.f;
+	if (!bAsBoss && Data->Faction == CachedPlayerFaction)
+	{
+		if (UDemoFlowSubsystem* Flow = GI->GetSubsystem<UDemoFlowSubsystem>())
+		{
+			const int32 Lvl = Flow->GetBuildingLevel(UDemoFlowSubsystem::GetCategoryForUnit(UnitID));
+			ProgFactor = 1.f + 0.15f * (float)(Lvl - 1);
+		}
+	}
+
 	AWOTOLDemoUnit* Unit = GetWorld()->SpawnActorDeferred<AWOTOLDemoUnit>(
 		DemoUnitClass, SpawnTM, this, nullptr,
 		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
 	if (!Unit) return nullptr;
 
 	Unit->UnitData    = Data;
-	Unit->HealthScale = HealthScale;   // appliqué dans BeginPlay (avant FinishSpawning)
+	Unit->HealthScale = HealthScale * ProgFactor;   // niveau/grade -> PV (appliqué dans BeginPlay)
 	Unit->bIsBoss     = bAsBoss;       // AVANT FinishSpawning -> silhouette Kraken forcée
 	UGameplayStatics::FinishSpawningActor(Unit, SpawnTM);
 
@@ -919,6 +932,7 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 		float M = FactionDamage(Unit->GetFaction()) * PhaseEvoDMG(Phase);
 		if (!bPlayerSide) M *= EnemyDiffKDMG(Diff); // degats ennemis peu reduits -> pertes garanties
 		else M *= AquiP3NormalDMG(Unit->GetFaction(), Phase, Diff); // correctif cible joueur Aquiloris P3 Normal
+		M *= ProgFactor; // niveau/grade de bâtiment -> dégâts (progression prise en compte)
 		Unit->BalanceDamageMult = M;
 	}
 
