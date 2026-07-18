@@ -119,6 +119,50 @@ Légende décision : 🟢 fort intérêt · 🟡 à discuter · 🔴 déconseill
 
 ---
 
+## PARTIE 5 — BOUCLE DE GAMEPLAY : rester FRAIS sans devenir répétitif
+
+**Le problème** (bien identifié par Liamor) : une boucle = le joueur **refait** les mêmes tâches
+(cité → expédition → bataille → retour). Si chaque itération est identique, ça devient vite
+**rébarbatif et frustrant** (comme les « 50e quêtes fetch » qui se ressemblent toutes). Il faut
+injecter de la **nouveauté** à CHAQUE tour de boucle.
+
+### Ce que disent les designers (recherche)
+1. **Escalade programmée** : le 100e tour ne doit pas être le 1er. Introduire **une nouveauté**
+   (mécanique / ennemi / contrainte) à intervalles réguliers.
+2. **Choix qui comptent** : à chaque tour, une **décision** (récompense branchée, build, risque/récompense),
+   pas juste « exécuter ».
+3. **Empêcher la stratégie unique** : contres (pierre-feuille-ciseau), **types d'ennemis qui tournent**
+   pour punir la tactique dominante.
+4. **Variété des récompenses** et **progression qui CHANGE la façon de jouer** (nouvelles unités/voies
+   qui modifient la tactique, pas juste +stats).
+5. **Composition variable** : layouts, compositions ennemies, **modificateurs**, types d'objectifs.
+6. **Qualité > quantité** : mieux vaut peu de missions variées que beaucoup d'identiques.
+7. **Varier ton et rythme** : alterner combat / exploration / défense / objectif spécial.
+
+### Application à la boucle WOTOL (propositions, À DÉCIDER)
+
+La boucle **cité → expédition (nage) → bataille → conquête/défense → retour cité** peut rester fraîche
+en **variant plusieurs axes à chaque cycle** (on a déjà beaucoup des ingrédients) :
+
+| Axe de variété | Comment (WOTOL) | Déjà dispo ? |
+|---|---|---|
+| **Biome / carte** | Alterner les décors : champs de cristaux, récif corallien, caverne violette, canyon volcanique, faille Noxéenne (nos 8 réfs d'environnement) | Réfs prêtes ; 4 cartes prévues |
+| **Type d'objectif** | Tourner : détruire la créature / défendre le Cristalliseur / tenir une zone / escorte / capturer des points / survivre à des vagues | Partiel (créature + défense) |
+| **Modificateurs de terrain** | Courants marins, volcans sous-marins (danger/arme), zones bioluminescentes (buff Noxéen), brouillard 3D par couche — changent la tactique | **Déjà au GDD** (à exploiter) |
+| **Composition ennemie** | Faire tourner les escouades rivales + patterns de créature (phase de rage) pour punir la tactique dominante | Partiel |
+| **Progression qui change le jeu** | Débloquer distance, puis spéciale, puis mythique, puis **voies/axes** (offensif/défensif) qui **modifient** la tactique du groupe | En place (déblocages + axes) |
+| **Choix risque/récompense** | Choisir quelle zone conquérir, quelle récompense prendre (ressources / artefact / XP — cf. maquette « zone neutre ») | Maquette existante |
+| **Verticalité comme variété** | Certaines batailles favorisent le haut (épipélagique), d'autres le fond (bathypélagique, bonus ascendant ×3 en Hadal) | Système de couches en place |
+
+### Principe directeur pour WOTOL
+> **Même boucle, tâches qui évoluent.** Chaque expédition doit changer **au moins un** de ces axes
+> (biome, objectif, modificateur, ennemi, déblocage) → le joueur retrouve ses repères MAIS vit une
+> situation neuve. On a la chance d'avoir **déjà** les ingrédients (terrain dynamique du GDD,
+> verticalité, déblocages, biomes) : il « suffit » de les **faire varier** dans la boucle.
+> Garde-fou : **qualité > quantité** — mieux vaut 4 batailles bien distinctes que 20 identiques.
+
+---
+
 ## Sources
 - [Best Strategy Games of 2025 — TheGamer](https://www.thegamer.com/best-strategy-games-2025-list/)
 - [15 Best Strategy Games of 2025 — Strategy & Wargaming](https://strategyandwargaming.com/2025/12/05/the-15-best-strategy-games-of-2025/)
@@ -136,3 +180,9 @@ Légende décision : 🟢 fort intérêt · 🟡 à discuter · 🔴 déconseill
 - [Crusader Kings III emergent narrative — Paste Magazine](https://www.pastemagazine.com/games/crusader-kings-iii/crusader-kings-iii-emergent-narrative)
 - [Best Strategy Games Without Micromanagement — Game Rant](https://gamerant.com/best-strategy-games-no-micromanaging/)
 - [Late-game micromanagement-hell (essai) — Forums Paradox](https://forum.paradoxplaza.com/forum/threads/essay-on-game-design-ideas-to-fix-poor-game-progression-and-lategame-micromanagement-hell.1603103/)
+- [How To Perfect Your Game's Core Loop — GameAnalytics](https://www.gameanalytics.com/blog/how-to-perfect-your-games-core-loop)
+- [Designing The Core Gameplay Loop — Game Design Skills](https://gamedesignskills.com/game-design/core-loops-in-gameplay/)
+- [How to Design a Game with Replayability — Gunslingers](https://www.gunslingersnft.com/post/how-to-design-a-game-with-replayability)
+- [Replay value — Wikipedia](https://en.wikipedia.org/wiki/Replay_value)
+- [How To Make Sidequests More Interesting — Mellow Golem](https://www.mellowgolem.com/posts/how-to-make-sidequests-more-interesting)
+- [How to Design Side Quests Worth Doing — Bugnet](https://bugnet.io/blog/how-to-design-side-quests-worth-doing)
