@@ -637,7 +637,9 @@ void AWOTOLPlayerController_Battle::OnRightMouseReleased()
 		// que d'envoyer les unités au centre de l'arène par défaut).
 		if (!GetGroundLocationUnderCursor(TargetLocation)) return;
 	}
-	IssueCommandToSelection(TargetUnit, TargetLocation);
+	// Shift + clic droit sur le SOL = ATTACK-MOVE (avancer en engageant l'ennemi rencontré).
+	const bool bAttackMove = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);
+	IssueCommandToSelection(TargetUnit, TargetLocation, bAttackMove);
 }
 
 void AWOTOLPlayerController_Battle::OnSelectAll()
@@ -723,7 +725,7 @@ bool AWOTOLPlayerController_Battle::GetGroundLocationUnderCursor(FVector& OutLoc
 }
 
 void AWOTOLPlayerController_Battle::IssueCommandToSelection(
-	AUnitBase* TargetUnit, FVector TargetLocation)
+	AUnitBase* TargetUnit, FVector TargetLocation, bool bAttackMoveToGround)
 {
 	UUnitSelectionManager* SelectionMgr = GetSelectionManager();
 	if (!SelectionMgr) return;
@@ -873,9 +875,24 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 		const FVector Slot = (s >= 0) ? Slots[s] : TargetLocation;
 		FVector Dest(Slot.X, Slot.Y, Unit->GetActorLocation().Z);
 		if (bClamp) Dest.X = FMath::Min(Dest.X, BoundaryX); // pas au-delà de sa zone
-		// DÉPLACEMENT PUR : l'unité va DIRECTEMENT au point demandé, sans s'arrêter pour
-		// engager l'ennemi (l'ordre du joueur PRIME sur le comportement auto). Elle y va
-		// même en prenant des dégâts. Pour attaquer, clic droit sur un ENNEMI.
-		AIC->IssueOrder_Move(Dest);
+
+		if (bAttackMoveToGround)
+		{
+			// ATTACK-MOVE (Shift+clic droit) : l'unité avance vers le point MAIS engage tout
+			// ennemi rencontré en chemin (auto-ciblage du plus proche). Accessibilité « barrière
+			// basse » : pas de micro, l'unité se défend et nettoie la route toute seule.
+			if (UUnitAIStateComponent* St = Unit->FindComponentByClass<UUnitAIStateComponent>())
+				St->SightRange = 60000.f; // voit large -> engage l'ennemi le plus proche en route
+			AIC->ActivateRTSBehavior();
+			AIC->IssueOrder_AttackMove(Dest);
+		}
+		else
+		{
+			// DÉPLACEMENT PUR : l'unité va DIRECTEMENT au point demandé, sans s'arrêter pour
+			// engager l'ennemi (l'ordre du joueur PRIME sur le comportement auto). Elle y va
+			// même en prenant des dégâts. Pour attaquer : clic droit sur un ENNEMI, ou Shift+clic
+			// droit sur le sol (attack-move).
+			AIC->IssueOrder_Move(Dest);
+		}
 	}
 }

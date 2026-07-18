@@ -113,5 +113,7 @@ private:
 	FVector2D  LastLeftClickPos;
 
 	// Commandes aux unités sélectionnées
-	void IssueCommandToSelection(AUnitBase* TargetUnit, FVector TargetLocation);
+	// bAttackMoveToGround : ordre vers un POINT au sol où les unités ENGAGENT tout ennemi
+	// rencontré en chemin (attack-move classique, Shift+clic droit). Faux = déplacement direct.
+	void IssueCommandToSelection(AUnitBase* TargetUnit, FVector TargetLocation, bool bAttackMoveToGround = false);
 };
