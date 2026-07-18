@@ -1,6 +1,7 @@
 #include "UnitAIStateComponent.h"
 #include "UnitBase.h"
 #include "UnitDataAsset.h"
+#include "Gameplay/Demo/WOTOLDemoUnit.h" // détection créature (Kraken) pour l'exception de portée
 #include "Gameplay/AI/AIAdaptiveController.h"
 #include "Core/FactionRegistrySubsystem.h"
 #include "AIController.h"
@@ -448,10 +449,27 @@ bool UUnitAIStateComponent::IsInAttackRange(AUnitBase* Target) const
 	// effective au strict bord-à-bord. Les unités à distance (portée ≥ 2) gardent
 	// leur allonge et n'ont pas besoin de se rapprocher.
 	const float Range = (HexRange <= 1.f) ? 55.f : HexRange * 200.f;
-	// Distance HORIZONTALE bord à bord : on ignore l'écart de hauteur (monde
-	// océanique — les créatures flottent) et on soustrait les rayons de collision,
-	// sinon une unité au sol sous un kraken en lévitation ne peut jamais le toucher.
-	const float CenterDist = FVector::Dist2D(Owner->GetActorLocation(), Target->GetActorLocation());
+
+	// ── PORTÉE EN VOLUME (correctif verticalité, décision Liamor) ──
+	// On mesure la distance à partir de la position VISUELLE (le modèle 3D à sa couche
+	// verticale), PAS la capsule figée au sol. L'écart de HAUTEUR compte donc comme de la
+	// distance -> il faut avoir l'ALLONGE (AttackRange = longueur d'arme) pour toucher une
+	// unité située plus haut/bas. Une unité de mêlée au sol ne peut plus toucher une unité
+	// deux couches au-dessus ; une unité montée (lance, portée élevée) ou à distance le peut.
+	USceneComponent* OAnchor = Owner->GetFloatingTextAnchor();
+	USceneComponent* TAnchor = Target->GetFloatingTextAnchor();
+	const FVector OPos = OAnchor ? OAnchor->GetComponentLocation() : Owner->GetActorLocation();
+	const FVector TPos = TAnchor ? TAnchor->GetComponentLocation() : Target->GetActorLocation();
+
+	// EXCEPTION créature (Kraken) : son corps est immense et occupe plusieurs couches ->
+	// il reste atteignable depuis le sol (on ignore l'écart vertical pour elle uniquement).
+	bool bTargetIsTallCreature = false;
+	if (const AWOTOLDemoUnit* TDU = Cast<AWOTOLDemoUnit>(Target))
+		bTargetIsTallCreature = TDU->bIsBoss || TDU->bCreatureBrain;
+
+	const float CenterDist = bTargetIsTallCreature
+		? FVector::Dist2D(OPos, TPos)   // créature géante : portée horizontale (comme avant)
+		: FVector::Dist(OPos, TPos);    // unité normale : distance 3D (la hauteur compte)
 	const float EdgeDist   = CenterDist - Owner->GetSimpleCollisionRadius()
 	                                    - Target->GetSimpleCollisionRadius();
 	return EdgeDist <= Range;

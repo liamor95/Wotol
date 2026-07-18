@@ -722,12 +722,28 @@ void AWOTOLDemoUnit::UpdateCombatLayer(float Dt)
 	if (bCreatureBrain) return; // le boss gère sa couche dans son cerveau
 	UUnitAIStateComponent* S = FindComponentByClass<UUnitAIStateComponent>();
 	if (!S) return;
+
+	// Cible VERROUILLÉE par le joueur : on rejoint SA couche (comportement existant).
 	if (AWOTOLDemoUnit* T = Cast<AWOTOLDemoUnit>(S->ForceTarget.Get()))
 	{
-		if (T->IsAlive())
-		{
-			AdaptLayerTo(T->GetDesiredZ(), Dt);
-		}
+		if (T->IsAlive()) { AdaptLayerTo(T->GetDesiredZ(), Dt); return; }
+	}
+
+	// AUTO-ENGAGEMENT : les unités de MÊLÉE / MONTÉE qui savent nager rejoignent la couche de
+	// l'ennemi le plus proche pour pouvoir le TOUCHER (portée en volume). Sans ça, elles
+	// resteraient figées au sol face à un ennemi en hauteur et ne l'atteindraient jamais.
+	// Les unités à DISTANCE gardent leur couche (elles ont l'allonge pour tirer en travers).
+	if (!UnitData) return;
+	const bool bCanLayer = UnitData->Stats.bCanChangeLayer;
+	const bool bMelee    = UnitData->Stats.AttackRange <= 3.f; // mêlée + montée (lance)
+	if (!bCanLayer || !bMelee) return;
+	if (AUnitBase* Foe = FindNearestEnemyUnit())
+	{
+		// Seulement si l'ennemi est PROCHE horizontalement (phase d'engagement) -> évite que
+		// toute la formation change de couche pour un ennemi lointain.
+		if (FVector::Dist2D(GetActorLocation(), Foe->GetActorLocation()) < 1600.f)
+			if (AWOTOLDemoUnit* FDU = Cast<AWOTOLDemoUnit>(Foe))
+				AdaptLayerTo(FDU->GetDesiredZ(), Dt);
 	}
 }
 
