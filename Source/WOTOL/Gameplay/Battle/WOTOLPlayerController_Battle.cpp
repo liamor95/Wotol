@@ -126,7 +126,11 @@ void AWOTOLPlayerController_Battle::TogglePause()
 void AWOTOLPlayerController_Battle::ToggleSettings()
 {
 	bSettingsOpen = !bSettingsOpen;
-	if (!bSettingsOpen) bControlsOpen = false; // referme toujours sur le menu principal
+	if (!bSettingsOpen) // referme toujours sur le menu principal
+	{
+		bControlsOpen = false;
+		PendingConfirmAction = 0;
+	}
 	ApplyPauseState();
 }
 
@@ -630,6 +634,29 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 	// Menu RÉGLAGES ouvert : ses 3 boutons + les vrais réglages (volume, plein écran).
 	if (bSettingsOpen)
 	{
+		// Confirmation en attente (Recommencer/Quitter) : deux boutons seulement, Oui/Annuler.
+		// Priorité absolue tant qu'elle est ouverte (empêche tout autre clic du menu réglages).
+		if (PendingConfirmAction != 0)
+		{
+			if (AWOTOLDemoHUD::ConfirmYesButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+			{
+				if (PendingConfirmAction == 1) // Recommencer, confirmé
+				{
+					bSettingsOpen = false; UGameplayStatics::SetGamePaused(GetWorld(), false);
+					UGameplayStatics::OpenLevel(this, FName(*GetWorld()->GetName()));
+				}
+				else if (PendingConfirmAction == 2) // Quitter, confirmé
+				{
+					UKismetSystemLibrary::QuitGame(this, this, EQuitPreference::Quit, false);
+				}
+				PendingConfirmAction = 0;
+			}
+			else if (AWOTOLDemoHUD::ConfirmNoButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+			{
+				PendingConfirmAction = 0; // annule -> retour au menu réglages
+			}
+			return true;
+		}
 		// Sous-écran COMMANDES (liste des touches) : un seul bouton actif, RETOUR.
 		if (bControlsOpen)
 		{
@@ -664,15 +691,16 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 			bSettingsOpen = false; ApplyPauseState();
 			return true;
 		}
+		// Recommencer/Quitter : DESTRUCTIFS (perte de progression) -> on ouvre une confirmation
+		// au lieu d'exécuter directement (un simple mis-clic ne doit pas coûter la partie).
 		if (AWOTOLDemoHUD::MenuButtonRect(1, VpSize.X, VpSize.Y).IsInside(M)) // Recommencer
 		{
-			bSettingsOpen = false; UGameplayStatics::SetGamePaused(GetWorld(), false);
-			UGameplayStatics::OpenLevel(this, FName(*GetWorld()->GetName()));
+			PendingConfirmAction = 1;
 			return true;
 		}
 		if (AWOTOLDemoHUD::MenuButtonRect(2, VpSize.X, VpSize.Y).IsInside(M)) // Quitter
 		{
-			UKismetSystemLibrary::QuitGame(this, this, EQuitPreference::Quit, false);
+			PendingConfirmAction = 2;
 			return true;
 		}
 		return true; // menu ouvert : tout clic est consommé par le menu

@@ -77,6 +77,10 @@ private:
 	// se ferme jamais tout seul en même temps que bSettingsOpen : ToggleSettings() le remet à
 	// faux à la fermeture pour que la réouverture retombe toujours sur le menu principal.
 	bool bControlsOpen = false;
+	// Confirmation avant une action DESTRUCTIVE (perte de progression) : Recommencer/Quitter
+	// n'exécutent plus directement au clic, ils ouvrent cette boîte de dialogue. Un seul des
+	// deux actif à la fois (0=aucun, 1=recommencer, 2=quitter) -> pas besoin de 2 booléens.
+	uint8 PendingConfirmAction = 0;
 	// Suivi de l'état de la fenêtre d'objectif modale (gèle l'action tant qu'ouverte).
 	bool bObjectivePausedLast = false;
 	void ApplyPauseState(); // pause moteur = (bFrozen || bSettingsOpen)
@@ -86,6 +90,8 @@ public:
 	bool IsBattleFrozen() const { return bFrozen; }
 	bool IsSettingsOpen() const { return bSettingsOpen; }
 	bool IsControlsOpen() const { return bControlsOpen; }
+	// 0 = aucune confirmation en attente, 1 = confirmer "Recommencer", 2 = confirmer "Quitter".
+	uint8 GetPendingConfirmAction() const { return PendingConfirmAction; }
 
 	// ── Écran RÉGLAGES : volume musique (réel, s'applique à la piste en cours) + plein
 	// écran (UGameUserSettings, aucun asset requis). Absents jusqu'ici — l'écran ne

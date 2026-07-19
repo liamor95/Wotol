@@ -185,6 +185,16 @@ Fait cette session (suite, meme jour) :
 - Verifie par la meme occasion : les numeros de degats flottants (WOTOLDamageNumber) existent
   deja (convention standard du genre, feedback de combat lisible) — pas un manque.
 
+- CONFIRMATION avant Recommencer/Quitter (menu reglages). Avant : les deux boutons
+  executaient IMMEDIATEMENT au clic (Recommencer relancait le niveau, Quitter fermait le
+  jeu), aucun garde-fou contre un mis-clic — risque reel de perdre toute la progression
+  d'une partie en cours. Convention quasi universelle (tous les jeux confirment les actions
+  destructives). Nouvelle boite "Oui / Annuler" (PlayerController::PendingConfirmAction,
+  0=aucune/1=recommencer/2=quitter — un seul entier, un seul a la fois) qui intercepte le
+  clic AVANT tout le reste du menu reglages tant qu'elle est ouverte. Change minimal et
+  sans risque : aucune des actions existantes n'a change de comportement, juste un clic de
+  plus avant qu'elles s'executent.
+
 ## Idees de Liamor pour APRES la demo (meta-progression, hors scope actuel)
 
 Notees telles quelles pour ne rien perdre, mais PAS a implementer a l'aveugle - ce sont de

@@ -335,7 +335,13 @@ void AWOTOLDemoHUD::DrawHUD()
 	{
 		if (PC->IsSettingsOpen())
 		{
-			if (PC->IsControlsOpen())
+			const uint8 Confirm = PC->GetPendingConfirmAction();
+			if (Confirm == 1)
+				DrawConfirmDialog(W, H, TEXT("Recommencer la demo depuis le debut ? Toute la progression sera perdue."),
+					TEXT("OUI, RECOMMENCER"));
+			else if (Confirm == 2)
+				DrawConfirmDialog(W, H, TEXT("Quitter le jeu ?"), TEXT("OUI, QUITTER"));
+			else if (PC->IsControlsOpen())
 				DrawControlsScreen(W, H); // liste des touches
 			else
 				DrawPauseOverlay(W, H); // menu Reprendre / Recommencer / Quitter / Commandes
@@ -1866,6 +1872,20 @@ FBox2D AWOTOLDemoHUD::ControlsBackButtonRect(float W, float H)
 	return FBox2D(FVector2D(40.f, H - BH - 40.f), FVector2D(40.f + BW, H - 40.f));
 }
 
+FBox2D AWOTOLDemoHUD::ConfirmYesButtonRect(float W, float H)
+{
+	const float BW = 220.f, BH = 60.f, Gap = 24.f;
+	const float X = (W - (BW * 2.f + Gap)) * 0.5f;
+	return FBox2D(FVector2D(X, H * 0.55f), FVector2D(X + BW, H * 0.55f + BH));
+}
+
+FBox2D AWOTOLDemoHUD::ConfirmNoButtonRect(float W, float H)
+{
+	const FBox2D Yes = ConfirmYesButtonRect(W, H);
+	const float BW = Yes.Max.X - Yes.Min.X, Gap = 24.f;
+	return FBox2D(FVector2D(Yes.Max.X + Gap, Yes.Min.Y), FVector2D(Yes.Max.X + Gap + BW, Yes.Max.Y));
+}
+
 void AWOTOLDemoHUD::DrawPauseOverlay(float W, float H)
 {
 	// Voile sombre plein écran
@@ -1969,6 +1989,15 @@ void AWOTOLDemoHUD::DrawControlsScreen(float W, float H)
 	}
 
 	DrawButton(ControlsBackButtonRect(W, H), TEXT("RETOUR"), FLinearColor(0.6f, 0.8f, 1.f, 1.f), 1.2f);
+}
+
+void AWOTOLDemoHUD::DrawConfirmDialog(float W, float H, const FString& Message, const FString& ConfirmLabel)
+{
+	// Voile plus sombre que le menu réglages (attire l'oeil sur une décision destructive).
+	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.8f), 0.f, 0.f, W, H);
+	DrawCenteredText(Message, H * 0.44f, FLinearColor(1.f, 0.85f, 0.35f, 1.f), 1.6f);
+	DrawButton(ConfirmYesButtonRect(W, H), ConfirmLabel, FLinearColor(1.f, 0.45f, 0.35f, 1.f), 1.15f);
+	DrawButton(ConfirmNoButtonRect(W, H), TEXT("ANNULER"), FLinearColor(0.5f, 0.55f, 0.62f, 1.f), 1.15f);
 }
 
 void AWOTOLDemoHUD::DrawBar(float X, float Y, float BarW, float BarH, float Pct,
