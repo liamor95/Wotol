@@ -61,6 +61,15 @@ public:
 	// Trois emplacements fixes et libres de la cité greybox. Le bâtiment à distance doit être
 	// sélectionné dans sa carte puis posé explicitement sur l'un de ces emplacements.
 	static FBox2D CityBuildPlotRect(int32 Index, float W, float H);
+	// Croissance du mythique après sécurisation de la zone.
+	static FBox2D CityFeedMythicButtonRect(float W, float H);
+
+	// ─── Gestion du territoire après la défense ──────────────────────────────
+	static FBox2D TerritoryRepairButtonRect(float W, float H);
+	static FBox2D TerritoryDefenseButtonRect(float W, float H);
+	static FBox2D TerritoryGarrisonMinusRect(int32 Index, float W, float H);
+	static FBox2D TerritoryGarrisonPlusRect(int32 Index, float W, float H);
+	static FBox2D TerritoryReturnCityButtonRect(float W, float H);
 
 	// ─── Onglet COMPÉTENCES (axes par unité) ───────────────────────────────────
 	// Bouton d'axe (ligne = catégorie d'unité, col 0=Base,1=Axe1,2=Axe2).
@@ -97,6 +106,7 @@ private:
 	void DrawExplorationHUD(float W, float H, class UDemoFlowSubsystem* Demo);
 	// Vue cité : fond + cristaux + cartes de production + bouton d'expédition.
 	void DrawCityView(float W, float H, class UDemoFlowSubsystem* Demo);
+	void DrawTerritoryView(float W, float H, class UDemoFlowSubsystem* Demo);
 	// Onglet compétences : choix de l'axe (voie) de chaque type d'unité.
 	void DrawSkillsView(float W, float H, class UDemoFlowSubsystem* Demo);
 	// Écran de chargement (fond animé + logo + anneau + astuce).
@@ -105,6 +115,9 @@ private:
 	class UTexture2D* GetCityBackground(EFactionID Faction);
 	UPROPERTY(Transient) TObjectPtr<class UTexture2D> CityBgTexture = nullptr;
 	EFactionID CityBgFaction = EFactionID::None;
+	class UTexture2D* GetTransitionBackground();
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> TransitionBgTexture = nullptr;
+	bool bTransitionBgTried = false;
 	void DrawPrepareBar(float W, float H);
 	void DrawSummary(float W, float H, class UDemoFlowSubsystem* Demo);
 	void DrawInterlude(float W, float H, class UDemoFlowSubsystem* Demo);

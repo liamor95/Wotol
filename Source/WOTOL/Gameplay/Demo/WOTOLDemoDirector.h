@@ -115,12 +115,26 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
 	int32 CrystalliserAbyssalMaterialCost = 15;
 
+	// La défense finance la réparation, la première fortification et la croissance
+	// du mythique : aucune expédition intermédiaire n'est imposée dans la démo.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 DefenseRewardCrystals = 600;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 DefenseRewardAbyssalMaterials = 40;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 DefenseRewardBiomass = 70;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 DefenseRewardFood = 15;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Exploration", meta = (ClampMin = "200.0"))
 	float CrystalliserPlacementRadius = 520.f;
 
-	// ── ÉQUILIBRAGE ADAPTATIF DES PERTES (phases 1 et 2) ─────────────────────
-	// Les plages viennent directement de la validation Liamor. Le système observe le combat
-	// réel et corrige progressivement la pression ennemie sans écraser les stats/factions.
+	// ── ÉQUILIBRAGE ADAPTATIF DES PERTES (phases 1, 2 et 3) ───────────────────
+	// Les nombres validés sont des centres de plage. Une cible différente est tirée à chaque
+	// tentative ; le système corrige doucement la pression sans dicter les victimes ni le déroulé.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Balance")
 	bool bEnableAdaptiveCasualtyBalance = true;
 
@@ -131,6 +145,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Balance", meta = (ClampMin = "120.0"))
 	float DefenseCasualtyPacingSeconds = 300.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Balance", meta = (ClampMin = "180.0"))
+	float GrandBattleCasualtyPacingSeconds = 600.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Balance", meta = (ClampMin = "1.0", ClampMax = "4.0"))
 	float AdaptiveMaxEnemyPressure = 2.4f;
@@ -272,6 +289,42 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
 	void LaunchDefenseFromCity();
 
+	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
+	void ContinueFromBattleSummary();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
+	void ReturnToCityAfterDefenseDefeat();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	void RequestTerritoryRepair();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	void RequestInstallDefense();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	void RequestAssignGarrison();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	void RequestAssignGarrisonByCategory(EDemoUnitCategory Category);
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	void RequestRemoveGarrisonByCategory(EDemoUnitCategory Category);
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	void ArmDefensePlacement();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	bool TryPlaceDefenseAt(const FVector& ClickedWorldLocation);
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Territory")
+	bool IsDefensePlacementArmed() const { return bDefensePlacementArmed; }
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
+	void ReturnToCityAfterTerritorySecured();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Mythic")
+	void FeedMythicAndContinue();
+
 	// Phase à rejouer sur « Rejouer » (mémorisée à la conclusion de la bataille, avant que la
 	// phase ne bascule sur DemoEnd).
 	EDemoPhase ReplayPhase = EDemoPhase::Battle_Creature;
@@ -316,7 +369,18 @@ private:
 	void CompleteCrystalliserPlacement();
 	void CreateCrystalliserPlacementMarkers();
 	void ClearCrystalliserPlacementMarkers();
-
+	void BeginPostDefenseTransition();
+	void EnterPostDefenseManagement();
+	void CompleteReturnToCityAfterDefeat();
+	void RefreshPostDefenseObjective();
+	void TickTerritoryThreat();
+	void RegisterDemoTerritoryGraph();
+	void SyncFortificationToTerritoryManager();
+	void RefreshDefenseStructuresFromTerritory();
+	void CreateDefensePlacementMarkers();
+	void ClearDefensePlacementMarkers();
+	void CompleteReturnToCityAfterTerritorySecured();
+	void EnterMythicGrowthInterlude();
 	// Réagit à la validation d'une fenêtre d'objectif -> avance la séquence.
 	UFUNCTION()
 	void HandleObjectiveConfirmed(FName StepId);
@@ -337,6 +401,7 @@ private:
 
 	FTimerHandle ExplorationTransitionHandle;
 	FTimerHandle ExplorationProximityHandle;
+	FTimerHandle TerritoryThreatHandle;
 
 	EFactionID ResolvePlayerFaction() const;
 	EFactionID RivalOf(EFactionID Faction) const;
@@ -368,6 +433,7 @@ private:
 	void ReleaseAdaptiveEnemyAnchor();
 	void ProtectAdaptivePlayerSurvivors();
 	void ResetAdaptiveBattleBalance();
+	float SamplePlayerCommandIntensity() const;
 	UFUNCTION()
 	void HandleAdaptivePlayerUnitDied(AUnitBase* Unit);
 	FTimerHandle AdaptiveBalanceHandle;
@@ -433,6 +499,12 @@ private:
 	TArray<TObjectPtr<class AWOTOLDefenseStructure>> DefenseStructures;
 	void ClearDefenseStructures();
 
+	UPROPERTY()
+	TArray<TObjectPtr<AActor>> DefensePlacementMarkers;
+
+	TArray<FVector> DefenseSlotLocations;
+	bool bDefensePlacementArmed = false;
+
 	FTimerHandle BattleStartHandle;
 	FTimerHandle BattleCheckHandle;
 	FTimerHandle PhaseHandle;
@@ -444,6 +516,13 @@ private:
 	EDemoPhase AdaptiveBalancePhase = EDemoPhase::None;
 	int32 AdaptiveInitialEnemyCount = 0;
 	float AdaptiveBalanceStartTime = 0.f;
+	int32 BattleAttemptSerial = 0;
+	int32 AdaptiveEncounterSeed = 0;
+	int32 TacticalVariant = 0;
+	float TacticalPhaseOffset = 0.f;
+	float AdaptiveEncounterVariance = 1.f;
+	float AdaptivePlayerCommandIntensity = 0.f;
+	FRandomStream EncounterRandom;
 	bool bAdaptiveBalanceActive = false;
 	bool bAdaptiveSurvivorsProtected = false;
 };

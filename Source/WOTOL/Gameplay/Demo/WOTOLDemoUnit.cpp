@@ -2295,7 +2295,8 @@ void AWOTOLDemoUnit::TickRoleTactics(float Dt)
 				AC /= N;
 				FVector D = AC - GetActorLocation(); D.Z = 0.f;
 				const float DistC = D.Size();
-				const float StayR = bZone ? 260.f : 340.f; // reste dans ce rayon du centre
+				const float StayR = (bZone ? 260.f : 340.f)
+					* FMath::Lerp(0.86f, 1.14f, TacticalPersonality);
 				if (DistC > StayR)
 				{
 					const float Sp = (BaseWalkSpeed > 0.f ? BaseWalkSpeed : 300.f) * 0.7f;
@@ -2308,7 +2309,8 @@ void AWOTOLDemoUnit::TickRoleTactics(float Dt)
 		{
 			FVector To = Foe->GetActorLocation() - GetActorLocation(); To.Z = 0.f;
 			const float Dd = To.Size();
-			const float Safe = bZone ? 550.f : 650.f;
+			const float Safe = (bZone ? 550.f : 650.f)
+				* FMath::Lerp(1.12f, 0.88f, TacticalPersonality);
 			if (Dd > 1.f && Dd < Safe)
 			{
 				const float Sp = (BaseWalkSpeed > 0.f ? BaseWalkSpeed : 300.f) * 0.8f;
@@ -2328,15 +2330,16 @@ void AWOTOLDemoUnit::TickRoleTactics(float Dt)
 
 	// HAUTEUR : quand un ennemi approche, l'unité à distance monte d'un cran pour tirer
 	// par-dessus la ligne de mêlée (et bénéficie du bonus d'attaque descendante).
-	if (Dist < Range * 1.2f)
+	if (Dist < Range * FMath::Lerp(1.35f, 1.05f, TacticalPersonality))
 		SetDesiredZ(FMath::Max(GetDesiredZ(), FMath::Min(MaxLayerZ, 900.f)));
 
 	// KITE : si l'ennemi entre dans la distance MINI, l'unité recule pour rester à portée
 	// (elle ne se laisse pas coller en mêlée).
-	const float KiteMin = Range * 0.55f;
+	const float KiteMin = Range * FMath::Lerp(0.66f, 0.45f, TacticalPersonality);
 	if (Dist > 1.f && Dist < KiteMin)
 	{
-		const float Speed = (BaseWalkSpeed > 0.f ? BaseWalkSpeed : 300.f) * 0.75f;
+		const float Speed = (BaseWalkSpeed > 0.f ? BaseWalkSpeed : 300.f)
+			* FMath::Lerp(0.88f, 0.64f, TacticalPersonality);
 		AddActorWorldOffset(-To.GetSafeNormal() * Speed * Dt, true); // recule en gardant la face
 	}
 }

@@ -150,6 +150,7 @@ void AWOTOLDemoHUD::DrawHUD()
 	if (Screen == EDemoScreen::Summary)       { DrawSummary(W, H, DemoFlow); DrawModalIfNeeded(); return; }
 	if (Screen == EDemoScreen::Interlude)     { DrawInterlude(W, H, DemoFlow); DrawModalIfNeeded(); return; }
 	if (Screen == EDemoScreen::City)          { DrawCityView(W, H, DemoFlow); DrawModalIfNeeded(); return; }
+	if (Screen == EDemoScreen::Territory)     { DrawTerritoryView(W, H, DemoFlow); DrawModalIfNeeded(); return; }
 	if (Screen == EDemoScreen::Skills)        { DrawSkillsView(W, H, DemoFlow); DrawModalIfNeeded(); return; }
 	if (Screen == EDemoScreen::Loading)       { DrawLoadingScreen(W, H, DemoFlow); DrawModalIfNeeded(); return; }
 	if (Screen == EDemoScreen::Exploration)   { DrawExplorationHUD(W, H, DemoFlow); DrawModalIfNeeded(); return; }
@@ -767,6 +768,42 @@ FBox2D AWOTOLDemoHUD::CityBuildPlotRect(int32 Index, float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
+FBox2D AWOTOLDemoHUD::CityFeedMythicButtonRect(float W, float H)
+{
+	const float BW = 460.f, BH = 70.f;
+	return FBox2D(FVector2D((W - BW) * 0.5f, H * 0.49f),
+		FVector2D((W + BW) * 0.5f, H * 0.49f + BH));
+}
+
+FBox2D AWOTOLDemoHUD::TerritoryRepairButtonRect(float W, float H)
+{
+	return FBox2D(FVector2D(48.f, H * 0.27f), FVector2D(408.f, H * 0.27f + 66.f));
+}
+
+FBox2D AWOTOLDemoHUD::TerritoryDefenseButtonRect(float W, float H)
+{
+	return FBox2D(FVector2D(48.f, H * 0.40f), FVector2D(408.f, H * 0.40f + 66.f));
+}
+
+FBox2D AWOTOLDemoHUD::TerritoryGarrisonMinusRect(int32 Index, float W, float H)
+{
+	const float Y = H * 0.31f + FMath::Clamp(Index, 0, 2) * 72.f;
+	return FBox2D(FVector2D(W - 410.f, Y), FVector2D(W - 354.f, Y + 50.f));
+}
+
+FBox2D AWOTOLDemoHUD::TerritoryGarrisonPlusRect(int32 Index, float W, float H)
+{
+	const float Y = H * 0.31f + FMath::Clamp(Index, 0, 2) * 72.f;
+	return FBox2D(FVector2D(W - 112.f, Y), FVector2D(W - 56.f, Y + 50.f));
+}
+
+FBox2D AWOTOLDemoHUD::TerritoryReturnCityButtonRect(float W, float H)
+{
+	const float BW = 430.f, BH = 66.f;
+	return FBox2D(FVector2D((W - BW) * 0.5f, H - 104.f),
+		FVector2D((W + BW) * 0.5f, H - 104.f + BH));
+}
+
 // Nom du bâtiment producteur (Aquiloris) / générique Noxéen, par catégorie.
 static FString CityBuildingLabel(EFactionID Fac, EDemoUnitCategory Cat)
 {
@@ -816,6 +853,18 @@ UTexture2D* AWOTOLDemoHUD::GetCityBackground(EFactionID Faction)
 	return CityBgTexture;
 }
 
+UTexture2D* AWOTOLDemoHUD::GetTransitionBackground()
+{
+	if (TransitionBgTexture || bTransitionBgTried) return TransitionBgTexture;
+	bTransitionBgTried = true;
+	const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/WOTOL_Transition_Background.png");
+	if (FPaths::FileExists(PngPath))
+	{
+		TransitionBgTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+	}
+	return TransitionBgTexture;
+}
+
 void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 {
 	if (!Demo) { DrawUnderwaterBackground(W, H); return; }
@@ -847,6 +896,35 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 	DrawText(FString::Printf(TEXT("ARMEE : %d / %d"), Demo->GetArmyUnitCount(), Demo->GetArmyUnitCap()),
 		Accent, 44.f, 84.f, GEngine ? GEngine->GetMediumFont() : nullptr, 1.15f);
 
+	// Progression persistante : visible à chaque passage en cité.
+	const float ProgW = 230.f;
+	DrawText(FString::Printf(TEXT("HEROS NIV. %d"), Demo->HeroLevel), FLinearColor::White,
+		W - ProgW - 44.f, 116.f, nullptr, 0.9f);
+	DrawBar(W - ProgW - 44.f, 138.f, ProgW, 10.f, Demo->GetHeroXPPercent(),
+		FLinearColor(0.35f, 0.85f, 1.f, 1.f), FLinearColor(0.f, 0.f, 0.f, 0.7f));
+	DrawText(FString::Printf(TEXT("CITE NIV. %d"), Demo->CityLevel), FLinearColor::White,
+		W - ProgW - 44.f, 158.f, nullptr, 0.9f);
+	DrawBar(W - ProgW - 44.f, 180.f, ProgW, 10.f, Demo->GetCityXPPercent(),
+		FLinearColor(1.f, 0.75f, 0.25f, 1.f), FLinearColor(0.f, 0.f, 0.f, 0.7f));
+
+	if (Demo->GetProgress().bDefenseSystemInstalled && !Demo->GetProgress().bMythicPlayable)
+	{
+		const FBox2D Feed = CityFeedMythicButtonRect(W, H);
+		DrawRect(FLinearColor(0.01f, 0.04f, 0.08f, 0.88f), Feed.Min.X - 70.f,
+			Feed.Min.Y - 100.f, (Feed.Max.X - Feed.Min.X) + 140.f, 190.f);
+		DrawCenteredText(FString::Printf(TEXT("FAIRE GRANDIR LE %s"),
+			*CityUnitLabel(Fac, EDemoUnitCategory::Mythique).ToUpper()),
+			Feed.Min.Y - 75.f, Accent, 1.35f);
+		DrawCenteredText(FString::Printf(TEXT("Biomasse : %d / %d"), Demo->PlayerBiomass,
+			Demo->MythicGrowthBiomassGoal), Feed.Min.Y - 38.f,
+			Demo->HasEnoughBiomassForMythic() ? FLinearColor(0.55f, 1.f, 0.6f, 1.f)
+				: FLinearColor(1.f, 0.55f, 0.45f, 1.f), 1.05f);
+		DrawButton(Feed, Demo->HasEnoughBiomassForMythic()
+			? TEXT("NOURRIR ET LIBERER") : TEXT("BIOMASSE INSUFFISANTE"),
+			Demo->HasEnoughBiomassForMythic() ? Accent
+				: FLinearColor(0.38f, 0.40f, 0.45f, 1.f), 1.2f);
+	}
+
 	// Construction spatiale sur la vue isométrique : trois parcelles valides. Une fois posé,
 	// le bâtiment reste représenté à son emplacement et sa carte devient son panneau d'action.
 	if (Demo->IsCityBuildingPlacementArmed())
@@ -871,12 +949,21 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 			Plot.Min.X + 12.f, Plot.Min.Y + 56.f, nullptr, 0.9f);
 	}
 
-	const FString Objective = Demo->IsRangedProductionObjectiveComplete()
-		? TEXT("Objectif rempli — preparez vos ameliorations puis defendez la zone")
-		: FString::Printf(TEXT("OBJECTIF : PRODUIRE 10 UNITES A DISTANCE   %d / %d"),
-			Demo->GetRangedProductionProgress(), Demo->RangedProductionTarget);
+	const bool bStrategicAlert = Demo->GetProgress().bZoneThreatened
+		|| Demo->GetProgress().bZoneLost;
+	const FString Objective = bStrategicAlert
+		? Demo->ObjectiveText
+		: (Demo->GetProgress().bDefenseSystemInstalled && !Demo->GetProgress().bMythicPlayable
+			? FString::Printf(TEXT("OBJECTIF : NOURRIR LE %s"),
+				*CityUnitLabel(Fac, EDemoUnitCategory::Mythique).ToUpper())
+			: (Demo->IsRangedProductionObjectiveComplete()
+				? FString(TEXT("Objectif rempli — preparez vos ameliorations puis defendez la zone"))
+				: FString::Printf(TEXT("OBJECTIF : PRODUIRE 10 UNITES A DISTANCE   %d / %d"),
+					Demo->GetRangedProductionProgress(), Demo->RangedProductionTarget)));
 	DrawCenteredText(Objective, H * 0.60f,
-		Demo->IsRangedProductionObjectiveComplete() ? FLinearColor(0.45f, 1.f, 0.55f, 1.f)
+		(bStrategicAlert && Demo->GetProgress().bZoneLost)
+			? FLinearColor(1.f, 0.36f, 0.26f, 1.f)
+			: Demo->IsRangedProductionObjectiveComplete() ? FLinearColor(0.45f, 1.f, 0.55f, 1.f)
 			: FLinearColor(0.9f, 0.95f, 1.f, 0.95f), 1.1f);
 
 	// Cartes de production (bâtiments).
@@ -967,6 +1054,86 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 			: FLinearColor(0.38f, 0.42f, 0.48f, 1.f), 1.15f);
 	DrawButton(CitySkillsButtonRect(W, H), TEXT("COMPETENCES"),
 		FLinearColor(0.6f, 0.8f, 1.f, 1.f), 1.2f);
+}
+
+void AWOTOLDemoHUD::DrawTerritoryView(float W, float H, UDemoFlowSubsystem* Demo)
+{
+	if (!Demo) return;
+	const bool bNox = Demo->GetPlayerFaction() == EFactionID::Noxeens;
+	const FLinearColor Accent = bNox ? FLinearColor(0.25f, 1.f, 0.48f, 1.f)
+		: FLinearColor(0.32f, 0.82f, 1.f, 1.f);
+	const FString Building = bNox ? TEXT("ABYSSALYSEUR") : TEXT("CRISTALLISEUR");
+
+	// Le monde 3D reste visible : deux panneaux latéraux encadrent le bâtiment et ses cinq
+	// emplacements lumineux, au lieu de remplacer la zone par un menu abstrait.
+	DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, 0.88f), 24.f, 28.f, 420.f, H - 150.f);
+	DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, 0.88f), W - 444.f, 28.f, 420.f, H - 150.f);
+	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.64f), 0.f, 0.f, W, 112.f);
+	DrawGlowTitle(TEXT("GESTION DU TERRITOIRE"), 24.f, 2.05f, Accent);
+	DrawCenteredText(Demo->ObjectiveText, 76.f, FLinearColor(0.9f, 0.96f, 1.f, 1.f), 1.0f);
+
+	DrawText(Building, Accent, 48.f, 138.f, GEngine ? GEngine->GetLargeFont() : nullptr, 1.3f);
+	DrawBar(48.f, 180.f, 360.f, 18.f, Demo->GetTerritoryHealthPercent(),
+		FLinearColor(0.30f, 0.92f, 0.48f, 1.f), FLinearColor(0.15f, 0.05f, 0.04f, 0.9f));
+	DrawText(FString::Printf(TEXT("Integrite : %d %%"),
+		FMath::RoundToInt(Demo->GetTerritoryHealthPercent() * 100.f)),
+		FLinearColor::White, 48.f, 205.f, nullptr, 1.0f);
+	DrawText(FString::Printf(TEXT("Cristaux %d   |   Materiaux %d"), Demo->GetCrystals(),
+		Demo->PlayerAbyssalMaterials), FLinearColor(1.f, 0.90f, 0.42f, 1.f),
+		48.f, 235.f, nullptr, 0.9f);
+
+	const int32 RepairC = Demo->GetRepairCrystalCost();
+	const int32 RepairM = Demo->GetRepairAbyssalMaterialCost();
+	DrawButton(TerritoryRepairButtonRect(W, H), RepairC > 0
+		? FString::Printf(TEXT("REPARER  —  %d C / %d M"), RepairC, RepairM)
+		: FString(TEXT("BATIMENT REPARE")),
+		RepairC > 0 && Demo->CanRepairTerritory() ? Accent
+			: FLinearColor(0.34f, 0.38f, 0.42f, 1.f), 1.0f);
+
+	const int32 NextDefense = Demo->InstalledDefenseCount + 1;
+	DrawText(FString::Printf(TEXT("DEFENSES : %d / %d   —   TECHNOLOGIE NIV. %d"),
+		Demo->InstalledDefenseCount, Demo->GetDefenseCapacity(), Demo->DefenseTechnologyLevel),
+		FLinearColor::White, 48.f, H * 0.365f - 28.f, nullptr, 0.92f);
+	DrawButton(TerritoryDefenseButtonRect(W, H),
+		Demo->CanInstallNextDefense()
+			? FString::Printf(TEXT("PLACER TOURELLE  —  %d C / %d M"),
+				Demo->DefenseInstallCrystalCost * NextDefense,
+				Demo->DefenseInstallAbyssalMaterialCost * NextDefense)
+			: (Demo->InstalledDefenseCount >= Demo->GetDefenseCapacity()
+				? FString(TEXT("CAPACITE DE DEFENSE ATTEINTE"))
+				: FString(TEXT("RESSOURCES INSUFFISANTES"))),
+		Demo->CanInstallNextDefense() ? Accent : FLinearColor(0.34f, 0.38f, 0.42f, 1.f), 0.9f);
+	DrawText(TEXT("Cliquez ensuite l'un des 5 emplacements lumineux."),
+		FLinearColor(0.76f, 0.86f, 0.94f, 1.f), 48.f, H * 0.40f + 78.f, nullptr, 0.82f);
+
+	const float RX = W - 420.f;
+	DrawText(FString::Printf(TEXT("GARNISON : %d / %d"), Demo->GarrisonUnits,
+		Demo->GetGarrisonCapacity()), Accent, RX, 138.f,
+		GEngine ? GEngine->GetLargeFont() : nullptr, 1.25f);
+	DrawText(TEXT("Ne compte pas dans l'armee de campagne"),
+		FLinearColor(0.75f, 0.84f, 0.92f, 1.f), RX, 176.f, nullptr, 0.86f);
+	const EDemoUnitCategory Cats[3] = { EDemoUnitCategory::Infanterie,
+		EDemoUnitCategory::Montee, EDemoUnitCategory::Distance };
+	const TCHAR* Labels[3] = { TEXT("Infanterie"), TEXT("Montees"), TEXT("Distance") };
+	for (int32 i = 0; i < 3; ++i)
+	{
+		const FName UnitID = Demo->GetUnitID(Demo->GetPlayerFaction(), Cats[i]);
+		const int32 Count = Demo->GetGarrisonCount(UnitID);
+		const FBox2D Minus = TerritoryGarrisonMinusRect(i, W, H);
+		const FBox2D Plus = TerritoryGarrisonPlusRect(i, W, H);
+		DrawButton(Minus, TEXT("-"), Count > 0 ? Accent : FLinearColor(0.32f, 0.34f, 0.38f, 1.f), 1.2f);
+		DrawButton(Plus, TEXT("+"), Demo->CanAssignGarrisonUnit()
+			? Accent : FLinearColor(0.32f, 0.34f, 0.38f, 1.f), 1.2f);
+		DrawText(FString::Printf(TEXT("%s     %d"), Labels[i], Count), FLinearColor::White,
+			Minus.Max.X + 22.f, Minus.Min.Y + 14.f, GEngine ? GEngine->GetMediumFont() : nullptr, 1.0f);
+	}
+
+	const bool bCanReturn = RepairC <= 0 && Demo->InstalledDefenseCount > 0;
+	DrawButton(TerritoryReturnCityButtonRect(W, H), bCanReturn
+		? TEXT("VALIDER ET RETOURNER A LA CITE")
+		: TEXT("REPAREZ ET INSTALLEZ UNE DEFENSE"),
+		bCanReturn ? FLinearColor(1.f, 0.72f, 0.24f, 1.f)
+			: FLinearColor(0.34f, 0.38f, 0.42f, 1.f), 1.05f);
 }
 
 FBox2D AWOTOLDemoHUD::CitySkillsButtonRect(float W, float H)
@@ -1252,9 +1419,11 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 	if (Demo->bSummaryIsFinal)
 	{
 		// « Rejouer » relance la MÊME phase (celle qu'on vient de finir/perdre), pas la démo.
-		DrawButton(SummaryReplayButtonRect(W, H), TEXT("REJOUER LA PHASE"),
+		DrawButton(SummaryReplayButtonRect(W, H), Demo->bSummaryCanReturnToCity
+			? TEXT("REJOUER LA DEFENSE") : TEXT("REJOUER LA PHASE"),
 			FLinearColor(0.3f, 0.7f, 1.f, 1.f), 1.15f);
-		DrawButton(SummaryChangeFactionButtonRect(W, H), TEXT("CHANGER DE FACTION"),
+		DrawButton(SummaryChangeFactionButtonRect(W, H), Demo->bSummaryCanReturnToCity
+			? TEXT("RETOUR A LA CITE") : TEXT("CHANGER DE FACTION"),
 			FLinearColor(0.3f, 0.9f, 0.5f, 1.f), 1.05f);
 		DrawButton(SummaryMenuButtonRect(W, H), TEXT("MENU PRINCIPAL"),
 			FLinearColor(0.9f, 0.8f, 0.35f, 1.f), 1.1f);
@@ -1263,7 +1432,9 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 	}
 	else
 	{
-		DrawButton(SummaryContinueButtonRect(W, H), TEXT("CONTINUER — Defense de la zone"),
+		DrawButton(SummaryContinueButtonRect(W, H),
+			Demo->SummaryContinueLabel.IsEmpty()
+				? FString(TEXT("CONTINUER")) : Demo->SummaryContinueLabel,
 			FLinearColor(1.f, 0.7f, 0.2f, 1.f), 1.4f);
 	}
 }
@@ -1311,7 +1482,17 @@ void AWOTOLDemoHUD::DrawCurrentIndicator(float W, float H, UWorld* World)
 
 void AWOTOLDemoHUD::DrawInterlude(float W, float H, UDemoFlowSubsystem* Demo)
 {
-	DrawUnderwaterBackground(W, H);
+	if (UTexture2D* BG = GetTransitionBackground())
+	{
+		DrawTexture(BG, 0.f, 0.f, W, H, 0.f, 0.f, 1.f, 1.f);
+		// Voile central seulement : conserve les coraux/cristaux latéraux et garantit la lecture.
+		DrawRect(FLinearColor(0.f, 0.025f, 0.07f, 0.36f), W * 0.17f, H * 0.02f,
+			W * 0.66f, H * 0.90f);
+	}
+	else
+	{
+		DrawUnderwaterBackground(W, H);
+	}
 	DrawGlowTitle(TEXT("— ENTRE DEUX BATAILLES —"), H * 0.06f, 1.9f, FLinearColor(0.6f, 0.9f, 1.f, 1.f));
 
 	// Texte narratif (multi-lignes) — réparti sur la hauteur disponible AU-DESSUS du bouton

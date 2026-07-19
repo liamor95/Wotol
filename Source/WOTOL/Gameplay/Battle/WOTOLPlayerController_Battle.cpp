@@ -218,11 +218,67 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		return false; // hors placement, la nage et la caméra gardent les entrées
 	}
 
+	// ── Gestion du territoire : réparation, pose spatiale des tourelles, garnison ──
+	if (Screen == EDemoScreen::Territory)
+	{
+		AWOTOLDemoDirector* Dir = GetDemoDirector();
+		if (!Demo || !Dir) return true;
+		if (AWOTOLDemoHUD::TerritoryRepairButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+		{
+			Dir->RequestTerritoryRepair();
+			return true;
+		}
+		if (AWOTOLDemoHUD::TerritoryDefenseButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+		{
+			Dir->ArmDefensePlacement();
+			return true;
+		}
+		const EDemoUnitCategory Cats[3] = {
+			EDemoUnitCategory::Infanterie, EDemoUnitCategory::Montee,
+			EDemoUnitCategory::Distance };
+		for (int32 i = 0; i < 3; ++i)
+		{
+			if (AWOTOLDemoHUD::TerritoryGarrisonMinusRect(i, VpSize.X, VpSize.Y).IsInside(M))
+			{
+				Dir->RequestRemoveGarrisonByCategory(Cats[i]);
+				return true;
+			}
+			if (AWOTOLDemoHUD::TerritoryGarrisonPlusRect(i, VpSize.X, VpSize.Y).IsInside(M))
+			{
+				Dir->RequestAssignGarrisonByCategory(Cats[i]);
+				return true;
+			}
+		}
+		if (AWOTOLDemoHUD::TerritoryReturnCityButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+		{
+			Dir->ReturnToCityAfterTerritorySecured();
+			return true;
+		}
+		if (Dir->IsDefensePlacementArmed())
+		{
+			float PlaneZ = 0.f;
+			if (AActor* Building = Demo->GetCaptureObject())
+				PlaneZ = Building->GetActorLocation().Z - 190.f;
+			FVector WorldPoint;
+			if (GetWorldLocationOnHorizontalPlane(M, PlaneZ, WorldPoint))
+				Dir->TryPlaceDefenseAt(WorldPoint);
+			return true;
+		}
+		return true;
+	}
+
 	// ── Vue CITÉ : cartes de production + bouton d'expédition ──
 	if (Screen == EDemoScreen::City)
 	{
 		if (Demo)
 		{
+			if (Demo->GetProgress().bDefenseSystemInstalled
+				&& !Demo->GetProgress().bMythicPlayable
+				&& AWOTOLDemoHUD::CityFeedMythicButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+			{
+				if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->FeedMythicAndContinue();
+				return true;
+			}
 			if (Demo->IsCityBuildingPlacementArmed())
 			{
 				for (int32 Plot = 0; Plot < 3; ++Plot)
@@ -379,7 +435,11 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 			}
 			else if (AWOTOLDemoHUD::SummaryChangeFactionButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 			{
-				if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->RestartDemo(false);
+				if (AWOTOLDemoDirector* Dir = GetDemoDirector())
+				{
+					if (Demo->bSummaryCanReturnToCity) Dir->ReturnToCityAfterDefenseDefeat();
+					else Dir->RestartDemo(false);
+				}
 			}
 			else if (AWOTOLDemoHUD::SummaryMenuButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 			{
@@ -394,7 +454,7 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		{
 			if (AWOTOLDemoHUD::SummaryContinueButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 			{
-				if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->ShowInterlude();
+				if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->ContinueFromBattleSummary();
 			}
 		}
 		return true; // tout clic est consommé par l'écran de résumé
