@@ -22,13 +22,20 @@ Fait cette session (19/07/2026, en plus de la fusion agent/connect-exploration-f
   recharge (touche C, impulsion + coup de FOV), inclinaison de caméra en virage (banking),
   léger camera lag — sensation "action" distincte du pilotage RTS des batailles tactiques.
   Mappings ajoutés dans Config/DefaultInput.ini (Sprint=LeftAlt, Dash=C).
+- Zone d'exploration enrichie (WOTOLGreyboxEnvironment::BuildArena, phase 1 uniquement) :
+  ajout d'une arche traversable (SpawnArch) et d'une ruine à gradins + colonnade
+  (SpawnZiggurat/SpawnColonnade) décalées de part et d'autre du trajet héros->Kraken —
+  ces fonctions existaient déjà dans le fichier mais n'étaient jamais appelées. Le trajet
+  ExplorationHeroOffset/ExplorationKrakenOffset a aussi reçu un décalage Y pour ne plus
+  être une ligne droite sur X. Rien de bloquant (traversable), donc pas de risque pour la
+  navigation de la bataille qui réutilise ensuite la même arène.
 
 Encore a faire (releve pendant cette session, pas encore code) :
 - Cinematique/texte d'intro anime + lore de faction au clic (choix faction/difficulte).
 - Ecran de personnalisation du heros avant le lancement.
 - Vue cite : confirmer le mode isometrique fixe + zoom/fiche technique au clic batiment
   (actuellement DrawCityView existe mais a verifier en jeu contre cette description precise).
-- Zone d'exploration : le trajet heros -> Kraken est encore une ligne quasi droite dans la
-  meme arene que la bataille (ExplorationHeroOffset/ExplorationKrakenOffset). Il reste a
-  l'enrichir (points d'interet, trajet non lineaire) pour une vraie sensation d'exploration
-  70 m² - pas fait cette session (risque de casser WOTOLGreyboxEnvironment sans compilateur).
+- La zone d'exploration reste dans la MEME arene que la bataille (pas de vraie zone dediee
+  de 70 m²) : les nouveaux reperes aident a la sensation d'exploration mais n'ajoutent pas
+  un espace physiquement plus grand a parcourir. A revisiter si le rythme parait encore trop
+  court une fois teste en jeu.

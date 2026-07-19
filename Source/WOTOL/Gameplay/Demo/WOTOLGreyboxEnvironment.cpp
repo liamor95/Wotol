@@ -830,6 +830,27 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			}
 		}
 	}
+
+	// ── REPÈRES D'EXPLORATION (phase 1 uniquement) ───────────────────────────────
+	// Le trajet héros -> Kraken (BeginOpeningExploration, offsets ~(-2600,0) et
+	// ~(2200,0) autour du centre) était une quasi ligne droite sur X : rien n'invitait
+	// à explorer, juste à avancer. On ajoute des repères NON BLOQUANTS (traversables,
+	// silhouette uniquement) décalés en Y de part et d'autre du couloir, pour donner
+	// une vraie sensation de zone à parcourir avant de tomber sur la créature — sans
+	// gêner la bataille qui suit dans cette même arène (aucune collision ajoutée).
+	if (!bAbyss)
+	{
+		// Arche de pierre à mi-chemin, légèrement excentrée : le joueur doit dévier de
+		// la ligne droite pour la traverser à la nage (repère d'échelle ~5 m de diamètre,
+		// cf. Docs/DOCUMENT_MAITRE_WOTOL.md §11).
+		SpawnArch(Center + FVector(-300.f, 750.f, -30.f), 260.f, 90.f, FarColor);
+
+		// Ruine à gradins excentrée de l'autre côté : point d'intérêt qui attire l'œil
+		// hors de l'axe direct, sans jamais bloquer le passage (tout est traversable).
+		SpawnZiggurat(Center + FVector(950.f, -1550.f, -40.f), 420.f, 3, 130.f, 200.f, RockColor);
+		SpawnColonnade(Center + FVector(280.f, -1250.f, -30.f), FVector(260.f, -80.f, 0.f),
+			4, 360.f, FarColor, 901);
+	}
 }
 
 // ─── Nettoyage / reconstruction du décor (transitions de phase) ──────────────

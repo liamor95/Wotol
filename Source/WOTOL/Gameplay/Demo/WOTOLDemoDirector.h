@@ -89,11 +89,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Exploration", meta = (ClampMin = "500.0", ClampMax = "1000.0"))
 	float EncounterTriggerDistance = 900.f;
 
+	// Décalage Y volontaire (héros / Kraken) : le trajet direct n'est plus une ligne droite
+	// figée sur X, il coupe en diagonale près des repères ajoutés à l'exploration
+	// (arche, ruine à gradins — WOTOLGreyboxEnvironment::BuildArena) sans jamais forcer
+	// le joueur à passer par eux (rien n'est bloquant, la nage libre reste libre).
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Exploration")
-	FVector ExplorationHeroOffset = FVector(-2600.f, 0.f, 260.f);
+	FVector ExplorationHeroOffset = FVector(-2600.f, -350.f, 260.f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Exploration")
-	FVector ExplorationKrakenOffset = FVector(2200.f, 0.f, 80.f);
+	FVector ExplorationKrakenOffset = FVector(2200.f, 450.f, 80.f);
 
 	// Valeurs PROVISOIRES et éditables : le joueur a précisé que les nombres cités à l'oral
 	// n'étaient que des exemples. Aucun de ces montants n'est considéré comme équilibrage final.
