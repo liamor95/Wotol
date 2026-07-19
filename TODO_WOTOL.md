@@ -168,6 +168,19 @@ Fait cette session (suite, meme jour) :
   (fonctionnalite gameplay, pas juste un ecran d'info, donc hors scope de ce passage).
   N'a pas non plus ete compile/teste (meme reserve que d'habitude).
 
+- MESSAGE DE FIN DE DEMO explicite sur l'ecran de resume, quand c'est reellement la fin
+  (victoire totale phase 3, OU defaite non recuperable) — PAS sur l'echec de defense
+  recuperable (bSummaryCanReturnToCity), qui relance la boucle et n'est pas une fin. Avant :
+  meme bandeau generique "Resume de la bataille" que les resumes intermediaires (Kraken
+  vaincu, rivale repoussee), aucune distinction claire du moment ou la demo se termine
+  vraiment. Trouve en comparant aux conventions des demos indépendantes (Steam/itch.io
+  marquent presque toujours ce moment). Changement minimal et sans risque : reutilise
+  exactement le meme bloc de rendu existant (texte noir gras multi-passes déjà centre
+  dynamiquement), seul le CONTENU du texte change selon bSummaryIsFinal && 
+  !bSummaryCanReturnToCity — aucune nouvelle geometrie/zone cliquable.
+- Verifie par la meme occasion : les numeros de degats flottants (WOTOLDamageNumber) existent
+  deja (convention standard du genre, feedback de combat lisible) — pas un manque.
+
 ## Idees de Liamor pour APRES la demo (meta-progression, hors scope actuel)
 
 Notees telles quelles pour ne rien perdre, mais PAS a implementer a l'aveugle - ce sont de

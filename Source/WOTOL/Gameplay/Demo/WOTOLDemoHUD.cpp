@@ -1503,7 +1503,16 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 		? (bWin ? TEXT("VICTOIRE") : TEXT("DEFAITE")) : Demo->SummaryTitle;
 	DrawGlowTitle(FString::Printf(TEXT("— %s —"), *Title), H * 0.06f, 2.8f, TitleCol);
 	const int32 Dur = FMath::RoundToInt(Demo->SummaryDurationSeconds);
-	const FString Sub = FString::Printf(TEXT("Resume de la bataille  —  duree : %d min %02d s"), Dur / 60, Dur % 60);
+	// Écran FINAL (victoire totale ou défaite non récupérable — PAS l'échec de défense
+	// récupérable, qui relance la boucle via "Réessayer/Retour à la cité") : message de fin
+	// de démo explicite. Absent jusqu'ici (même bandeau générique que les résumés
+	// intermédiaires) alors que les démos indépendantes marquent presque toutes clairement
+	// ce moment (cf. recherche session du 19/07/2026 sur les conventions Steam/itch.io).
+	const bool bTrueDemoEnd = Demo->bSummaryIsFinal && !Demo->bSummaryCanReturnToCity;
+	const FString Sub = bTrueDemoEnd
+		? FString::Printf(TEXT("FIN DE LA DEMO  —  duree totale : %d min %02d s  —  Merci d'avoir joue !"),
+			Dur / 60, Dur % 60)
+		: FString::Printf(TEXT("Resume de la bataille  —  duree : %d min %02d s"), Dur / 60, Dur % 60);
 	// NOIR GRAS, SANS ombre : dessiné sur le disque clair -> lisible. (L'ombre de DrawCenteredText
 	// rendait le noir sur noir illisible : on dessine donc en direct, plusieurs passes noires
 	// legerement decalees = effet GRAS, aucune ombre coloree.)
