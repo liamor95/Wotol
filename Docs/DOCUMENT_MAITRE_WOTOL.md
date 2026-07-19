@@ -111,22 +111,29 @@ Spéciale = pentagone · Mythique = cercle. Couleurs = factions. Respecter les t
 
 ---
 
-## 7. BOUCLE DE GAMEPLAY DE LA DÉMO (13 PHASES)
+## 7. BOUCLE DE GAMEPLAY DE LA DÉMO (13 PHASES — validation la plus récente)
 
-1. **Bataille tutorielle** Aquiloris vs Noxéens (caméra, déplacement, hauteurs, catégories, attaques).
-2. **Retour cité Aquiloris** — production, création/déblocage d'unités, préparation.
-3. **Monde ouvert** — zone neutre ~70 m² (prototype).
-4. **Approche créature** — à ~5–10 m, transition déclenche la bataille (zone ~100 m²).
-5. **Combat créature** (Kraken) — attaque activement, punit l'inaction, plusieurs patterns, battable.
-6. **Victoire** — fenêtre « Objectif rempli — Vous avez vaincu la créature », **clic pour continuer**.
-7. **Purification** — poser bâtiment **Cristalliseur** → un **Cœur-Éclat** apparaît/récupérable.
-8. **Récupération de l'œuf** de Léviaphénix (ou juvénile) — récompense principale.
-9. **Retour cité** — pas d'enchaînement brutal, message/objectif/bouton clair.
-10. **Contre-attaque noxéenne** — défendre le Cristalliseur.
-11. **Gestion du bâtiment** — réparable contre cristaux s'il est endommagé mais debout ; bonus atk/def tant qu'actif.
-12. **Défaite défensive** — destruction du bâtiment = **échec immédiat**, zone redevient neutre.
-    Les Noxéens ne posent PAS leur bâtiment, pas de phase d'occupation ennemie en v0.8.
-13. **Fin de démo** — retour cité, message de conclusion, fin propre.
+1. **Configuration** — choix de faction, difficulté et réglages ; rien ne démarre avant le clic
+   explicite du joueur sur **« Lancer la partie »**.
+2. **Chargement / introduction** — visuel animé, lore de la faction choisie et contexte : une
+   expédition vient de découvrir une nouvelle zone.
+3. **Exploration en troisième personne** — nage libre 3D, tutoriel ZQSD/souris/rotation/hauteur.
+4. **Approche du Kraken** — à ~5–10 m, chargement puis phase de placement de l'armée.
+5. **Bataille tutorielle contre le Kraken** — catégories, ordres, verticalité et créature active.
+6. **Rapport de victoire** — pertes/statistiques + récompenses séparées : cristaux, matériaux
+   abyssaux, biomasse et nourriture ; le joueur clique pour continuer.
+7. **Retour en nage libre / conquête** — nouvel objectif modal ; choisir le Cristalliseur dans
+   l'inventaire de bâtiments et le poser sur l'emplacement central signalé. Coût réellement retiré.
+8. **Territoire acquis** — terraformation au biome de faction, bonus attaque/défense et capacité
+   d'armée ; Cœur-Éclat puis œuf/juvénile mythique récupérés.
+9. **Retour cité volontaire** — bouton dédié ; vue isométrique fixe, bâtiments visibles et cliquables.
+10. **Développement de la cité** — construire le bâtiment des unités à distance (Akisfères pour
+    Aquiloris), payer son coût puis produire 10 unités ; limite d'armée de démo visée : 35.
+11. **Alerte noxéenne** — la faction rivale se dirige vers la zone nouvellement conquise ; le joueur
+    décide de partir défendre le Cristalliseur.
+12. **Défense / défaite** — bâtiment réparable et bonus tant qu'actif ; destruction = échec immédiat,
+    territoire neutre, aucun bâtiment noxéen posé en v0.8.
+13. **Fin de démo** — retour cité, message de conclusion et sortie propre.
 
 > **Règle transversale :** aucune transition automatique quand elle nuit à la caméra/compréhension/rythme.
 > Utiliser fenêtres d'objectif, boutons cliquables, messages victoire/échec, validation manuelle,
@@ -267,6 +274,29 @@ compat UE 5.8 vérifiée, code relu.
 **Ne pas s'éparpiller** dans toutes les factions / la carte mondiale / les assets finaux avant que
 la boucle soit stable. La démo doit prouver : combat en volume, lisibilité des unités, caméra
 agréable, conquête compréhensible, enjeu de défense, identité visuelle/stratégique distincte.
+
+### État d'implémentation de la boucle cité/défense (19/07/2026)
+- Pose du Cristalliseur/Abyssalyseur : inventaire, emplacement 3D signalé, validation spatiale,
+  paiement atomique et conservation du même acteur jusqu'à la défense.
+- Cité : construction du bâtiment de distance sur 3 parcelles, puis production obligatoire de
+  10 Akisfères/Nox Blast ; compteur d'objectif et plafond d'armée de démonstration à 35.
+- Protection anti-blocage : les places d'armée et les cristaux nécessaires à l'objectif restent
+  réservés tant que les 10 unités ne sont pas produites.
+- La 10e unité ouvre l'alerte de contre-attaque noxéenne ; le départ en défense reste un clic
+  explicite. Les valeurs de coûts/récompenses utilisées sont des paramètres greybox provisoires.
+
+### Pertes validées par difficulté — phases 1 et 2 (19/07/2026)
+
+| Rencontre | Facile | Normal | Difficile |
+|---|---:|---:|---:|
+| Kraken, armée de 16 | 2–3 | 5 | 10, donc 6 survivants |
+| Défense, armée de 35 | 7–8 | environ 15 (plage 14–16) | plage 15–20, cible 18 |
+
+Ces résultats doivent rester valables avec Aquiloris ou Noxéens. Le réglage est dynamique : le
+Director réévalue les pertes, les effectifs et l'état ennemi en temps réel, puis module uniquement
+des correcteurs adaptatifs séparés. Il ne remplace ni les statistiques sources, ni les bonus de
+faction, ni les choix tactiques du joueur. Les victimes et le moment des pertes restent émergents ;
+les garde-fous empêchent seulement une victoire avant le minimum ou des pertes au-delà du maximum.
 
 ---
 

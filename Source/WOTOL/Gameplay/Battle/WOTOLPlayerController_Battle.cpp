@@ -152,9 +152,10 @@ void AWOTOLPlayerController_Battle::ChangeLayerForSelection(float DeltaZ)
 	}
 }
 
-void AWOTOLPlayerController_Battle::PickFactionAndPrepare(EFactionID Faction)
+void AWOTOLPlayerController_Battle::SelectFaction(EFactionID Faction)
 {
-	// Source fiable = le subsystem (toujours présent), pas seulement le GameInstance.
+	// La faction est seulement MÉMORISÉE ici. Le joueur peut encore changer la difficulté
+	// et ses réglages ; rien ne démarre avant son clic explicite sur « Lancer la partie ».
 	if (UDemoFlowSubsystem* Demo = GetGameInstance()
 			? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr)
 	{
@@ -165,10 +166,6 @@ void AWOTOLPlayerController_Battle::PickFactionAndPrepare(EFactionID Faction)
 		GI->SessionConfig.SelectedFaction = Faction;
 	}
 	SetPlayerFaction(Faction);
-	if (AWOTOLDemoDirector* Dir = GetDemoDirector())
-	{
-		Dir->BeginPreparation();
-	}
 }
 
 bool AWOTOLPlayerController_Battle::HandleUIClick()
@@ -196,23 +193,136 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		return true;
 	}
 
+	// ── Exploration post-Kraken : inventaire -> cible lumineuse dans le monde ──
+	if (Screen == EDemoScreen::Exploration)
+	{
+		if (AWOTOLDemoDirector* Dir = GetDemoDirector())
+		{
+			if (Dir->IsCrystalliserPlacementAvailable()
+				&& AWOTOLDemoHUD::ExplorationCrystalliserButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+			{
+				Dir->ArmCrystalliserPlacement();
+				return true;
+			}
+			if (Dir->IsCrystalliserPlacementArmed())
+			{
+				FVector WorldPoint;
+				if (GetWorldLocationOnHorizontalPlane(M,
+					Dir->GetCrystalliserPlacementLocation().Z, WorldPoint))
+				{
+					Dir->TryPlaceCrystalliserAt(WorldPoint);
+				}
+				return true;
+			}
+		}
+		return false; // hors placement, la nage et la caméra gardent les entrées
+	}
+
+	// ── Gestion du territoire : réparation, pose spatiale des tourelles, garnison ──
+	if (Screen == EDemoScreen::Territory)
+	{
+		AWOTOLDemoDirector* Dir = GetDemoDirector();
+		if (!Demo || !Dir) return true;
+		if (AWOTOLDemoHUD::TerritoryRepairButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+		{
+			Dir->RequestTerritoryRepair();
+			return true;
+		}
+		if (AWOTOLDemoHUD::TerritoryDefenseButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+		{
+			Dir->ArmDefensePlacement();
+			return true;
+		}
+		const EDemoUnitCategory Cats[3] = {
+			EDemoUnitCategory::Infanterie, EDemoUnitCategory::Montee,
+			EDemoUnitCategory::Distance };
+		for (int32 i = 0; i < 3; ++i)
+		{
+			if (AWOTOLDemoHUD::TerritoryGarrisonMinusRect(i, VpSize.X, VpSize.Y).IsInside(M))
+			{
+				Dir->RequestRemoveGarrisonByCategory(Cats[i]);
+				return true;
+			}
+			if (AWOTOLDemoHUD::TerritoryGarrisonPlusRect(i, VpSize.X, VpSize.Y).IsInside(M))
+			{
+				Dir->RequestAssignGarrisonByCategory(Cats[i]);
+				return true;
+			}
+		}
+		if (AWOTOLDemoHUD::TerritoryReturnCityButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+		{
+			Dir->ReturnToCityAfterTerritorySecured();
+			return true;
+		}
+		if (Dir->IsDefensePlacementArmed())
+		{
+			float PlaneZ = 0.f;
+			if (AActor* Building = Demo->GetCaptureObject())
+				PlaneZ = Building->GetActorLocation().Z - 190.f;
+			FVector WorldPoint;
+			if (GetWorldLocationOnHorizontalPlane(M, PlaneZ, WorldPoint))
+				Dir->TryPlaceDefenseAt(WorldPoint);
+			return true;
+		}
+		return true;
+	}
+
 	// ── Vue CITÉ : cartes de production + bouton d'expédition ──
 	if (Screen == EDemoScreen::City)
 	{
 		if (Demo)
 		{
+			if (Demo->GetProgress().bDefenseSystemInstalled
+				&& !Demo->GetProgress().bMythicPlayable
+				&& AWOTOLDemoHUD::CityFeedMythicButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+			{
+				if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->FeedMythicAndContinue();
+				return true;
+			}
+			if (Demo->IsCityBuildingPlacementArmed())
+			{
+				for (int32 Plot = 0; Plot < 3; ++Plot)
+				{
+					if (AWOTOLDemoHUD::CityBuildPlotRect(Plot, VpSize.X, VpSize.Y).IsInside(M))
+					{
+						if (Demo->ConstructRangedBuildingAtPlot(Plot))
+						{
+							Demo->SetObjective(TEXT("Batiment construit — produisez maintenant 10 unites a distance"));
+						}
+						return true;
+					}
+				}
+			}
 			for (int32 i = 0; i < AWOTOLDemoHUD::CityCardCount(); ++i)
 			{
+				const EDemoUnitCategory Cat = AWOTOLDemoHUD::CityCardCategory(i);
 				// Bandeau HAUT de la carte = améliorer le bâtiment (niv. bâtiment -> niv. unités).
 				if (AWOTOLDemoHUD::CityCardUpgradeRect(i, VpSize.X, VpSize.Y).IsInside(M))
 				{
-					Demo->UpgradeBuilding(AWOTOLDemoHUD::CityCardCategory(i));
+					if (Cat == EDemoUnitCategory::Distance && !Demo->IsRangedBuildingConstructed())
+						Demo->ArmRangedBuildingPlacement();
+					else
+						Demo->UpgradeBuilding(Cat);
 					return true;
 				}
 				// Reste de la carte = produire une unité.
 				if (AWOTOLDemoHUD::CityCardRect(i, VpSize.X, VpSize.Y).IsInside(M))
 				{
-					Demo->ProduceUnit(AWOTOLDemoHUD::CityCardCategory(i));
+					if (Cat == EDemoUnitCategory::Distance && !Demo->IsRangedBuildingConstructed())
+					{
+						Demo->ArmRangedBuildingPlacement();
+					}
+					else if (Demo->ProduceUnit(Cat))
+					{
+						Demo->SetObjective(FString::Printf(TEXT("Produisez 10 unites a distance : %d / %d"),
+							Demo->GetRangedProductionProgress(), Demo->RangedProductionTarget));
+						if (Cat == EDemoUnitCategory::Distance
+							&& Demo->IsRangedProductionObjectiveComplete())
+						{
+							if (AWOTOLDemoDirector* Dir = GetDemoDirector())
+								Dir->NotifyRangedProductionObjectiveComplete();
+						}
+					}
 					return true;
 				}
 			}
@@ -225,14 +335,14 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 			{
 				// Part en expédition : le Director lance la défense du Cristalliseur (phase 10),
 				// en déployant aussi les unités produites en cité (réserve).
-				if (AWOTOLDemoDirector* Dir = GetDemoDirector())
+				if (Demo->IsDefenseMissionReady())
 				{
-					Dir->LaunchDefenseFromCity();
+					if (AWOTOLDemoDirector* Dir = GetDemoDirector())
+					{
+						Dir->LaunchDefenseFromCity();
+					}
 				}
-				else
-				{
-					Demo->SetScreen(EDemoScreen::Playing);
-				}
+				return true;
 			}
 		}
 		return true; // la cité capte tout clic
@@ -299,11 +409,16 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 
 		if (AWOTOLDemoHUD::FactionButtonRect(0, VpSize.X, VpSize.Y).IsInside(M))
 		{
-			PickFactionAndPrepare(EFactionID::Aquiloris);
+			SelectFaction(EFactionID::Aquiloris);
 		}
 		else if (AWOTOLDemoHUD::FactionButtonRect(1, VpSize.X, VpSize.Y).IsInside(M))
 		{
-			PickFactionAndPrepare(EFactionID::Noxeens);
+			SelectFaction(EFactionID::Noxeens);
+		}
+		else if (AWOTOLDemoHUD::FactionLaunchButtonRect(VpSize.X, VpSize.Y).IsInside(M)
+			&& Demo && Demo->SelectedFaction != EFactionID::None)
+		{
+			if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->StartDemoAfterSelection();
 		}
 		return true;
 	}
@@ -320,7 +435,11 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 			}
 			else if (AWOTOLDemoHUD::SummaryChangeFactionButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 			{
-				if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->RestartDemo(false);
+				if (AWOTOLDemoDirector* Dir = GetDemoDirector())
+				{
+					if (Demo->bSummaryCanReturnToCity) Dir->ReturnToCityAfterDefenseDefeat();
+					else Dir->RestartDemo(false);
+				}
 			}
 			else if (AWOTOLDemoHUD::SummaryMenuButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 			{
@@ -335,7 +454,7 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		{
 			if (AWOTOLDemoHUD::SummaryContinueButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 			{
-				if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->ShowInterlude();
+				if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->ContinueFromBattleSummary();
 			}
 		}
 		return true; // tout clic est consommé par l'écran de résumé
@@ -410,6 +529,19 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		return true; // menu ouvert : tout clic est consommé par le menu
 	}
 	return false;
+}
+
+bool AWOTOLPlayerController_Battle::GetWorldLocationOnHorizontalPlane(
+	const FVector2D& ScreenPosition, float PlaneZ, FVector& OutLocation) const
+{
+	FVector RayOrigin, RayDirection;
+	if (!DeprojectScreenPositionToWorld(
+		ScreenPosition.X, ScreenPosition.Y, RayOrigin, RayDirection)) return false;
+	if (FMath::Abs(RayDirection.Z) < KINDA_SMALL_NUMBER) return false;
+	const float T = (PlaneZ - RayOrigin.Z) / RayDirection.Z;
+	if (T < 0.f) return false;
+	OutLocation = RayOrigin + RayDirection * T;
+	return true;
 }
 
 bool AWOTOLPlayerController_Battle::HandleCommandBarClick(bool bDoubleClick)

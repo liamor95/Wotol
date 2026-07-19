@@ -26,6 +26,7 @@ enum class EDemoPhase : uint8
 	Exploration_Rival     UMETA(DisplayName = "Alerte — zone attaquée"),
 	Battle_Rival          UMETA(DisplayName = "Bataille — défense rivale"),
 	Repair_Zone           UMETA(DisplayName = "Réparation de la zone"),
+	Territory_Management  UMETA(DisplayName = "Gestion du territoire"),
 	Battle_Grand          UMETA(DisplayName = "Bataille — grande (phase 3, zone neutre)"),
 	DemoEnd               UMETA(DisplayName = "Fin de démo")
 };
@@ -53,7 +54,9 @@ enum class EDemoScreen : uint8
 	City          UMETA(DisplayName = "Cité (production Aquiloris)"),
 	WorldMap      UMETA(DisplayName = "Monde ouvert / carte"),
 	Loading       UMETA(DisplayName = "Écran de chargement"),
-	Skills        UMETA(DisplayName = "Compétences (arbre / axes)")
+	Skills        UMETA(DisplayName = "Compétences (arbre / axes)"),
+	Exploration   UMETA(DisplayName = "Exploration — nage libre 3D"),
+	Territory     UMETA(DisplayName = "Gestion du territoire")
 };
 
 // Ligne de résumé : pertes d'un type d'unité (nom + perdus / total) pour une faction.
@@ -99,6 +102,7 @@ struct FDemoProgress
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadOnly) bool bRangedUnlocked        = false; // Aquisphères / Noxeblast
+	UPROPERTY(BlueprintReadOnly) bool bRangedBuildingConstructed = false;
 	UPROPERTY(BlueprintReadOnly) bool bMythicDiscovered      = false; // juvénile découvert
 	UPROPERTY(BlueprintReadOnly) bool bMythicBuildingUnlocked = false;
 	UPROPERTY(BlueprintReadOnly) bool bRecruitBuildingActive = false;
@@ -106,6 +110,14 @@ struct FDemoProgress
 	UPROPERTY(BlueprintReadOnly) bool bZoneDamaged           = false; // attaquée par la rivale
 	UPROPERTY(BlueprintReadOnly) bool bZoneRepaired          = false;
 	UPROPERTY(BlueprintReadOnly) bool bAllUnlocked           = false; // phase 3 : spéciale + mythique débloquées
+	UPROPERTY(BlueprintReadOnly) bool bRivalAlertShown       = false;
+	UPROPERTY(BlueprintReadOnly) bool bDefenseMissionReady   = false;
+	UPROPERTY(BlueprintReadOnly) bool bZoneThreatened        = false;
+	UPROPERTY(BlueprintReadOnly) bool bZoneLost              = false;
+	UPROPERTY(BlueprintReadOnly) bool bDefenseSystemInstalled = false;
+	UPROPERTY(BlueprintReadOnly) bool bBiomassGoalReached    = false;
+	UPROPERTY(BlueprintReadOnly) bool bMythicPlayable        = false;
+	UPROPERTY(BlueprintReadOnly) bool bMythicGiftPending     = false;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDemoPhaseChanged,
@@ -224,9 +236,54 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
 	bool bSummaryIsFinal = false;
 
+	// Une défaite de défense propose une issue utile : rejouer immédiatement ou revenir à
+	// la cité. Le bâtiment encore debout reste contesté pendant la fenêtre de réaction.
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
+	bool bSummaryCanReturnToCity = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
+	bool bSummaryBuildingDestroyed = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
+	FString SummaryContinueLabel;
+
 	// Réinitialise la progression (déblocages) pour rejouer la démo depuis le début.
 	UFUNCTION(BlueprintCallable, Category = "Demo")
-	void ResetProgress() { Progress = FDemoProgress(); CurrentPhase = EDemoPhase::None; PlayerCrystals = 0; ReserveUnits.Empty(); BuildingLevels.Empty(); UnitAxes.Empty(); }
+	void ResetProgress()
+	{
+		Progress = FDemoProgress();
+		CurrentPhase = EDemoPhase::None;
+		PlayerCrystals = 0;
+		PlayerAbyssalMaterials = 0;
+		PlayerBiomass = 0;
+		PlayerFood = 0;
+		LastRewardCrystals = 0;
+		LastRewardAbyssalMaterials = 0;
+		LastRewardBiomass = 0;
+		LastRewardFood = 0;
+		ReserveUnits.Empty();
+		BuildingLevels.Empty();
+		UnitAxes.Empty();
+		TotalProducedUnits = 0;
+		RangedUnitsProducedForObjective = 0;
+		RangedBuildingPlotIndex = INDEX_NONE;
+		bCityBuildingPlacementArmed = false;
+		TerritoryBuildingCurrentHealth = TerritoryBuildingMaxHealth;
+		TerritoryGrade = 1;
+		InstalledDefenseCount = 0;
+		DefenseTechnologyLevel = 1;
+		GarrisonUnits = 0;
+		InstalledDefenseSlots.Empty();
+		GarrisonByUnit.Empty();
+		ZoneDefenseWindowRemainingSeconds = 0.f;
+		HeroLevel = 1;
+		HeroXP = 0;
+		CityLevel = 1;
+		CityXP = 0;
+		bSummaryCanReturnToCity = false;
+		bSummaryBuildingDestroyed = false;
+		SummaryContinueLabel.Empty();
+	}
 
 	// Difficulté choisie (défaut Normal = l'équilibrage de référence).
 	UPROPERTY(BlueprintReadOnly, Category = "Demo")
@@ -285,16 +342,268 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
 	int32 PlayerCrystals = 0;
 
+	// Ressources de mission distinctes. Les valeurs d'équilibrage restent réglables dans le
+	// Director ; le subsystem ne fait que conserver le solde entre exploration, bataille et cité.
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	int32 PlayerAbyssalMaterials = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	int32 PlayerBiomass = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	int32 PlayerFood = 0;
+
+	// Dernier lot gagné : affiché sur le résumé de bataille, sans inventer de conversion entre
+	// les ressources. Remis à zéro au début d'une nouvelle récompense.
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
+	int32 LastRewardCrystals = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
+	int32 LastRewardAbyssalMaterials = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
+	int32 LastRewardBiomass = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
+	int32 LastRewardFood = 0;
+
 	// Unités produites en cité, en attente de déploiement à la bataille suivante
 	// (clé = ID d'unité canonique, valeur = nombre en réserve).
 	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
 	TMap<FName, int32> ReserveUnits;
+
+	// La phase 2 commence avec chef + 16 fantassins + 8 montés = 25 unités. Les 10 unités
+	// à distance demandées remplissent donc exactement le plafond de 35. Les places requises
+	// par cet objectif sont toujours réservées pour éviter un blocage de progression.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|City", meta = (ClampMin = "1"))
+	int32 MaxArmyUnits = 35;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|City", meta = (ClampMin = "0"))
+	int32 InitialArmyUnits = 25;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|City", meta = (ClampMin = "1"))
+	int32 RangedProductionTarget = 10;
+
+	// Coûts PROVISOIRES et éditables du bâtiment Akisfères / Noxeblast.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|City", meta = (ClampMin = "0"))
+	int32 RangedBuildingCrystalCost = 300;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|City", meta = (ClampMin = "0"))
+	int32 RangedBuildingAbyssalMaterialCost = 25;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	int32 TotalProducedUnits = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	int32 RangedUnitsProducedForObjective = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	int32 RangedBuildingPlotIndex = INDEX_NONE;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	bool bCityBuildingPlacementArmed = false;
 
 	UFUNCTION(BlueprintPure, Category = "Demo|City")
 	int32 GetCrystals() const { return PlayerCrystals; }
 
 	UFUNCTION(BlueprintCallable, Category = "Demo|City")
 	void AddCrystals(int32 Amount) { PlayerCrystals = FMath::Max(0, PlayerCrystals + Amount); }
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|City")
+	void GrantMissionRewards(int32 Crystals, int32 AbyssalMaterials, int32 Biomass, int32 Food);
+
+	// ─── TERRITOIRE : réparation, défenses, garnison, alerte ──────────────────
+	// La réparation maximale coûte seulement une fraction du prix de construction ; le coût
+	// réel est proportionnel aux PV manquants et arrondi au supérieur.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Territory", meta = (ClampMin = "0"))
+	int32 FullRepairCrystalCost = 13;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Territory", meta = (ClampMin = "0"))
+	int32 FullRepairAbyssalMaterialCost = 8;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Territory", meta = (ClampMin = "0"))
+	int32 DefenseInstallCrystalCost = 120;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Territory", meta = (ClampMin = "0"))
+	int32 DefenseInstallAbyssalMaterialCost = 12;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Territory", meta = (ClampMin = "1", ClampMax = "5"))
+	int32 MaxTerritoryGrade = 5;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Territory", meta = (ClampMin = "60.0"))
+	float ZoneDefenseReactionWindowSeconds = 1200.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Mythic", meta = (ClampMin = "1"))
+	int32 MythicGrowthBiomassGoal = 100;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Territory")
+	float TerritoryBuildingMaxHealth = 16000.f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Territory")
+	float TerritoryBuildingCurrentHealth = 16000.f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Territory")
+	int32 TerritoryGrade = 1;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Territory")
+	int32 InstalledDefenseCount = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Territory")
+	int32 DefenseTechnologyLevel = 1;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Territory")
+	int32 GarrisonUnits = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Territory")
+	TArray<int32> InstalledDefenseSlots;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Territory")
+	TMap<FName, int32> GarrisonByUnit;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Territory")
+	float ZoneDefenseWindowRemainingSeconds = 0.f;
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	void SnapshotTerritoryBuilding(float CurrentHealth, float MaxHealth);
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Territory")
+	float GetTerritoryHealthPercent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Territory")
+	int32 GetRepairCrystalCost() const;
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Territory")
+	int32 GetRepairAbyssalMaterialCost() const;
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Territory")
+	bool CanRepairTerritory() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	bool RepairTerritory();
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Territory")
+	int32 GetDefenseCapacity() const { return FMath::Clamp(TerritoryGrade, 1, MaxTerritoryGrade); }
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Territory")
+	bool CanInstallNextDefense() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	bool InstallNextDefense();
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Territory")
+	bool CanInstallDefenseAtSlot(int32 SlotIndex) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	bool InstallDefenseAtSlot(int32 SlotIndex);
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Territory")
+	int32 GetGarrisonCapacity() const { return FMath::Clamp(TerritoryGrade * 2, 0, 10); }
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Territory")
+	bool CanAssignGarrisonUnit() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	bool AssignGarrisonUnit();
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Territory")
+	int32 GetGarrisonCount(FName UnitID) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	bool AssignGarrisonUnitByID(FName UnitID);
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	bool RemoveGarrisonUnitByID(FName UnitID);
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	void StartZoneThreat();
+
+	// Renvoie vrai si le délai vient d'expirer.
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	bool TickZoneThreat(float DeltaSeconds);
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	void MarkZoneLost();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	void ResolveZoneThreat();
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Mythic")
+	bool HasEnoughBiomassForMythic() const { return PlayerBiomass >= MythicGrowthBiomassGoal; }
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Mythic")
+	void RefreshBiomassGoal();
+
+	// ─── PROGRESSION HÉROS / CITÉ / MYTHIQUE ─────────────────────────────────
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Progression", meta = (ClampMin = "1"))
+	int32 HeroXPPerLevel = 100;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Progression", meta = (ClampMin = "1"))
+	int32 CityXPPerLevel = 100;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Progression")
+	int32 HeroLevel = 1;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Progression")
+	int32 HeroXP = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Progression")
+	int32 CityLevel = 1;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Progression")
+	int32 CityXP = 0;
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Progression")
+	void GrantProgressionXP(int32 HeroAmount, int32 CityAmount);
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Progression")
+	float GetHeroXPPercent() const;
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Progression")
+	float GetCityXPPercent() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Mythic")
+	bool FeedMythicForGrowth();
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	bool CanAffordTerritoryBuilding(int32 CrystalCost, int32 AbyssalMaterialCost) const;
+
+	// Dépense atomique : aucune ressource n'est retirée si l'un des deux soldes est insuffisant.
+	UFUNCTION(BlueprintCallable, Category = "Demo|City")
+	bool SpendTerritoryBuildingCost(int32 CrystalCost, int32 AbyssalMaterialCost);
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|City")
+	bool ArmRangedBuildingPlacement();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|City")
+	bool ConstructRangedBuildingAtPlot(int32 PlotIndex);
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	bool IsRangedBuildingConstructed() const { return Progress.bRangedBuildingConstructed; }
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	bool IsCityBuildingPlacementArmed() const { return bCityBuildingPlacementArmed; }
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	int32 GetArmyUnitCount() const { return FMath::Max(0, InitialArmyUnits + TotalProducedUnits - GarrisonUnits); }
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	int32 GetArmyUnitCap() const { return MaxArmyUnits; }
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	int32 GetRangedProductionProgress() const { return RangedUnitsProducedForObjective; }
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	bool IsRangedProductionObjectiveComplete() const
+	{
+		return RangedUnitsProducedForObjective >= RangedProductionTarget;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	bool IsDefenseMissionReady() const { return Progress.bDefenseMissionReady; }
+
+	void MarkRivalAlertShown() { Progress.bRivalAlertShown = true; }
+	void SetDefenseMissionReady(bool bReady) { Progress.bDefenseMissionReady = bReady; }
+	bool WasRivalAlertShown() const { return Progress.bRivalAlertShown; }
 
 	// Coût en cristaux pour produire une unité de cette catégorie (0 = non productible ici).
 	UFUNCTION(BlueprintPure, Category = "Demo|City")
@@ -384,6 +693,8 @@ public:
 	FOnObjectiveConfirmed OnObjectiveConfirmed;
 
 private:
+	int32 GetRequiredCrystalReserveForRangedObjective() const;
+
 	TWeakObjectPtr<AActor> BossActor;
 	TWeakObjectPtr<AActor> CaptureObjectActor;
 
