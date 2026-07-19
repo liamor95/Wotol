@@ -43,8 +43,12 @@ Fait cette session (19/07/2026, en plus de la fusion agent/connect-exploration-f
     dans UnitDataLibrary.cpp (nom, cooldown) ; seul Damage est derive de AttackDPS x2.5
     (placeholder de demo, clairement commente comme tel).
   - Touche R (AWOTOLPlayerController_Battle::ActivateSelectionAbility) : active la competence
-    de chaque unite selectionnee sur l'ennemi vivant le plus proche a portee. HUD : petit
-    panneau "Pret (R)" / "Recharge : Xs" pour l'unite primaire selectionnee (DrawAbilityStatus).
+    de chaque unite selectionnee. CIBLAGE : priorite a l'ennemi vivant sous le CURSEUR
+    (focus fire manuel, demande par Liamor - ex. tir laser qui depasse l'ennemi le plus
+    proche pour abattre une cible plus importante derriere) ; repli automatique sur l'ennemi
+    le plus proche PAR UNITE si rien sous le curseur ou hors de portee pour cette unite.
+    HUD : petit panneau "Pret (R)" / "Recharge : Xs" pour l'unite primaire selectionnee
+    (DrawAbilityStatus).
   - AVANT cette session : le joueur n'avait AUCUN moyen d'activer une competence (seule l'IA
     ennemie utilisait ActivateAbility, via AIAdaptiveController) — trouve en comparant avec les
     demos historiques de jeux de reference (XCOM, Company of Heroes, Warcraft III : toutes
@@ -66,3 +70,21 @@ Encore a faire (releve pendant cette session, pas encore code) :
   dans les docs).
 - Bâtiments de defense (tourelles) : verifier qu'elles utilisent bien ce meme systeme
   d'ability une fois en jeu, ou si elles ont leur propre logique de tir (WOTOLDefenseStructure).
+
+## Idees de Liamor pour APRES la demo (meta-progression, hors scope actuel)
+
+Notees telles quelles pour ne rien perdre, mais PAS a implementer a l'aveugle - ce sont de
+vrais systemes de conception qui meritent une vraie session de design, pas un ajout ponctuel :
+
+- **Formations de combat entre unites** (image donnee : tactiques foot 4-4-2 / 5-3-1...) :
+  des formations/dispositions debloquees progressivement, dependantes des types d'unites
+  deja debloquees (une formation utilisant les Akisferes n'est possible qu'une fois le
+  batiment distance construit, etc.).
+- **Progression/niveau des unites** avec choix de competences a debloquer par unite au fil
+  de la partie (au-dela du simple Axe 1/Axe 2 deja prevu pour les competences de base).
+- Les deux doivent evoluer "au meme rythme" que la progression du joueur (batiments,
+  experience du heros) - donc lies au systeme de progression de la cite deja en place
+  (UDemoFlowSubsystem::BuildingLevels, GetBuildingLevel/UpgradeBuilding).
+
+A rediscuter avec Liamor avant de coder quoi que ce soit ici : portee, nombre de formations
+pour la demo, quelles unites/batiments debloquent quoi.

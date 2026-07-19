@@ -1035,9 +1035,14 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 	}
 }
 
-// Touche R : chaque unité sélectionnée avec une compétence prête l'active sur l'ennemi
-// vivant le plus proche À PORTÉE. Une unité sans cible à portée ou en recharge est
-// silencieusement ignorée (pas de gaspillage, pas de message d'erreur intrusif).
+// Touche R : chaque unité sélectionnée avec une compétence prête l'active sur une cible
+// À PORTÉE. Priorité au CIBLAGE MANUEL : si le curseur survole un ennemi vivant, TOUTES
+// les unités sélectionnées (dont il est à portée) frappent CETTE cible — permet de
+// concentrer les compétences sur une cible précise (ex. tir laser qui dépasse l'ennemi
+// le plus proche pour abattre une unité plus importante derrière) plutôt que de toujours
+// taper le plus proche. Sans cible sous le curseur (ou hors de portée pour une unité
+// donnée), repli automatique sur l'ennemi vivant le plus proche de CETTE unité.
+// Une unité sans cible valide à portée ou en recharge est silencieusement ignorée.
 void AWOTOLPlayerController_Battle::ActivateSelectionAbility()
 {
 	UUnitSelectionManager* SelectionMgr = GetSelectionManager();
@@ -1050,20 +1055,36 @@ void AWOTOLPlayerController_Battle::ActivateSelectionAbility()
 		? EFactionID::Aquiloris : EFactionID::Noxeens;
 	const TArray<AUnitBase*> Enemies = Reg->GetUnitsForFaction(RivalFaction);
 
+	// Ciblage manuel : ennemi vivant sous le curseur, s'il y en a un (focus fire).
+	AUnitBase* ManualTarget = GetUnitUnderCursor();
+	if (ManualTarget && (!ManualTarget->IsAlive() || ManualTarget->GetFaction() != RivalFaction))
+	{
+		ManualTarget = nullptr; // sous le curseur : allié, cadavre, ou décor -> pas une cible valide
+	}
+
 	for (AUnitBase* Unit : SelectionMgr->GetSelectedUnits())
 	{
 		if (!Unit || !Unit->IsAlive() || !Unit->AbilityComp) continue;
 		UAbilityBase* Ability = Unit->AbilityComp->GetAbilityByIndex(0);
 		if (!Ability || Ability->IsOnCooldown()) continue;
 
-		AUnitBase* BestTarget = nullptr;
-		float BestDistSq = FMath::Square(Ability->Range);
 		const FVector From = Unit->GetActorLocation();
-		for (AUnitBase* Enemy : Enemies)
+		const float RangeSq = FMath::Square(Ability->Range);
+
+		AUnitBase* BestTarget = nullptr;
+		if (ManualTarget && FVector::DistSquared(From, ManualTarget->GetActorLocation()) <= RangeSq)
 		{
-			if (!Enemy || !Enemy->IsAlive()) continue;
-			const float DistSq = FVector::DistSquared(From, Enemy->GetActorLocation());
-			if (DistSq < BestDistSq) { BestDistSq = DistSq; BestTarget = Enemy; }
+			BestTarget = ManualTarget;
+		}
+		else
+		{
+			float BestDistSq = RangeSq;
+			for (AUnitBase* Enemy : Enemies)
+			{
+				if (!Enemy || !Enemy->IsAlive()) continue;
+				const float DistSq = FVector::DistSquared(From, Enemy->GetActorLocation());
+				if (DistSq < BestDistSq) { BestDistSq = DistSq; BestTarget = Enemy; }
+			}
 		}
 		if (!BestTarget) continue; // rien à portée -> ne consomme pas la recharge pour rien
 
