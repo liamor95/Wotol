@@ -3,7 +3,7 @@
 **Version de consolidation : 17 juillet 2026**
 **Statut : SOURCE DE VÉRITÉ v0.8.** En cas de conflit avec `CLAUDE.md`, **ce document prévaut**
 pour tout ce qui touche au canon (noms, couleurs, tailles, boucle de jeu). `CLAUDE.md` reste
-la référence pour les règles techniques de build (UE 5.7.4, conventions UHT, anti-bugs).
+la référence pour les règles techniques de build (UE 5.8, conventions UHT, anti-bugs).
 
 ---
 
@@ -179,7 +179,7 @@ fonctionnels pour la Nox Beast**. Animations tenant compte de la **flottabilité
 ---
 
 ## 14. TECHNOLOGIE
-UE5 (compat 5.7), **C++**, caméra libre, ZQSD, nage en volume, déplacement vertical, batailles temps réel,
+UE5 (5.8, migration 18/07/2026), **C++**, caméra libre, ZQSD, nage en volume, déplacement vertical, batailles temps réel,
 transitions monde ouvert ↔ combat, données d'unités structurées. Tableur Excel = référence chiffrée.
 **Build autonome** (exécutable indépendant, sans UE sur la machine du joueur).
 
@@ -262,7 +262,7 @@ Windows 10 Home, **NVIDIA GTX** (pilote 472.84). Erreur **« Video memory exhaus
 Transformer la greybox en **démo stable et présentable** (cible **Pictanovo, 1er sept. 2026**) :
 boucle complète fonctionnelle, sans blocage, caméra contrôlable, objectifs lisibles, tuto → cité →
 exploration → créature → Cristalliseur → œuf → défense → victoire/défaite, **build autonome**,
-compat UE 5.7 vérifiée, code relu.
+compat UE 5.8 vérifiée, code relu.
 
 **Ne pas s'éparpiller** dans toutes les factions / la carte mondiale / les assets finaux avant que
 la boucle soit stable. La démo doit prouver : combat en volume, lisibilité des unités, caméra
@@ -285,6 +285,6 @@ cités des autres factions · plan de production matériel · frontière exacte 
 ## 21. WORKFLOW COLLABORATIF (§19 du doc)
 
 Mutualisation ChatGPT ↔ Claude Code via **GitHub comme intermédiaire** (les deux IA ne communiquent
-pas directement). Claude développe et pousse → ChatGPT relit, signale les incompat UE 5.7, corrige
+pas directement). Claude développe et pousse → ChatGPT relit, signale les incompat UE 5.8, corrige
 bugs/oublis → chaque itération vérifiée des deux côtés. Dépôt : `github.com/liamor95/Wotol`.
 → Corollaire code : **commits clairs et bien décrits** (déjà appliqué), pour faciliter la relecture externe.

@@ -22,7 +22,7 @@
 ### A2 — Version de moteur incompatible
 - **Symptôme** : fenêtre « select engine version » ou échec de conversion.
 - **Cause** : `"EngineAssociation"` ne correspond pas à la version installée.
-- **Correction** : mettre la version installée (ex. `"5.7"`) dans le `.uproject`.
+- **Correction** : mettre la version installée (ex. `"5.8"`) dans le `.uproject`.
 - **Prévention** : vérifier la version dans Epic Games Launcher → Library AVANT.
 
 ### A3 — Visual Studio sans le bon module
@@ -41,7 +41,7 @@
 
 ### B2 — `BuildSettingsVersion.V5` en conflit
 - **Symptôme** : `UndefinedIdentifierWarningLevel: Off != Error ... This is not allowed`. Échec en < 2 s.
-- **Cause** : `DefaultBuildSettings = BuildSettingsVersion.V5` diffère des défauts de l'éditeur partagé (UE 5.7).
+- **Cause** : `DefaultBuildSettings = BuildSettingsVersion.V5` diffère des défauts de l'éditeur partagé (UE 5.8).
 - **Correction** : `DefaultBuildSettings = BuildSettingsVersion.Latest;` dans les deux Target.cs.
 
 ### B3 — Include racine du module introuvable
