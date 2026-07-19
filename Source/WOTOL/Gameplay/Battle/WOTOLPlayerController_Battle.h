@@ -118,4 +118,16 @@ private:
 	// bAttackMoveToGround : ordre vers un POINT au sol où les unités ENGAGENT tout ennemi
 	// rencontré en chemin (attack-move classique, Shift+clic droit). Faux = déplacement direct.
 	void IssueCommandToSelection(AUnitBase* TargetUnit, FVector TargetLocation, bool bAttackMoveToGround = false);
+
+	// Touche R : active la compétence (index 0) de chaque unité sélectionnée sur l'ennemi
+	// vivant le plus proche à portée. Ignore silencieusement si en recharge ou hors de portée
+	// (pas de gaspillage d'activation sans effet).
+	void ActivateSelectionAbility();
+
+public:
+	// Lu par le HUD pour afficher l'état de la compétence de l'unité PRIMAIRE sélectionnée
+	// (première du groupe). Renvoie faux si rien n'est sélectionné ou si l'unité n'a pas
+	// de compétence (repli greybox non assigné, cf. AUnitBase::InitFromDataAsset).
+	UFUNCTION(BlueprintPure, Category = "Battle")
+	bool GetPrimarySelectionAbilityStatus(FText& OutName, float& OutCooldownRemaining, float& OutCooldownMax) const;
 };

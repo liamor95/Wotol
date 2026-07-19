@@ -4,6 +4,8 @@
 #include "Gameplay/Units/UnitBase.h"
 #include "Gameplay/Units/UnitDataAsset.h"
 #include "Gameplay/Units/UnitAIStateComponent.h"
+#include "Gameplay/Units/AbilityComponent.h"
+#include "Gameplay/Units/AbilityBase.h"
 #include "Gameplay/AI/AIAdaptiveController.h"
 #include "Gameplay/Demo/WOTOLDemoHUD.h"
 #include "Gameplay/Demo/DemoFlowSubsystem.h"
@@ -77,6 +79,10 @@ void AWOTOLPlayerController_Battle::SetupInputComponent()
 	}
 	InputComponent->BindKey(EKeys::LeftControl,      IE_Pressed,  this,
 		&AWOTOLPlayerController_Battle::OnSelectAll);
+
+	// Compétence de groupe : R active la capacité de chaque unité sélectionnée.
+	InputComponent->BindKey(EKeys::R, IE_Pressed, this,
+		&AWOTOLPlayerController_Battle::ActivateSelectionAbility);
 
 	// Pause : Échap ou P. bExecuteWhenPaused = ces bindings marchent même en pause.
 	{
@@ -1027,4 +1033,61 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 			AIC->IssueOrder_Move(Dest);
 		}
 	}
+}
+
+// Touche R : chaque unité sélectionnée avec une compétence prête l'active sur l'ennemi
+// vivant le plus proche À PORTÉE. Une unité sans cible à portée ou en recharge est
+// silencieusement ignorée (pas de gaspillage, pas de message d'erreur intrusif).
+void AWOTOLPlayerController_Battle::ActivateSelectionAbility()
+{
+	UUnitSelectionManager* SelectionMgr = GetSelectionManager();
+	if (!SelectionMgr) return;
+
+	UFactionRegistrySubsystem* Reg = GetWorld() ? GetWorld()->GetSubsystem<UFactionRegistrySubsystem>() : nullptr;
+	if (!Reg) return;
+
+	const EFactionID RivalFaction = (PlayerFaction == EFactionID::Noxeens)
+		? EFactionID::Aquiloris : EFactionID::Noxeens;
+	const TArray<AUnitBase*> Enemies = Reg->GetUnitsForFaction(RivalFaction);
+
+	for (AUnitBase* Unit : SelectionMgr->GetSelectedUnits())
+	{
+		if (!Unit || !Unit->IsAlive() || !Unit->AbilityComp) continue;
+		UAbilityBase* Ability = Unit->AbilityComp->GetAbilityByIndex(0);
+		if (!Ability || Ability->IsOnCooldown()) continue;
+
+		AUnitBase* BestTarget = nullptr;
+		float BestDistSq = FMath::Square(Ability->Range);
+		const FVector From = Unit->GetActorLocation();
+		for (AUnitBase* Enemy : Enemies)
+		{
+			if (!Enemy || !Enemy->IsAlive()) continue;
+			const float DistSq = FVector::DistSquared(From, Enemy->GetActorLocation());
+			if (DistSq < BestDistSq) { BestDistSq = DistSq; BestTarget = Enemy; }
+		}
+		if (!BestTarget) continue; // rien à portée -> ne consomme pas la recharge pour rien
+
+		Unit->AbilityComp->ActivateAbilityByIndex(0, BestTarget->GetActorLocation(), BestTarget);
+	}
+}
+
+// Lu par le HUD (barre de commandement) pour afficher l'état "Prête (R)" / "Recharge : Xs"
+// de la compétence de la PREMIÈRE unité sélectionnée. Renvoie faux si rien n'est
+// sélectionné ou si l'unité primaire n'a pas de compétence assignée.
+bool AWOTOLPlayerController_Battle::GetPrimarySelectionAbilityStatus(
+	FText& OutName, float& OutCooldownRemaining, float& OutCooldownMax) const
+{
+	UUnitSelectionManager* SelectionMgr = GetSelectionManager();
+	if (!SelectionMgr) return false;
+
+	const TArray<AUnitBase*>& Sel = SelectionMgr->GetSelectedUnits();
+	if (Sel.Num() == 0 || !Sel[0] || !Sel[0]->AbilityComp) return false;
+
+	UAbilityBase* Ability = Sel[0]->AbilityComp->GetAbilityByIndex(0);
+	if (!Ability) return false;
+
+	OutName              = Ability->DisplayName;
+	OutCooldownRemaining = Ability->GetCooldownRemaining();
+	OutCooldownMax       = Ability->Cooldown;
+	return true;
 }

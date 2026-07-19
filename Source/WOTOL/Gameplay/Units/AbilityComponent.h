@@ -19,6 +19,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Abilities")
 	TArray<TSubclassOf<UAbilityBase>> AbilityClasses;
 
+	// Instancie (ou ré-instancie) Abilities à partir d'AbilityClasses. Appelée automatiquement
+	// en BeginPlay, mais aussi ré-appelable explicitement : AUnitBase::InitFromDataAsset()
+	// modifie AbilityClasses APRÈS que Super::BeginPlay() ait déjà déclenché le BeginPlay
+	// de ce composant (l'ordre normal des composants sur l'acteur) — sans ce ré-appel
+	// explicite, les classes chargées depuis le UnitDataAsset n'étaient jamais instanciées.
+	UFUNCTION(BlueprintCallable, Category = "Abilities")
+	void RebuildAbilitiesFromClasses();
+
 	UFUNCTION(BlueprintCallable, Category = "Abilities")
 	bool ActivateAbilityByIndex(int32 Index, FVector TargetLocation, AUnitBase* TargetUnit);
 

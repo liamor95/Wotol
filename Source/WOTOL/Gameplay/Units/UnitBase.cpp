@@ -6,6 +6,7 @@
 #include "UnitMoraleComponent.h"
 #include "AbilityComponent.h"
 #include "AbilityBase.h"
+#include "AbilityBase_Generic.h"
 #include "WOTOLProjectileBase.h"
 #include "Gameplay/Demo/WOTOLProjectileTracer.h"
 #include "Gameplay/Demo/WOTOLDamageNumber.h"
@@ -90,6 +91,40 @@ void AUnitBase::InitFromDataAsset()
 				{
 					AbilityComp->AbilityClasses.Add(Cls);
 				}
+			}
+		}
+	}
+
+	// ── COMPÉTENCE ACTIVE (repli greybox) ──────────────────────────────────────
+	// Le GDD (CLAUDE.md §7, Docs/DOCUMENT_MAITRE_WOTOL.md) documente une compétence
+	// active nommée pour chaque unité (AbilityName/AbilityDescription/AbilityCooldown
+	// dans UnitDataLibrary.cpp), mais AUCUNE classe UAbilityBase concrète n'était encore
+	// assignée nulle part -> le système existait mais n'était JAMAIS instanciable.
+	// Tant qu'aucune ability dédiée n'est assignée dans le DataAsset, on instancie le
+	// repli générique (UAbilityBase_Generic) configuré avec les valeurs DÉJÀ présentes
+	// dans le DataAsset (aucun nombre inventé ici, seul Damage est dérivé de AttackDPS
+	// -> "une salve qui vaut ~2,5 s de DPS", clairement un placeholder de démo).
+	if (AbilityComp && AbilityComp->AbilityClasses.Num() == 0 && !UnitData->AbilityName.IsEmpty())
+	{
+		AbilityComp->AbilityClasses.Add(UAbilityBase_Generic::StaticClass());
+	}
+
+	// IMPORTANT : Super::BeginPlay() (appelé avant InitFromDataAsset dans AUnitBase::BeginPlay)
+	// a DÉJÀ déclenché AbilityComp->BeginPlay() -> AbilityClasses était encore vide à ce
+	// moment-là. Sans ce ré-appel explicite, aucune ability n'était jamais réellement créée,
+	// même quand AbilityClasses finissait par contenir des entrées valides.
+	if (AbilityComp)
+	{
+		AbilityComp->RebuildAbilitiesFromClasses();
+		if (UAbilityBase* Generic = AbilityComp->GetAbilityByIndex(0))
+		{
+			if (Generic->DisplayName.IsEmpty())
+			{
+				Generic->DisplayName  = UnitData->AbilityName;
+				Generic->Description  = UnitData->AbilityDescription;
+				Generic->Cooldown     = FMath::Max(1.f, UnitData->Stats.AbilityCooldown);
+				Generic->Damage       = UnitData->Stats.AttackDPS * 2.5f;
+				Generic->TargetType   = EAbilityTargetType::SingleUnit;
 			}
 		}
 	}

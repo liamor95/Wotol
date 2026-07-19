@@ -30,6 +30,27 @@ Fait cette session (19/07/2026, en plus de la fusion agent/connect-exploration-f
   être une ligne droite sur X. Rien de bloquant (traversable), donc pas de risque pour la
   navigation de la bataille qui réutilise ensuite la même arène.
 
+- Systeme de competences (ability) rendu REELLEMENT fonctionnel pour la premiere fois :
+  - Bug corrige : AUnitBase::InitFromDataAsset() peuplait AbilityComp->AbilityClasses APRES
+    que Super::BeginPlay() ait deja declenche AbilityComponent::BeginPlay() (qui instancie
+    les abilities) -> AUCUNE ability n'etait jamais reellement creee, meme quand le DataAsset
+    en assignait une. Corrige via UAbilityComponent::RebuildAbilitiesFromClasses() (rappelable
+    explicitement apres avoir rempli AbilityClasses).
+  - Repli greybox : UAbilityBase_Generic (nouvelle classe concrete minimale, aucune logique
+    propre) instanciee automatiquement pour toute unite dont le GDD documente une competence
+    (AbilityName non vide) mais qui n'a encore aucune classe UAbilityBase assignee — ce qui
+    est le cas de toutes les unites actuellement. Configuree avec les valeurs DEJA presentes
+    dans UnitDataLibrary.cpp (nom, cooldown) ; seul Damage est derive de AttackDPS x2.5
+    (placeholder de demo, clairement commente comme tel).
+  - Touche R (AWOTOLPlayerController_Battle::ActivateSelectionAbility) : active la competence
+    de chaque unite selectionnee sur l'ennemi vivant le plus proche a portee. HUD : petit
+    panneau "Pret (R)" / "Recharge : Xs" pour l'unite primaire selectionnee (DrawAbilityStatus).
+  - AVANT cette session : le joueur n'avait AUCUN moyen d'activer une competence (seule l'IA
+    ennemie utilisait ActivateAbility, via AIAdaptiveController) — trouve en comparant avec les
+    demos historiques de jeux de reference (XCOM, Company of Heroes, Warcraft III : toutes
+    exposent explicitement le kit de competences au joueur, cf. recherche web session du
+    19/07/2026).
+
 Encore a faire (releve pendant cette session, pas encore code) :
 - Cinematique/texte d'intro anime + lore de faction au clic (choix faction/difficulte).
 - Ecran de personnalisation du heros avant le lancement.
@@ -39,3 +60,9 @@ Encore a faire (releve pendant cette session, pas encore code) :
   de 70 m²) : les nouveaux reperes aident a la sensation d'exploration mais n'ajoutent pas
   un espace physiquement plus grand a parcourir. A revisiter si le rythme parait encore trop
   court une fois teste en jeu.
+- Le repli generique donne une ability FONCTIONNELLE (degats) mais pas fidele au design
+  (cone/aura/zone du GDD) : Axe 1/Axe 2, formes de zone, feedback visuel de competence
+  restent a faire (le "onglet Competences" est deja note comme travail futur ailleurs
+  dans les docs).
+- Bâtiments de defense (tourelles) : verifier qu'elles utilisent bien ce meme systeme
+  d'ability une fois en jeu, ou si elles ont leur propre logique de tir (WOTOLDefenseStructure).

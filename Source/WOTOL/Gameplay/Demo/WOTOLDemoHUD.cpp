@@ -257,6 +257,10 @@ void AWOTOLDemoHUD::DrawHUD()
 
 	// ─── 5) Barre de commandement (bas) : cartes d'unités sélectionnées ──────
 	DrawCommandBar(W, H, World);
+	if (Screen == EDemoScreen::Playing)
+	{
+		DrawAbilityStatus(W, H, World);
+	}
 
 	// ─── Préparation : bandeau d'instructions + bouton "Lancer la bataille" ──
 	if (Screen == EDemoScreen::Prepare)
@@ -699,8 +703,8 @@ void AWOTOLDemoHUD::DrawExplorationHUD(float W, float H, UDemoFlowSubsystem* Dem
 	{
 		DrawCenteredText(Demo->ObjectiveText, 57.f, FLinearColor::White, 1.0f);
 	}
-	DrawCenteredText(TEXT("ZQSD/WASD : nager   |   Souris : regarder   |   Espace/E : monter   |   Maj/Ctrl : descendre"),
-		H - 48.f, FLinearColor(0.86f, 0.93f, 1.f, 0.95f), 0.95f);
+	DrawCenteredText(TEXT("ZQSD/WASD : nager | Souris : regarder | Espace/E : monter | Maj/Ctrl : descendre | Alt : sprint | C : ruee"),
+		H - 48.f, FLinearColor(0.86f, 0.93f, 1.f, 0.95f), 0.9f);
 
 	// Après le rapport du Kraken, le Cristalliseur arrive dans un véritable inventaire de
 	// bâtiment. Le joueur doit sélectionner cette carte puis cliquer la cible 3D lumineuse.
@@ -1937,6 +1941,42 @@ void AWOTOLDemoHUD::DrawCommandBar(float W, float H, UWorld* World)
 			FLinearColor(0.12f, 0.12f, 0.12f, 0.9f));
 
 		X += CardW + Gap;
+	}
+}
+
+// Petit panneau (au-dessus de la barre de commandement, coin bas-droit) affichant l'état
+// de la compétence (touche R) de l'unité primaire sélectionnée : "Prête" ou "Recharge : Xs".
+// Purement informatif (pas de bouton cliquable) -> aucun risque de conflit avec le reste du HUD.
+void AWOTOLDemoHUD::DrawAbilityStatus(float W, float H, class UWorld* World)
+{
+	AWOTOLPlayerController_Battle* PC = Cast<AWOTOLPlayerController_Battle>(GetOwningPlayerController());
+	if (!PC) return;
+
+	FText AbilityName; float Remaining = 0.f, Max = 1.f;
+	if (!PC->GetPrimarySelectionAbilityStatus(AbilityName, Remaining, Max)) return;
+
+	const bool  bReady = Remaining <= 0.f;
+	const float PW = 260.f, PH = 56.f;
+	const float PX = W - PW - 16.f, PY = H - 210.f;
+
+	DrawRect(FLinearColor(0.02f, 0.05f, 0.09f, 0.85f), PX, PY, PW, PH);
+	DrawRect(bReady ? FLinearColor(0.25f, 0.9f, 0.4f, 1.f) : FLinearColor(0.6f, 0.6f, 0.62f, 1.f),
+		PX, PY, PW, 3.f);
+
+	DrawText(AbilityName.ToString(), FLinearColor(0.9f, 0.95f, 1.f, 1.f),
+		PX + 12.f, PY + 8.f, GEngine->GetSmallFont(), 1.0f);
+
+	const FString StatusTxt = bReady
+		? TEXT("Prete (R)")
+		: FString::Printf(TEXT("Recharge : %ds"), FMath::CeilToInt(Remaining));
+	DrawText(StatusTxt, bReady ? FLinearColor(0.4f, 1.f, 0.55f, 1.f) : FLinearColor(0.8f, 0.8f, 0.82f, 1.f),
+		PX + 12.f, PY + 28.f, GEngine->GetMediumFont(), 1.0f);
+
+	if (!bReady)
+	{
+		const float Pct = FMath::Clamp(1.f - Remaining / FMath::Max(0.01f, Max), 0.f, 1.f);
+		DrawBar(PX + 12.f, PY + PH - 10.f, PW - 24.f, 5.f, Pct,
+			FLinearColor(0.5f, 0.75f, 1.f, 1.f), FLinearColor(0.12f, 0.12f, 0.12f, 0.9f));
 	}
 }
 

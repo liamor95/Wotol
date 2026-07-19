@@ -9,7 +9,12 @@ UAbilityComponent::UAbilityComponent()
 void UAbilityComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	RebuildAbilitiesFromClasses();
+}
 
+void UAbilityComponent::RebuildAbilitiesFromClasses()
+{
+	Abilities.Reset();
 	for (TSubclassOf<UAbilityBase> AbilityClass : AbilityClasses)
 	{
 		if (AbilityClass)
