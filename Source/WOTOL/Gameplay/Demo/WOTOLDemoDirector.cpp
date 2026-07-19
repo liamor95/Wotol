@@ -402,6 +402,7 @@ uint8 AWOTOLDemoDirector::MusicCatForScreen(uint8 Screen) const
 	{
 	case EDemoScreen::MainMenu:
 	case EDemoScreen::FactionSelect:
+	case EDemoScreen::HeroCustomization:
 	case EDemoScreen::Loading:
 	case EDemoScreen::City:
 	case EDemoScreen::Skills:        return 1; // menu / préparation narrative
