@@ -2272,29 +2272,27 @@ FBox2D AWOTOLDemoHUD::MinimapRect(float W, float H)
 	return FBox2D(FVector2D(W - MW - 16.f, 58.f), FVector2D(W - 16.f, 58.f + MH));
 }
 
-// Minimap SCHÉMATIQUE (pas une capture caméra 3D — cohérent avec le reste du HUD 100% Canvas,
-// aucun asset/materiel supplémentaire requis) : calcule les bornes du monde à partir des unités
-// vivantes + du bâtiment de capture, projette chaque acteur en point coloré. Absente jusqu'ici
-// alors que toutes les références du genre (Total War, Company of Heroes, Homeworld) ET tes
-// propres maquettes (UI_HUD_Complet) en montrent une.
-void AWOTOLDemoHUD::DrawMinimap(float W, float H, UWorld* World)
+// Bornes du monde (centre + étendue) utilisées par la minimap — extrait en fonction PARTAGÉE
+// entre le dessin (DrawMinimap) et le clic (PlayerController, pour convertir la position
+// cliquée en point monde et recentrer la caméra dessus). Une seule source de vérité -> les
+// deux restent forcément synchronisés (même principe que BuildRosterGroups pour le roster).
+bool AWOTOLDemoHUD::GetMinimapWorldFrame(UWorld* World, FVector2D& OutCenter, float& OutSpan)
 {
-	if (!World) return;
+	if (!World) return false;
 	UFactionRegistrySubsystem* Reg = World->GetSubsystem<UFactionRegistrySubsystem>();
-	UDemoFlowSubsystem* Demo = GetGameInstance() ? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
-	if (!Reg || !Demo) return;
+	UGameInstance* GI = World->GetGameInstance();
+	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Reg || !Demo) return false;
 
 	const EFactionID PlayerFac = Demo->GetPlayerFaction();
-	if (PlayerFac == EFactionID::None) return;
+	if (PlayerFac == EFactionID::None) return false;
 	const EFactionID RivalFac = (PlayerFac == EFactionID::Noxeens) ? EFactionID::Aquiloris : EFactionID::Noxeens;
 
 	const TArray<AUnitBase*> PlayerUnits = Reg->GetUnitsForFaction(PlayerFac);
 	const TArray<AUnitBase*> RivalUnits  = Reg->GetUnitsForFaction(RivalFac);
-	if (PlayerUnits.Num() == 0 && RivalUnits.Num() == 0) return;
-
+	if (PlayerUnits.Num() == 0 && RivalUnits.Num() == 0) return false;
 	AActor* Building = Demo->GetCaptureObject();
 
-	// ── Bornes du monde (plan horizontal) à partir de tout ce qui est vivant ──
 	FVector2D MinP(TNumericLimits<float>::Max(), TNumericLimits<float>::Max());
 	FVector2D MaxP(-TNumericLimits<float>::Max(), -TNumericLimits<float>::Max());
 	auto Accumulate = [&](const FVector& Loc)
@@ -2305,13 +2303,54 @@ void AWOTOLDemoHUD::DrawMinimap(float W, float H, UWorld* World)
 	for (AUnitBase* U : PlayerUnits) if (U && U->IsAlive()) Accumulate(U->GetActorLocation());
 	for (AUnitBase* U : RivalUnits)  if (U && U->IsAlive()) Accumulate(U->GetActorLocation());
 	if (Building) Accumulate(Building->GetActorLocation());
-	if (MinP.X > MaxP.X) return; // rien de vivant à afficher
+	if (MinP.X > MaxP.X) return false; // rien de vivant à afficher
 
 	// Marge (30%) + étendue minimum pour éviter une minimap dégénérée (tout aligné/collé).
 	const float SpanX = FMath::Max(1000.f, MaxP.X - MinP.X);
 	const float SpanY = FMath::Max(1000.f, MaxP.Y - MinP.Y);
-	const float Span = FMath::Max(SpanX, SpanY) * 1.3f;
-	const FVector2D WorldCenter((MinP.X + MaxP.X) * 0.5f, (MinP.Y + MaxP.Y) * 0.5f);
+	OutSpan = FMath::Max(SpanX, SpanY) * 1.3f;
+	OutCenter = FVector2D((MinP.X + MaxP.X) * 0.5f, (MinP.Y + MaxP.Y) * 0.5f);
+	return true;
+}
+
+// Convertit un CLIC (position écran) sur le panneau minimap en position MONDE (plan
+// horizontal, Z=0 — la caméra de bataille ignore Z dans FocusOn). Renvoie faux si le clic
+// tombe hors du panneau ou si la trame n'a pas pu être calculée (rien de vivant à l'écran).
+bool AWOTOLDemoHUD::MinimapScreenToWorld(const FVector2D& ScreenPos, float W, float H,
+	UWorld* World, FVector& OutWorldLoc)
+{
+	const FBox2D Rect = MinimapRect(W, H);
+	if (!Rect.IsInside(ScreenPos)) return false;
+
+	FVector2D Center; float Span;
+	if (!GetMinimapWorldFrame(World, Center, Span)) return false;
+
+	const FVector2D PanelSize = Rect.Max - Rect.Min;
+	const float NX = (ScreenPos.X - Rect.Min.X) / PanelSize.X - 0.5f;
+	const float NY = (ScreenPos.Y - Rect.Min.Y) / PanelSize.Y - 0.5f;
+	OutWorldLoc = FVector(Center.X + NX * Span, Center.Y + NY * Span, 0.f);
+	return true;
+}
+
+// Minimap SCHÉMATIQUE (pas une capture caméra 3D — cohérent avec le reste du HUD 100% Canvas,
+// aucun asset/materiel supplémentaire requis) : calcule les bornes du monde à partir des unités
+// vivantes + du bâtiment de capture, projette chaque acteur en point coloré. Absente jusqu'ici
+// alors que toutes les références du genre (Total War, Company of Heroes, Homeworld) ET tes
+// propres maquettes (UI_HUD_Complet) en montrent une.
+void AWOTOLDemoHUD::DrawMinimap(float W, float H, UWorld* World)
+{
+	FVector2D WorldCenter; float Span;
+	if (!GetMinimapWorldFrame(World, WorldCenter, Span)) return;
+	if (!World) return;
+
+	UFactionRegistrySubsystem* Reg = World->GetSubsystem<UFactionRegistrySubsystem>();
+	UDemoFlowSubsystem* Demo = GetGameInstance() ? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Reg || !Demo) return;
+	const EFactionID PlayerFac = Demo->GetPlayerFaction();
+	const EFactionID RivalFac = (PlayerFac == EFactionID::Noxeens) ? EFactionID::Aquiloris : EFactionID::Noxeens;
+	const TArray<AUnitBase*> PlayerUnits = Reg->GetUnitsForFaction(PlayerFac);
+	const TArray<AUnitBase*> RivalUnits  = Reg->GetUnitsForFaction(RivalFac);
+	AActor* Building = Demo->GetCaptureObject();
 
 	const FBox2D Rect = MinimapRect(W, H);
 	const FVector2D PanelSize = Rect.Max - Rect.Min;

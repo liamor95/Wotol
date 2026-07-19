@@ -613,6 +613,20 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		return true;
 	}
 
+	// Clic sur la MINIMAP : recentre la caméra sur le point monde correspondant (convention
+	// du genre — Total War, Company of Heroes, Homeworld permettent tous de cliquer la
+	// minimap pour s'y téléporter). Uniquement en bataille : c'est là qu'elle sert vraiment
+	// à naviguer un champ plus grand que l'écran.
+	if (Screen == EDemoScreen::Playing)
+	{
+		FVector MinimapWorldLoc;
+		if (AWOTOLDemoHUD::MinimapScreenToWorld(M, VpSize.X, VpSize.Y, GetWorld(), MinimapWorldLoc))
+		{
+			if (BattleCamera.IsValid()) BattleCamera->FocusOn(MinimapWorldLoc);
+			return true;
+		}
+	}
+
 	// Menu RÉGLAGES ouvert : ses 3 boutons + les vrais réglages (volume, plein écran).
 	if (bSettingsOpen)
 	{

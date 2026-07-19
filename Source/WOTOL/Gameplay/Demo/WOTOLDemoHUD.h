@@ -107,6 +107,14 @@ public:
 	static void BuildRosterGroups(class UWorld* World, EFactionID Faction,
 		TArray<FString>& OutOrder, TMap<FString, TArray<class AUnitBase*>>& OutByName);
 
+	// Bornes du monde (centre + étendue) de la minimap — source de vérité partagée entre le
+	// dessin (DrawMinimap) et le clic (recentrage caméra). Renvoie faux si rien de vivant.
+	static bool GetMinimapWorldFrame(class UWorld* World, FVector2D& OutCenter, float& OutSpan);
+	// Convertit un clic sur le panneau minimap en position monde (plan horizontal, Z=0).
+	// Renvoie faux si le clic est hors du panneau ou si la trame n'a pas pu être calculée.
+	static bool MinimapScreenToWorld(const FVector2D& ScreenPos, float W, float H,
+		class UWorld* World, FVector& OutWorldLoc);
+
 private:
 	void DrawCenteredText(const FString& Text, float Y, const FLinearColor& Color, float Scale);
 	void DrawPauseButton(float W, float H);

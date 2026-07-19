@@ -16,7 +16,11 @@ Fait cette session (19/07/2026, en plus de la fusion agent/connect-exploration-f
   Absente jusqu'ici alors que c'est un standard du genre (Total War, Company of Heroes,
   Homeworld) et que 3 des maquettes de Liamor la montrent. Bornes calculees dynamiquement
   depuis les unites vivantes + le batiment, points colores par faction, repere camera.
-  Pas de clic-pour-recentrer pour l'instant (amelioration possible).
+  Clic-pour-recentrer AJOUTE cette session (etait note comme amelioration possible) :
+  bornes du monde extraites en fonction partagee GetMinimapWorldFrame (dessin ET clic
+  restent forcement synchronises, meme principe que BuildRosterGroups) + MinimapScreenToWorld
+  (inverse la projection) -> clic sur la minimap = BattleCamera->FocusOn() du point vise.
+  Uniquement en bataille (Screen::Playing), la ou une minimap sert vraiment a naviguer.
 - Ecran REGLAGES enfin reel (avant : juste Reprendre/Recommencer/Quitter, le bouton
   "Options" de l'ancien menu principal (WOTOLGameMode_MainMenu, architecture UMG abandonnee)
   etait un stub vide) :
