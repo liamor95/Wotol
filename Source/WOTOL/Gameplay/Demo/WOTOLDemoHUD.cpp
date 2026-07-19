@@ -1006,6 +1006,11 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		FLinearColor(1.f, 0.95f, 0.6f, 1.f), 44.f, 44.f, GEngine ? GEngine->GetLargeFont() : nullptr, 1.5f);
 	DrawText(FString::Printf(TEXT("ARMEE : %d / %d"), Demo->GetArmyUnitCount(), Demo->GetArmyUnitCap()),
 		Accent, 44.f, 84.f, GEngine ? GEngine->GetMediumFont() : nullptr, 1.15f);
+	// Rappel de commandes caméra — absent jusqu'ici alors que TOUS les autres écrans pilotés
+	// caméra en ont un (panneau CONTROLES en préparation, bandeau bas en exploration) ; sans
+	// lui, rien n'indique qu'on peut déplacer/zoomer la caméra isométrique de cette vue.
+	DrawText(TEXT("ZQSD/Fleches : deplacer la camera  |  Molette : zoom  |  Clic sur un batiment : details"),
+		FLinearColor(0.75f, 0.82f, 0.9f, 0.85f), 44.f, 138.f, GEngine ? GEngine->GetSmallFont() : nullptr, 0.95f);
 
 	// Progression persistante : visible à chaque passage en cité.
 	const float ProgW = 230.f;

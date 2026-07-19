@@ -195,6 +195,15 @@ Fait cette session (suite, meme jour) :
   sans risque : aucune des actions existantes n'a change de comportement, juste un clic de
   plus avant qu'elles s'executent.
 
+- Rappel de commandes camera AJOUTE a la vue cite (bandeau haut, sous ARMEE). Recherche
+  web (session du 19/07/2026) : le probleme #1 releve par les playtests de demos indes est
+  l'onboarding/comprehension de la boucle dans les 10 premieres minutes. Verifie par
+  coherence interne : TOUS les autres ecrans pilotes camera de WOTOL ont deja un rappel
+  (panneau "CONTROLES" en preparation de bataille, bandeau bas en exploration) — la vue
+  cite (ajoutee cette session) etait la seule exception, sans aucun indice que la camera
+  isometrique peut etre deplacee/zoomee. Une seule ligne de texte, pas de nouvelle geometrie
+  cliquable.
+
 ## Idees de Liamor pour APRES la demo (meta-progression, hors scope actuel)
 
 Notees telles quelles pour ne rien perdre, mais PAS a implementer a l'aveugle - ce sont de
