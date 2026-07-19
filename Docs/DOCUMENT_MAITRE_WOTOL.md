@@ -285,6 +285,19 @@ agréable, conquête compréhensible, enjeu de défense, identité visuelle/stra
 - La 10e unité ouvre l'alerte de contre-attaque noxéenne ; le départ en défense reste un clic
   explicite. Les valeurs de coûts/récompenses utilisées sont des paramètres greybox provisoires.
 
+### Pertes validées par difficulté — phases 1 et 2 (19/07/2026)
+
+| Rencontre | Facile | Normal | Difficile |
+|---|---:|---:|---:|
+| Kraken, armée de 16 | 2–3 | 5 | 10, donc 6 survivants |
+| Défense, armée de 35 | 7–8 | environ 15 (plage 14–16) | plage 15–20, cible 18 |
+
+Ces résultats doivent rester valables avec Aquiloris ou Noxéens. Le réglage est dynamique : le
+Director réévalue les pertes, les effectifs et l'état ennemi en temps réel, puis module uniquement
+des correcteurs adaptatifs séparés. Il ne remplace ni les statistiques sources, ni les bonus de
+faction, ni les choix tactiques du joueur. Les victimes et le moment des pertes restent émergents ;
+les garde-fous empêchent seulement une victoire avant le minimum ou des pertes au-delà du maximum.
+
 ---
 
 ## 20. POINTS ENCORE OUVERTS (§24 — NE PAS VERROUILLER)

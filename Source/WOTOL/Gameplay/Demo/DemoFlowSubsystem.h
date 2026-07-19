@@ -338,14 +338,14 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
 	TMap<FName, int32> ReserveUnits;
 
-	// La démo commence avec chef + 10 fantassins + 5 montés. Le plafond de 35 est le
-	// garde-fou demandé pour la deuxième bataille ; les places requises par l'objectif des
-	// 10 unités à distance sont toujours réservées pour éviter un blocage de progression.
+	// La phase 2 commence avec chef + 16 fantassins + 8 montés = 25 unités. Les 10 unités
+	// à distance demandées remplissent donc exactement le plafond de 35. Les places requises
+	// par cet objectif sont toujours réservées pour éviter un blocage de progression.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|City", meta = (ClampMin = "1"))
 	int32 MaxArmyUnits = 35;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|City", meta = (ClampMin = "0"))
-	int32 InitialArmyUnits = 16;
+	int32 InitialArmyUnits = 25;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|City", meta = (ClampMin = "1"))
 	int32 RangedProductionTarget = 10;

@@ -126,7 +126,11 @@ float AUnitBase::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit)
 	// ── ÉQUILIBRAGE (difficulté + camp) : mise à l'échelle par le multiplicateur de
 	// l'ATTAQUANT. Placé ICI (et non dans PerformAttack) pour couvrir AUSSI les dégâts de
 	// COMPÉTENCES (rayons, souffles, rafales…) qui appellent TakeDamageFromUnit directement.
-	if (InstigatorUnit) Damage *= InstigatorUnit->BalanceDamageMult;
+	if (InstigatorUnit)
+	{
+		Damage *= InstigatorUnit->BalanceDamageMult;
+		Damage *= InstigatorUnit->AdaptiveOutgoingDamageMult;
+	}
 
 	// ── ESQUIVE / PARADE (font durer les combats, tous les coups ne portent pas) ──
 	bool bBlocked = false;
@@ -161,8 +165,11 @@ float AUnitBase::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit)
 	float EffDamage          = Damage * (1.f - DefReduction);
 	if (bBlocked) EffDamage *= 0.35f; // coup paré = 65% de dégâts en moins
 	EffDamage *= IncomingDamageMult;  // avantage de ZONE (défenseur qui possède le terrain)
+	EffDamage *= AdaptiveIncomingDamageMult; // adaptation de rencontre (sans toucher aux stats)
 	EffDamage *= AuraDefenseMult;     // aura de protection (Léviaphénix : boucliers renforcés)
-	const float Applied      = FMath::Min(EffDamage, CurrentHealth);
+	const float DamageBudget = FMath::Max(0.f,
+		CurrentHealth - FMath::Max(0.f, MinimumHealthFloor));
+	const float Applied      = FMath::Min(EffDamage, DamageBudget);
 	CurrentHealth           -= Applied;
 	if (InstigatorUnit) InstigatorUnit->DamageDealt += Applied; // pour le résumé de bataille
 

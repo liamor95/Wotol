@@ -79,6 +79,27 @@ défense, et écrans de transition/chargement.
 - Économie greybox provisoire : récompense Kraken 2200 cristaux / 100 matériaux, bâtiment
   distance 300 / 25, unité distance 140. Ces valeurs restent éditables, pas validées comme balance.
 
+### 10b. Équilibrage adaptatif des pertes — phases 1 et 2 ✅ 🧪
+- Le Director mesure toutes les 0,75 s : faction, difficulté, effectifs réels, pertes joueur,
+  effectif/état de santé ennemi et temps écoulé.
+- Il applique un correcteur séparé aux dégâts infligés/reçus par l'ennemi. Les statistiques,
+  bonus de faction, axes, bâtiments et avantages de territoire restent intacts et continuent
+  d'influencer le résultat ; la boucle fermée compense leur effet observé pendant la partie.
+- Un unique ennemi « ancre » (Kraken ou chef rival) conserve 6 % de PV tant que le minimum de
+  pertes n'est pas atteint. Au maximum de la plage, les survivants sont protégés à 1 PV et
+  l'ennemi devient très vulnérable : une partie terminée reste dans la plage demandée.
+- Cibles de référence :
+
+| Phase | Facile | Normal | Difficile |
+|---|---:|---:|---:|
+| Kraken — 16 unités | 2–3 pertes | 5 pertes | 10 pertes, 6 survivants |
+| Défense — 35 unités | 7–8 pertes | 14–16 pertes (cible 15) | 15–20 pertes (cible 18) |
+
+- Si l'effectif réel change, chaque borne est recalculée par
+  `arrondi(effectif réel × pertes de référence / effectif de référence)`.
+- Correction du compteur cité : la phase 2 possède 25 unités de base (1 + 16 + 8), puis les
+  10 unités à distance produites remplissent exactement le plafond `35/35`.
+
 ### 11. Intégrations UI d'assets ⏳
 - Logo (menu), emblèmes (sélection faction), icônes de rôles (marqueurs HUD), écran carte.
 
@@ -122,6 +143,8 @@ en volume Homeworld »*.
 - Compiler UE 5.8 et tester l'enchaînement réellement branché : menu → lancement manuel → nage →
   proximité Kraken → placement/bataille → rapport/récompenses → retour nage → placement spatial
   Cristalliseur → récompenses → cité → bâtiment distance → 10 unités → alerte → défense.
+- Faire au minimum 3 simulations par faction et difficulté sur les phases 1/2 ; vérifier les
+  plages de pertes ci-dessus, la durée, et l'absence de blocage à 6 %/1 PV.
 - **HUD** : jauge verticale SURFACE/MID/SOL (Homeworld), panneau héros + capacités, restyle fenêtre d'objectif.
 - **Module 11** : intégrer logo/emblèmes/icônes de rôles (assets de référence).
 - **Module 12** : build autonome (packaging Windows) — côté éditeur.

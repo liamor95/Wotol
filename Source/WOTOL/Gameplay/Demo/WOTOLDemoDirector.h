@@ -13,6 +13,7 @@ class AWOTOLCoverStructure;
 class AWOTOLRewardActor;
 class AWOTOLHeroCharacter;
 class UUnitDataAsset;
+class AUnitBase;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDemoMessage, const FString&, Message);
 
@@ -116,6 +117,38 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Exploration", meta = (ClampMin = "200.0"))
 	float CrystalliserPlacementRadius = 520.f;
+
+	// ── ÉQUILIBRAGE ADAPTATIF DES PERTES (phases 1 et 2) ─────────────────────
+	// Les plages viennent directement de la validation Liamor. Le système observe le combat
+	// réel et corrige progressivement la pression ennemie sans écraser les stats/factions.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Balance")
+	bool bEnableAdaptiveCasualtyBalance = true;
+
+	// Horizons de rythme, pas des durées forcées : si les pertes sont en retard à cet instant,
+	// la pression atteint son maximum. La victoire peut arriver avant/après selon le joueur.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Balance", meta = (ClampMin = "60.0"))
+	float KrakenCasualtyPacingSeconds = 180.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Balance", meta = (ClampMin = "120.0"))
+	float DefenseCasualtyPacingSeconds = 300.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Balance", meta = (ClampMin = "1.0", ClampMax = "4.0"))
+	float AdaptiveMaxEnemyPressure = 2.4f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Balance")
+	int32 AdaptiveInitialPlayerCount = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Balance")
+	int32 AdaptiveTargetLossMin = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Balance")
+	int32 AdaptiveTargetLossPreferred = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Balance")
+	int32 AdaptiveTargetLossMax = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Balance")
+	float AdaptiveEnemyPressure = 1.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
 	TSubclassOf<AWOTOLDemoUnit> DemoUnitClass;
@@ -327,6 +360,18 @@ private:
 	FVector FactionCentroid(EFactionID Faction) const;
 	FTimerHandle TacticalHandle;
 
+	// Directeur de difficulté en boucle fermée : cible de pertes -> observation -> correction.
+	void InitializeAdaptiveBattleBalance();
+	void UpdateAdaptiveBattleBalance();
+	void ConfigureAdaptiveCasualtyTargets(EDemoPhase Phase, EDemoDifficulty Difficulty,
+		int32 ActualPlayerCount);
+	void ReleaseAdaptiveEnemyAnchor();
+	void ProtectAdaptivePlayerSurvivors();
+	void ResetAdaptiveBattleBalance();
+	UFUNCTION()
+	void HandleAdaptivePlayerUnitDied(AUnitBase* Unit);
+	FTimerHandle AdaptiveBalanceHandle;
+
 	void SpawnPlayerArmy(EFactionID Faction, const FVector& Origin, const FRotator& Facing);
 	void SpawnEnemyForCreature(EFactionID RivalFaction, const FVector& Origin, const FRotator& Facing);
 	void SpawnRivalSquad(EFactionID RivalFaction, const FVector& Origin, const FRotator& Facing);
@@ -392,4 +437,13 @@ private:
 	FTimerHandle BattleCheckHandle;
 	FTimerHandle PhaseHandle;
 	bool bBattleConcluded = false;
+
+	UPROPERTY()
+	TObjectPtr<AUnitBase> AdaptiveEnemyAnchor;
+
+	EDemoPhase AdaptiveBalancePhase = EDemoPhase::None;
+	int32 AdaptiveInitialEnemyCount = 0;
+	float AdaptiveBalanceStartTime = 0.f;
+	bool bAdaptiveBalanceActive = false;
+	bool bAdaptiveSurvivorsProtected = false;
 };

@@ -515,9 +515,8 @@ void AWOTOLDemoDirector::BeginPreparation()
 	const EBattleType BT = Demo ? Demo->GetCurrentBattleType() : EBattleType::CreatureEncounter;
 	const bool bGrand = Demo && Demo->GetPhase() == EDemoPhase::Battle_Grand; // phase 3, zone neutre
 
-	// Phase 2 (défense rivale) : GRANDE bataille — plus d'unités des deux côtés.
-	// Valeurs volontairement mesurées : ~26 vs 26 unités entièrement riggées, pour
-	// rester fluide/stable sur un portable (évite les surcharges mémoire/GPU).
+	// Phase 2 (défense rivale) : 35 contre 35 (25 unités de base + les 10 distances
+	// produites côté joueur). Valeurs encore mesurées pour rester fluides sur portable.
 	bGrandBattle = bGrand;
 	if (bGrand)
 	{
@@ -1330,6 +1329,253 @@ void AWOTOLDemoDirector::LaunchBattle()
 		TacticalHandle, this, &AWOTOLDemoDirector::TacticalTick, 2.0f, true, 2.0f);
 
 	BattleStartTime = GetWorld()->GetTimeSeconds(); // pour la durée du résumé
+	InitializeAdaptiveBattleBalance();
+}
+
+void AWOTOLDemoDirector::ConfigureAdaptiveCasualtyTargets(EDemoPhase Phase,
+	EDemoDifficulty Difficulty, int32 ActualPlayerCount)
+{
+	AdaptiveTargetLossMin = AdaptiveTargetLossPreferred = AdaptiveTargetLossMax = 0;
+	if (ActualPlayerCount <= 1) return;
+
+	// Conversion proportionnelle depuis les effectifs explicitement validés (16 / 35).
+	// Elle garde les mêmes pourcentages si une composition, une sauvegarde ou un futur réglage
+	// modifie l'effectif réel ; aucune hypothèse fixe n'est injectée dans le combat.
+	auto Scale = [ActualPlayerCount](float ReferenceLosses, float ReferenceArmy) -> int32
+	{
+		return FMath::Clamp(FMath::RoundToInt(
+			ActualPlayerCount * ReferenceLosses / ReferenceArmy), 0, ActualPlayerCount - 1);
+	};
+
+	if (Phase == EDemoPhase::Battle_Creature)
+	{
+		switch (Difficulty)
+		{
+		case EDemoDifficulty::Facile:
+			AdaptiveTargetLossMin = Scale(2.f, 16.f);
+			AdaptiveTargetLossPreferred = Scale(2.5f, 16.f);
+			AdaptiveTargetLossMax = Scale(3.f, 16.f);
+			break;
+		case EDemoDifficulty::Difficile:
+			// 16 engagés -> 6 survivants, donc 10 pertes.
+			AdaptiveTargetLossMin = AdaptiveTargetLossPreferred =
+				AdaptiveTargetLossMax = Scale(10.f, 16.f);
+			break;
+		default:
+			// Le Kraken ne peut pas tomber avant la cinquième perte en Normal.
+			AdaptiveTargetLossMin = AdaptiveTargetLossPreferred =
+				AdaptiveTargetLossMax = Scale(5.f, 16.f);
+			break;
+		}
+	}
+	else if (Phase == EDemoPhase::Battle_Rival)
+	{
+		switch (Difficulty)
+		{
+		case EDemoDifficulty::Facile:
+			AdaptiveTargetLossMin = Scale(7.f, 35.f);
+			AdaptiveTargetLossPreferred = Scale(7.5f, 35.f);
+			AdaptiveTargetLossMax = Scale(8.f, 35.f);
+			break;
+		case EDemoDifficulty::Difficile:
+			AdaptiveTargetLossMin = Scale(15.f, 35.f);
+			AdaptiveTargetLossPreferred = Scale(18.f, 35.f);
+			AdaptiveTargetLossMax = Scale(20.f, 35.f);
+			break;
+		default:
+			AdaptiveTargetLossMin = Scale(14.f, 35.f);
+			AdaptiveTargetLossPreferred = Scale(15.f, 35.f);
+			AdaptiveTargetLossMax = Scale(16.f, 35.f);
+			break;
+		}
+	}
+
+	AdaptiveTargetLossMax = FMath::Max(AdaptiveTargetLossMax, AdaptiveTargetLossMin);
+	AdaptiveTargetLossPreferred = FMath::Clamp(AdaptiveTargetLossPreferred,
+		AdaptiveTargetLossMin, AdaptiveTargetLossMax);
+}
+
+void AWOTOLDemoDirector::InitializeAdaptiveBattleBalance()
+{
+	ResetAdaptiveBattleBalance();
+	if (!bEnableAdaptiveCasualtyBalance || !GetWorld()) return;
+
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+	AdaptiveBalancePhase = Demo->GetPhase();
+	if (AdaptiveBalancePhase != EDemoPhase::Battle_Creature
+		&& AdaptiveBalancePhase != EDemoPhase::Battle_Rival) return;
+
+	AdaptiveInitialPlayerCount = CountAlive(CachedPlayerFaction);
+	AdaptiveInitialEnemyCount = CountAlive(CachedRivalFaction);
+	ConfigureAdaptiveCasualtyTargets(AdaptiveBalancePhase, Demo->GetDifficulty(),
+		AdaptiveInitialPlayerCount);
+	if (AdaptiveInitialPlayerCount <= 1 || AdaptiveTargetLossMax <= 0) return;
+
+	// Abonnement immédiat aux morts : le plafond est posé dans la même frame, y compris au
+	// milieu d'une attaque de zone, avant qu'elle ne puisse dépasser la plage maximale.
+	for (TObjectPtr<AWOTOLDemoUnit>& Unit : SpawnedUnits)
+	{
+		if (!Unit) continue;
+		Unit->AdaptiveOutgoingDamageMult = 1.f;
+		Unit->AdaptiveIncomingDamageMult = 1.f;
+		Unit->MinimumHealthFloor = 0.f;
+		if (Unit->GetFaction() == CachedPlayerFaction)
+			Unit->OnUnitDied.AddUniqueDynamic(this,
+				&AWOTOLDemoDirector::HandleAdaptivePlayerUnitDied);
+	}
+
+	// Un seul ancrage de rencontre suffit : le Kraken en phase 1, le chef rival (ou l'unité
+	// la plus robuste disponible) en phase 2. Il empêche une victoire prématurée sans rendre
+	// toute l'armée ennemie artificiellement immortelle.
+	if (AdaptiveBalancePhase == EDemoPhase::Battle_Creature)
+	{
+		AdaptiveEnemyAnchor = Cast<AUnitBase>(Demo->GetBoss());
+	}
+	else
+	{
+		AUnitBase* Fallback = nullptr;
+		int32 BestMaxHealth = -1;
+		for (TObjectPtr<AWOTOLDemoUnit>& Unit : SpawnedUnits)
+		{
+			if (!Unit || Unit->GetFaction() != CachedRivalFaction || !Unit->IsAlive()) continue;
+			if (UDemoFlowSubsystem::GetCategoryForUnit(
+				Unit->GetUnitData() ? Unit->GetUnitData()->GetFName() : NAME_None)
+				== EDemoUnitCategory::Chef)
+			{
+				AdaptiveEnemyAnchor = Unit;
+				break;
+			}
+			const int32 MaxHealth = Unit->GetEffectiveMaxHealth();
+			if (MaxHealth > BestMaxHealth) { BestMaxHealth = MaxHealth; Fallback = Unit; }
+		}
+		if (!AdaptiveEnemyAnchor) AdaptiveEnemyAnchor = Fallback;
+	}
+
+	if (AWOTOLDemoUnit* Anchor = Cast<AWOTOLDemoUnit>(AdaptiveEnemyAnchor.Get()))
+	{
+		Anchor->MinimumHealthFloor = FMath::Max(1.f,
+			Anchor->GetEffectiveMaxHealth() * 0.06f);
+	}
+	else if (AdaptiveEnemyAnchor)
+	{
+		AdaptiveEnemyAnchor->MinimumHealthFloor = 1.f;
+	}
+
+	AdaptiveBalanceStartTime = GetWorld()->GetTimeSeconds();
+	bAdaptiveBalanceActive = true;
+	UpdateAdaptiveBattleBalance();
+	GetWorldTimerManager().SetTimer(AdaptiveBalanceHandle, this,
+		&AWOTOLDemoDirector::UpdateAdaptiveBattleBalance, 0.75f, true, 0.75f);
+
+	UE_LOG(LogTemp, Log, TEXT("[WOTOL Balance] Phase=%d Diff=%d Faction=%d Effectif=%d Cible=%d/%d/%d"),
+		static_cast<int32>(AdaptiveBalancePhase), static_cast<int32>(Demo->GetDifficulty()),
+		static_cast<int32>(CachedPlayerFaction), AdaptiveInitialPlayerCount,
+		AdaptiveTargetLossMin, AdaptiveTargetLossPreferred, AdaptiveTargetLossMax);
+}
+
+void AWOTOLDemoDirector::UpdateAdaptiveBattleBalance()
+{
+	if (!bAdaptiveBalanceActive || bBattleConcluded || !GetWorld()) return;
+	const int32 PlayerAlive = CountAlive(CachedPlayerFaction);
+	const int32 EnemyAlive = CountAlive(CachedRivalFaction);
+	const int32 Losses = FMath::Clamp(AdaptiveInitialPlayerCount - PlayerAlive,
+		0, AdaptiveInitialPlayerCount);
+
+	if (Losses >= AdaptiveTargetLossMin) ReleaseAdaptiveEnemyAnchor();
+	if (Losses >= AdaptiveTargetLossMax) ProtectAdaptivePlayerSurvivors();
+
+	const float Elapsed = FMath::Max(0.f,
+		GetWorld()->GetTimeSeconds() - AdaptiveBalanceStartTime);
+	const float Pacing = AdaptiveBalancePhase == EDemoPhase::Battle_Creature
+		? KrakenCasualtyPacingSeconds : DefenseCasualtyPacingSeconds;
+	const float ExpectedLosses = AdaptiveTargetLossPreferred
+		* FMath::Clamp(Elapsed / FMath::Max(1.f, Pacing), 0.f, 1.f);
+	const float Error = (ExpectedLosses - Losses)
+		/ FMath::Max(1.f, static_cast<float>(AdaptiveTargetLossPreferred));
+
+	// Boucle fermée proportionnelle : retard de pertes -> l'ennemi frappe plus fort et tient
+	// mieux ; avance de pertes -> pression réduite et vulnérabilité accrue. Les bornes évitent
+	// tout saut brutal et conservent l'influence des ordres, formations, axes et améliorations.
+	float Pressure = FMath::Clamp(1.f + Error * 1.8f, 0.35f, AdaptiveMaxEnemyPressure);
+	float EnemyIncoming = FMath::Clamp(1.f - Error * 1.15f, 0.40f, 1.85f);
+
+	const AWOTOLDemoUnit* AdaptiveBoss = Cast<AWOTOLDemoUnit>(AdaptiveEnemyAnchor.Get());
+	const bool bEnemyNearDefeat = AdaptiveBalancePhase == EDemoPhase::Battle_Creature
+		? (AdaptiveBoss && AdaptiveBoss->GetEffectiveHealthPercent() <= 0.18f)
+		: (EnemyAlive <= FMath::Max(3, FMath::RoundToInt(AdaptiveInitialEnemyCount * 0.25f)));
+	if (Losses < AdaptiveTargetLossMin && bEnemyNearDefeat)
+	{
+		Pressure = FMath::Max(Pressure, FMath::Min(AdaptiveMaxEnemyPressure, 2.0f));
+		EnemyIncoming = FMath::Min(EnemyIncoming, 0.42f);
+	}
+	if (Losses >= AdaptiveTargetLossPreferred)
+	{
+		Pressure = FMath::Min(Pressure, 0.38f);
+		EnemyIncoming = FMath::Max(EnemyIncoming, 1.75f);
+	}
+	if (Losses >= AdaptiveTargetLossMax)
+	{
+		Pressure = 0.08f;
+		EnemyIncoming = 3.0f;
+	}
+
+	AdaptiveEnemyPressure = Pressure;
+	for (TObjectPtr<AWOTOLDemoUnit>& Unit : SpawnedUnits)
+	{
+		if (!Unit || Unit->GetFaction() != CachedRivalFaction) continue;
+		Unit->AdaptiveOutgoingDamageMult = Pressure;
+		Unit->AdaptiveIncomingDamageMult = EnemyIncoming;
+	}
+}
+
+void AWOTOLDemoDirector::ReleaseAdaptiveEnemyAnchor()
+{
+	if (AdaptiveEnemyAnchor) AdaptiveEnemyAnchor->MinimumHealthFloor = 0.f;
+}
+
+void AWOTOLDemoDirector::ProtectAdaptivePlayerSurvivors()
+{
+	if (bAdaptiveSurvivorsProtected) return;
+	bAdaptiveSurvivorsProtected = true;
+	for (TObjectPtr<AWOTOLDemoUnit>& Unit : SpawnedUnits)
+	{
+		if (Unit && Unit->IsAlive() && Unit->GetFaction() == CachedPlayerFaction)
+			Unit->MinimumHealthFloor = FMath::Max(Unit->MinimumHealthFloor, 1.f);
+	}
+}
+
+void AWOTOLDemoDirector::HandleAdaptivePlayerUnitDied(AUnitBase* Unit)
+{
+	if (!bAdaptiveBalanceActive || !Unit || Unit->GetFaction() != CachedPlayerFaction) return;
+	const int32 Losses = FMath::Clamp(
+		AdaptiveInitialPlayerCount - CountAlive(CachedPlayerFaction), 0, AdaptiveInitialPlayerCount);
+	if (Losses >= AdaptiveTargetLossMin) ReleaseAdaptiveEnemyAnchor();
+	if (Losses >= AdaptiveTargetLossMax) ProtectAdaptivePlayerSurvivors();
+	UpdateAdaptiveBattleBalance();
+}
+
+void AWOTOLDemoDirector::ResetAdaptiveBattleBalance()
+{
+	GetWorldTimerManager().ClearTimer(AdaptiveBalanceHandle);
+	for (TObjectPtr<AWOTOLDemoUnit>& Unit : SpawnedUnits)
+	{
+		if (!Unit) continue;
+		Unit->OnUnitDied.RemoveDynamic(this,
+			&AWOTOLDemoDirector::HandleAdaptivePlayerUnitDied);
+		Unit->AdaptiveOutgoingDamageMult = 1.f;
+		Unit->AdaptiveIncomingDamageMult = 1.f;
+		Unit->MinimumHealthFloor = 0.f;
+	}
+	AdaptiveEnemyAnchor = nullptr;
+	AdaptiveEnemyPressure = 1.f;
+	AdaptiveInitialPlayerCount = 0;
+	AdaptiveInitialEnemyCount = 0;
+	AdaptiveTargetLossMin = AdaptiveTargetLossPreferred = AdaptiveTargetLossMax = 0;
+	AdaptiveBalancePhase = EDemoPhase::None;
+	bAdaptiveBalanceActive = false;
+	bAdaptiveSurvivorsProtected = false;
 }
 
 void AWOTOLDemoDirector::CheckBattleEnd()
@@ -1387,6 +1633,7 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 	// (Musique geree par l'ecran : SummaryMusic des le passage a l'ecran Summary.)
 	GetWorldTimerManager().ClearTimer(SiegeHandle);
 	GetWorldTimerManager().ClearTimer(TacticalHandle);
+	GetWorldTimerManager().ClearTimer(AdaptiveBalanceHandle);
 	UGameInstance* GI = GetGameInstance();
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 
@@ -1448,6 +1695,7 @@ void AWOTOLDemoDirector::OnPlayerDefeat()
 	// (Musique geree par l'ecran : SummaryMusic des le passage a l'ecran Summary.)
 	GetWorldTimerManager().ClearTimer(SiegeHandle);
 	GetWorldTimerManager().ClearTimer(TacticalHandle);
+	GetWorldTimerManager().ClearTimer(AdaptiveBalanceHandle);
 	if (URTSBattleManager* RTS = GetWorld()->GetSubsystem<URTSBattleManager>())
 	{
 		RTS->EndBattle(CachedRivalFaction, EBattleResult::Defeat);
@@ -1512,6 +1760,16 @@ void AWOTOLDemoDirector::BuildBattleSummary(bool bVictory, bool bFinal, const FS
 	Demo->bSummaryVictory = bVictory;
 	Demo->bSummaryIsFinal = bFinal;
 	Demo->SummaryDurationSeconds = FMath::Max(0.f, GetWorld()->GetTimeSeconds() - BattleStartTime);
+	if (bAdaptiveBalanceActive && AdaptiveTargetLossMax > 0)
+	{
+		const int32 ActualLosses = FMath::Clamp(
+			AdaptiveInitialPlayerCount - CountAlive(CachedPlayerFaction),
+			0, AdaptiveInitialPlayerCount);
+		UE_LOG(LogTemp, Log,
+			TEXT("[WOTOL Balance] Resultat pertes=%d, plage=%d..%d, cible=%d, effectif=%d"),
+			ActualLosses, AdaptiveTargetLossMin, AdaptiveTargetLossMax,
+			AdaptiveTargetLossPreferred, AdaptiveInitialPlayerCount);
+	}
 }
 
 // Écran de TRANSITION narrative (hors-champ) — appelé depuis le bouton du résumé phase 1.
@@ -1776,6 +2034,7 @@ void AWOTOLDemoDirector::ReturnToMainMenu()
 
 void AWOTOLDemoDirector::CleanupUnits()
 {
+	ResetAdaptiveBattleBalance();
 	for (TObjectPtr<AWOTOLDemoUnit>& U : SpawnedUnits)
 	{
 		if (U) U->Destroy();
