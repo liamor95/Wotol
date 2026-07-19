@@ -152,9 +152,10 @@ void AWOTOLPlayerController_Battle::ChangeLayerForSelection(float DeltaZ)
 	}
 }
 
-void AWOTOLPlayerController_Battle::PickFactionAndPrepare(EFactionID Faction)
+void AWOTOLPlayerController_Battle::SelectFaction(EFactionID Faction)
 {
-	// Source fiable = le subsystem (toujours présent), pas seulement le GameInstance.
+	// La faction est seulement MÉMORISÉE ici. Le joueur peut encore changer la difficulté
+	// et ses réglages ; rien ne démarre avant son clic explicite sur « Lancer la partie ».
 	if (UDemoFlowSubsystem* Demo = GetGameInstance()
 			? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr)
 	{
@@ -165,10 +166,6 @@ void AWOTOLPlayerController_Battle::PickFactionAndPrepare(EFactionID Faction)
 		GI->SessionConfig.SelectedFaction = Faction;
 	}
 	SetPlayerFaction(Faction);
-	if (AWOTOLDemoDirector* Dir = GetDemoDirector())
-	{
-		Dir->BeginPreparation();
-	}
 }
 
 bool AWOTOLPlayerController_Battle::HandleUIClick()
@@ -299,11 +296,16 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 
 		if (AWOTOLDemoHUD::FactionButtonRect(0, VpSize.X, VpSize.Y).IsInside(M))
 		{
-			PickFactionAndPrepare(EFactionID::Aquiloris);
+			SelectFaction(EFactionID::Aquiloris);
 		}
 		else if (AWOTOLDemoHUD::FactionButtonRect(1, VpSize.X, VpSize.Y).IsInside(M))
 		{
-			PickFactionAndPrepare(EFactionID::Noxeens);
+			SelectFaction(EFactionID::Noxeens);
+		}
+		else if (AWOTOLDemoHUD::FactionLaunchButtonRect(VpSize.X, VpSize.Y).IsInside(M)
+			&& Demo && Demo->SelectedFaction != EFactionID::None)
+		{
+			if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->StartDemoAfterSelection();
 		}
 		return true;
 	}

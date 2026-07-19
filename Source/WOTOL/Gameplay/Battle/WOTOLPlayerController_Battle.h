@@ -90,7 +90,7 @@ private:
 
 	// Flux d'écrans
 	class AWOTOLDemoDirector* GetDemoDirector() const;
-	void PickFactionAndPrepare(EFactionID Faction);
+	void SelectFaction(EFactionID Faction);
 
 	// Verticalité : monte/descend la couche des unités sélectionnées
 	void ChangeLayerForSelection(float DeltaZ);

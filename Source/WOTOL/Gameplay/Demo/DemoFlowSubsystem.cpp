@@ -21,7 +21,9 @@ void UDemoFlowSubsystem::AdvancePhase()
 	// Ordre linéaire de la démo
 	switch (CurrentPhase)
 	{
-		case EDemoPhase::None:                 SetPhase(EDemoPhase::CityIntro); break;
+		// Canon le plus récent : après la configuration, la démo commence par l'introduction
+		// puis la nage libre vers le Kraken. La cité vient après la conquête.
+		case EDemoPhase::None:                 SetPhase(EDemoPhase::Exploration_Creature); break;
 		case EDemoPhase::CityIntro:            SetPhase(EDemoPhase::Exploration_Creature); break;
 		case EDemoPhase::Exploration_Creature: SetPhase(EDemoPhase::Battle_Creature); break;
 		case EDemoPhase::Battle_Creature:      SetPhase(EDemoPhase::Capture_Zone); break;
@@ -137,6 +139,37 @@ void UDemoFlowSubsystem::ActivateRecruitBuilding() { Progress.bRecruitBuildingAc
 void UDemoFlowSubsystem::MarkZoneCaptured()        { Progress.bZoneCaptured = true; }
 void UDemoFlowSubsystem::MarkZoneDamaged()         { Progress.bZoneDamaged = true; }
 void UDemoFlowSubsystem::MarkZoneRepaired()        { Progress.bZoneRepaired = true; }
+
+void UDemoFlowSubsystem::GrantMissionRewards(int32 Crystals, int32 AbyssalMaterials,
+	int32 Biomass, int32 Food)
+{
+	LastRewardCrystals          = FMath::Max(0, Crystals);
+	LastRewardAbyssalMaterials  = FMath::Max(0, AbyssalMaterials);
+	LastRewardBiomass           = FMath::Max(0, Biomass);
+	LastRewardFood              = FMath::Max(0, Food);
+
+	PlayerCrystals          += LastRewardCrystals;
+	PlayerAbyssalMaterials  += LastRewardAbyssalMaterials;
+	PlayerBiomass           += LastRewardBiomass;
+	PlayerFood              += LastRewardFood;
+}
+
+bool UDemoFlowSubsystem::CanAffordTerritoryBuilding(int32 CrystalCost,
+	int32 AbyssalMaterialCost) const
+{
+	return CrystalCost >= 0 && AbyssalMaterialCost >= 0
+		&& PlayerCrystals >= CrystalCost
+		&& PlayerAbyssalMaterials >= AbyssalMaterialCost;
+}
+
+bool UDemoFlowSubsystem::SpendTerritoryBuildingCost(int32 CrystalCost,
+	int32 AbyssalMaterialCost)
+{
+	if (!CanAffordTerritoryBuilding(CrystalCost, AbyssalMaterialCost)) return false;
+	PlayerCrystals -= CrystalCost;
+	PlayerAbyssalMaterials -= AbyssalMaterialCost;
+	return true;
+}
 
 // ─── ÉCONOMIE DE LA CITÉ ─────────────────────────────────────────────────────
 int32 UDemoFlowSubsystem::GetProductionCost(EDemoUnitCategory Category) const

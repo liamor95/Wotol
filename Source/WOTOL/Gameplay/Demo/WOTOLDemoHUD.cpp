@@ -68,6 +68,13 @@ FBox2D AWOTOLDemoHUD::DifficultyButtonRect(int32 Index, float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
+FBox2D AWOTOLDemoHUD::FactionLaunchButtonRect(float W, float H)
+{
+	const float BW = 420.f, BH = 62.f;
+	const float X = (W - BW) * 0.5f, Y = H * 0.85f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
 FBox2D AWOTOLDemoHUD::LaunchBattleButtonRect(float W, float H)
 {
 	// Petit bouton JUSTE SOUS le timer (haut centre) -> le centre de l'écran reste libre
@@ -132,14 +139,20 @@ void AWOTOLDemoHUD::DrawHUD()
 		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	const EDemoScreen Screen = DemoFlow ? DemoFlow->GetScreen() : EDemoScreen::Playing;
 
-	// ─── Écrans avant-jeu (menu / faction) : on dessine UNIQUEMENT l'écran ───
-	if (Screen == EDemoScreen::MainMenu)   { DrawMainMenu(W, H);      return; }
-	if (Screen == EDemoScreen::FactionSelect) { DrawFactionSelect(W, H); return; }
-	if (Screen == EDemoScreen::Summary)    { DrawSummary(W, H, DemoFlow); return; }
-	if (Screen == EDemoScreen::Interlude)  { DrawInterlude(W, H, DemoFlow); return; }
-	if (Screen == EDemoScreen::City)       { DrawCityView(W, H, DemoFlow); return; }
-	if (Screen == EDemoScreen::Skills)     { DrawSkillsView(W, H, DemoFlow); return; }
-	if (Screen == EDemoScreen::Loading)    { DrawLoadingScreen(W, H, DemoFlow); return; }
+	// Les écrans plein écran doivent quand même laisser une fenêtre d'objectif se dessiner
+	// AU-DESSUS. L'ancien return prématuré rendait le flux v0.8 invisible/bloqué sur Interlude.
+	auto DrawModalIfNeeded = [&]()
+	{
+		if (DemoFlow && DemoFlow->IsObjectiveWindowOpen()) DrawObjectiveWindow(W, H, DemoFlow);
+	};
+	if (Screen == EDemoScreen::MainMenu)      { DrawMainMenu(W, H); DrawModalIfNeeded(); return; }
+	if (Screen == EDemoScreen::FactionSelect) { DrawFactionSelect(W, H); DrawModalIfNeeded(); return; }
+	if (Screen == EDemoScreen::Summary)       { DrawSummary(W, H, DemoFlow); DrawModalIfNeeded(); return; }
+	if (Screen == EDemoScreen::Interlude)     { DrawInterlude(W, H, DemoFlow); DrawModalIfNeeded(); return; }
+	if (Screen == EDemoScreen::City)          { DrawCityView(W, H, DemoFlow); DrawModalIfNeeded(); return; }
+	if (Screen == EDemoScreen::Skills)        { DrawSkillsView(W, H, DemoFlow); DrawModalIfNeeded(); return; }
+	if (Screen == EDemoScreen::Loading)       { DrawLoadingScreen(W, H, DemoFlow); DrawModalIfNeeded(); return; }
+	if (Screen == EDemoScreen::Exploration)   { DrawExplorationHUD(W, H, DemoFlow); DrawModalIfNeeded(); return; }
 
 	// ─── 1) Boîte de sélection (rectangle de drag) ───────────────────────────
 	if (AWOTOLPlayerController_Battle* PC =
@@ -618,11 +631,28 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 		Canvas->K2_DrawPolygon(nullptr, CN, FVector2D(40.f, 40.f), 16, FLinearColor(0.3f, 0.95f, 0.5f, 0.95f));
 	}
 
-	DrawButton(FactionButtonRect(0, W, H), TEXT("AQUILORIS"), FLinearColor(0.3f, 0.6f, 1.f, 1.f), 1.7f);
-	DrawButton(FactionButtonRect(1, W, H), TEXT("NOXEENS"), FLinearColor(0.3f, 0.95f, 0.5f, 1.f), 1.7f);
+	UDemoFlowSubsystem* Flow = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	const EFactionID Selected = Flow ? Flow->SelectedFaction : EFactionID::None;
+	DrawButton(FactionButtonRect(0, W, H),
+		Selected == EFactionID::Aquiloris ? TEXT("AQUILORIS  [CHOISIE]") : TEXT("AQUILORIS"),
+		FLinearColor(0.3f, 0.6f, 1.f, 1.f), 1.7f);
+	DrawButton(FactionButtonRect(1, W, H),
+		Selected == EFactionID::Noxeens ? TEXT("NOXEENS  [CHOISIE]") : TEXT("NOXEENS"),
+		FLinearColor(0.3f, 0.95f, 0.5f, 1.f), 1.7f);
 	// Description COURTE, juste sous les boutons de faction (bien au-dessus du bloc difficulté).
 	DrawCenteredText(TEXT("Aquiloris : cristal-tech, coordination          Noxeens : abysses bioluminescents"),
 		FactionButtonRect(0, W, H).Max.Y + H * 0.04f, FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 1.0f);
+	if (Selected == EFactionID::Aquiloris)
+	{
+		DrawCenteredText(TEXT("Aquiloris — gardiens d'Aquilor, technologie cristalline et discipline collective."),
+			H * 0.545f, FLinearColor(0.65f, 0.88f, 1.f, 1.f), 0.95f);
+	}
+	else if (Selected == EFactionID::Noxeens)
+	{
+		DrawCenteredText(TEXT("Noxeens — peuple des failles, puissance abyssale et bioluminescence verte."),
+			H * 0.545f, FLinearColor(0.55f, 1.f, 0.66f, 1.f), 0.95f);
+	}
 
 	// ── DIFFICULTÉ (3 niveaux) : le joueur la choisit AVANT de cliquer sur une faction.
 	// Le niveau sélectionné est mis en évidence (couleur vive) ; les autres sont grisés.
@@ -643,6 +673,27 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 									  : FLinearColor(0.45f, 0.5f, 0.6f, 1.f); // autre : grisé
 		DrawButton(DifficultyButtonRect(i, W, H), DLabels[i], Col, bSel ? 1.3f : 1.05f);
 	}
+
+	const bool bReady = Selected != EFactionID::None;
+	DrawButton(FactionLaunchButtonRect(W, H),
+		bReady ? TEXT("LANCER LA PARTIE") : TEXT("CHOISISSEZ UNE FACTION"),
+		bReady ? FLinearColor(1.f, 0.72f, 0.22f, 1.f) : FLinearColor(0.38f, 0.42f, 0.48f, 1.f),
+		1.35f);
+}
+
+void AWOTOLDemoHUD::DrawExplorationHUD(float W, float H, UDemoFlowSubsystem* Demo)
+{
+	// On garde le monde 3D visible : seulement deux bandeaux translucides, jamais le HUD RTS.
+	DrawRect(FLinearColor(0.f, 0.02f, 0.06f, 0.72f), 0.f, 0.f, W, 94.f);
+	DrawRect(FLinearColor(0.f, 0.02f, 0.06f, 0.68f), 0.f, H - 72.f, W, 72.f);
+	DrawCenteredText(TEXT("EXPLORATION — NOUVELLE ZONE"), 20.f,
+		FLinearColor(0.55f, 0.88f, 1.f, 1.f), 1.45f);
+	if (Demo && !Demo->ObjectiveText.IsEmpty())
+	{
+		DrawCenteredText(Demo->ObjectiveText, 57.f, FLinearColor::White, 1.0f);
+	}
+	DrawCenteredText(TEXT("ZQSD/WASD : nager   |   Souris : regarder   |   Espace/E : monter   |   Maj/Ctrl : descendre"),
+		H - 48.f, FLinearColor(0.86f, 0.93f, 1.f, 0.95f), 0.95f);
 }
 
 // ─── Vue CITÉ ────────────────────────────────────────────────────────────────
@@ -755,9 +806,10 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 	const FString CityName = bAq ? TEXT("CITE D'AQUILOR") : TEXT("FAILLE NOXEENNE");
 	DrawGlowTitle(CityName, H * 0.04f, 2.2f, Accent);
 
-	// Compteur de cristaux (haut-gauche).
+	// Ressources persistantes gagnées en mission (haut-gauche).
 	const FString Res = bAq ? TEXT("Cristaux") : TEXT("Biolumens");
-	DrawText(FString::Printf(TEXT("%s : %d"), *Res, Demo->GetCrystals()),
+	DrawText(FString::Printf(TEXT("%s %d   |   Materiaux abyssaux %d   |   Biomasse %d   |   Nourriture %d"),
+		*Res, Demo->GetCrystals(), Demo->PlayerAbyssalMaterials, Demo->PlayerBiomass, Demo->PlayerFood),
 		FLinearColor(1.f, 0.95f, 0.6f, 1.f), 44.f, 44.f, GEngine ? GEngine->GetLargeFont() : nullptr, 1.5f);
 
 	// Instruction.
@@ -1040,10 +1092,22 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 		DrawText(Sub, Blk, SX, SY, SF, 1.4f);
 	}
 
+	const bool bHasRewards = Demo->LastRewardCrystals > 0
+		|| Demo->LastRewardAbyssalMaterials > 0 || Demo->LastRewardBiomass > 0
+		|| Demo->LastRewardFood > 0;
+	if (bHasRewards)
+	{
+		DrawCenteredText(FString::Printf(TEXT(
+			"RECOMPENSES : Cristaux +%d   |   Materiaux abyssaux +%d   |   Biomasse +%d   |   Nourriture +%d"),
+			Demo->LastRewardCrystals, Demo->LastRewardAbyssalMaterials,
+			Demo->LastRewardBiomass, Demo->LastRewardFood),
+			H * 0.205f, FLinearColor(1.f, 0.88f, 0.35f, 1.f), 1.0f);
+	}
+
 	// Deux colonnes : pertes de TON armée (gauche) / pertes de l'ennemi (droite).
 	// Hauteur bornée AU-DESSUS des boutons + interligne DYNAMIQUE -> tout tient, rien ne
 	// chevauche (2 lignes compactes par unité).
-	const float ColTop  = H * 0.22f;
+	const float ColTop  = bHasRewards ? H * 0.255f : H * 0.22f;
 	const float ColBot  = SummaryReplayButtonRect(W, H).Min.Y - 24.f; // au-dessus des boutons
 	auto DrawColumn = [&](float X, float ColW, const FString& Header,
 		const TArray<FUnitLossEntry>& Entries, const FLinearColor& Accent)

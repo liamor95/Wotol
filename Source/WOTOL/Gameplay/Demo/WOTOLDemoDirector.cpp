@@ -15,6 +15,8 @@
 #include "Gameplay/AI/AIAdaptiveController.h"
 #include "Gameplay/Units/UnitAIStateComponent.h"
 #include "Gameplay/Battle/WOTOLBattleCamera.h"
+#include "Gameplay/Battle/WOTOLPlayerController_Battle.h"
+#include "Gameplay/Exploration/WOTOLHeroCharacter.h"
 #include "Core/FactionRegistrySubsystem.h"
 #include "EngineUtils.h"
 #include "WOTOLGreyboxEnvironment.h"
@@ -213,14 +215,197 @@ void AWOTOLDemoDirector::BeginPlay()
 		&AWOTOLDemoDirector::UpdateMusicForScreen, 0.25f, /*bLoop=*/true);
 }
 
+void AWOTOLDemoDirector::StartDemoAfterSelection()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || Demo->SelectedFaction == EFactionID::None) return;
+
+	CachedPlayerFaction = ResolvePlayerFaction();
+	CachedRivalFaction  = RivalOf(CachedPlayerFaction);
+	bEnableFullFlowV08  = true;
+
+	GetWorldTimerManager().ClearTimer(ExplorationTransitionHandle);
+	GetWorldTimerManager().ClearTimer(ExplorationProximityHandle);
+	Demo->SetPhase(EDemoPhase::Exploration_Creature);
+	Demo->SetMessage(TEXT("Une nouvelle zone inconnue a ete localisee..."));
+	Demo->SetScreen(EDemoScreen::Loading);
+
+	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+	{
+		PC->bShowMouseCursor = true;
+		PC->SetInputMode(FInputModeUIOnly());
+	}
+
+	GetWorldTimerManager().SetTimer(ExplorationTransitionHandle, this,
+		&AWOTOLDemoDirector::BeginOpeningExploration,
+		FMath::Max(0.5f, OpeningLoadingDuration), false);
+}
+
+void AWOTOLDemoDirector::PossessExplorationHero(const FVector& SpawnLocation,
+	const FRotator& SpawnRotation)
+{
+	DestroyExplorationHero();
+	UWorld* W = GetWorld();
+	if (!W) return;
+
+	FActorSpawnParameters P;
+	P.Owner = this;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	ExplorationHero = W->SpawnActor<AWOTOLHeroCharacter>(
+		AWOTOLHeroCharacter::StaticClass(), SpawnLocation, SpawnRotation, P);
+
+	if (APlayerController* PC = W->GetFirstPlayerController())
+	{
+		if (ExplorationHero) PC->Possess(ExplorationHero);
+		PC->bShowMouseCursor = true; // l'introduction modale doit pouvoir être validée
+		FInputModeGameAndUI Mode;
+		Mode.SetHideCursorDuringCapture(false);
+		PC->SetInputMode(Mode);
+	}
+}
+
+void AWOTOLDemoDirector::DestroyExplorationHero()
+{
+	if (ExplorationHero)
+	{
+		ExplorationHero->Destroy();
+		ExplorationHero = nullptr;
+	}
+}
+
+void AWOTOLDemoDirector::PossessBattleCamera()
+{
+	UWorld* W = GetWorld();
+	if (!W) return;
+	AWOTOLPlayerController_Battle* PC = Cast<AWOTOLPlayerController_Battle>(W->GetFirstPlayerController());
+	if (!PC) return;
+	for (TActorIterator<AWOTOLBattleCamera> It(W); It; ++It)
+	{
+		PC->SetBattleCamera(*It);
+		break;
+	}
+	PC->bShowMouseCursor = true;
+	FInputModeGameAndUI Mode;
+	Mode.SetHideCursorDuringCapture(false);
+	PC->SetInputMode(Mode);
+}
+
+void AWOTOLDemoDirector::BeginOpeningExploration()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+
+	CleanupUnits();
+	ClearPlacementBoundary();
+	ClearCoverStructures();
+	Demo->SetBoss(nullptr);
+	Demo->SetPhase(EDemoPhase::Exploration_Creature);
+	Demo->SetScreen(EDemoScreen::Exploration);
+	Demo->SetObjective(TEXT("Explorez la zone et approchez-vous de la creature inconnue"));
+
+	const FVector Center = GetActorLocation();
+	PossessExplorationHero(Center + ExplorationHeroOffset, FRotator(0.f, 0.f, 0.f));
+
+	// Le même Kraken greybox est visible au loin, cerveau désactivé. À l'approche il sera
+	// détruit puis recréé par BeginPreparation avec ses PV et son IA de combat complets.
+	SpawnEnemyForCreature(CachedRivalFaction, Center + ExplorationKrakenOffset,
+		FRotator(0.f, 180.f, 0.f));
+	ExplorationCreature = Cast<AWOTOLDemoUnit>(Demo->GetBoss());
+	if (ExplorationCreature) ExplorationCreature->bCreatureBrain = false;
+
+	const FString IntroBody = CachedPlayerFaction == EFactionID::Noxeens
+		? TEXT("Depuis leurs failles bioluminescentes, les Noxeens etendent leur influence.\n"
+			"Une expedition vient de decouvrir une zone inconnue : identifiez la menace qui s'y cache.")
+		: TEXT("Depuis Aquilor, les Aquiloris protegent les cristaux d'energie des profondeurs.\n"
+			"Une expedition vient de decouvrir une zone inconnue : identifiez la menace qui s'y cache.");
+	Demo->OpenObjectiveWindow(TEXT("intro_begin_exploration"),
+		CachedPlayerFaction == EFactionID::Noxeens ? TEXT("LES NOXEENS") : TEXT("LES AQUILORIS"),
+		IntroBody,
+		TEXT("COMMENCER L'EXPLORATION"));
+
+	GetWorldTimerManager().SetTimer(ExplorationProximityHandle, this,
+		&AWOTOLDemoDirector::CheckExplorationEncounter, 0.15f, true);
+}
+
+void AWOTOLDemoDirector::CheckExplorationEncounter()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || Demo->IsObjectiveWindowOpen() || !ExplorationHero || !ExplorationCreature) return;
+
+	const float Dist = FVector::Dist(ExplorationHero->GetActorLocation(),
+		ExplorationCreature->GetActorLocation());
+	if (Dist <= EncounterTriggerDistance) TransitionExplorationToBattle();
+}
+
+void AWOTOLDemoDirector::TransitionExplorationToBattle()
+{
+	GetWorldTimerManager().ClearTimer(ExplorationProximityHandle);
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+
+	Demo->SetMessage(TEXT("Creature detectee — deploiement de l'armee..."));
+	Demo->SetScreen(EDemoScreen::Loading);
+	PossessBattleCamera();
+	DestroyExplorationHero();
+
+	GetWorldTimerManager().SetTimer(ExplorationTransitionHandle, this,
+		&AWOTOLDemoDirector::BeginCreaturePreparationAfterExploration, 1.5f, false);
+}
+
+void AWOTOLDemoDirector::BeginCreaturePreparationAfterExploration()
+{
+	if (UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr)
+	{
+		Demo->SetPhase(EDemoPhase::Battle_Creature);
+	}
+	BeginPreparation();
+	ExplorationCreature = nullptr;
+}
+
+void AWOTOLDemoDirector::ResumePostBattleExploration()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+	Demo->SetMessage(TEXT("Retour dans la zone liberee..."));
+	Demo->SetScreen(EDemoScreen::Loading);
+	GetWorldTimerManager().SetTimer(ExplorationTransitionHandle, this,
+		&AWOTOLDemoDirector::BeginPostBattleExploration, 1.2f, false);
+}
+
+void AWOTOLDemoDirector::BeginPostBattleExploration()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+
+	CleanupUnits();
+	Demo->SetBoss(nullptr);
+	Demo->SetPhase(EDemoPhase::Capture_Zone);
+	Demo->SetScreen(EDemoScreen::Exploration);
+	Demo->SetObjective(TEXT("Consultez le rapport puis purifiez la nouvelle zone"));
+	PossessExplorationHero(GetActorLocation() + FVector(-1200.f, 0.f, 260.f),
+		FRotator(0.f, 0.f, 0.f));
+	BeginPostCreatureSequence();
+}
+
 uint8 AWOTOLDemoDirector::MusicCatForScreen(uint8 Screen) const
 {
 	switch (static_cast<EDemoScreen>(Screen))
 	{
 	case EDemoScreen::MainMenu:
-	case EDemoScreen::FactionSelect: return 1; // menu
+	case EDemoScreen::FactionSelect:
+	case EDemoScreen::Loading:
+	case EDemoScreen::City:
+	case EDemoScreen::Skills:        return 1; // menu / préparation narrative
 	case EDemoScreen::Prepare:
-	case EDemoScreen::Playing:       return 2; // bataille
+	case EDemoScreen::Playing:
+	case EDemoScreen::Exploration:   return 2; // exploration + bataille
 	case EDemoScreen::Summary:
 	case EDemoScreen::Interlude:     return 3; // résumé
 	default:                         return 0;
@@ -312,6 +497,13 @@ void AWOTOLDemoDirector::BeginPreparation()
 
 	UDemoFlowSubsystem* Demo = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (Demo)
+	{
+		Demo->LastRewardCrystals = 0;
+		Demo->LastRewardAbyssalMaterials = 0;
+		Demo->LastRewardBiomass = 0;
+		Demo->LastRewardFood = 0;
+	}
 	// Première prépa (menu) : on est sur la phase créature.
 	if (Demo && Demo->GetPhase() == EDemoPhase::None)
 	{
@@ -1200,6 +1392,13 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 
 	if (Phase == EDemoPhase::Battle_Creature)
 	{
+		// Les récompenses sont attribuées au moment du rapport de victoire, pas plus tard dans
+		// la cité. Elles restent affichables sur le résumé et disponibles pour le Cristalliseur.
+		if (Demo)
+		{
+			Demo->GrantMissionRewards(CreatureRewardCrystals,
+				CreatureRewardAbyssalMaterials, CreatureRewardBiomass, CreatureRewardFood);
+		}
 		// Résumé INTERMÉDIAIRE (pertes de la bataille du Kraken), puis bouton "Continuer".
 		GetWorldTimerManager().ClearTimer(BattleCheckHandle);
 		BuildBattleSummary(true, /*bFinal=*/false, TEXT("KRAKEN VAINCU"));
@@ -1317,6 +1516,14 @@ void AWOTOLDemoDirector::ShowInterlude()
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	if (!Demo) return;
 
+	// Flux actuel : après le rapport du Kraken, le joueur reprend réellement le contrôle du
+	// héros dans la zone libérée. L'ancien écran hors-champ reste le repli de diagnostic.
+	if (bEnableFullFlowV08 && Demo->GetPhase() == EDemoPhase::Battle_Creature)
+	{
+		ResumePostBattleExploration();
+		return;
+	}
+
 	const FString Building = BuildingDisplayName(CachedPlayerFaction);
 	const FString Ranged   = RangedUnitDisplayName(CachedPlayerFaction);
 	const FString Mythic   = MythicDisplayName(CachedPlayerFaction);
@@ -1393,6 +1600,8 @@ void AWOTOLDemoDirector::ContinueToPhase2()
 // Bouton « Partir en expédition » de la cité (module 5) -> lance la défense (phase 10).
 void AWOTOLDemoDirector::LaunchDefenseFromCity()
 {
+	PossessBattleCamera();
+	DestroyExplorationHero();
 	if (UGameInstance* GI = GetGameInstance())
 		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
 			Demo->SetScreen(EDemoScreen::Playing);
@@ -1636,10 +1845,14 @@ void AWOTOLDemoDirector::BeginPostCreatureSequence()
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	if (!Demo) return;
 	Demo->SetPhase(EDemoPhase::Capture_Zone);
-	Demo->OpenObjectiveWindow(TEXT("seq_victory"),
-		TEXT("OBJECTIF REMPLI"),
-		TEXT("Vous avez vaincu la creature.\nLa zone peut desormais etre purifiee."),
-		TEXT("Continuer"));
+	Demo->OpenObjectiveWindow(TEXT("seq_place_crystalliser"),
+		TEXT("NOUVEL OBJECTIF — PURIFIER LA ZONE"),
+		FString::Printf(TEXT(
+			"Le Kraken est vaincu. Vous possedez maintenant les ressources necessaires.\n"
+			"Placez le Cristalliseur pour acquerir et terraformer ce territoire.\n"
+			"Cout provisoire : %d cristaux + %d materiaux abyssaux."),
+			CrystalliserCrystalCost, CrystalliserAbyssalMaterialCost),
+		TEXT("PLACER LE CRISTALLISEUR"));
 }
 
 AWOTOLRewardActor* AWOTOLDemoDirector::SpawnReward(EWOTOLRewardType Type, const FVector& Loc)
@@ -1679,16 +1892,29 @@ void AWOTOLDemoDirector::HandleObjectiveConfirmed(FName StepId)
 
 	const FVector Center = GetActorLocation();
 
-	if (StepId == TEXT("seq_victory"))
+	if (StepId == TEXT("intro_begin_exploration"))
 	{
-		// Étape 7 : demander la pose du Cristalliseur.
-		Demo->OpenObjectiveWindow(TEXT("seq_place_crystalliser"),
-			TEXT("PURIFICATION DE LA ZONE"),
-			TEXT("Placez le Cristalliseur pour stabiliser le territoire."),
-			TEXT("Placer le Cristalliseur"));
+		// Le clic ferme l'introduction ; la souris est reprise par la caméra 3e personne.
+		if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+		{
+			PC->bShowMouseCursor = false;
+			PC->SetInputMode(FInputModeGameOnly());
+		}
+		Demo->SetObjective(TEXT("Explorez la zone — approchez-vous du Kraken (5 a 10 m)"));
 	}
 	else if (StepId == TEXT("seq_place_crystalliser"))
 	{
+		// La dépense est atomique : si un coût change plus tard, impossible de créer le bâtiment
+		// gratuitement ou de retirer seulement l'une des ressources.
+		if (!Demo->SpendTerritoryBuildingCost(
+			CrystalliserCrystalCost, CrystalliserAbyssalMaterialCost))
+		{
+			Demo->OpenObjectiveWindow(TEXT("seq_place_crystalliser"),
+				TEXT("RESSOURCES INSUFFISANTES"),
+				TEXT("Le Cristalliseur ne peut pas etre construit. Consultez le rapport de mission."),
+				TEXT("REESSAYER"), true);
+			return;
+		}
 		// Pose du Cristalliseur (joueur) + apparition du Cœur-Éclat à proximité.
 		SpawnCaptureObject(CachedPlayerFaction);
 		if (CaptureObject) CaptureObject->ClaimZone();
@@ -1713,9 +1939,9 @@ void AWOTOLDemoDirector::HandleObjectiveConfirmed(FName StepId)
 	else if (StepId == TEXT("seq_collect_egg"))
 	{
 		if (ActiveReward) { ActiveReward->Collect(); ActiveReward = nullptr; }
-		// Récompense : mythique débloqué + cristaux pour la cité, retour à la cité.
+		// Récompense : mythique débloqué, puis retour à la cité. Les ressources ont déjà été
+		// créditées et affichées sur le rapport de bataille du Kraken.
 		Demo->UnlockRangedUnit();
-		Demo->AddCrystals(600);
 		Demo->SetPhase(EDemoPhase::City_Unlock);
 		Demo->OpenObjectiveWindow(TEXT("seq_return_city"),
 			TEXT("RETOUR A LA CITE"),
@@ -1724,6 +1950,15 @@ void AWOTOLDemoDirector::HandleObjectiveConfirmed(FName StepId)
 	}
 	else if (StepId == TEXT("seq_return_city"))
 	{
+		PossessBattleCamera();
+		DestroyExplorationHero();
+		if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+		{
+			PC->bShowMouseCursor = true;
+			FInputModeGameAndUI Mode;
+			Mode.SetHideCursorDuringCapture(false);
+			PC->SetInputMode(Mode);
+		}
 		Demo->SetScreen(EDemoScreen::City);
 	}
 	// (Les autres étapes du flux 13 phases seront ajoutées au module 10.)

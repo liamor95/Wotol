@@ -7,6 +7,7 @@
 
 class UCameraComponent;
 class USpringArmComponent;
+class UStaticMeshComponent;
 class UHeroLoadoutDataAsset;
 
 // Héros contrôlé par le joueur en mode exploration (vue troisième personne)
@@ -36,6 +37,11 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UCameraComponent> Camera;
+
+	// Silhouette greybox visible même sans Blueprint/mesh importé. Elle sera remplacée par
+	// le véritable héros, mais rend déjà la nage testable dans un niveau procédural vide.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hero|Greybox")
+	TObjectPtr<UStaticMeshComponent> GreyboxBody;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Hero")
 	TObjectPtr<UHeroLoadoutDataAsset> CurrentLoadout;

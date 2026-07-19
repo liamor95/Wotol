@@ -27,6 +27,7 @@ public:
 	// Flux d'écrans
 	static FBox2D StartGameButtonRect(float W, float H);      // menu principal
 	static FBox2D FactionButtonRect(int32 Index, float W, float H); // 0=Aquiloris 1=Noxeens
+	static FBox2D FactionLaunchButtonRect(float W, float H); // validation explicite après tous les réglages
 	static FBox2D LaunchBattleButtonRect(float W, float H);   // préparation
 
 	// Boutons de couche verticale (nage) — montent/descendent la sélection
@@ -87,6 +88,7 @@ private:
 	// Écrans du flux (menu / faction / préparation)
 	void DrawMainMenu(float W, float H);
 	void DrawFactionSelect(float W, float H);
+	void DrawExplorationHUD(float W, float H, class UDemoFlowSubsystem* Demo);
 	// Vue cité : fond + cristaux + cartes de production + bouton d'expédition.
 	void DrawCityView(float W, float H, class UDemoFlowSubsystem* Demo);
 	// Onglet compétences : choix de l'axe (voie) de chaque type d'unité.

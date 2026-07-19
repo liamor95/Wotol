@@ -45,9 +45,13 @@ défense, et écrans de transition/chargement.
 - HUD `DrawLoading` (fond animé + logo + barre/anneau + astuce). Écran `Loading` intercalé
   entre phases lourdes (cité↔bataille, monde↔bataille).
 
-### 7. Monde ouvert / nage libre 3D ✅ 🧪 (commit `89a8e32`)
-- Pion nageur ZQSD + montée/descente, caméra 3e personne, zone neutre ~70 m².
-- Transition automatique à ~5–10 m de la créature → bataille (fenêtre d'objectif).
+### 7. Monde ouvert / nage libre 3D ✅ 🧪
+- Pion nageur ZQSD/WASD + montée/descente, caméra 3e personne, silhouette greybox visible.
+- **Connecté à la démo jouée dans la même carte procédurale** : possession caméra RTS ↔ héros,
+  sans `OpenLevel` et sans perdre les ressources/progression du `GameInstance`.
+- Après le bouton explicite « Lancer la partie » : chargement/lore → exploration → approche à
+  5–10 m du Kraken → chargement → placement de l'armée → bataille tutorielle.
+- Après le rapport du Kraken : retour réel en nage libre avant la séquence Cristalliseur.
 
 ### 8. Séquence Cristalliseur → Cœur-Éclat → œuf ✅ 🧪 (acteurs + fenetres d objectif)
 - Après victoire créature : fenêtre « Placez le Cristalliseur » → pose → Cœur-Éclat apparaît →
@@ -57,9 +61,15 @@ défense, et écrans de transition/chargement.
 - Bâtiment avec PV/bonus/réparation (`WOTOLCaptureObject` existe déjà — à étendre).
 - Destruction = **échec immédiat** (fenêtre rouge) → zone neutre. Pas de bâtiment ennemi posé.
 
-### 10. Câblage du flux 13 phases dans le Director 🔨 (interrupteur bEnableFullFlowV08)
-- Remplacer l'enchaînement 3-batailles par la machine 13 phases pilotée par les fenêtres
-  d'objectif (`OnObjectiveConfirmed` → `Director` agit → phase suivante).
+### 10. Câblage du flux 13 phases dans le Director 🔨
+- `bEnableFullFlowV08` est désormais **activé par défaut** ; l'ancienne boucle reste seulement
+  comme repli de diagnostic.
+- Fenêtres plein écran corrigées : une modale d'objectif peut maintenant s'afficher sur
+  Exploration, Interlude, Cité et Chargement sans être masquée par un `return` du HUD.
+- Rapport Kraken : récompenses séparées (cristaux, matériaux abyssaux, biomasse, nourriture),
+  puis coût atomique du Cristalliseur. Montants provisoires et éditables dans le Director.
+- Reste à rendre la pose du Cristalliseur spatiale (inventaire → surbrillance → clic sur
+  l'emplacement), puis à brancher la construction du bâtiment distance et l'objectif 10 unités.
 
 ### 11. Intégrations UI d'assets ⏳
 - Logo (menu), emblèmes (sélection faction), icônes de rôles (marqueurs HUD), écran carte.
@@ -101,8 +111,10 @@ Warcraft III) avec les patterns concrets à copier. Synthèse : *« campagne Tot
 en volume Homeworld »*.
 
 ## Reste à faire (nécessite un PC pour compiler/valider)
-- **Activer le flux 13 phases** : mettre `bEnableFullFlowV08 = true` sur le Director (une fois compilé),
-  puis tester l'enchaînement créature → Cristalliseur → Cœur-Éclat → œuf → cité → défense.
+- Compiler UE 5.8 et tester l'enchaînement réellement branché : menu → lancement manuel → nage →
+  proximité Kraken → placement/bataille → rapport/récompenses → retour nage → Cristalliseur.
+- Ajouter la pose spatiale du Cristalliseur et la construction libre du bâtiment Akisfères.
+- Ajouter l'objectif cité « produire 10 unités à distance » et la limite d'armée de démo (35).
 - **HUD** : jauge verticale SURFACE/MID/SOL (Homeworld), panneau héros + capacités, restyle fenêtre d'objectif.
 - **Module 11** : intégrer logo/emblèmes/icônes de rôles (assets de référence).
 - **Module 12** : build autonome (packaging Windows) — côté éditeur.

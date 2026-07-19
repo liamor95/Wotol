@@ -53,7 +53,8 @@ enum class EDemoScreen : uint8
 	City          UMETA(DisplayName = "Cité (production Aquiloris)"),
 	WorldMap      UMETA(DisplayName = "Monde ouvert / carte"),
 	Loading       UMETA(DisplayName = "Écran de chargement"),
-	Skills        UMETA(DisplayName = "Compétences (arbre / axes)")
+	Skills        UMETA(DisplayName = "Compétences (arbre / axes)"),
+	Exploration   UMETA(DisplayName = "Exploration — nage libre 3D")
 };
 
 // Ligne de résumé : pertes d'un type d'unité (nom + perdus / total) pour une faction.
@@ -226,7 +227,22 @@ public:
 
 	// Réinitialise la progression (déblocages) pour rejouer la démo depuis le début.
 	UFUNCTION(BlueprintCallable, Category = "Demo")
-	void ResetProgress() { Progress = FDemoProgress(); CurrentPhase = EDemoPhase::None; PlayerCrystals = 0; ReserveUnits.Empty(); BuildingLevels.Empty(); UnitAxes.Empty(); }
+	void ResetProgress()
+	{
+		Progress = FDemoProgress();
+		CurrentPhase = EDemoPhase::None;
+		PlayerCrystals = 0;
+		PlayerAbyssalMaterials = 0;
+		PlayerBiomass = 0;
+		PlayerFood = 0;
+		LastRewardCrystals = 0;
+		LastRewardAbyssalMaterials = 0;
+		LastRewardBiomass = 0;
+		LastRewardFood = 0;
+		ReserveUnits.Empty();
+		BuildingLevels.Empty();
+		UnitAxes.Empty();
+	}
 
 	// Difficulté choisie (défaut Normal = l'équilibrage de référence).
 	UPROPERTY(BlueprintReadOnly, Category = "Demo")
@@ -285,6 +301,31 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
 	int32 PlayerCrystals = 0;
 
+	// Ressources de mission distinctes. Les valeurs d'équilibrage restent réglables dans le
+	// Director ; le subsystem ne fait que conserver le solde entre exploration, bataille et cité.
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	int32 PlayerAbyssalMaterials = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	int32 PlayerBiomass = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	int32 PlayerFood = 0;
+
+	// Dernier lot gagné : affiché sur le résumé de bataille, sans inventer de conversion entre
+	// les ressources. Remis à zéro au début d'une nouvelle récompense.
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
+	int32 LastRewardCrystals = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
+	int32 LastRewardAbyssalMaterials = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
+	int32 LastRewardBiomass = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
+	int32 LastRewardFood = 0;
+
 	// Unités produites en cité, en attente de déploiement à la bataille suivante
 	// (clé = ID d'unité canonique, valeur = nombre en réserve).
 	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
@@ -295,6 +336,16 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Demo|City")
 	void AddCrystals(int32 Amount) { PlayerCrystals = FMath::Max(0, PlayerCrystals + Amount); }
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|City")
+	void GrantMissionRewards(int32 Crystals, int32 AbyssalMaterials, int32 Biomass, int32 Food);
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	bool CanAffordTerritoryBuilding(int32 CrystalCost, int32 AbyssalMaterialCost) const;
+
+	// Dépense atomique : aucune ressource n'est retirée si l'un des deux soldes est insuffisant.
+	UFUNCTION(BlueprintCallable, Category = "Demo|City")
+	bool SpendTerritoryBuildingCost(int32 CrystalCost, int32 AbyssalMaterialCost);
 
 	// Coût en cristaux pour produire une unité de cette catégorie (0 = non productible ici).
 	UFUNCTION(BlueprintPure, Category = "Demo|City")

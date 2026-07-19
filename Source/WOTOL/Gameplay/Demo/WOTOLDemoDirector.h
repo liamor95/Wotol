@@ -11,6 +11,7 @@ class AWOTOLDemoUnit;
 class AWOTOLCaptureObject;
 class AWOTOLCoverStructure;
 class AWOTOLRewardActor;
+class AWOTOLHeroCharacter;
 class UUnitDataAsset;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDemoMessage, const FString&, Message);
@@ -79,6 +80,40 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
 	float PhaseTransitionDelay = 4.f;
 
+	// ── Introduction / nage libre connectée ───────────────────────────────────
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Exploration", meta = (ClampMin = "0.5"))
+	float OpeningLoadingDuration = 2.5f;
+
+	// Le combat se déclenche à 5–10 m du Kraken (900 uu = 9 m avec l'échelle UE standard).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Exploration", meta = (ClampMin = "500.0", ClampMax = "1000.0"))
+	float EncounterTriggerDistance = 900.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Exploration")
+	FVector ExplorationHeroOffset = FVector(-2600.f, 0.f, 260.f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Exploration")
+	FVector ExplorationKrakenOffset = FVector(2200.f, 0.f, 80.f);
+
+	// Valeurs PROVISOIRES et éditables : le joueur a précisé que les nombres cités à l'oral
+	// n'étaient que des exemples. Aucun de ces montants n'est considéré comme équilibrage final.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 CreatureRewardCrystals = 600;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 CreatureRewardAbyssalMaterials = 50;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 CreatureRewardBiomass = 30;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 CreatureRewardFood = 20;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 CrystalliserCrystalCost = 26;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 CrystalliserAbyssalMaterialCost = 15;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
 	TSubclassOf<AWOTOLDemoUnit> DemoUnitClass;
 
@@ -134,6 +169,11 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void StartCurrentBattle();
+
+	// Appelé UNIQUEMENT par le bouton « Lancer la partie » après faction/difficulté.
+	// Enchaîne chargement narratif → nage 3D → approche Kraken → préparation RTS.
+	UFUNCTION(BlueprintCallable, Category = "Demo|Exploration")
+	void StartDemoAfterSelection();
 
 	// Flux d'écrans : monte les armées en PRÉPARATION (placement, sans combat).
 	UFUNCTION(BlueprintCallable, Category = "Demo")
@@ -192,18 +232,28 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
 	void BeginPostCreatureSequence();
 
-	// Interrupteur du FLUX 13 PHASES v0.8 (module 10). Désactivé par défaut : la démo
-	// conserve son enchaînement 3-batailles testé. Activé (éditeur ou BP) : la victoire
-	// créature enchaîne la séquence Cristalliseur → Cœur-Éclat → œuf → cité → défense.
-	// À basculer sur true UNE FOIS le projet recompilé et le flux validé.
+	// Le flux demandé est désormais le chemin par défaut. L'interrupteur reste exposé pour
+	// permettre un diagnostic de l'ancienne boucle de bataille sans supprimer le code de repli.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Flux")
-	bool bEnableFullFlowV08 = false;
+	bool bEnableFullFlowV08 = true;
 
 	// Lance la défense du Cristalliseur depuis la cité (bouton « Partir en expédition »).
 	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
 	void LaunchDefenseFromCity();
 
 private:
+	// Nage 3D dans la même carte procédurale que la bataille : on alterne la possession entre
+	// le héros et la caméra RTS, sans OpenLevel et sans perdre l'état du GameInstance.
+	void BeginOpeningExploration();
+	void CheckExplorationEncounter();
+	void TransitionExplorationToBattle();
+	void BeginCreaturePreparationAfterExploration();
+	void ResumePostBattleExploration();
+	void BeginPostBattleExploration();
+	void PossessBattleCamera();
+	void PossessExplorationHero(const FVector& SpawnLocation, const FRotator& SpawnRotation);
+	void DestroyExplorationHero();
+
 	// Réagit à la validation d'une fenêtre d'objectif -> avance la séquence.
 	UFUNCTION()
 	void HandleObjectiveConfirmed(FName StepId);
@@ -215,6 +265,15 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<AWOTOLRewardActor> ActiveReward;
+
+	UPROPERTY()
+	TObjectPtr<AWOTOLHeroCharacter> ExplorationHero;
+
+	UPROPERTY()
+	TObjectPtr<AWOTOLDemoUnit> ExplorationCreature;
+
+	FTimerHandle ExplorationTransitionHandle;
+	FTimerHandle ExplorationProximityHandle;
 
 	EFactionID ResolvePlayerFaction() const;
 	EFactionID RivalOf(EFactionID Faction) const;
