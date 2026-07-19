@@ -27,6 +27,9 @@ public:
 	// bouton plein écran / fenêtré, entre le titre et les boutons Reprendre/Recommencer/Quitter.
 	static FBox2D MusicVolumeBarRect(float W, float H);
 	static FBox2D FullscreenToggleButtonRect(float W, float H);
+	// Sous-écran "COMMANDES" (liste des touches, ouvert depuis le menu réglages) : bouton
+	// RETOUR, ancré en bas (la liste est plus haute que le menu réglages standard).
+	static FBox2D ControlsBackButtonRect(float W, float H);
 
 	// Flux d'écrans
 	static FBox2D StartGameButtonRect(float W, float H);      // menu principal
@@ -109,6 +112,8 @@ private:
 	void DrawPauseButton(float W, float H);
 	void DrawSettingsButton(float W, float H);
 	void DrawPauseOverlay(float W, float H);
+	// Sous-écran "COMMANDES" (liste des touches par contexte), ouvert depuis le menu réglages.
+	void DrawControlsScreen(float W, float H);
 	// Fenêtre d'objectif modale (titre + corps + bouton Continuer), dessinée par-dessus tout.
 	void DrawObjectiveWindow(float W, float H, class UDemoFlowSubsystem* Demo);
 

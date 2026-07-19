@@ -126,6 +126,7 @@ void AWOTOLPlayerController_Battle::TogglePause()
 void AWOTOLPlayerController_Battle::ToggleSettings()
 {
 	bSettingsOpen = !bSettingsOpen;
+	if (!bSettingsOpen) bControlsOpen = false; // referme toujours sur le menu principal
 	ApplyPauseState();
 }
 
@@ -615,6 +616,20 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 	// Menu RÉGLAGES ouvert : ses 3 boutons + les vrais réglages (volume, plein écran).
 	if (bSettingsOpen)
 	{
+		// Sous-écran COMMANDES (liste des touches) : un seul bouton actif, RETOUR.
+		if (bControlsOpen)
+		{
+			if (AWOTOLDemoHUD::ControlsBackButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+			{
+				bControlsOpen = false;
+			}
+			return true; // tout le reste est consommé sans effet tant que les commandes s'affichent
+		}
+		if (AWOTOLDemoHUD::MenuButtonRect(3, VpSize.X, VpSize.Y).IsInside(M)) // Commandes
+		{
+			bControlsOpen = true;
+			return true;
+		}
 		// Barre de volume musique : clic = fixe le niveau à la position horizontale cliquée.
 		{
 			const FBox2D VolRect = AWOTOLDemoHUD::MusicVolumeBarRect(VpSize.X, VpSize.Y);

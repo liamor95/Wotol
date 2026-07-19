@@ -73,6 +73,10 @@ private:
 	//   apparaissait avant sur la pause. Il met aussi le jeu en pause tant qu'il est ouvert.
 	bool bFrozen = false;
 	bool bSettingsOpen = false;
+	// Sous-écran "COMMANDES" (liste des touches), accessible depuis le menu réglages -> ne
+	// se ferme jamais tout seul en même temps que bSettingsOpen : ToggleSettings() le remet à
+	// faux à la fermeture pour que la réouverture retombe toujours sur le menu principal.
+	bool bControlsOpen = false;
 	// Suivi de l'état de la fenêtre d'objectif modale (gèle l'action tant qu'ouverte).
 	bool bObjectivePausedLast = false;
 	void ApplyPauseState(); // pause moteur = (bFrozen || bSettingsOpen)
@@ -81,6 +85,7 @@ private:
 public:
 	bool IsBattleFrozen() const { return bFrozen; }
 	bool IsSettingsOpen() const { return bSettingsOpen; }
+	bool IsControlsOpen() const { return bControlsOpen; }
 
 	// ── Écran RÉGLAGES : volume musique (réel, s'applique à la piste en cours) + plein
 	// écran (UGameUserSettings, aucun asset requis). Absents jusqu'ici — l'écran ne

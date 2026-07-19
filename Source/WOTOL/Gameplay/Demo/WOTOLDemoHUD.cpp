@@ -335,7 +335,10 @@ void AWOTOLDemoHUD::DrawHUD()
 	{
 		if (PC->IsSettingsOpen())
 		{
-			DrawPauseOverlay(W, H); // menu Reprendre / Recommencer / Quitter
+			if (PC->IsControlsOpen())
+				DrawControlsScreen(W, H); // liste des touches
+			else
+				DrawPauseOverlay(W, H); // menu Reprendre / Recommencer / Quitter / Commandes
 		}
 		else if (PC->IsBattleFrozen())
 		{
@@ -1848,6 +1851,12 @@ FBox2D AWOTOLDemoHUD::FullscreenToggleButtonRect(float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
+FBox2D AWOTOLDemoHUD::ControlsBackButtonRect(float W, float H)
+{
+	const float BW = 220.f, BH = 60.f;
+	return FBox2D(FVector2D(40.f, H - BH - 40.f), FVector2D(40.f + BW, H - 40.f));
+}
+
 void AWOTOLDemoHUD::DrawPauseOverlay(float W, float H)
 {
 	// Voile sombre plein écran
@@ -1886,8 +1895,8 @@ void AWOTOLDemoHUD::DrawPauseOverlay(float W, float H)
 			FsRect.Min.Y + (Sz.Y - FH) * 0.5f, GEngine->GetMediumFont(), 1.0f);
 	}
 
-	const TCHAR* Labels[3] = { TEXT("Reprendre"), TEXT("Recommencer"), TEXT("Quitter") };
-	for (int32 i = 0; i < 3; ++i)
+	const TCHAR* Labels[4] = { TEXT("Reprendre"), TEXT("Recommencer"), TEXT("Quitter"), TEXT("Commandes") };
+	for (int32 i = 0; i < 4; ++i)
 	{
 		const FBox2D R = MenuButtonRect(i, W, H);
 		const FVector2D Sz = R.Max - R.Min;
@@ -1897,6 +1906,60 @@ void AWOTOLDemoHUD::DrawPauseOverlay(float W, float H)
 		DrawText(Labels[i], FLinearColor::White, R.Min.X + (Sz.X - TW) * 0.5f,
 			R.Min.Y + (Sz.Y - TH) * 0.5f, GEngine->GetLargeFont(), 1.3f);
 	}
+}
+
+void AWOTOLDemoHUD::DrawControlsScreen(float W, float H)
+{
+	// Voile sombre plein écran, même habillage que le menu réglages.
+	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.75f), 0.f, 0.f, W, H);
+	DrawCenteredText(TEXT("COMMANDES"), H * 0.08f, FLinearColor::White, 2.4f);
+
+	struct FControlLine { const TCHAR* Key; const TCHAR* Desc; };
+	struct FControlSection { const TCHAR* Title; TArray<FControlLine> Lines; };
+
+	const TArray<FControlSection> Sections = {
+		{ TEXT("BATAILLE"), {
+			{ TEXT("Clic gauche"), TEXT("Selectionner / glisser pour selectionner un groupe") },
+			{ TEXT("Clic droit"), TEXT("Ordre (deplacement ou attaque) / maintenu = tourner la camera") },
+			{ TEXT("Molette"), TEXT("Zoom") },
+			{ TEXT("ZQSD / WASD / fleches"), TEXT("Deplacer la camera") },
+			{ TEXT("Ctrl"), TEXT("Selectionner toute l'armee") },
+			{ TEXT("R"), TEXT("Activer la competence des unites selectionnees") },
+			{ TEXT("Echap / P"), TEXT("Pause") },
+		}},
+		{ TEXT("EXPLORATION (nage libre)"), {
+			{ TEXT("ZQSD / WASD"), TEXT("Nager") },
+			{ TEXT("Souris"), TEXT("Regarder") },
+			{ TEXT("Espace / E"), TEXT("Monter") },
+			{ TEXT("Maj / Ctrl"), TEXT("Descendre") },
+			{ TEXT("Alt"), TEXT("Sprint (maintenu)") },
+			{ TEXT("C"), TEXT("Ruee (courte impulsion, a recharge)") },
+		}},
+		{ TEXT("VUE CITE"), {
+			{ TEXT("ZQSD / WASD / fleches"), TEXT("Deplacer la camera isometrique") },
+			{ TEXT("Molette"), TEXT("Zoom") },
+			{ TEXT("Clic sur un batiment"), TEXT("Ouvrir sa fiche technique") },
+		}},
+	};
+
+	float Y = H * 0.16f;
+	const float ColKeyX = W * 0.5f - 360.f;
+	const float ColDescX = W * 0.5f - 130.f;
+	for (const FControlSection& Sec : Sections)
+	{
+		DrawText(Sec.Title, FLinearColor(0.95f, 0.85f, 0.4f, 1.f), ColKeyX, Y,
+			GEngine ? GEngine->GetMediumFont() : nullptr, 1.05f);
+		Y += 34.f;
+		for (const FControlLine& Line : Sec.Lines)
+		{
+			DrawText(Line.Key, FLinearColor(0.55f, 0.85f, 1.f, 1.f), ColKeyX, Y, nullptr, 0.95f);
+			DrawText(Line.Desc, FLinearColor(0.9f, 0.92f, 0.96f, 0.95f), ColDescX, Y, nullptr, 0.9f);
+			Y += 27.f;
+		}
+		Y += 16.f;
+	}
+
+	DrawButton(ControlsBackButtonRect(W, H), TEXT("RETOUR"), FLinearColor(0.6f, 0.8f, 1.f, 1.f), 1.2f);
 }
 
 void AWOTOLDemoHUD::DrawBar(float X, float Y, float BarW, float BarH, float Pct,

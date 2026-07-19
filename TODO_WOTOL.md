@@ -154,6 +154,20 @@ Fait cette session (suite, meme jour) :
   fiche technique, et que les cartes 2D du bas restent cliquables normalement (upgrade/produce/
   depart/competences) malgre le retrait du fond plein ecran.
 
+- ECRAN COMMANDES (liste des touches), accessible depuis le menu reglages (bouton
+  "Commandes", 4e bouton sous Reprendre/Recommencer/Quitter). Trouve en comparant aux
+  conventions du genre RTS/tactique (recherche web session du 19/07/2026) : les RTS ont
+  presque tous un menu Reglages -> Controles listant les touches, precisement parce que
+  beaucoup sortent sans tutoriel et que les joueurs manquent des raccourcis sinon (ex.
+  pause tactique, selection de groupe). WOTOL avait deja Echap/P pour la pause et R pour
+  les competences, mais AUCUN endroit pour les decouvrir sans lire le code. Liste groupee
+  par contexte (Bataille / Exploration / Vue cite), texte seul (aucun changement de
+  gameplay), bouton Retour ancre en bas (MenuButtonRect(0) aurait ete recouvert par la
+  liste, plus haute que le menu reglages standard). Pas de systeme de groupes de controle
+  (Ctrl+1..9) trouve dans le code — mentionne comme convention standard mais PAS ajoute
+  (fonctionnalite gameplay, pas juste un ecran d'info, donc hors scope de ce passage).
+  N'a pas non plus ete compile/teste (meme reserve que d'habitude).
+
 ## Idees de Liamor pour APRES la demo (meta-progression, hors scope actuel)
 
 Notees telles quelles pour ne rien perdre, mais PAS a implementer a l'aveugle - ce sont de
