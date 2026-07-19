@@ -1672,11 +1672,60 @@ void AWOTOLDemoHUD::DrawSettingsButton(float W, float H)
 	Canvas->K2_DrawPolygon(nullptr, C, FVector2D(Rad * 0.42f, Rad * 0.42f), 10, FLinearColor(0.05f, 0.07f, 0.12f, 1.f)); // moyeu
 }
 
+FBox2D AWOTOLDemoHUD::MusicVolumeBarRect(float W, float H)
+{
+	const float BW = 280.f, BH = 26.f;
+	const float X = (W - BW) * 0.5f;
+	const float Y = H * 0.315f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
+FBox2D AWOTOLDemoHUD::FullscreenToggleButtonRect(float W, float H)
+{
+	const FBox2D VolRect = MusicVolumeBarRect(W, H);
+	const float BW = 280.f, BH = 36.f;
+	const float X = (W - BW) * 0.5f;
+	const float Y = VolRect.Max.Y + 14.f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
 void AWOTOLDemoHUD::DrawPauseOverlay(float W, float H)
 {
 	// Voile sombre plein écran
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), 0.f, 0.f, W, H);
-	DrawCenteredText(TEXT("REGLAGES"), H * 0.28f, FLinearColor::White, 2.6f);
+	DrawCenteredText(TEXT("REGLAGES"), H * 0.20f, FLinearColor::White, 2.6f);
+
+	// ── Réglages RÉELS (absents jusqu'ici : l'écran ne contenait que Reprendre/Recommencer/
+	// Quitter, aucun réglage audio/affichage) ──
+	AWOTOLPlayerController_Battle* PC = Cast<AWOTOLPlayerController_Battle>(GetOwningPlayerController());
+
+	// Volume musique : barre cliquable (clic = fixe le niveau à cette position).
+	{
+		const FBox2D VolRect = MusicVolumeBarRect(W, H);
+		const float Vol = PC ? PC->GetMusicVolume() : 0.7f;
+		float LW, LH; GetTextSize(TEXT("Musique"), LW, LH, GEngine->GetSmallFont(), 1.f);
+		DrawText(TEXT("Musique"), FLinearColor(0.85f, 0.9f, 1.f, 1.f),
+			VolRect.Min.X, VolRect.Min.Y - LH - 4.f, GEngine->GetSmallFont(), 1.f);
+		DrawBar(VolRect.Min.X, VolRect.Min.Y, VolRect.Max.X - VolRect.Min.X, VolRect.Max.Y - VolRect.Min.Y,
+			Vol, FLinearColor(0.35f, 0.7f, 1.f, 1.f), FLinearColor(0.10f, 0.10f, 0.12f, 0.9f));
+		const FString PctTxt = FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Vol * 100.f));
+		float PW2, PH2; GetTextSize(PctTxt, PW2, PH2, GEngine->GetSmallFont(), 0.9f);
+		DrawText(PctTxt, FLinearColor::White, VolRect.Max.X - PW2 - 6.f,
+			VolRect.Min.Y + (VolRect.Max.Y - VolRect.Min.Y - PH2) * 0.5f, GEngine->GetSmallFont(), 0.9f);
+	}
+
+	// Plein écran / fenêtré.
+	{
+		const FBox2D FsRect = FullscreenToggleButtonRect(W, H);
+		const FVector2D Sz = FsRect.Max - FsRect.Min;
+		const bool bFs = PC ? PC->IsFullscreen() : true;
+		DrawRect(FLinearColor(0.10f, 0.16f, 0.28f, 0.95f), FsRect.Min.X, FsRect.Min.Y, Sz.X, Sz.Y);
+		DrawRect(FLinearColor(0.3f, 0.6f, 1.f, 1.f), FsRect.Min.X, FsRect.Min.Y, Sz.X, 3.f);
+		const FString FsLabel = bFs ? TEXT("Affichage : Plein ecran") : TEXT("Affichage : Fenetre");
+		float FW, FH; GetTextSize(FsLabel, FW, FH, GEngine->GetMediumFont(), 1.0f);
+		DrawText(FsLabel, FLinearColor::White, FsRect.Min.X + (Sz.X - FW) * 0.5f,
+			FsRect.Min.Y + (Sz.Y - FH) * 0.5f, GEngine->GetMediumFont(), 1.0f);
+	}
 
 	const TCHAR* Labels[3] = { TEXT("Reprendre"), TEXT("Recommencer"), TEXT("Quitter") };
 	for (int32 i = 0; i < 3; ++i)

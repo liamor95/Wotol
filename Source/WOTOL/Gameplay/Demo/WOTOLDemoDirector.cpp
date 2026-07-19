@@ -490,6 +490,15 @@ void AWOTOLDemoDirector::PlayMusic(USoundBase* Music, bool bLoop)
 	}
 }
 
+void AWOTOLDemoDirector::SetMusicVolume(float NewVolume)
+{
+	MusicVolume = FMath::Clamp(NewVolume, 0.f, 1.f);
+	if (CurrentMusic)
+	{
+		CurrentMusic->SetVolumeMultiplier(MusicVolume);
+	}
+}
+
 // Monte les armées en PRÉPARATION (placement libre), SANS lancer le combat.
 // Fonctionne pour LES DEUX phases (créature ou défense rivale) selon la phase courante.
 void AWOTOLDemoDirector::BeginPreparation()

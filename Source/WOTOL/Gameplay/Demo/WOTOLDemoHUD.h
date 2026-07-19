@@ -23,6 +23,10 @@ public:
 	static FBox2D SettingsButtonRect(float W, float H);
 	// Boutons du menu pause (0 = Reprendre, 1 = Recommencer, 2 = Quitter).
 	static FBox2D MenuButtonRect(int32 Index, float W, float H);
+	// Écran RÉGLAGES : barre de volume musique (clic = fixe le niveau à la position) et
+	// bouton plein écran / fenêtré, entre le titre et les boutons Reprendre/Recommencer/Quitter.
+	static FBox2D MusicVolumeBarRect(float W, float H);
+	static FBox2D FullscreenToggleButtonRect(float W, float H);
 
 	// Flux d'écrans
 	static FBox2D StartGameButtonRect(float W, float H);      // menu principal

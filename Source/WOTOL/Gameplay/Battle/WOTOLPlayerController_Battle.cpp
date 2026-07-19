@@ -18,6 +18,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Engine/GameViewportClient.h"
+#include "GameFramework/GameUserSettings.h"
 #include "EngineUtils.h"
 
 AWOTOLPlayerController_Battle::AWOTOLPlayerController_Battle()
@@ -125,6 +126,43 @@ void AWOTOLPlayerController_Battle::ToggleSettings()
 {
 	bSettingsOpen = !bSettingsOpen;
 	ApplyPauseState();
+}
+
+float AWOTOLPlayerController_Battle::GetMusicVolume() const
+{
+	if (AWOTOLDemoDirector* Dir = GetDemoDirector())
+	{
+		return Dir->GetMusicVolume();
+	}
+	return 0.7f;
+}
+
+void AWOTOLPlayerController_Battle::SetMusicVolume(float NewVolume)
+{
+	if (AWOTOLDemoDirector* Dir = GetDemoDirector())
+	{
+		Dir->SetMusicVolume(NewVolume);
+	}
+}
+
+bool AWOTOLPlayerController_Battle::IsFullscreen() const
+{
+	if (UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr)
+	{
+		return Settings->GetFullscreenMode() != EWindowMode::Windowed;
+	}
+	return true;
+}
+
+void AWOTOLPlayerController_Battle::ToggleFullscreen()
+{
+	UGameUserSettings* Settings = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+	if (!Settings) return;
+
+	const EWindowMode::Type NewMode = (Settings->GetFullscreenMode() == EWindowMode::Windowed)
+		? EWindowMode::WindowedFullscreen : EWindowMode::Windowed;
+	Settings->SetFullscreenMode(NewMode);
+	Settings->ApplySettings(false);
 }
 
 AWOTOLDemoDirector* AWOTOLPlayerController_Battle::GetDemoDirector() const
@@ -513,9 +551,24 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		return true;
 	}
 
-	// Menu RÉGLAGES ouvert : ses 3 boutons.
+	// Menu RÉGLAGES ouvert : ses 3 boutons + les vrais réglages (volume, plein écran).
 	if (bSettingsOpen)
 	{
+		// Barre de volume musique : clic = fixe le niveau à la position horizontale cliquée.
+		{
+			const FBox2D VolRect = AWOTOLDemoHUD::MusicVolumeBarRect(VpSize.X, VpSize.Y);
+			if (VolRect.IsInside(M))
+			{
+				const float NewVolume = (M.X - VolRect.Min.X) / FMath::Max(1.f, VolRect.Max.X - VolRect.Min.X);
+				SetMusicVolume(FMath::Clamp(NewVolume, 0.f, 1.f));
+				return true;
+			}
+		}
+		if (AWOTOLDemoHUD::FullscreenToggleButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+		{
+			ToggleFullscreen();
+			return true;
+		}
 		if (AWOTOLDemoHUD::MenuButtonRect(0, VpSize.X, VpSize.Y).IsInside(M)) // Reprendre (ferme)
 		{
 			bSettingsOpen = false; ApplyPauseState();

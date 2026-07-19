@@ -81,6 +81,22 @@ private:
 public:
 	bool IsBattleFrozen() const { return bFrozen; }
 	bool IsSettingsOpen() const { return bSettingsOpen; }
+
+	// ── Écran RÉGLAGES : volume musique (réel, s'applique à la piste en cours) + plein
+	// écran (UGameUserSettings, aucun asset requis). Absents jusqu'ici — l'écran ne
+	// contenait que Reprendre/Recommencer/Quitter, pas de vrais réglages audio/affichage.
+	UFUNCTION(BlueprintPure, Category = "Battle")
+	float GetMusicVolume() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Battle")
+	void SetMusicVolume(float NewVolume);
+
+	UFUNCTION(BlueprintPure, Category = "Battle")
+	bool IsFullscreen() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Battle")
+	void ToggleFullscreen();
+
 private:
 	// Traite un clic gauche sur l'UI (bouton pause / menu / écrans). Vrai = consommé.
 	bool HandleUIClick();

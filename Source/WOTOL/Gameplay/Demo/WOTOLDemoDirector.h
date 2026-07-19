@@ -215,6 +215,14 @@ public:
 	// Lance une musique (arrête l'ancienne en fondu). bLoop=false pour un stinger.
 	void PlayMusic(class USoundBase* Music, bool bLoop);
 
+	// Réglage en direct (écran Réglages) : applique immédiatement au morceau en cours si
+	// une musique joue déjà, en plus de mémoriser la valeur pour les prochaines pistes.
+	UFUNCTION(BlueprintCallable, Category = "Demo|Audio")
+	void SetMusicVolume(float NewVolume);
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Audio")
+	float GetMusicVolume() const { return MusicVolume; }
+
 	// Pilotage de la musique selon l'écran (catégorie), avec boucle et rotation aléatoire.
 	void UpdateMusicForScreen();
 	uint8 MusicCatForScreen(uint8 Screen) const;                 // écran -> catégorie

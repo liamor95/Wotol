@@ -12,6 +12,20 @@ placement Cristalliseur en 3D -> cite -> batiment distance -> alerte -> defense 
 Rien de tout cela n'a ete compile/vu tourner cote assistant (pas d'editeur Unreal ici).
 
 Fait cette session (19/07/2026, en plus de la fusion agent/connect-exploration-flow) :
+- Minimap schematique (coin haut-droit, sous pause/reglages) : AWOTOLDemoHUD::DrawMinimap.
+  Absente jusqu'ici alors que c'est un standard du genre (Total War, Company of Heroes,
+  Homeworld) et que 3 des maquettes de Liamor la montrent. Bornes calculees dynamiquement
+  depuis les unites vivantes + le batiment, points colores par faction, repere camera.
+  Pas de clic-pour-recentrer pour l'instant (amelioration possible).
+- Ecran REGLAGES enfin reel (avant : juste Reprendre/Recommencer/Quitter, le bouton
+  "Options" de l'ancien menu principal (WOTOLGameMode_MainMenu, architecture UMG abandonnee)
+  etait un stub vide) :
+  - Volume musique REEL (barre cliquable, s'applique immediatement au morceau en cours via
+    AWOTOLDemoDirector::SetMusicVolume + UAudioComponent::SetVolumeMultiplier).
+  - Plein ecran / fenetre (UGameUserSettings, aucun asset requis).
+  - Pas de reglage bruitages separe : aucun systeme de son global (Sound Class/Mix) n'existe
+    encore pour les SFX, un curseur ferait semblant de marcher pour rien. A ajouter le jour
+    ou de vrais SFX arrivent.
 - Placement du Cristalliseur : aperçu HOLOGRAPHIQUE reprenant la vraie silhouette du bâtiment
   (AWOTOLCaptureObject::SetGhostPreviewMode, coquille translucide pulsante WOTOLGlow::MakeHalo),
   en plus de l'anneau existant. Puis animation de CONSTRUCTION (montée en échelle ~2,5 s,
