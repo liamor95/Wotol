@@ -70,10 +70,19 @@ Fait cette session (19/07/2026, en plus de la fusion agent/connect-exploration-f
     19/07/2026).
 
 Encore a faire (releve pendant cette session, pas encore code) :
-- Cinematique/texte d'intro anime + lore de faction au clic (choix faction/difficulte).
-- Ecran de personnalisation du heros avant le lancement.
-- Vue cite : confirmer le mode isometrique fixe + zoom/fiche technique au clic batiment
-  (actuellement DrawCityView existe mais a verifier en jeu contre cette description precise).
+- Cinematique/texte d'intro anime + lore de faction au clic : PARTIELLEMENT deja en place
+  (DrawFactionSelect affiche une phrase de lore par faction selectionnee, et
+  BeginOpeningExploration ouvre deja une fenetre d'objectif de lore par faction avant
+  l'exploration) — pas une vraie cinematique animee, mais pas un vrai manque non plus.
+  A ne retravailler que si Liamor confirme vouloir plus que le texte actuel.
+- Vue cite : DrawCityView est un ecran Canvas 2D PLEIN ECRAN (fond image + bandeau de cartes
+  en bas), PAS une camera 3D isometrique avec zoom/selection de batiment en jeu. Verifie
+  cette session — ce n'est PAS juste "a confirmer", c'est un ecart reel avec la description
+  d'origine de Liamor. Mais transformer ca en vraie camera 3D isometrique + zoom + fiche
+  technique au clic est un GROS morceau (camera dediee, cite en 3D, picking d'acteurs) —
+  pas fait a l'aveugle ici, a rediscuter avec Liamor : est-ce que l'ecran de cartes actuel
+  (fonctionnellement equivalent : achat/amelioration de batiments) suffit pour la demo, ou
+  la 3D isometrique est un vrai prerequis ?
 - La zone d'exploration reste dans la MEME arene que la bataille (pas de vraie zone dediee
   de 70 m²) : les nouveaux reperes aident a la sensation d'exploration mais n'ajoutent pas
   un espace physiquement plus grand a parcourir. A revisiter si le rythme parait encore trop
@@ -82,8 +91,12 @@ Encore a faire (releve pendant cette session, pas encore code) :
   (cone/aura/zone du GDD) : Axe 1/Axe 2, formes de zone, feedback visuel de competence
   restent a faire (le "onglet Competences" est deja note comme travail futur ailleurs
   dans les docs).
-- Bâtiments de defense (tourelles) : verifier qu'elles utilisent bien ce meme systeme
-  d'ability une fois en jeu, ou si elles ont leur propre logique de tir (WOTOLDefenseStructure).
+- VERIFIE cette session : les batiments de defense (WOTOLDefenseStructure) n'utilisent PAS
+  le systeme d'ability partage — ils ont leur propre logique de tir independante (FireTimer/
+  DamagePerShot/Range/FindTarget, cible auto la faction adverse la plus proche a portee via
+  UFactionRegistrySubsystem). C'est un choix legitime pour des tourelles automatiques (pas
+  des unites avec un kit de competences) — code relu, fonctionnel, aucun bug trouve. Ferme,
+  pas un manque.
 
 Fait cette session (suite, meme jour) :
 - Ecran de PERSONNALISATION DU HEROS enfin implemente (etait absent : FHeroLoadout existait
