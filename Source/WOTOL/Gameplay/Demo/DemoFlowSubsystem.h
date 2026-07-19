@@ -100,6 +100,7 @@ struct FDemoProgress
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadOnly) bool bRangedUnlocked        = false; // Aquisphères / Noxeblast
+	UPROPERTY(BlueprintReadOnly) bool bRangedBuildingConstructed = false;
 	UPROPERTY(BlueprintReadOnly) bool bMythicDiscovered      = false; // juvénile découvert
 	UPROPERTY(BlueprintReadOnly) bool bMythicBuildingUnlocked = false;
 	UPROPERTY(BlueprintReadOnly) bool bRecruitBuildingActive = false;
@@ -107,6 +108,8 @@ struct FDemoProgress
 	UPROPERTY(BlueprintReadOnly) bool bZoneDamaged           = false; // attaquée par la rivale
 	UPROPERTY(BlueprintReadOnly) bool bZoneRepaired          = false;
 	UPROPERTY(BlueprintReadOnly) bool bAllUnlocked           = false; // phase 3 : spéciale + mythique débloquées
+	UPROPERTY(BlueprintReadOnly) bool bRivalAlertShown       = false;
+	UPROPERTY(BlueprintReadOnly) bool bDefenseMissionReady   = false;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDemoPhaseChanged,
@@ -242,6 +245,10 @@ public:
 		ReserveUnits.Empty();
 		BuildingLevels.Empty();
 		UnitAxes.Empty();
+		TotalProducedUnits = 0;
+		RangedUnitsProducedForObjective = 0;
+		RangedBuildingPlotIndex = INDEX_NONE;
+		bCityBuildingPlacementArmed = false;
 	}
 
 	// Difficulté choisie (défaut Normal = l'équilibrage de référence).
@@ -331,6 +338,37 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
 	TMap<FName, int32> ReserveUnits;
 
+	// La démo commence avec chef + 10 fantassins + 5 montés. Le plafond de 35 est le
+	// garde-fou demandé pour la deuxième bataille ; les places requises par l'objectif des
+	// 10 unités à distance sont toujours réservées pour éviter un blocage de progression.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|City", meta = (ClampMin = "1"))
+	int32 MaxArmyUnits = 35;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|City", meta = (ClampMin = "0"))
+	int32 InitialArmyUnits = 16;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|City", meta = (ClampMin = "1"))
+	int32 RangedProductionTarget = 10;
+
+	// Coûts PROVISOIRES et éditables du bâtiment Akisfères / Noxeblast.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|City", meta = (ClampMin = "0"))
+	int32 RangedBuildingCrystalCost = 300;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|City", meta = (ClampMin = "0"))
+	int32 RangedBuildingAbyssalMaterialCost = 25;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	int32 TotalProducedUnits = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	int32 RangedUnitsProducedForObjective = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	int32 RangedBuildingPlotIndex = INDEX_NONE;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	bool bCityBuildingPlacementArmed = false;
+
 	UFUNCTION(BlueprintPure, Category = "Demo|City")
 	int32 GetCrystals() const { return PlayerCrystals; }
 
@@ -346,6 +384,40 @@ public:
 	// Dépense atomique : aucune ressource n'est retirée si l'un des deux soldes est insuffisant.
 	UFUNCTION(BlueprintCallable, Category = "Demo|City")
 	bool SpendTerritoryBuildingCost(int32 CrystalCost, int32 AbyssalMaterialCost);
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|City")
+	bool ArmRangedBuildingPlacement();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|City")
+	bool ConstructRangedBuildingAtPlot(int32 PlotIndex);
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	bool IsRangedBuildingConstructed() const { return Progress.bRangedBuildingConstructed; }
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	bool IsCityBuildingPlacementArmed() const { return bCityBuildingPlacementArmed; }
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	int32 GetArmyUnitCount() const { return InitialArmyUnits + TotalProducedUnits; }
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	int32 GetArmyUnitCap() const { return MaxArmyUnits; }
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	int32 GetRangedProductionProgress() const { return RangedUnitsProducedForObjective; }
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	bool IsRangedProductionObjectiveComplete() const
+	{
+		return RangedUnitsProducedForObjective >= RangedProductionTarget;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	bool IsDefenseMissionReady() const { return Progress.bDefenseMissionReady; }
+
+	void MarkRivalAlertShown() { Progress.bRivalAlertShown = true; }
+	void SetDefenseMissionReady(bool bReady) { Progress.bDefenseMissionReady = bReady; }
+	bool WasRivalAlertShown() const { return Progress.bRivalAlertShown; }
 
 	// Coût en cristaux pour produire une unité de cette catégorie (0 = non productible ici).
 	UFUNCTION(BlueprintPure, Category = "Demo|City")
@@ -435,6 +507,8 @@ public:
 	FOnObjectiveConfirmed OnObjectiveConfirmed;
 
 private:
+	int32 GetRequiredCrystalReserveForRangedObjective() const;
+
 	TWeakObjectPtr<AActor> BossActor;
 	TWeakObjectPtr<AActor> CaptureObjectActor;
 

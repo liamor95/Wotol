@@ -224,6 +224,9 @@ void AWOTOLDemoDirector::StartDemoAfterSelection()
 	CachedPlayerFaction = ResolvePlayerFaction();
 	CachedRivalFaction  = RivalOf(CachedPlayerFaction);
 	bEnableFullFlowV08  = true;
+	bCrystalliserPlacementAvailable = false;
+	bCrystalliserPlacementArmed = false;
+	ClearCrystalliserPlacementMarkers();
 
 	GetWorldTimerManager().ClearTimer(ExplorationTransitionHandle);
 	GetWorldTimerManager().ClearTimer(ExplorationProximityHandle);
@@ -756,7 +759,11 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	// (réserve) rejoignent l'armée pour cette bataille. On draine la réserve et on gonfle
 	// les effectifs par catégorie. Réserve vide (ex. bataille créature) = aucun effet. ──
 	int32 EffInfantry = InfantryCount, EffMounted = MountedCount;
-	int32 EffRanged   = RangedCount,   EffSpecial = SpecialCount;
+	// En phase 2, aucune unité à distance gratuite : celles que le joueur vient réellement
+	// de produire constituent tout le contingent. La dotation de scénario revient seulement
+	// pour la grande bataille finale, après l'ellipse temporelle.
+	int32 EffRanged   = bGrandBattle ? RangedCount : 0;
+	int32 EffSpecial  = SpecialCount;
 	{
 		TMap<FName, int32> Reserve;
 		Demo->DrainReserve(Reserve);
@@ -1600,12 +1607,17 @@ void AWOTOLDemoDirector::ContinueToPhase2()
 // Bouton « Partir en expédition » de la cité (module 5) -> lance la défense (phase 10).
 void AWOTOLDemoDirector::LaunchDefenseFromCity()
 {
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || !Demo->IsDefenseMissionReady()) return;
+
 	PossessBattleCamera();
 	DestroyExplorationHero();
-	if (UGameInstance* GI = GetGameInstance())
-		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
-			Demo->SetScreen(EDemoScreen::Playing);
-	SpawnCaptureObject(CachedPlayerFaction); // Cristalliseur à défendre
+	Demo->SetScreen(EDemoScreen::Playing);
+	ClearCrystalliserPlacementMarkers();
+	// Le bâtiment posé par le joueur persiste. Repli de sécurité uniquement pour une ancienne
+	// sauvegarde/procédure de test qui entrerait dans la défense sans objet existant.
+	if (!IsValid(CaptureObject)) SpawnCaptureObject(CachedPlayerFaction);
 	StartRivalDefense();                     // -> défense en PRÉPARATION
 }
 
@@ -1783,9 +1795,15 @@ void AWOTOLDemoDirector::ClearDefenseStructures()
 
 void AWOTOLDemoDirector::SpawnCaptureObject(EFactionID Faction)
 {
+	SpawnCaptureObjectAt(Faction, GetActorLocation() + FVector(0.f, 0.f, 200.f));
+}
+
+void AWOTOLDemoDirector::SpawnCaptureObjectAt(EFactionID Faction, const FVector& ActorLocation)
+{
+	if (IsValid(CaptureObject)) return;
 	if (!CaptureObjectClass) return;
 
-	const FTransform TM(FRotator::ZeroRotator, GetActorLocation() + FVector(0.f, 0.f, 200.f));
+	const FTransform TM(FRotator::ZeroRotator, ActorLocation);
 	AWOTOLCaptureObject* Obj = GetWorld()->SpawnActorDeferred<AWOTOLCaptureObject>(
 		CaptureObjectClass, TM, this, nullptr,
 		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
@@ -1845,14 +1863,167 @@ void AWOTOLDemoDirector::BeginPostCreatureSequence()
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	if (!Demo) return;
 	Demo->SetPhase(EDemoPhase::Capture_Zone);
+	const FString Building = BuildingDisplayName(CachedPlayerFaction);
 	Demo->OpenObjectiveWindow(TEXT("seq_place_crystalliser"),
 		TEXT("NOUVEL OBJECTIF — PURIFIER LA ZONE"),
 		FString::Printf(TEXT(
 			"Le Kraken est vaincu. Vous possedez maintenant les ressources necessaires.\n"
-			"Placez le Cristalliseur pour acquerir et terraformer ce territoire.\n"
+			"Placez le %s pour acquerir et terraformer ce territoire.\n"
 			"Cout provisoire : %d cristaux + %d materiaux abyssaux."),
-			CrystalliserCrystalCost, CrystalliserAbyssalMaterialCost),
-		TEXT("PLACER LE CRISTALLISEUR"));
+			*Building, CrystalliserCrystalCost, CrystalliserAbyssalMaterialCost),
+		FString::Printf(TEXT("PLACER LE %s"), *Building.ToUpper()));
+}
+
+void AWOTOLDemoDirector::BeginCrystalliserPlacement()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+
+	bCrystalliserPlacementAvailable = true;
+	bCrystalliserPlacementArmed = false;
+	CrystalliserPlacementLocation = GetActorLocation() + FVector(0.f, 0.f, 18.f);
+	CreateCrystalliserPlacementMarkers();
+	Demo->SetObjective(FString::Printf(TEXT("Ouvrez l'inventaire puis placez le %s sur l'emplacement lumineux"),
+		*BuildingDisplayName(CachedPlayerFaction)));
+
+	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+	{
+		PC->bShowMouseCursor = true;
+		FInputModeGameAndUI Mode;
+		Mode.SetHideCursorDuringCapture(false);
+		PC->SetInputMode(Mode);
+	}
+}
+
+void AWOTOLDemoDirector::ArmCrystalliserPlacement()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || !bCrystalliserPlacementAvailable || Demo->GetProgress().bZoneCaptured) return;
+	if (!Demo->CanAffordTerritoryBuilding(
+		CrystalliserCrystalCost, CrystalliserAbyssalMaterialCost))
+	{
+		Demo->OpenObjectiveWindow(TEXT("seq_place_crystalliser"),
+			TEXT("RESSOURCES INSUFFISANTES"),
+			TEXT("Le batiment territorial ne peut pas etre construit. Consultez le rapport de mission."),
+			TEXT("REESSAYER"), true);
+		return;
+	}
+	bCrystalliserPlacementArmed = true;
+	Demo->SetObjective(TEXT("Cliquez sur l'emplacement circulaire lumineux pour confirmer la construction"));
+}
+
+bool AWOTOLDemoDirector::TryPlaceCrystalliserAt(const FVector& ClickedWorldLocation)
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || !bCrystalliserPlacementAvailable || !bCrystalliserPlacementArmed) return false;
+	if (FVector::Dist2D(ClickedWorldLocation, CrystalliserPlacementLocation)
+		> CrystalliserPlacementRadius)
+	{
+		Demo->SetObjective(TEXT("Emplacement invalide — cliquez dans le cercle lumineux"));
+		return false;
+	}
+	if (!Demo->SpendTerritoryBuildingCost(
+		CrystalliserCrystalCost, CrystalliserAbyssalMaterialCost))
+	{
+		Demo->OpenObjectiveWindow(TEXT("seq_place_crystalliser"),
+			TEXT("RESSOURCES INSUFFISANTES"),
+			TEXT("La construction a ete annulee : le cout complet n'est plus disponible."),
+			TEXT("REESSAYER"), true);
+		return false;
+	}
+
+	CompleteCrystalliserPlacement();
+	return true;
+}
+
+void AWOTOLDemoDirector::CompleteCrystalliserPlacement()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+
+	bCrystalliserPlacementAvailable = false;
+	bCrystalliserPlacementArmed = false;
+	ClearCrystalliserPlacementMarkers();
+	SpawnCaptureObjectAt(CachedPlayerFaction,
+		FVector(CrystalliserPlacementLocation.X, CrystalliserPlacementLocation.Y,
+			GetActorLocation().Z + 200.f));
+	if (!CaptureObject) return;
+
+	// ClaimZone est exécuté par SpawnCaptureObjectAt. Le territoire, les bonus et le nouvel
+	// objectif n'existent donc qu'après le clic de placement et le paiement complet.
+	SpawnReward(EWOTOLRewardType::HeartShard,
+		CrystalliserPlacementLocation + FVector(350.f, 0.f, 102.f));
+	Demo->OpenObjectiveWindow(TEXT("seq_collect_heart"),
+		TEXT("ZONE ACQUISE — COEUR-ECLAT"),
+		FString::Printf(TEXT("Le %s terraforme maintenant ce territoire et renforce vos troupes locales.\n"
+			"Un Coeur-Eclat a surgi a proximite : recuperez-le."),
+			*BuildingDisplayName(CachedPlayerFaction)),
+		TEXT("RECUPERER"));
+}
+
+void AWOTOLDemoDirector::CreateCrystalliserPlacementMarkers()
+{
+	ClearCrystalliserPlacementMarkers();
+	UWorld* W = GetWorld();
+	if (!W) return;
+	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+	if (!Cube) return;
+
+	const FLinearColor Col = FFactionColors::Get(CachedPlayerFaction) * 3.2f;
+	constexpr int32 Segments = 16;
+	for (int32 i = 0; i < Segments; ++i)
+	{
+		const float A = 2.f * PI * static_cast<float>(i) / static_cast<float>(Segments);
+		const FVector Loc = CrystalliserPlacementLocation + FVector(
+			FMath::Cos(A) * CrystalliserPlacementRadius,
+			FMath::Sin(A) * CrystalliserPlacementRadius, 0.f);
+		FActorSpawnParameters P;
+		P.Owner = this;
+		P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		AStaticMeshActor* Marker = W->SpawnActor<AStaticMeshActor>(
+			AStaticMeshActor::StaticClass(), Loc,
+			FRotator(0.f, FMath::RadiansToDegrees(A) + 90.f, 0.f), P);
+		if (!Marker) continue;
+		UStaticMeshComponent* Mesh = Marker->GetStaticMeshComponent();
+		Mesh->SetMobility(EComponentMobility::Movable);
+		Mesh->SetStaticMesh(Cube);
+		Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Mesh->SetWorldScale3D(FVector(0.85f, 0.12f, 0.07f));
+		if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeGlow(Marker, Col))
+			Mesh->SetMaterial(0, MID);
+		CrystalliserPlacementMarkers.Add(Marker);
+	}
+}
+
+void AWOTOLDemoDirector::ClearCrystalliserPlacementMarkers()
+{
+	for (TObjectPtr<AActor>& Marker : CrystalliserPlacementMarkers)
+	{
+		if (Marker) Marker->Destroy();
+	}
+	CrystalliserPlacementMarkers.Empty();
+}
+
+void AWOTOLDemoDirector::NotifyRangedProductionObjectiveComplete()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || !Demo->IsRangedProductionObjectiveComplete() || Demo->WasRivalAlertShown()) return;
+
+	Demo->MarkRivalAlertShown();
+	Demo->SetPhase(EDemoPhase::Exploration_Rival);
+	const FString RivalName = CachedRivalFaction == EFactionID::Noxeens
+		? TEXT("NOXEENNE") : TEXT("AQUILORIS");
+	Demo->OpenObjectiveWindow(TEXT("city_nox_alert"),
+		FString::Printf(TEXT("ALERTE — CONTRE-ATTAQUE %s"), *RivalName),
+		FString::Printf(TEXT("Des forces rivales convergent vers le territoire que vous venez d'acquerir.\n"
+			"Leur objectif est votre %s. Preparez vos troupes puis partez defendre la zone."),
+			*BuildingDisplayName(CachedPlayerFaction)),
+		TEXT("PREPARER LA DEFENSE"));
 }
 
 AWOTOLRewardActor* AWOTOLDemoDirector::SpawnReward(EWOTOLRewardType Type, const FVector& Loc)
@@ -1904,26 +2075,9 @@ void AWOTOLDemoDirector::HandleObjectiveConfirmed(FName StepId)
 	}
 	else if (StepId == TEXT("seq_place_crystalliser"))
 	{
-		// La dépense est atomique : si un coût change plus tard, impossible de créer le bâtiment
-		// gratuitement ou de retirer seulement l'une des ressources.
-		if (!Demo->SpendTerritoryBuildingCost(
-			CrystalliserCrystalCost, CrystalliserAbyssalMaterialCost))
-		{
-			Demo->OpenObjectiveWindow(TEXT("seq_place_crystalliser"),
-				TEXT("RESSOURCES INSUFFISANTES"),
-				TEXT("Le Cristalliseur ne peut pas etre construit. Consultez le rapport de mission."),
-				TEXT("REESSAYER"), true);
-			return;
-		}
-		// Pose du Cristalliseur (joueur) + apparition du Cœur-Éclat à proximité.
-		SpawnCaptureObject(CachedPlayerFaction);
-		if (CaptureObject) CaptureObject->ClaimZone();
-		Demo->MarkZoneCaptured();
-		SpawnReward(EWOTOLRewardType::HeartShard, Center + FVector(350.f, 0.f, 120.f));
-		Demo->OpenObjectiveWindow(TEXT("seq_collect_heart"),
-			TEXT("COEUR-ECLAT"),
-			TEXT("Un Coeur-Eclat a surgi pres du Cristalliseur.\nApprochez-vous pour le recuperer."),
-			TEXT("Recuperer"));
+		// Le bouton de la fenêtre n'achète plus automatiquement le bâtiment : il ouvre le vrai
+		// mode de placement (inventaire -> cible 3D -> clic -> paiement).
+		BeginCrystalliserPlacement();
 	}
 	else if (StepId == TEXT("seq_collect_heart"))
 	{
@@ -1959,6 +2113,13 @@ void AWOTOLDemoDirector::HandleObjectiveConfirmed(FName StepId)
 			Mode.SetHideCursorDuringCapture(false);
 			PC->SetInputMode(Mode);
 		}
+		Demo->SetObjective(TEXT("Construisez le batiment a distance puis produisez 10 unites"));
+		Demo->SetScreen(EDemoScreen::City);
+	}
+	else if (StepId == TEXT("city_nox_alert"))
+	{
+		Demo->SetDefenseMissionReady(true);
+		Demo->SetObjective(TEXT("Defendez le Cristalliseur contre la contre-attaque noxeenne"));
 		Demo->SetScreen(EDemoScreen::City);
 	}
 	// (Les autres étapes du flux 13 phases seront ajoutées au module 10.)

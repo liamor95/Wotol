@@ -304,6 +304,12 @@ FBox2D AWOTOLDemoHUD::ObjectiveContinueButtonRect(float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
+FBox2D AWOTOLDemoHUD::ExplorationCrystalliserButtonRect(float W, float H)
+{
+	const float BW = 330.f, BH = 76.f;
+	return FBox2D(FVector2D(28.f, H - BH - 92.f), FVector2D(28.f + BW, H - 92.f));
+}
+
 void AWOTOLDemoHUD::DrawObjectiveWindow(float W, float H, class UDemoFlowSubsystem* Demo)
 {
 	if (!Demo) return;
@@ -694,6 +700,22 @@ void AWOTOLDemoHUD::DrawExplorationHUD(float W, float H, UDemoFlowSubsystem* Dem
 	}
 	DrawCenteredText(TEXT("ZQSD/WASD : nager   |   Souris : regarder   |   Espace/E : monter   |   Maj/Ctrl : descendre"),
 		H - 48.f, FLinearColor(0.86f, 0.93f, 1.f, 0.95f), 0.95f);
+
+	// Après le rapport du Kraken, le Cristalliseur arrive dans un véritable inventaire de
+	// bâtiment. Le joueur doit sélectionner cette carte puis cliquer la cible 3D lumineuse.
+	if (Demo && Demo->GetPhase() == EDemoPhase::Capture_Zone
+		&& !Demo->GetProgress().bZoneCaptured)
+	{
+		const bool bNox = Demo->GetPlayerFaction() == EFactionID::Noxeens;
+		DrawButton(ExplorationCrystalliserButtonRect(W, H),
+			bNox ? TEXT("BATIMENT : ABYSSALYSEUR") : TEXT("BATIMENT : CRISTALLISEUR"),
+			bNox ? FLinearColor(0.30f, 0.95f, 0.50f, 1.f)
+				: FLinearColor(0.35f, 0.85f, 1.f, 1.f), 1.05f);
+		DrawText(FString::Printf(TEXT("Cristaux %d   |   Materiaux %d"),
+			Demo->GetCrystals(), Demo->PlayerAbyssalMaterials),
+			FLinearColor(1.f, 0.94f, 0.58f, 1.f), 38.f, H - 87.f,
+			GEngine ? GEngine->GetMediumFont() : nullptr, 0.9f);
+	}
 }
 
 // ─── Vue CITÉ ────────────────────────────────────────────────────────────────
@@ -732,6 +754,17 @@ FBox2D AWOTOLDemoHUD::CityDepartButtonRect(float W, float H)
 {
 	const float BW = 340.f, BH = 60.f;
 	return FBox2D(FVector2D(W - BW - 40.f, 40.f), FVector2D(W - 40.f, 40.f + BH));
+}
+
+FBox2D AWOTOLDemoHUD::CityBuildPlotRect(int32 Index, float W, float H)
+{
+	const float BW = FMath::Clamp(W * 0.14f, 150.f, 230.f);
+	const float BH = FMath::Clamp(H * 0.11f, 82.f, 122.f);
+	const float Gap = W * 0.045f;
+	const float TotalW = BW * 3.f + Gap * 2.f;
+	const float X = (W - TotalW) * 0.5f + FMath::Clamp(Index, 0, 2) * (BW + Gap);
+	const float Y = H * 0.29f + (Index == 1 ? -28.f : 18.f);
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
 // Nom du bâtiment producteur (Aquiloris) / générique Noxéen, par catégorie.
@@ -811,10 +844,40 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 	DrawText(FString::Printf(TEXT("%s %d   |   Materiaux abyssaux %d   |   Biomasse %d   |   Nourriture %d"),
 		*Res, Demo->GetCrystals(), Demo->PlayerAbyssalMaterials, Demo->PlayerBiomass, Demo->PlayerFood),
 		FLinearColor(1.f, 0.95f, 0.6f, 1.f), 44.f, 44.f, GEngine ? GEngine->GetLargeFont() : nullptr, 1.5f);
+	DrawText(FString::Printf(TEXT("ARMEE : %d / %d"), Demo->GetArmyUnitCount(), Demo->GetArmyUnitCap()),
+		Accent, 44.f, 84.f, GEngine ? GEngine->GetMediumFont() : nullptr, 1.15f);
 
-	// Instruction.
-	DrawCenteredText(TEXT("Produisez des unites, puis partez en expedition"),
-		H * 0.60f, FLinearColor(0.9f, 0.95f, 1.f, 0.95f), 1.1f);
+	// Construction spatiale sur la vue isométrique : trois parcelles valides. Une fois posé,
+	// le bâtiment reste représenté à son emplacement et sa carte devient son panneau d'action.
+	if (Demo->IsCityBuildingPlacementArmed())
+	{
+		DrawCenteredText(TEXT("CHOISISSEZ UN EMPLACEMENT LIBRE POUR LE BATIMENT A DISTANCE"),
+			H * 0.20f, FLinearColor(1.f, 0.88f, 0.35f, 1.f), 1.2f);
+		for (int32 Plot = 0; Plot < 3; ++Plot)
+		{
+			DrawButton(CityBuildPlotRect(Plot, W, H),
+				FString::Printf(TEXT("EMPLACEMENT %d"), Plot + 1), Accent, 0.95f);
+		}
+	}
+	else if (Demo->IsRangedBuildingConstructed() && Demo->RangedBuildingPlotIndex != INDEX_NONE)
+	{
+		const FBox2D Plot = CityBuildPlotRect(Demo->RangedBuildingPlotIndex, W, H);
+		DrawRect(FLinearColor(0.02f, 0.10f, 0.16f, 0.86f), Plot.Min.X, Plot.Min.Y,
+			Plot.Max.X - Plot.Min.X, Plot.Max.Y - Plot.Min.Y);
+		DrawLine(Plot.Min.X, Plot.Min.Y, Plot.Max.X, Plot.Min.Y, Accent, 4.f);
+		DrawText(bAq ? TEXT("CENTRE AKISFERES") : TEXT("FOSSE NOX BLAST"), FLinearColor::White,
+			Plot.Min.X + 12.f, Plot.Min.Y + 22.f, GEngine ? GEngine->GetMediumFont() : nullptr, 1.0f);
+		DrawText(TEXT("BATIMENT ACTIF — NIV. 1"), Accent,
+			Plot.Min.X + 12.f, Plot.Min.Y + 56.f, nullptr, 0.9f);
+	}
+
+	const FString Objective = Demo->IsRangedProductionObjectiveComplete()
+		? TEXT("Objectif rempli — preparez vos ameliorations puis defendez la zone")
+		: FString::Printf(TEXT("OBJECTIF : PRODUIRE 10 UNITES A DISTANCE   %d / %d"),
+			Demo->GetRangedProductionProgress(), Demo->RangedProductionTarget);
+	DrawCenteredText(Objective, H * 0.60f,
+		Demo->IsRangedProductionObjectiveComplete() ? FLinearColor(0.45f, 1.f, 0.55f, 1.f)
+			: FLinearColor(0.9f, 0.95f, 1.f, 0.95f), 1.1f);
 
 	// Cartes de production (bâtiments).
 	for (int32 i = 0; i < CityCardCount(); ++i)
@@ -823,7 +886,12 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		const FBox2D R = CityCardRect(i, W, H);
 		const int32 Cost = Demo->GetProductionCost(Cat);
 		const bool bUnlocked = Demo->IsCategoryUnlocked(Cat);
-		const bool bAfford = Demo->CanProduce(Cat);
+		const bool bNeedsBuilding = Cat == EDemoUnitCategory::Distance
+			&& !Demo->IsRangedBuildingConstructed();
+		const bool bCanBuild = bNeedsBuilding
+			&& Demo->CanAffordTerritoryBuilding(Demo->RangedBuildingCrystalCost,
+				Demo->RangedBuildingAbyssalMaterialCost);
+		const bool bAfford = bNeedsBuilding ? bCanBuild : Demo->CanProduce(Cat);
 		const FName UnitID = Demo->GetUnitID(Fac, Cat);
 		const int32 InReserve = Demo->GetReserveCount(UnitID);
 
@@ -844,14 +912,21 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		const int32 UpCost = Demo->GetBuildingUpgradeCost(Cat);
 		const bool  bCanUp = Demo->CanUpgradeBuilding(Cat);
 		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.35f), R.Min.X, R.Min.Y, R.Max.X - R.Min.X, 34.f);
-		DrawText(FString::Printf(TEXT("Niv.%d"), BLevel), Accent, CX, R.Min.Y + 8.f, nullptr, 1.0f);
-		if (UpCost > 0)
+		const FString LevelLabel = bNeedsBuilding
+			? FString(TEXT("A CONSTRUIRE")) : FString::Printf(TEXT("Niv.%d"), BLevel);
+		DrawText(LevelLabel, Accent, CX, R.Min.Y + 8.f, nullptr, bNeedsBuilding ? 0.9f : 1.0f);
+		if (bNeedsBuilding)
+		{
+			DrawText(TEXT("Selectionnez puis placez"), FLinearColor(1.f, 0.9f, 0.5f, 1.f),
+				CX + 92.f, R.Min.Y + 8.f, nullptr, 0.78f);
+		}
+		else if (UpCost > 0)
 		{
 			DrawText(FString::Printf(TEXT("Ameliorer (%d)"), UpCost),
 				bCanUp ? FLinearColor(1.f, 0.9f, 0.5f, 1.f) : FLinearColor(0.6f, 0.6f, 0.65f, 1.f),
 				CX + 78.f, R.Min.Y + 8.f, nullptr, 0.95f);
 		}
-		else
+		else if (!bNeedsBuilding)
 		{
 			DrawText(TEXT("Niveau max"), FLinearColor(0.6f, 0.7f, 0.6f, 1.f), CX + 78.f, R.Min.Y + 8.f, nullptr, 0.95f);
 		}
@@ -862,19 +937,34 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		{
 			DrawText(TEXT("Verrouille"), FLinearColor(0.7f, 0.7f, 0.75f, 1.f), CX, R.Min.Y + 96.f, nullptr, 1.f);
 		}
+		else if (bNeedsBuilding)
+		{
+			DrawText(FString::Printf(TEXT("Construction : %d cristaux + %d materiaux"),
+				Demo->RangedBuildingCrystalCost, Demo->RangedBuildingAbyssalMaterialCost),
+				bCanBuild ? FLinearColor(1.f, 0.95f, 0.6f, 1.f) : FLinearColor(1.f, 0.55f, 0.5f, 1.f),
+				CX, R.Min.Y + 96.f, nullptr, 0.82f);
+			DrawText(bCanBuild ? TEXT("+ CONSTRUIRE") : TEXT("RESSOURCES INSUFFISANTES"),
+				bCanBuild ? Accent : FLinearColor(0.7f, 0.5f, 0.5f, 1.f),
+				CX, R.Max.Y - 28.f, GEngine ? GEngine->GetMediumFont() : nullptr, 0.9f);
+		}
 		else
 		{
 			DrawText(FString::Printf(TEXT("Cout : %d   Reserve : %d"), Cost, InReserve),
 				bAfford ? FLinearColor(1.f, 0.95f, 0.6f, 1.f) : FLinearColor(1.f, 0.55f, 0.5f, 1.f),
 				CX, R.Min.Y + 96.f, nullptr, 0.95f);
-			DrawCenteredText(bAfford ? TEXT("+ Produire") : TEXT("Cristaux insuffisants"),
-				R.Max.Y - 20.f, bAfford ? Accent : FLinearColor(0.7f, 0.5f, 0.5f, 1.f), 0.95f);
+			const FString Action = bAfford ? TEXT("+ PRODUIRE")
+				: (Demo->GetArmyUnitCount() >= Demo->GetArmyUnitCap()
+					? TEXT("PLAFOND D'ARMEE") : TEXT("INDISPONIBLE / RESERVE OBJECTIF"));
+			DrawText(Action, bAfford ? Accent : FLinearColor(0.7f, 0.5f, 0.5f, 1.f),
+				CX, R.Max.Y - 28.f, GEngine ? GEngine->GetMediumFont() : nullptr, 0.82f);
 		}
 	}
 
 	// Bouton d'expédition + bouton compétences.
-	DrawButton(CityDepartButtonRect(W, H), TEXT("PARTIR EN EXPEDITION"),
-		FLinearColor(1.f, 0.7f, 0.25f, 1.f), 1.3f);
+	DrawButton(CityDepartButtonRect(W, H),
+		Demo->IsDefenseMissionReady() ? TEXT("DEFENDRE LA ZONE") : TEXT("OBJECTIF : 10 UNITES"),
+		Demo->IsDefenseMissionReady() ? FLinearColor(1.f, 0.7f, 0.25f, 1.f)
+			: FLinearColor(0.38f, 0.42f, 0.48f, 1.f), 1.15f);
 	DrawButton(CitySkillsButtonRect(W, H), TEXT("COMPETENCES"),
 		FLinearColor(0.6f, 0.8f, 1.f, 1.f), 1.2f);
 }

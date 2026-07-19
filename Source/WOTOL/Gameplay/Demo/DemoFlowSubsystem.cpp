@@ -171,6 +171,39 @@ bool UDemoFlowSubsystem::SpendTerritoryBuildingCost(int32 CrystalCost,
 	return true;
 }
 
+bool UDemoFlowSubsystem::ArmRangedBuildingPlacement()
+{
+	if (!Progress.bRangedUnlocked || Progress.bRangedBuildingConstructed) return false;
+	if (!CanAffordTerritoryBuilding(
+		RangedBuildingCrystalCost, RangedBuildingAbyssalMaterialCost)) return false;
+	bCityBuildingPlacementArmed = true;
+	return true;
+}
+
+bool UDemoFlowSubsystem::ConstructRangedBuildingAtPlot(int32 PlotIndex)
+{
+	if (!bCityBuildingPlacementArmed || Progress.bRangedBuildingConstructed) return false;
+	if (PlotIndex < 0 || PlotIndex >= 3) return false;
+	if (!SpendTerritoryBuildingCost(
+		RangedBuildingCrystalCost, RangedBuildingAbyssalMaterialCost)) return false;
+
+	Progress.bRangedBuildingConstructed = true;
+	bCityBuildingPlacementArmed = false;
+	RangedBuildingPlotIndex = PlotIndex;
+	BuildingLevels.FindOrAdd(EDemoUnitCategory::Distance) = 1;
+	return true;
+}
+
+int32 UDemoFlowSubsystem::GetRequiredCrystalReserveForRangedObjective() const
+{
+	if (IsRangedProductionObjectiveComplete()) return 0;
+	const int32 RemainingRanged = FMath::Max(0,
+		RangedProductionTarget - RangedUnitsProducedForObjective);
+	const int32 BuildingReserve = Progress.bRangedBuildingConstructed
+		? 0 : RangedBuildingCrystalCost;
+	return BuildingReserve + RemainingRanged * GetProductionCost(EDemoUnitCategory::Distance);
+}
+
 // ─── ÉCONOMIE DE LA CITÉ ─────────────────────────────────────────────────────
 int32 UDemoFlowSubsystem::GetProductionCost(EDemoUnitCategory Category) const
 {
@@ -190,7 +223,22 @@ int32 UDemoFlowSubsystem::GetProductionCost(EDemoUnitCategory Category) const
 bool UDemoFlowSubsystem::CanProduce(EDemoUnitCategory Category) const
 {
 	const int32 Cost = GetProductionCost(Category);
-	return Cost > 0 && IsCategoryUnlocked(Category) && PlayerCrystals >= Cost;
+	if (Cost <= 0 || !IsCategoryUnlocked(Category) || PlayerCrystals < Cost) return false;
+	if (GetArmyUnitCount() >= MaxArmyUnits) return false;
+	if (Category == EDemoUnitCategory::Distance && !Progress.bRangedBuildingConstructed)
+		return false;
+
+	// Tant que les 10 unités à distance ne sont pas produites, les autres productions ne
+	// peuvent ni consommer leurs places d'armée ni les cristaux indispensables à l'objectif.
+	if (Category != EDemoUnitCategory::Distance && !IsRangedProductionObjectiveComplete())
+	{
+		const int32 RemainingRanged = FMath::Max(0,
+			RangedProductionTarget - RangedUnitsProducedForObjective);
+		const int32 FreeSlotsAfter = MaxArmyUnits - (GetArmyUnitCount() + 1);
+		if (FreeSlotsAfter < RemainingRanged) return false;
+		if (PlayerCrystals - Cost < GetRequiredCrystalReserveForRangedObjective()) return false;
+	}
+	return true;
 }
 
 bool UDemoFlowSubsystem::ProduceUnit(EDemoUnitCategory Category)
@@ -201,6 +249,11 @@ bool UDemoFlowSubsystem::ProduceUnit(EDemoUnitCategory Category)
 	if (UnitID.IsNone()) return false;
 	PlayerCrystals -= Cost;
 	ReserveUnits.FindOrAdd(UnitID) += 1;
+	++TotalProducedUnits;
+	if (Category == EDemoUnitCategory::Distance)
+	{
+		++RangedUnitsProducedForObjective;
+	}
 	return true;
 }
 
@@ -219,6 +272,8 @@ void UDemoFlowSubsystem::DrainReserve(TMap<FName, int32>& OutUnits)
 // ─── PROGRESSION DES BÂTIMENTS ───────────────────────────────────────────────
 int32 UDemoFlowSubsystem::GetBuildingLevel(EDemoUnitCategory Category) const
 {
+	if (Category == EDemoUnitCategory::Distance && !Progress.bRangedBuildingConstructed)
+		return 0;
 	const int32* Found = BuildingLevels.Find(Category);
 	return Found ? *Found : 1; // niveau 1 par défaut
 }
@@ -234,7 +289,11 @@ int32 UDemoFlowSubsystem::GetBuildingUpgradeCost(EDemoUnitCategory Category) con
 bool UDemoFlowSubsystem::CanUpgradeBuilding(EDemoUnitCategory Category) const
 {
 	const int32 Cost = GetBuildingUpgradeCost(Category);
-	return Cost > 0 && PlayerCrystals >= Cost;
+	if (Cost <= 0 || PlayerCrystals < Cost) return false;
+	if (Category == EDemoUnitCategory::Distance && !Progress.bRangedBuildingConstructed)
+		return false;
+	return IsRangedProductionObjectiveComplete()
+		|| PlayerCrystals - Cost >= GetRequiredCrystalReserveForRangedObjective();
 }
 
 bool UDemoFlowSubsystem::UpgradeBuilding(EDemoUnitCategory Category)

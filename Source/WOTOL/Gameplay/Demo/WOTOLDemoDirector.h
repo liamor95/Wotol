@@ -97,10 +97,10 @@ public:
 	// Valeurs PROVISOIRES et éditables : le joueur a précisé que les nombres cités à l'oral
 	// n'étaient que des exemples. Aucun de ces montants n'est considéré comme équilibrage final.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
-	int32 CreatureRewardCrystals = 600;
+	int32 CreatureRewardCrystals = 2200;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
-	int32 CreatureRewardAbyssalMaterials = 50;
+	int32 CreatureRewardAbyssalMaterials = 100;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
 	int32 CreatureRewardBiomass = 30;
@@ -113,6 +113,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
 	int32 CrystalliserAbyssalMaterialCost = 15;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Exploration", meta = (ClampMin = "200.0"))
+	float CrystalliserPlacementRadius = 520.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
 	TSubclassOf<AWOTOLDemoUnit> DemoUnitClass;
@@ -209,6 +212,33 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void ReturnToMainMenu();
 
+	// Séquence interactive après le Kraken : inventaire de bâtiment -> emplacement lumineux
+	// dans le monde -> dépense atomique -> construction réelle du Cristalliseur.
+	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
+	void ArmCrystalliserPlacement();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
+	bool TryPlaceCrystalliserAt(const FVector& ClickedWorldLocation);
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Flux")
+	bool IsCrystalliserPlacementAvailable() const { return bCrystalliserPlacementAvailable; }
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Flux")
+	bool IsCrystalliserPlacementArmed() const { return bCrystalliserPlacementArmed; }
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Flux")
+	FVector GetCrystalliserPlacementLocation() const { return CrystalliserPlacementLocation; }
+
+	// Appelé quand la dixième unité à distance est produite : affiche l'alerte noxéenne,
+	// mais laisse le joueur libre d'améliorer la cité avant de cliquer « Défendre ».
+	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
+	void NotifyRangedProductionObjectiveComplete();
+
+	// Lance la défense seulement après validation de l'alerte et conserve le Cristalliseur
+	// réellement placé (aucun doublon n'est recréé au centre de l'arène).
+	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
+	void LaunchDefenseFromCity();
+
 	// Phase à rejouer sur « Rejouer » (mémorisée à la conclusion de la bataille, avant que la
 	// phase ne bascule sur DemoEnd).
 	EDemoPhase ReplayPhase = EDemoPhase::Battle_Creature;
@@ -237,10 +267,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Flux")
 	bool bEnableFullFlowV08 = true;
 
-	// Lance la défense du Cristalliseur depuis la cité (bouton « Partir en expédition »).
-	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
-	void LaunchDefenseFromCity();
-
 private:
 	// Nage 3D dans la même carte procédurale que la bataille : on alterne la possession entre
 	// le héros et la caméra RTS, sans OpenLevel et sans perdre l'état du GameInstance.
@@ -253,6 +279,10 @@ private:
 	void PossessBattleCamera();
 	void PossessExplorationHero(const FVector& SpawnLocation, const FRotator& SpawnRotation);
 	void DestroyExplorationHero();
+	void BeginCrystalliserPlacement();
+	void CompleteCrystalliserPlacement();
+	void CreateCrystalliserPlacementMarkers();
+	void ClearCrystalliserPlacementMarkers();
 
 	// Réagit à la validation d'une fenêtre d'objectif -> avance la séquence.
 	UFUNCTION()
@@ -309,6 +339,7 @@ private:
 	void OnPlayerDefeat();
 	void CleanupUnits();
 	void SpawnCaptureObject(EFactionID Faction);
+	void SpawnCaptureObjectAt(EFactionID Faction, const FVector& ActorLocation);
 	void StartRivalDefense();
 	// PHASE 3 : grande bataille rangée en ZONE NEUTRE (pas d'objectif, pas d'avantage de
 	// terrain). Débloque tout le roster (spéciale + mythique), agrandit l'arène.
@@ -333,6 +364,15 @@ private:
 
 	UPROPERTY()
 	TArray<TObjectPtr<AActor>> PlacementMarkers;
+
+	// Marqueurs distincts de la limite de déploiement RTS : ils visualisent l'unique
+	// emplacement valide du Cristalliseur pendant la nage libre post-Kraken.
+	UPROPERTY()
+	TArray<TObjectPtr<AActor>> CrystalliserPlacementMarkers;
+
+	FVector CrystalliserPlacementLocation = FVector::ZeroVector;
+	bool bCrystalliserPlacementAvailable = false;
+	bool bCrystalliserPlacementArmed = false;
 
 	EFactionID CachedPlayerFaction = EFactionID::None;
 	EFactionID CachedRivalFaction  = EFactionID::None;

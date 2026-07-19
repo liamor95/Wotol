@@ -53,23 +53,31 @@ défense, et écrans de transition/chargement.
   5–10 m du Kraken → chargement → placement de l'armée → bataille tutorielle.
 - Après le rapport du Kraken : retour réel en nage libre avant la séquence Cristalliseur.
 
-### 8. Séquence Cristalliseur → Cœur-Éclat → œuf ✅ 🧪 (acteurs + fenetres d objectif)
-- Après victoire créature : fenêtre « Placez le Cristalliseur » → pose → Cœur-Éclat apparaît →
-  fenêtre « Récupérez le Cœur-Éclat » → œuf de Léviaphénix (récompense).
+### 8. Séquence Cristalliseur → Cœur-Éclat → œuf ✅ 🧪
+- Après victoire créature : fenêtre d'objectif → carte du Cristalliseur dans l'inventaire →
+  sélection → cible circulaire lumineuse dans le monde 3D → clic valide → dépense atomique →
+  construction et acquisition du territoire → Cœur-Éclat → œuf de Léviaphénix.
+- Le bâtiment posé est conservé jusqu'à la défense ; aucun deuxième Cristalliseur n'est généré.
 
 ### 9. Défense du Cristalliseur (phases 10-12) ✅ 🧪
 - Bâtiment avec PV/bonus/réparation (`WOTOLCaptureObject` existe déjà — à étendre).
 - Destruction = **échec immédiat** (fenêtre rouge) → zone neutre. Pas de bâtiment ennemi posé.
 
-### 10. Câblage du flux 13 phases dans le Director 🔨
+### 10. Câblage du flux 13 phases dans le Director ✅ 🧪
 - `bEnableFullFlowV08` est désormais **activé par défaut** ; l'ancienne boucle reste seulement
   comme repli de diagnostic.
 - Fenêtres plein écran corrigées : une modale d'objectif peut maintenant s'afficher sur
   Exploration, Interlude, Cité et Chargement sans être masquée par un `return` du HUD.
 - Rapport Kraken : récompenses séparées (cristaux, matériaux abyssaux, biomasse, nourriture),
   puis coût atomique du Cristalliseur. Montants provisoires et éditables dans le Director.
-- Reste à rendre la pose du Cristalliseur spatiale (inventaire → surbrillance → clic sur
-  l'emplacement), puis à brancher la construction du bâtiment distance et l'objectif 10 unités.
+- Cité : bâtiment Akisfères/Nox Blast à construire sur l'une des 3 parcelles libres, coûts
+  cristal + matériau abyssal retirés seulement au clic de placement.
+- Objectif obligatoire : produire 10 unités à distance. Progression visible, plafond d'armée
+  à 35 et réservation automatique des places/cristaux nécessaires pour éviter tout soft-lock.
+- La 10e production déclenche une alerte noxéenne modale. Après validation, le bouton de cité
+  devient « Défendre le Cristalliseur » et mène à la préparation de la bataille rivale.
+- Économie greybox provisoire : récompense Kraken 2200 cristaux / 100 matériaux, bâtiment
+  distance 300 / 25, unité distance 140. Ces valeurs restent éditables, pas validées comme balance.
 
 ### 11. Intégrations UI d'assets ⏳
 - Logo (menu), emblèmes (sélection faction), icônes de rôles (marqueurs HUD), écran carte.
@@ -112,9 +120,8 @@ en volume Homeworld »*.
 
 ## Reste à faire (nécessite un PC pour compiler/valider)
 - Compiler UE 5.8 et tester l'enchaînement réellement branché : menu → lancement manuel → nage →
-  proximité Kraken → placement/bataille → rapport/récompenses → retour nage → Cristalliseur.
-- Ajouter la pose spatiale du Cristalliseur et la construction libre du bâtiment Akisfères.
-- Ajouter l'objectif cité « produire 10 unités à distance » et la limite d'armée de démo (35).
+  proximité Kraken → placement/bataille → rapport/récompenses → retour nage → placement spatial
+  Cristalliseur → récompenses → cité → bâtiment distance → 10 unités → alerte → défense.
 - **HUD** : jauge verticale SURFACE/MID/SOL (Homeworld), panneau héros + capacités, restyle fenêtre d'objectif.
 - **Module 11** : intégrer logo/emblèmes/icônes de rôles (assets de référence).
 - **Module 12** : build autonome (packaging Windows) — côté éditeur.

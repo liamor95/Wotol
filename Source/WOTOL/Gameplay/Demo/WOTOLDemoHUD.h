@@ -46,6 +46,9 @@ public:
 	// Bouton « Continuer » de la fenêtre d'objectif MODALE (validation manuelle v0.8).
 	static FBox2D ObjectiveContinueButtonRect(float W, float H);
 
+	// Inventaire de bâtiments pendant la nage libre post-Kraken.
+	static FBox2D ExplorationCrystalliserButtonRect(float W, float H);
+
 	// ─── Vue CITÉ (phases 2 & 9 — production) ───────────────────────────────────
 	// Cartes de production (bâtiments) le long du bas de l'écran.
 	static FBox2D CityCardRect(int32 Index, float W, float H);
@@ -55,6 +58,9 @@ public:
 	static FBox2D CityDepartButtonRect(float W, float H);
 	// Bouton « Compétences » de la cité (ouvre l'onglet des axes).
 	static FBox2D CitySkillsButtonRect(float W, float H);
+	// Trois emplacements fixes et libres de la cité greybox. Le bâtiment à distance doit être
+	// sélectionné dans sa carte puis posé explicitement sur l'un de ces emplacements.
+	static FBox2D CityBuildPlotRect(int32 Index, float W, float H);
 
 	// ─── Onglet COMPÉTENCES (axes par unité) ───────────────────────────────────
 	// Bouton d'axe (ligne = catégorie d'unité, col 0=Base,1=Axe1,2=Axe2).

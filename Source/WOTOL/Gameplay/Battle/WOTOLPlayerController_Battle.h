@@ -98,6 +98,8 @@ private:
 	// Raycast helpers
 	AUnitBase* GetUnitUnderCursor() const;
 	bool       GetGroundLocationUnderCursor(FVector& OutLocation) const;
+	bool       GetWorldLocationOnHorizontalPlane(const FVector2D& ScreenPosition,
+		float PlaneZ, FVector& OutLocation) const;
 
 	// Box select state
 	bool       bIsBoxSelecting   = false;

@@ -275,6 +275,16 @@ compat UE 5.8 vérifiée, code relu.
 la boucle soit stable. La démo doit prouver : combat en volume, lisibilité des unités, caméra
 agréable, conquête compréhensible, enjeu de défense, identité visuelle/stratégique distincte.
 
+### État d'implémentation de la boucle cité/défense (19/07/2026)
+- Pose du Cristalliseur/Abyssalyseur : inventaire, emplacement 3D signalé, validation spatiale,
+  paiement atomique et conservation du même acteur jusqu'à la défense.
+- Cité : construction du bâtiment de distance sur 3 parcelles, puis production obligatoire de
+  10 Akisfères/Nox Blast ; compteur d'objectif et plafond d'armée de démonstration à 35.
+- Protection anti-blocage : les places d'armée et les cristaux nécessaires à l'objectif restent
+  réservés tant que les 10 unités ne sont pas produites.
+- La 10e unité ouvre l'alerte de contre-attaque noxéenne ; le départ en défense reste un clic
+  explicite. Les valeurs de coûts/récompenses utilisées sont des paramètres greybox provisoires.
+
 ---
 
 ## 20. POINTS ENCORE OUVERTS (§24 — NE PAS VERROUILLER)
