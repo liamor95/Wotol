@@ -192,12 +192,13 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
 	void BeginPostCreatureSequence();
 
-	// Interrupteur du FLUX 13 PHASES v0.8 (module 10). Désactivé par défaut : la démo
-	// conserve son enchaînement 3-batailles testé. Activé (éditeur ou BP) : la victoire
-	// créature enchaîne la séquence Cristalliseur → Cœur-Éclat → œuf → cité → défense.
-	// À basculer sur true UNE FOIS le projet recompilé et le flux validé.
+	// Interrupteur du FLUX 13 PHASES v0.8 (module 10). Activé par défaut : la victoire
+	// créature enchaîne la séquence Cristalliseur → Cœur-Éclat → œuf → cité → défense
+	// (canon Docs/DOCUMENT_MAITRE_WOTOL.md §7). Repasser à false (éditeur ou BP) pour
+	// revenir à l'ancien enchaînement 3-batailles court (utile pour isoler un bug de
+	// bataille sans repasser par la cité/les fenêtres d'objectif).
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Flux")
-	bool bEnableFullFlowV08 = false;
+	bool bEnableFullFlowV08 = true;
 
 	// Lance la défense du Cristalliseur depuis la cité (bouton « Partir en expédition »).
 	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")

@@ -57,9 +57,24 @@ défense, et écrans de transition/chargement.
 - Bâtiment avec PV/bonus/réparation (`WOTOLCaptureObject` existe déjà — à étendre).
 - Destruction = **échec immédiat** (fenêtre rouge) → zone neutre. Pas de bâtiment ennemi posé.
 
-### 10. Câblage du flux 13 phases dans le Director 🔨 (interrupteur bEnableFullFlowV08)
-- Remplacer l'enchaînement 3-batailles par la machine 13 phases pilotée par les fenêtres
-  d'objectif (`OnObjectiveConfirmed` → `Director` agit → phase suivante).
+### 10. Câblage du flux 13 phases dans le Director ✅ 🧪 (bEnableFullFlowV08 = true par défaut)
+- Enchaînement complet désormais actif par défaut : Battle_Creature → interlude → séquence
+  d'objectifs (`seq_victory` → `seq_place_crystalliser` → `seq_collect_heart` →
+  `seq_collect_egg` → `seq_return_city`) → vue Cité → « Partir en expédition »
+  (`LaunchDefenseFromCity`) → Battle_Rival → interlude → Battle_Grand (phase 3) → DemoEnd.
+- **Bug corrigé** : `LaunchDefenseFromCity()` re-spawnait un 2e Cristalliseur (+4 tourelles
+  en double) alors que le premier était déjà posé pendant `seq_place_crystalliser` → fuite
+  du 1er bâtiment. Corrigé : ne spawn que si `!CaptureObject`.
+- **Bug corrigé** : `CleanupUnits()` (appelée par `BeginPreparation()`, donc juste après que
+  `SpawnCaptureObject()` ait posé les 4 tourelles) détruisait ces tourelles avant même le
+  début de la bataille de défense — la défense du Cristalliseur tournait à vide. Corrigé :
+  cycle de vie des tourelles géré uniquement par `SpawnCaptureObject()` (désormais
+  auto-nettoyant) et par des appels explicites à `ClearDefenseStructures()` partout où le
+  bâtiment est retiré sans être remplacé (`StartGrandBattle`, `RestartDemo`,
+  `ReplayCurrentPhase`).
+- Session du 19/07/2026, branche `claude/wotol-demo-finale` (base = `a48ec90`, v0.8).
+- Reste : **non compilé/testé sur machine** (pas d'éditeur Unreal côté assistant) — à
+  valider en priorité au prochain build (voir « Ordre de compilation conseillé » plus bas).
 
 ### 11. Intégrations UI d'assets ⏳
 - Logo (menu), emblèmes (sélection faction), icônes de rôles (marqueurs HUD), écran carte.
@@ -101,14 +116,19 @@ Warcraft III) avec les patterns concrets à copier. Synthèse : *« campagne Tot
 en volume Homeworld »*.
 
 ## Reste à faire (nécessite un PC pour compiler/valider)
-- **Activer le flux 13 phases** : mettre `bEnableFullFlowV08 = true` sur le Director (une fois compilé),
-  puis tester l'enchaînement créature → Cristalliseur → Cœur-Éclat → œuf → cité → défense.
+- **Tester le flux 13 phases** : `bEnableFullFlowV08` est maintenant `true` par défaut sur
+  le Director — compiler et jouer l'enchaînement complet créature → Cristalliseur →
+  Cœur-Éclat → œuf → cité → défense → phase 3, en particulier vérifier que les 4 tourelles
+  de défense sont bien visibles/actives pendant la bataille de défense (bug corrigé cette
+  session, jamais compilé donc jamais vu tourner en vrai).
 - **HUD** : jauge verticale SURFACE/MID/SOL (Homeworld), panneau héros + capacités, restyle fenêtre d'objectif.
 - **Module 11** : intégrer logo/emblèmes/icônes de rôles (assets de référence).
 - **Module 12** : build autonome (packaging Windows) — côté éditeur.
 
 ## Ordre de compilation conseillé au retour du PC
-1. Pull `feature/v0.8-jeu-complet`, recompiler, **vérifier que ça build** (tous les modules).
+1. Pull `claude/wotol-demo-finale`, recompiler, **vérifier que ça build** (tous les modules).
 2. Valider visuellement : **vert Noxéen**, **échelle Noxedrake**, **fenêtre d'objectif**, **vue cité**, **nage**.
-3. Basculer `bEnableFullFlowV08 = true` et tester la boucle 13 phases complète.
+3. Jouer la boucle 13 phases complète de bout en bout (flag déjà activé par défaut) ; en
+   particulier confirmer que le Cristalliseur n'est posé qu'une fois et que ses 4 tourelles
+   survivent jusqu'à la bataille de défense.
 4. On restyle le HUD d'après les maquettes + on package.

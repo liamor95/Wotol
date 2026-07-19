@@ -1396,7 +1396,15 @@ void AWOTOLDemoDirector::LaunchDefenseFromCity()
 	if (UGameInstance* GI = GetGameInstance())
 		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
 			Demo->SetScreen(EDemoScreen::Playing);
-	SpawnCaptureObject(CachedPlayerFaction); // Cristalliseur à défendre
+	// Flux complet v0.8 : le Cristalliseur a déjà été posé pendant la séquence de
+	// purification (étape "seq_place_crystalliser") -> NE PAS le respawn ici, sinon on
+	// duplique le bâtiment ET ses 4 tourelles de défense (fuite du premier objet, jamais
+	// détruit). On ne spawn que si absent (filet de sécurité pour l'ancien flux court,
+	// bEnableFullFlowV08 = false, où cette fonction n'est normalement pas atteinte).
+	if (!CaptureObject)
+	{
+		SpawnCaptureObject(CachedPlayerFaction); // Cristalliseur à défendre
+	}
 	StartRivalDefense();                     // -> défense en PRÉPARATION
 }
 
@@ -1413,6 +1421,7 @@ void AWOTOLDemoDirector::StartGrandBattle()
 	// CaptureObject) est automatiquement ignoré. Bataille purement arme contre arme.
 	if (CaptureObject) { CaptureObject->Destroy(); CaptureObject = nullptr; }
 	if (Demo) Demo->SetCaptureObject(nullptr);
+	ClearDefenseStructures(); // plus de bâtiment -> plus de tourelles à défendre
 	ClearZoneCrystals();
 
 	// Arène un peu plus large que la phase 2 MAIS qui tient DANS l'enceinte de montagnes
@@ -1449,6 +1458,7 @@ void AWOTOLDemoDirector::RestartDemo(bool bKeepFaction)
 	ClearPlacementBoundary();
 	ClearCoverStructures();
 	if (CaptureObject) { CaptureObject->Destroy(); CaptureObject = nullptr; }
+	ClearDefenseStructures(); // plus de bâtiment -> plus de tourelles
 	bBattleConcluded = false;
 	// Roster + arène de phase 1 (les valeurs phase 2/3 sont réappliquées à leur lancement)
 	InfantryCount = 10; MountedCount = 5; RangedCount = 5;
@@ -1497,6 +1507,7 @@ void AWOTOLDemoDirector::ReplayCurrentPhase()
 	ClearPlacementBoundary();
 	ClearCoverStructures();
 	if (CaptureObject) { CaptureObject->Destroy(); CaptureObject = nullptr; }
+	ClearDefenseStructures(); // le cas Battle_Rival ci-dessous les recrée via SpawnCaptureObject
 	bBattleConcluded = false;
 
 	UGameInstance* GI = GetGameInstance();
@@ -1560,7 +1571,12 @@ void AWOTOLDemoDirector::CleanupUnits()
 		if (U) U->Destroy();
 	}
 	SpawnedUnits.Empty();
-	ClearDefenseStructures();
+	// NB : ne touche PAS aux tourelles (DefenseStructures) — elles appartiennent au
+	// Cristalliseur, pas aux armées. BeginPreparation() appelle CleanupUnits() APRÈS que
+	// SpawnCaptureObject() ait posé les tourelles de la bataille de défense (phase 2) ;
+	// les détruire ici les ferait disparaître avant même le début du combat. Leur cycle
+	// de vie est géré par SpawnCaptureObject()/ClearDefenseStructures() (appelée
+	// explicitement partout où le bâtiment est détruit sans être immédiatement remplacé).
 }
 
 void AWOTOLDemoDirector::ClearDefenseStructures()
@@ -1575,6 +1591,11 @@ void AWOTOLDemoDirector::ClearDefenseStructures()
 void AWOTOLDemoDirector::SpawnCaptureObject(EFactionID Faction)
 {
 	if (!CaptureObjectClass) return;
+
+	// Auto-nettoyant : si un bâtiment (et ses tourelles) existe déjà, on le retire avant
+	// d'en poser un nouveau. Évite toute fuite/duplication quel que soit l'appelant.
+	if (CaptureObject) { CaptureObject->Destroy(); CaptureObject = nullptr; }
+	ClearDefenseStructures();
 
 	const FTransform TM(FRotator::ZeroRotator, GetActorLocation() + FVector(0.f, 0.f, 200.f));
 	AWOTOLCaptureObject* Obj = GetWorld()->SpawnActorDeferred<AWOTOLCaptureObject>(
