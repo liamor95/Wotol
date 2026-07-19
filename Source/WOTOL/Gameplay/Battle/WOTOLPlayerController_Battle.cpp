@@ -12,6 +12,7 @@
 #include "Gameplay/Demo/WOTOLDemoDirector.h"
 #include "Gameplay/Demo/WOTOLDemoUnit.h"
 #include "Gameplay/Demo/WOTOLCoverStructure.h"
+#include "Gameplay/Demo/WOTOLCityBuildingProp.h"
 #include "Core/WOTOLGameInstance.h"
 #include "Core/FactionRegistrySubsystem.h"
 #include "Components/SceneComponent.h"
@@ -343,6 +344,7 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 				// Bandeau HAUT de la carte = améliorer le bâtiment (niv. bâtiment -> niv. unités).
 				if (AWOTOLDemoHUD::CityCardUpgradeRect(i, VpSize.X, VpSize.Y).IsInside(M))
 				{
+					Demo->SetSelectedCityCategory(Cat);
 					if (Cat == EDemoUnitCategory::Distance && !Demo->IsRangedBuildingConstructed())
 						Demo->ArmRangedBuildingPlacement();
 					else
@@ -352,6 +354,7 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 				// Reste de la carte = produire une unité.
 				if (AWOTOLDemoHUD::CityCardRect(i, VpSize.X, VpSize.Y).IsInside(M))
 				{
+					Demo->SetSelectedCityCategory(Cat);
 					if (Cat == EDemoUnitCategory::Distance && !Demo->IsRangedBuildingConstructed())
 					{
 						Demo->ArmRangedBuildingPlacement();
@@ -387,6 +390,21 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 					}
 				}
 				return true;
+			}
+
+			// Aucun bouton d'UI touché : clic sur la maquette 3D isométrique elle-même ->
+			// sélectionne le bâtiment visé (ouvre la fiche technique dans le HUD). Testé EN
+			// DERNIER pour que les boutons 2D restent prioritaires même s'ils se superposent
+			// visuellement à un bâtiment rendu derrière eux par la caméra isométrique.
+			FHitResult CityHit;
+			if (GetHitResultUnderCursorByChannel(
+					UEngineTypes::ConvertToTraceType(ECC_WorldStatic), true, CityHit))
+			{
+				if (AWOTOLCityBuildingProp* Prop = Cast<AWOTOLCityBuildingProp>(CityHit.GetActor()))
+				{
+					Demo->SetSelectedCityCategory(Prop->Category);
+					return true;
+				}
 			}
 		}
 		return true; // la cité capte tout clic

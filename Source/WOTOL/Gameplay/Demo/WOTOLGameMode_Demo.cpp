@@ -2,6 +2,8 @@
 #include "WOTOLDemoDirector.h"
 #include "WOTOLGreyboxEnvironment.h"
 #include "WOTOLDemoHUD.h"
+#include "WOTOLCityEnvironment.h"
+#include "WOTOLCityCamera.h"
 #include "Gameplay/Battle/WOTOLBattleCamera.h"
 #include "Gameplay/Battle/WOTOLPlayerController_Battle.h"
 #include "Core/WOTOLGameInstance.h"
@@ -67,6 +69,23 @@ void AWOTOLGameMode_Demo::BeginPlay()
 		// Yaw 0 = regard vers +X (l'ennemi) ; pitch plongeant ; zoom proche de l'armée
 		Camera->SetInitialView(CamFocus, 0.f, -45.f, 2600.f);
 	}
+
+	// 2b) Décor + caméra de la vue CITÉ (isométrique fixe) — posés loin de l'arène (même
+	//     niveau réutilisé pour tout ce qui précède : aucun risque de chevauchement).
+	const FVector CityOrigin(0.f, 30000.f, 0.f);
+	const FTransform CityTM(FRotator::ZeroRotator, CityOrigin);
+	CityEnv = W->SpawnActorDeferred<AWOTOLCityEnvironment>(
+		AWOTOLCityEnvironment::StaticClass(), CityTM, this);
+	if (CityEnv)
+	{
+		CityEnv->PlayerFaction = PlayerFaction;
+		UGameplayStatics::FinishSpawningActor(CityEnv, CityTM);
+	}
+	FActorSpawnParameters CityCamParams;
+	CityCamParams.Owner = this;
+	CityCam = W->SpawnActor<AWOTOLCityCamera>(
+		AWOTOLCityCamera::StaticClass(), CityOrigin, FRotator::ZeroRotator, CityCamParams);
+	if (CityCam) CityCam->ResetToHub(CityOrigin);
 
 	// 3) Branche le PlayerController : faction + caméra (possession)
 	if (AWOTOLPlayerController_Battle* PC =

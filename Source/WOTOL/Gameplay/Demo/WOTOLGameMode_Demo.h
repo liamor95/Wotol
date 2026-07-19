@@ -7,6 +7,8 @@
 
 class AWOTOLDemoDirector;
 class AWOTOLBattleCamera;
+class AWOTOLCityEnvironment;
+class AWOTOLCityCamera;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GAMEMODE DE DÉMO (greybox bataille) — auto-assemble la scène pour limiter au
@@ -40,4 +42,12 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<AWOTOLBattleCamera> Camera;
+
+	// Décor + caméra de la vue CITÉ isométrique — posés loin de l'arène de bataille/
+	// exploration (même niveau réutilisé pour tout, donc aucun risque de chevauchement).
+	UPROPERTY()
+	TObjectPtr<AWOTOLCityEnvironment> CityEnv;
+
+	UPROPERTY()
+	TObjectPtr<AWOTOLCityCamera> CityCam;
 };

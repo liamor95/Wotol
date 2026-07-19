@@ -14,6 +14,7 @@ class AWOTOLRewardActor;
 class AWOTOLHeroCharacter;
 class UUnitDataAsset;
 class AUnitBase;
+class AWOTOLCityCamera;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDemoMessage, const FString&, Message);
 
@@ -375,6 +376,11 @@ private:
 	void ResumePostBattleExploration();
 	void BeginPostBattleExploration();
 	void PossessBattleCamera();
+	// Possède la caméra isométrique fixe de la cité (AWOTOLCityCamera), retrouvée par
+	// itération (même convention que PossessBattleCamera) — appelée automatiquement en
+	// réaction à HandleScreenChanged(), pas besoin de toucher chaque site de
+	// SetScreen(EDemoScreen::City) dispersé dans ce fichier.
+	void PossessCityCamera();
 	void PossessExplorationHero(const FVector& SpawnLocation, const FRotator& SpawnRotation);
 	void DestroyExplorationHero();
 	void BeginCrystalliserPlacement();
@@ -397,6 +403,11 @@ private:
 	// Réagit à la validation d'une fenêtre d'objectif -> avance la séquence.
 	UFUNCTION()
 	void HandleObjectiveConfirmed(FName StepId);
+	// Réagit à CHAQUE changement d'écran -> bascule vers la caméra isométrique en entrant
+	// dans EDemoScreen::City (les autres écrans possèdent déjà leur caméra au bon endroit,
+	// cf. PossessBattleCamera/PossessExplorationHero appelés explicitement ailleurs).
+	UFUNCTION()
+	void HandleScreenChanged(EDemoScreen NewScreen);
 	// Réagit à la récupération d'une récompense (Cœur-Éclat / œuf) par proximité.
 	UFUNCTION()
 	void HandleRewardCollected(EWOTOLRewardType Type);

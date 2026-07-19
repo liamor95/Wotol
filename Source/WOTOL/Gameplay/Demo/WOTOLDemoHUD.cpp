@@ -991,20 +991,17 @@ UTexture2D* AWOTOLDemoHUD::GetTransitionBackground()
 
 void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 {
-	if (!Demo) { DrawUnderwaterBackground(W, H); return; }
+	if (!Demo) return;
 	const EFactionID Fac = Demo->GetPlayerFaction();
 
-	// Fond de cité (image de référence) ou repli dégradé sous-marin.
-	if (UTexture2D* BG = GetCityBackground(Fac))
-	{
-		DrawTexture(BG, 0.f, 0.f, W, H, 0.f, 0.f, 1.f, 1.f);
-		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.30f), 0.f, 0.f, W, H * 0.16f);          // bandeau haut
-		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.42f), 0.f, H * 0.66f, W, H * 0.34f);    // bandeau bas (cartes)
-	}
-	else
-	{
-		DrawUnderwaterBackground(W, H);
-	}
+	// La cité est maintenant une VRAIE scène 3D vue depuis une caméra isométrique fixe
+	// (AWOTOLCityCamera/AWOTOLCityEnvironment, possédée automatiquement en entrant sur cet
+	// écran — cf. AWOTOLDemoDirector::HandleScreenChanged/PossessCityCamera) : elle est déjà
+	// rendue DERRIÈRE ce Canvas. On ne dessine donc plus d'image/dégradé plein écran ici (ça
+	// la masquerait entièrement) — seuls les bandeaux de chrome haut/bas restent, translucides,
+	// pour garder les cartes/ressources lisibles sans cacher la maquette au centre.
+	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.34f), 0.f, 0.f, W, H * 0.16f);          // bandeau haut
+	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.46f), 0.f, H * 0.66f, W, H * 0.34f);    // bandeau bas (cartes)
 
 	const bool bAq = (Fac != EFactionID::Noxeens);
 	const FLinearColor Accent = bAq ? FLinearColor(0.45f, 0.85f, 1.f, 1.f)
@@ -1116,6 +1113,15 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		DrawLine(R.Min.X, R.Max.Y, R.Max.X, R.Max.Y, Border, 2.f);
 		DrawLine(R.Min.X, R.Min.Y, R.Min.X, R.Max.Y, Border, 2.f);
 		DrawLine(R.Max.X, R.Min.Y, R.Max.X, R.Max.Y, Border, 2.f);
+		// Surbrillance quand ce bâtiment est sélectionné (clic 3D sur la maquette isométrique
+		// OU clic sur cette carte) : cadre épais blanc en plus du cadre de couleur normal.
+		if (Demo->HasCitySelection() && Demo->SelectedCityCategory == Cat)
+		{
+			DrawLine(R.Min.X - 3.f, R.Min.Y - 3.f, R.Max.X + 3.f, R.Min.Y - 3.f, FLinearColor::White, 3.f);
+			DrawLine(R.Min.X - 3.f, R.Max.Y + 3.f, R.Max.X + 3.f, R.Max.Y + 3.f, FLinearColor::White, 3.f);
+			DrawLine(R.Min.X - 3.f, R.Min.Y - 3.f, R.Min.X - 3.f, R.Max.Y + 3.f, FLinearColor::White, 3.f);
+			DrawLine(R.Max.X + 3.f, R.Min.Y - 3.f, R.Max.X + 3.f, R.Max.Y + 3.f, FLinearColor::White, 3.f);
+		}
 
 		const float CX = R.Min.X + 12.f;
 		// Bandeau HAUT : niveau du bâtiment + bouton « Améliorer » (niv. bâtiment = niv. unités).
@@ -1168,6 +1174,63 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 					? TEXT("PLAFOND D'ARMEE") : TEXT("INDISPONIBLE / RESERVE OBJECTIF"));
 			DrawText(Action, bAfford ? Accent : FLinearColor(0.7f, 0.5f, 0.5f, 1.f),
 				CX, R.Max.Y - 28.f, GEngine ? GEngine->GetMediumFont() : nullptr, 0.82f);
+		}
+	}
+
+	// ─── FICHE TECHNIQUE : détail du bâtiment sélectionné (clic 3D sur la maquette
+	// isométrique OU clic sur sa carte). Placée à droite, dans la bande centrale laissée
+	// libre par les bandeaux haut/bas -> ne masque ni les ressources ni les cartes.
+	if (Demo->HasCitySelection())
+	{
+		const EDemoUnitCategory SelCat = Demo->SelectedCityCategory;
+		const FBox2D Panel(FVector2D(W - 380.f, H * 0.22f), FVector2D(W - 20.f, H * 0.58f));
+		DrawRect(FLinearColor(0.01f, 0.05f, 0.09f, 0.90f), Panel.Min.X, Panel.Min.Y,
+			Panel.Max.X - Panel.Min.X, Panel.Max.Y - Panel.Min.Y);
+		DrawLine(Panel.Min.X, Panel.Min.Y, Panel.Max.X, Panel.Min.Y, Accent, 3.f);
+
+		float Y = Panel.Min.Y + 26.f;
+		DrawCenteredText(CityBuildingLabel(Fac, SelCat).ToUpper(), Y, Accent, 1.15f); Y += 34.f;
+		DrawCenteredText(CityUnitLabel(Fac, SelCat), Y, FLinearColor::White, 1.0f); Y += 42.f;
+
+		const bool bSelUnlocked = Demo->IsCategoryUnlocked(SelCat);
+		if (!bSelUnlocked)
+		{
+			DrawCenteredText(TEXT("VERROUILLE"), Y, FLinearColor(0.85f, 0.4f, 0.35f, 1.f), 1.0f); Y += 30.f;
+			DrawCenteredText(TEXT("Se debloque plus tard dans la demo."), Y,
+				FLinearColor(0.75f, 0.78f, 0.85f, 0.9f), 0.85f);
+		}
+		else if (SelCat == EDemoUnitCategory::Distance && !Demo->IsRangedBuildingConstructed())
+		{
+			DrawCenteredText(TEXT("PAS ENCORE CONSTRUIT"), Y, FLinearColor(1.f, 0.85f, 0.4f, 1.f), 1.0f); Y += 30.f;
+			DrawCenteredText(FString::Printf(TEXT("Cout : %d cristaux + %d materiaux"),
+				Demo->RangedBuildingCrystalCost, Demo->RangedBuildingAbyssalMaterialCost), Y,
+				FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 0.9f); Y += 26.f;
+			DrawCenteredText(TEXT("Choisissez un emplacement via sa carte en bas."), Y,
+				FLinearColor(0.7f, 0.75f, 0.85f, 0.85f), 0.8f);
+		}
+		else
+		{
+			DrawCenteredText(FString::Printf(TEXT("NIVEAU %d / %d"),
+				Demo->GetBuildingLevel(SelCat), UDemoFlowSubsystem::MaxBuildingLevel),
+				Y, FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.0f); Y += 30.f;
+
+			const int32 UpCost = Demo->GetBuildingUpgradeCost(SelCat);
+			if (UpCost > 0)
+			{
+				DrawCenteredText(FString::Printf(TEXT("Amelioration : %d cristaux"), UpCost), Y,
+					Demo->CanUpgradeBuilding(SelCat) ? FLinearColor(0.6f, 1.f, 0.65f, 1.f)
+						: FLinearColor(1.f, 0.6f, 0.55f, 1.f), 0.9f);
+			}
+			else
+			{
+				DrawCenteredText(TEXT("Niveau maximum atteint"), Y, FLinearColor(0.7f, 0.85f, 1.f, 0.9f), 0.9f);
+			}
+			Y += 34.f;
+
+			const FName SelUnitID = Demo->GetUnitID(Fac, SelCat);
+			DrawCenteredText(FString::Printf(TEXT("Cout de production : %d   |   Reserve : %d"),
+				Demo->GetProductionCost(SelCat), Demo->GetReserveCount(SelUnitID)), Y,
+				FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 0.85f);
 		}
 	}
 

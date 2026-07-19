@@ -20,6 +20,8 @@
 #include "Core/FactionRegistrySubsystem.h"
 #include "EngineUtils.h"
 #include "WOTOLGreyboxEnvironment.h"
+#include "WOTOLCityCamera.h"
+#include "WOTOLCityEnvironment.h"
 #include "Engine/StaticMeshActor.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
@@ -204,6 +206,8 @@ void AWOTOLDemoDirector::BeginPlay()
 			Demo->SetScreen(EDemoScreen::MainMenu);
 			// Module 8/10 : le Director réagit aux validations des fenêtres d'objectif.
 			Demo->OnObjectiveConfirmed.AddDynamic(this, &AWOTOLDemoDirector::HandleObjectiveConfirmed);
+			// Bascule vers la caméra isométrique de la cité à chaque entrée dans cet écran.
+			Demo->OnDemoScreenChanged.AddDynamic(this, &AWOTOLDemoDirector::HandleScreenChanged);
 		}
 	}
 
@@ -291,6 +295,42 @@ void AWOTOLDemoDirector::PossessBattleCamera()
 	FInputModeGameAndUI Mode;
 	Mode.SetHideCursorDuringCapture(false);
 	PC->SetInputMode(Mode);
+}
+
+void AWOTOLDemoDirector::PossessCityCamera()
+{
+	UWorld* W = GetWorld();
+	if (!W) return;
+	APlayerController* PC = W->GetFirstPlayerController();
+	if (!PC) return;
+
+	FVector Hub = FVector::ZeroVector;
+	for (TActorIterator<AWOTOLCityEnvironment> ItEnv(W); ItEnv; ++ItEnv)
+	{
+		Hub = ItEnv->GetHubLocation();
+		break;
+	}
+	for (TActorIterator<AWOTOLCityCamera> It(W); It; ++It)
+	{
+		It->ResetToHub(Hub);
+		PC->Possess(*It);
+		break;
+	}
+	PC->bShowMouseCursor = true;
+	FInputModeGameAndUI Mode;
+	Mode.SetHideCursorDuringCapture(false);
+	PC->SetInputMode(Mode);
+}
+
+void AWOTOLDemoDirector::HandleScreenChanged(EDemoScreen NewScreen)
+{
+	// Les autres écrans possèdent déjà explicitement la bonne caméra à chaque point d'entrée
+	// existant (PossessBattleCamera / PossessExplorationHero) -> on n'agit ici QUE pour City,
+	// seul écran qui n'avait jusqu'ici aucune caméra 3D dédiée (juste un Canvas plein écran).
+	if (NewScreen == EDemoScreen::City)
+	{
+		PossessCityCamera();
+	}
 }
 
 void AWOTOLDemoDirector::BeginOpeningExploration()

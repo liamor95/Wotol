@@ -127,6 +127,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDemoPhaseChanged,
 // Diffusé quand le joueur valide une fenêtre d'objectif modale (paramètre = ID d'étape).
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnObjectiveConfirmed, FName, StepId);
 
+// Diffusé à CHAQUE changement d'écran (SetScreen). Sert de point d'accroche unique pour la
+// possession de caméra (ex. bascule vers la caméra isométrique de la cité) sans avoir à
+// modifier tous les appels existants à SetScreen(EDemoScreen::City) dispersés dans le Director.
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDemoScreenChanged, EDemoScreen, NewScreen);
+
 UCLASS()
 class WOTOL_API UDemoFlowSubsystem : public UGameInstanceSubsystem
 {
@@ -300,6 +305,7 @@ public:
 		bSummaryCanReturnToCity = false;
 		bSummaryBuildingDestroyed = false;
 		SummaryContinueLabel.Empty();
+		bCitySelectionValid = false;
 	}
 
 	// Difficulté choisie (défaut Normal = l'équilibrage de référence).
@@ -317,10 +323,28 @@ public:
 	EDemoScreen Screen = EDemoScreen::MainMenu;
 
 	UFUNCTION(BlueprintCallable, Category = "Demo")
-	void SetScreen(EDemoScreen S) { Screen = S; }
+	void SetScreen(EDemoScreen S) { Screen = S; OnDemoScreenChanged.Broadcast(S); }
 
 	UFUNCTION(BlueprintPure, Category = "Demo")
 	EDemoScreen GetScreen() const { return Screen; }
+
+	UPROPERTY(BlueprintAssignable, Category = "Demo")
+	FOnDemoScreenChanged OnDemoScreenChanged;
+
+	// ─── Sélection d'un bâtiment de la cité (clic 3D sur la maquette OU sur une carte) ──
+	// Pilote la mise en évidence du bâtiment en 3D (AWOTOLCityBuildingProp) ET la fiche
+	// technique affichée par le HUD (DrawCityView).
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	EDemoUnitCategory SelectedCityCategory = EDemoUnitCategory::Infanterie;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	bool bCitySelectionValid = false;
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|City")
+	void SetSelectedCityCategory(EDemoUnitCategory Cat) { SelectedCityCategory = Cat; bCitySelectionValid = true; }
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	bool HasCitySelection() const { return bCitySelectionValid; }
 
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void SetMessage(const FString& Msg) { CurrentMessage = Msg; }
