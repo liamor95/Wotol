@@ -462,6 +462,49 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		else if (AWOTOLDemoHUD::FactionLaunchButtonRect(VpSize.X, VpSize.Y).IsInside(M)
 			&& Demo && Demo->SelectedFaction != EFactionID::None)
 		{
+			// La faction/difficulté sont validées : on passe par la personnalisation du héros
+			// avant de lancer réellement la démo (StartDemoAfterSelection).
+			Demo->SetScreen(EDemoScreen::HeroCustomization);
+		}
+		return true;
+	}
+
+	// ── Personnalisation du héros (héritage / spécialité / portrait) ──
+	if (Screen == EDemoScreen::HeroCustomization)
+	{
+		if (!Demo) return true;
+		const EHeroHeritage HeritageVals[4] = { EHeroHeritage::Thalassi, EHeroHeritage::Givrelier, EHeroHeritage::Abysseen, EHeroHeritage::Gardien };
+		for (int32 i = 0; i < 4; ++i)
+		{
+			if (AWOTOLDemoHUD::HeroHeritageButtonRect(i, VpSize.X, VpSize.Y).IsInside(M))
+			{
+				Demo->SetHeroHeritage(HeritageVals[i]);
+				return true;
+			}
+		}
+		const EHeroSpecialty SpecialtyVals[4] = { EHeroSpecialty::Thalassi, EHeroSpecialty::Guerrier, EHeroSpecialty::Mage, EHeroSpecialty::Inquisiteur };
+		for (int32 i = 0; i < 4; ++i)
+		{
+			if (AWOTOLDemoHUD::HeroSpecialtyButtonRect(i, VpSize.X, VpSize.Y).IsInside(M))
+			{
+				Demo->SetHeroSpecialty(SpecialtyVals[i]);
+				return true;
+			}
+		}
+		if (AWOTOLDemoHUD::HeroPortraitPrevRect(VpSize.X, VpSize.Y).IsInside(M))
+		{
+			Demo->CycleHeroPortrait(-1);
+		}
+		else if (AWOTOLDemoHUD::HeroPortraitNextRect(VpSize.X, VpSize.Y).IsInside(M))
+		{
+			Demo->CycleHeroPortrait(1);
+		}
+		else if (AWOTOLDemoHUD::HeroCustomizationBackRect(VpSize.X, VpSize.Y).IsInside(M))
+		{
+			Demo->SetScreen(EDemoScreen::FactionSelect);
+		}
+		else if (AWOTOLDemoHUD::HeroCustomizationConfirmRect(VpSize.X, VpSize.Y).IsInside(M))
+		{
 			if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->StartDemoAfterSelection();
 		}
 		return true;

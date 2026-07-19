@@ -76,6 +76,51 @@ FBox2D AWOTOLDemoHUD::FactionLaunchButtonRect(float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
+FBox2D AWOTOLDemoHUD::HeroHeritageButtonRect(int32 Index, float W, float H)
+{
+	const float BW = W * 0.20f, BH = H * 0.10f, Gap = W * 0.02f;
+	const float TotalW = BW * 4.f + Gap * 3.f;
+	const float X = (W - TotalW) * 0.5f + Index * (BW + Gap);
+	const float Y = H * 0.34f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
+FBox2D AWOTOLDemoHUD::HeroSpecialtyButtonRect(int32 Index, float W, float H)
+{
+	const float BW = W * 0.20f, BH = H * 0.10f, Gap = W * 0.02f;
+	const float TotalW = BW * 4.f + Gap * 3.f;
+	const float X = (W - TotalW) * 0.5f + Index * (BW + Gap);
+	const float Y = H * 0.56f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
+FBox2D AWOTOLDemoHUD::HeroPortraitPrevRect(float W, float H)
+{
+	const float BW = 60.f, BH = 60.f;
+	const float CX = W * 0.5f;
+	return FBox2D(FVector2D(CX - 140.f, H * 0.66f), FVector2D(CX - 140.f + BW, H * 0.66f + BH));
+}
+
+FBox2D AWOTOLDemoHUD::HeroPortraitNextRect(float W, float H)
+{
+	const float BW = 60.f, BH = 60.f;
+	const float CX = W * 0.5f;
+	return FBox2D(FVector2D(CX + 80.f, H * 0.66f), FVector2D(CX + 80.f + BW, H * 0.66f + BH));
+}
+
+FBox2D AWOTOLDemoHUD::HeroCustomizationConfirmRect(float W, float H)
+{
+	const float BW = 420.f, BH = 62.f;
+	const float X = (W - BW) * 0.5f, Y = H * 0.85f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
+FBox2D AWOTOLDemoHUD::HeroCustomizationBackRect(float W, float H)
+{
+	const float BW = 160.f, BH = 46.f;
+	return FBox2D(FVector2D(24.f, H - BH - 24.f), FVector2D(24.f + BW, H - 24.f));
+}
+
 FBox2D AWOTOLDemoHUD::LaunchBattleButtonRect(float W, float H)
 {
 	// Petit bouton JUSTE SOUS le timer (haut centre) -> le centre de l'écran reste libre
@@ -148,6 +193,7 @@ void AWOTOLDemoHUD::DrawHUD()
 	};
 	if (Screen == EDemoScreen::MainMenu)      { DrawMainMenu(W, H); DrawModalIfNeeded(); return; }
 	if (Screen == EDemoScreen::FactionSelect) { DrawFactionSelect(W, H); DrawModalIfNeeded(); return; }
+	if (Screen == EDemoScreen::HeroCustomization) { DrawHeroCustomization(W, H, DemoFlow); DrawModalIfNeeded(); return; }
 	if (Screen == EDemoScreen::Summary)       { DrawSummary(W, H, DemoFlow); DrawModalIfNeeded(); return; }
 	if (Screen == EDemoScreen::Interlude)     { DrawInterlude(W, H, DemoFlow); DrawModalIfNeeded(); return; }
 	if (Screen == EDemoScreen::City)          { DrawCityView(W, H, DemoFlow); DrawModalIfNeeded(); return; }
@@ -695,6 +741,75 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 		bReady ? TEXT("LANCER LA PARTIE") : TEXT("CHOISISSEZ UNE FACTION"),
 		bReady ? FLinearColor(1.f, 0.72f, 0.22f, 1.f) : FLinearColor(0.38f, 0.42f, 0.48f, 1.f),
 		1.35f);
+}
+
+void AWOTOLDemoHUD::DrawHeroCustomization(float W, float H, UDemoFlowSubsystem* Demo)
+{
+	DrawUnderwaterBackground(W, H);
+	DrawGlowTitle(TEXT("PERSONNALISATION DU HEROS"), H * 0.10f, 2.0f, FLinearColor(0.7f, 0.9f, 1.f, 1.f));
+	if (!Demo) return;
+	const FHeroLoadout& Loadout = Demo->GetHeroLoadout();
+
+	DrawCenteredText(TEXT("HERITAGE"), HeroHeritageButtonRect(0, W, H).Min.Y - H * 0.045f,
+		FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.2f);
+	const TCHAR* HeritageLabels[4] = { TEXT("THALASSI"), TEXT("GIVRELERE"), TEXT("ABYSSEEN"), TEXT("GARDIEN") };
+	const EHeroHeritage HeritageVals[4] = { EHeroHeritage::Thalassi, EHeroHeritage::Givrelier, EHeroHeritage::Abysseen, EHeroHeritage::Gardien };
+	int32 HeritageIdx = 0;
+	for (int32 i = 0; i < 4; ++i)
+	{
+		const bool bSel = (Loadout.Heritage == HeritageVals[i]);
+		if (bSel) HeritageIdx = i;
+		const FLinearColor Col = bSel ? FLinearColor(0.4f, 0.85f, 1.f, 1.f) : FLinearColor(0.4f, 0.45f, 0.52f, 1.f);
+		DrawButton(HeroHeritageButtonRect(i, W, H), HeritageLabels[i], Col, bSel ? 1.15f : 1.0f);
+	}
+	const TCHAR* HeritageDesc[4] = {
+		TEXT("Sang des courants de surface — rapide et adaptable."),
+		TEXT("Glace des abysses polaires — endurance accrue."),
+		TEXT("Nuit des grands fonds — camouflage et perception."),
+		TEXT("Lignee protectrice — robustesse au combat.")
+	};
+	DrawCenteredText(HeritageDesc[HeritageIdx], HeroHeritageButtonRect(0, W, H).Max.Y + H * 0.025f,
+		FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 0.9f);
+
+	DrawCenteredText(TEXT("SPECIALITE"), HeroSpecialtyButtonRect(0, W, H).Min.Y - H * 0.045f,
+		FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.2f);
+	const TCHAR* SpecialtyLabels[4] = { TEXT("THALASSI"), TEXT("GUERRIER"), TEXT("MAGE"), TEXT("INQUISITEUR") };
+	const EHeroSpecialty SpecialtyVals[4] = { EHeroSpecialty::Thalassi, EHeroSpecialty::Guerrier, EHeroSpecialty::Mage, EHeroSpecialty::Inquisiteur };
+	int32 SpecialtyIdx = 0;
+	for (int32 i = 0; i < 4; ++i)
+	{
+		const bool bSel = (Loadout.Specialty == SpecialtyVals[i]);
+		if (bSel) SpecialtyIdx = i;
+		const FLinearColor Col = bSel ? FLinearColor(1.f, 0.72f, 0.22f, 1.f) : FLinearColor(0.4f, 0.45f, 0.52f, 1.f);
+		DrawButton(HeroSpecialtyButtonRect(i, W, H), SpecialtyLabels[i], Col, bSel ? 1.15f : 1.0f);
+	}
+	const TCHAR* SpecialtyDesc[4] = {
+		TEXT("Combat polyvalent, equilibre attaque/defense."),
+		TEXT("Force brute, degats de melee eleves."),
+		TEXT("Maitrise des courants, degats a distance/zone."),
+		TEXT("Traque et controle, cible les ennemis isoles.")
+	};
+	DrawCenteredText(SpecialtyDesc[SpecialtyIdx], HeroSpecialtyButtonRect(0, W, H).Max.Y + H * 0.025f,
+		FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 0.9f);
+
+	// Portrait : simple index cyclable + halo teinté par la faction, en attendant de vrais
+	// portraits illustrés (aucun asset de ce type n'existe encore côté Content).
+	DrawCenteredText(TEXT("PORTRAIT"), H * 0.635f, FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.1f);
+	if (Canvas)
+	{
+		const FVector2D Center(W * 0.5f, H * 0.66f + 30.f);
+		const FLinearColor FacCol = (Demo->SelectedFaction == EFactionID::Noxeens)
+			? FLinearColor(0.3f, 0.95f, 0.5f, 1.f) : FLinearColor(0.3f, 0.6f, 1.f, 1.f);
+		Canvas->K2_DrawPolygon(nullptr, Center, FVector2D(46.f, 46.f), 16, FLinearColor(FacCol.R, FacCol.G, FacCol.B, 0.2f));
+		Canvas->K2_DrawPolygon(nullptr, Center, FVector2D(30.f, 30.f), 16, FacCol);
+	}
+	DrawButton(HeroPortraitPrevRect(W, H), TEXT("<"), FLinearColor(0.5f, 0.55f, 0.62f, 1.f), 1.3f);
+	DrawButton(HeroPortraitNextRect(W, H), TEXT(">"), FLinearColor(0.5f, 0.55f, 0.62f, 1.f), 1.3f);
+	DrawCenteredText(FString::Printf(TEXT("%d / 5"), Loadout.PortraitIndex + 1), H * 0.66f + 70.f,
+		FLinearColor::White, 1.0f);
+
+	DrawButton(HeroCustomizationBackRect(W, H), TEXT("< RETOUR"), FLinearColor(0.4f, 0.45f, 0.52f, 1.f), 1.0f);
+	DrawButton(HeroCustomizationConfirmRect(W, H), TEXT("CONFIRMER LE HEROS"), FLinearColor(1.f, 0.72f, 0.22f, 1.f), 1.3f);
 }
 
 void AWOTOLDemoHUD::DrawExplorationHUD(float W, float H, UDemoFlowSubsystem* Demo)

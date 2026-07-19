@@ -56,7 +56,8 @@ enum class EDemoScreen : uint8
 	Loading       UMETA(DisplayName = "Écran de chargement"),
 	Skills        UMETA(DisplayName = "Compétences (arbre / axes)"),
 	Exploration   UMETA(DisplayName = "Exploration — nage libre 3D"),
-	Territory     UMETA(DisplayName = "Gestion du territoire")
+	Territory     UMETA(DisplayName = "Gestion du territoire"),
+	HeroCustomization UMETA(DisplayName = "Personnalisation du héros")
 };
 
 // Ligne de résumé : pertes d'un type d'unité (nom + perdus / total) pour une faction.
@@ -211,6 +212,22 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void SetSelectedFaction(EFactionID F) { SelectedFaction = F; }
+
+	// ─── Personnalisation du héros (écran avant le lancement, après choix de faction) ──
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Hero")
+	FHeroLoadout HeroLoadout;
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Hero")
+	const FHeroLoadout& GetHeroLoadout() const { return HeroLoadout; }
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Hero")
+	void SetHeroHeritage(EHeroHeritage H) { HeroLoadout.Heritage = H; }
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Hero")
+	void SetHeroSpecialty(EHeroSpecialty S) { HeroLoadout.Specialty = S; }
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Hero")
+	void CycleHeroPortrait(int32 Delta) { HeroLoadout.PortraitIndex = (HeroLoadout.PortraitIndex + Delta + 5) % 5; }
 
 	// ─── Résumé de bataille (fin de phase) ─────────────────────────────────────
 	// Pertes détaillées, remplies par le Director à la fin de chaque bataille.

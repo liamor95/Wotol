@@ -34,6 +34,14 @@ public:
 	static FBox2D FactionLaunchButtonRect(float W, float H); // validation explicite après tous les réglages
 	static FBox2D LaunchBattleButtonRect(float W, float H);   // préparation
 
+	// ─── Personnalisation du héros (entre le choix de faction et le lancement) ──
+	static FBox2D HeroHeritageButtonRect(int32 Index, float W, float H);  // 4 héritages
+	static FBox2D HeroSpecialtyButtonRect(int32 Index, float W, float H); // 4 spécialités
+	static FBox2D HeroPortraitPrevRect(float W, float H);
+	static FBox2D HeroPortraitNextRect(float W, float H);
+	static FBox2D HeroCustomizationConfirmRect(float W, float H);
+	static FBox2D HeroCustomizationBackRect(float W, float H);
+
 	// Boutons de couche verticale (nage) — montent/descendent la sélection
 	static FBox2D LayerUpButtonRect(float W, float H);
 	static FBox2D LayerDownButtonRect(float W, float H);
@@ -107,6 +115,9 @@ private:
 	// Écrans du flux (menu / faction / préparation)
 	void DrawMainMenu(float W, float H);
 	void DrawFactionSelect(float W, float H);
+	// Écran de personnalisation du héros (héritage / spécialité / portrait), entre le choix
+	// de faction et le lancement effectif de la démo (StartDemoAfterSelection).
+	void DrawHeroCustomization(float W, float H, class UDemoFlowSubsystem* Demo);
 	void DrawExplorationHUD(float W, float H, class UDemoFlowSubsystem* Demo);
 	// Vue cité : fond + cristaux + cartes de production + bouton d'expédition.
 	void DrawCityView(float W, float H, class UDemoFlowSubsystem* Demo);

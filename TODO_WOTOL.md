@@ -85,6 +85,24 @@ Encore a faire (releve pendant cette session, pas encore code) :
 - Bâtiments de defense (tourelles) : verifier qu'elles utilisent bien ce meme systeme
   d'ability une fois en jeu, ou si elles ont leur propre logique de tir (WOTOLDefenseStructure).
 
+Fait cette session (suite, meme jour) :
+- Ecran de PERSONNALISATION DU HEROS enfin implemente (etait absent : FHeroLoadout existait
+  comme simple struct de donnees dans WOTOLTypes.h mais rien ne l'alimentait ni ne l'affichait ;
+  UHeroLoadoutDataAsset + AWOTOLHeroCharacter::SetLoadout() existaient aussi mais n'etaient
+  JAMAIS appeles nulle part). Nouvel ecran EDemoScreen::HeroCustomization, insere entre le
+  choix de faction/difficulte et le lancement reel (StartDemoAfterSelection) :
+  - Choix d'HERITAGE (4 : Thalassi/Givrelere/Abysseen/Gardien) et de SPECIALITE (4 :
+    Thalassi/Guerrier/Mage/Inquisiteur), chacun avec une courte description ; portrait
+    cyclable (1/5, halo teinte par la faction, pas de vrais portraits illustres en attendant
+    du contenu artistique). Stocke dans UDemoFlowSubsystem::HeroLoadout (nouveau, coherent
+    avec SelectedFaction/Difficulty qui vivent deja la — PAS dans WOTOLGameInstance::
+    SessionConfig, qui appartient a l'ancienne architecture UMG abandonnee et n'est lu nulle
+    part dans le flux actif).
+  - Bouton Retour (re-choix de faction) et bouton Confirmer (lance la demo comme avant).
+  - N'affecte PAS encore visuellement le héros en jeu (aucun mesh/asset par heritage) : pure
+    collecte du choix pour l'instant. A relier plus tard a un vrai UHeroLoadoutDataAsset par
+    combinaison heritage/specialite si Liamor veut un impact mecanique/visuel reel.
+
 ## Idees de Liamor pour APRES la demo (meta-progression, hors scope actuel)
 
 Notees telles quelles pour ne rien perdre, mais PAS a implementer a l'aveugle - ce sont de
