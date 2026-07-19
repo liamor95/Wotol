@@ -119,17 +119,14 @@ private:
 	// de faction et le lancement effectif de la démo (StartDemoAfterSelection).
 	void DrawHeroCustomization(float W, float H, class UDemoFlowSubsystem* Demo);
 	void DrawExplorationHUD(float W, float H, class UDemoFlowSubsystem* Demo);
-	// Vue cité : fond + cristaux + cartes de production + bouton d'expédition.
+	// Vue cité : chrome par-dessus la scène 3D isométrique (AWOTOLCityEnvironment/
+	// AWOTOLCityCamera) — cristaux, cartes de production, fiche technique, bouton d'expédition.
 	void DrawCityView(float W, float H, class UDemoFlowSubsystem* Demo);
 	void DrawTerritoryView(float W, float H, class UDemoFlowSubsystem* Demo);
 	// Onglet compétences : choix de l'axe (voie) de chaque type d'unité.
 	void DrawSkillsView(float W, float H, class UDemoFlowSubsystem* Demo);
 	// Écran de chargement (fond animé + logo + anneau + astuce).
 	void DrawLoadingScreen(float W, float H, class UDemoFlowSubsystem* Demo);
-	// Fond de cité chargé depuis le disque selon la faction (mis en cache).
-	class UTexture2D* GetCityBackground(EFactionID Faction);
-	UPROPERTY(Transient) TObjectPtr<class UTexture2D> CityBgTexture = nullptr;
-	EFactionID CityBgFaction = EFactionID::None;
 	class UTexture2D* GetTransitionBackground();
 	UPROPERTY(Transient) TObjectPtr<class UTexture2D> TransitionBgTexture = nullptr;
 	bool bTransitionBgTried = false;

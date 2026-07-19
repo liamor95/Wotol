@@ -958,25 +958,6 @@ static FString CityUnitLabel(EFactionID Fac, EDemoUnitCategory Cat)
 	}
 }
 
-UTexture2D* AWOTOLDemoHUD::GetCityBackground(EFactionID Faction)
-{
-	if (CityBgTexture && CityBgFaction == Faction) return CityBgTexture;
-	CityBgFaction = Faction;
-	CityBgTexture = nullptr;
-	const TCHAR* File = (Faction == EFactionID::Noxeens)
-		? TEXT("UI/Reference/Faille_Noxeens.png")
-		: TEXT("UI/Reference/Cite_Aquiloris.png");
-	const FString PngPath = FPaths::ProjectContentDir() / File;
-	if (FPaths::FileExists(PngPath))
-	{
-		if (UTexture2D* Loaded = FImageUtils::ImportFileAsTexture2D(PngPath))
-		{
-			CityBgTexture = Loaded;
-		}
-	}
-	return CityBgTexture;
-}
-
 UTexture2D* AWOTOLDemoHUD::GetTransitionBackground()
 {
 	if (TransitionBgTexture || bTransitionBgTried) return TransitionBgTexture;
