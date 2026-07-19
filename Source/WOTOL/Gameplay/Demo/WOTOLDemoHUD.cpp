@@ -9,6 +9,7 @@
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "Gameplay/Battle/WOTOLPlayerController_Battle.h"
+#include "Gameplay/Battle/WOTOLBattleCamera.h"
 #include "Gameplay/Battle/RTSBattleManager.h"
 #include "Gameplay/Battle/UnitSelectionManager.h"
 #include "Gameplay/Units/UnitBase.h"
@@ -260,6 +261,10 @@ void AWOTOLDemoHUD::DrawHUD()
 	if (Screen == EDemoScreen::Playing)
 	{
 		DrawAbilityStatus(W, H, World);
+	}
+	if (Screen == EDemoScreen::Playing || Screen == EDemoScreen::Prepare)
+	{
+		DrawMinimap(W, H, World);
 	}
 
 	// ─── Préparation : bandeau d'instructions + bouton "Lancer la bataille" ──
@@ -1977,6 +1982,105 @@ void AWOTOLDemoHUD::DrawAbilityStatus(float W, float H, class UWorld* World)
 		const float Pct = FMath::Clamp(1.f - Remaining / FMath::Max(0.01f, Max), 0.f, 1.f);
 		DrawBar(PX + 12.f, PY + PH - 10.f, PW - 24.f, 5.f, Pct,
 			FLinearColor(0.5f, 0.75f, 1.f, 1.f), FLinearColor(0.12f, 0.12f, 0.12f, 0.9f));
+	}
+}
+
+FBox2D AWOTOLDemoHUD::MinimapRect(float W, float H)
+{
+	const float MW = 220.f, MH = 220.f;
+	// Sous les boutons pause/réglages (qui occupent Y 14-50 en haut-droit) -> pas de chevauchement.
+	return FBox2D(FVector2D(W - MW - 16.f, 58.f), FVector2D(W - 16.f, 58.f + MH));
+}
+
+// Minimap SCHÉMATIQUE (pas une capture caméra 3D — cohérent avec le reste du HUD 100% Canvas,
+// aucun asset/materiel supplémentaire requis) : calcule les bornes du monde à partir des unités
+// vivantes + du bâtiment de capture, projette chaque acteur en point coloré. Absente jusqu'ici
+// alors que toutes les références du genre (Total War, Company of Heroes, Homeworld) ET tes
+// propres maquettes (UI_HUD_Complet) en montrent une.
+void AWOTOLDemoHUD::DrawMinimap(float W, float H, UWorld* World)
+{
+	if (!World) return;
+	UFactionRegistrySubsystem* Reg = World->GetSubsystem<UFactionRegistrySubsystem>();
+	UDemoFlowSubsystem* Demo = GetGameInstance() ? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Reg || !Demo) return;
+
+	const EFactionID PlayerFac = Demo->GetPlayerFaction();
+	if (PlayerFac == EFactionID::None) return;
+	const EFactionID RivalFac = (PlayerFac == EFactionID::Noxeens) ? EFactionID::Aquiloris : EFactionID::Noxeens;
+
+	const TArray<AUnitBase*> PlayerUnits = Reg->GetUnitsForFaction(PlayerFac);
+	const TArray<AUnitBase*> RivalUnits  = Reg->GetUnitsForFaction(RivalFac);
+	if (PlayerUnits.Num() == 0 && RivalUnits.Num() == 0) return;
+
+	AActor* Building = Demo->GetCaptureObject();
+
+	// ── Bornes du monde (plan horizontal) à partir de tout ce qui est vivant ──
+	FVector2D MinP(TNumericLimits<float>::Max(), TNumericLimits<float>::Max());
+	FVector2D MaxP(-TNumericLimits<float>::Max(), -TNumericLimits<float>::Max());
+	auto Accumulate = [&](const FVector& Loc)
+	{
+		MinP.X = FMath::Min(MinP.X, Loc.X); MaxP.X = FMath::Max(MaxP.X, Loc.X);
+		MinP.Y = FMath::Min(MinP.Y, Loc.Y); MaxP.Y = FMath::Max(MaxP.Y, Loc.Y);
+	};
+	for (AUnitBase* U : PlayerUnits) if (U && U->IsAlive()) Accumulate(U->GetActorLocation());
+	for (AUnitBase* U : RivalUnits)  if (U && U->IsAlive()) Accumulate(U->GetActorLocation());
+	if (Building) Accumulate(Building->GetActorLocation());
+	if (MinP.X > MaxP.X) return; // rien de vivant à afficher
+
+	// Marge (30%) + étendue minimum pour éviter une minimap dégénérée (tout aligné/collé).
+	const float SpanX = FMath::Max(1000.f, MaxP.X - MinP.X);
+	const float SpanY = FMath::Max(1000.f, MaxP.Y - MinP.Y);
+	const float Span = FMath::Max(SpanX, SpanY) * 1.3f;
+	const FVector2D WorldCenter((MinP.X + MaxP.X) * 0.5f, (MinP.Y + MaxP.Y) * 0.5f);
+
+	const FBox2D Rect = MinimapRect(W, H);
+	const FVector2D PanelSize = Rect.Max - Rect.Min;
+
+	DrawRect(FLinearColor(0.02f, 0.05f, 0.09f, 0.85f), Rect.Min.X, Rect.Min.Y, PanelSize.X, PanelSize.Y);
+	DrawRect(FLinearColor(0.30f, 0.62f, 1.f, 0.8f), Rect.Min.X, Rect.Min.Y, PanelSize.X, 2.f);
+
+	auto ToScreen = [&](const FVector& WorldLoc) -> FVector2D
+	{
+		const float NX = (WorldLoc.X - WorldCenter.X) / Span + 0.5f;
+		const float NY = (WorldLoc.Y - WorldCenter.Y) / Span + 0.5f;
+		return FVector2D(Rect.Min.X + NX * PanelSize.X, Rect.Min.Y + NY * PanelSize.Y);
+	};
+
+	auto DrawDot = [&](const FVector& WorldLoc, const FLinearColor& Col, float Size)
+	{
+		const FVector2D P = ToScreen(WorldLoc);
+		if (P.X < Rect.Min.X || P.X > Rect.Max.X || P.Y < Rect.Min.Y || P.Y > Rect.Max.Y) return;
+		DrawRect(Col, P.X - Size * 0.5f, P.Y - Size * 0.5f, Size, Size);
+	};
+
+	const FLinearColor PlayerCol = FFactionColors::Get(PlayerFac);
+	const FLinearColor RivalCol  = FFactionColors::Get(RivalFac);
+
+	for (AUnitBase* U : RivalUnits)
+	{
+		if (!U || !U->IsAlive()) continue;
+		const AWOTOLDemoUnit* DU = Cast<AWOTOLDemoUnit>(U);
+		DrawDot(U->GetActorLocation(), RivalCol, (DU && DU->bIsBoss) ? 10.f : 4.f);
+	}
+	for (AUnitBase* U : PlayerUnits)
+	{
+		if (!U || !U->IsAlive()) continue;
+		DrawDot(U->GetActorLocation(), PlayerCol, 4.f);
+	}
+	if (Building)
+	{
+		DrawDot(Building->GetActorLocation(), FLinearColor(1.f, 0.85f, 0.2f, 1.f), 8.f);
+	}
+
+	// Repère caméra ("vous regardez ici") : croix fine qui traverse le panneau.
+	if (AWOTOLPlayerController_Battle* PC = Cast<AWOTOLPlayerController_Battle>(GetOwningPlayerController()))
+	{
+		if (AWOTOLBattleCamera* Cam = PC->GetBattleCamera())
+		{
+			const FVector2D P = ToScreen(Cam->GetActorLocation());
+			DrawRect(FLinearColor(1.f, 1.f, 1.f, 0.6f), P.X - 1.f, Rect.Min.Y, 2.f, PanelSize.Y);
+			DrawRect(FLinearColor(1.f, 1.f, 1.f, 0.6f), Rect.Min.X, P.Y - 1.f, PanelSize.X, 2.f);
+		}
 	}
 }
 

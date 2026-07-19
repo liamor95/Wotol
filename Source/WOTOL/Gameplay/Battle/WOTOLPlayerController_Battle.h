@@ -37,6 +37,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Battle")
 	UUnitSelectionManager* GetSelectionManager() const;
 
+	// Exposé pour que le HUD dessine la position de la caméra sur la minimap.
+	UFUNCTION(BlueprintPure, Category = "Battle")
+	AWOTOLBattleCamera* GetBattleCamera() const { return BattleCamera.Get(); }
+
 	// État de la boîte de sélection (lu par le HUD pour dessiner le rectangle)
 	bool      IsBoxSelecting() const { return bIsBoxSelecting; }
 	FVector2D GetBoxStart()    const { return BoxSelectStart; }

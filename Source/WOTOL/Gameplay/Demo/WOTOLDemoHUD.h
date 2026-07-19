@@ -146,6 +146,10 @@ private:
 	void DrawCommandBar(float W, float H, class UWorld* World);
 	// État de la compétence (R) de l'unité primaire sélectionnée : nom + prête/recharge.
 	void DrawAbilityStatus(float W, float H, class UWorld* World);
+	// Minimap schématique (coin haut-droit, sous les boutons pause/réglages) : positions
+	// de toutes les unités vivantes (couleur = faction) + bâtiment de capture + caméra.
+	void DrawMinimap(float W, float H, class UWorld* World);
+	static FBox2D MinimapRect(float W, float H);
 	// MARQUEURS DE GROUPE sur le champ de bataille (façon Total War) : un seul repère par
 	// groupe (icône du type + effectif + petite barre de vie), projeté à l'écran -> remplace
 	// les noms 3D par unité (perf + lisibilité).
