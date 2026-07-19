@@ -46,15 +46,95 @@ void AWOTOLCaptureObject::BeginPlay()
 	CurrentHealth = MaxHealth;
 	BuildVisual();
 	if (NameTag) NameTag->SetTextRenderColor(FFactionColors::Get(OwnerFaction).ToFColor(true));
+
+	if (bIsGhostPreview)
+	{
+		ApplyHologramMaterial();
+		SetActorEnableCollision(false);
+		if (NameTag)       NameTag->SetVisibility(false);
+		if (NameTagShadow) NameTagShadow->SetVisibility(false);
+	}
+
+	if (bIsUnderConstruction && SceneRoot)
+	{
+		SceneRoot->SetWorldScale3D(FVector(0.05f));
+	}
+}
+
+// Remplace le matériau de CHAQUE pièce (mesh principal + kitbash) par une coquille
+// translucide émissive partagée (WOTOLGlow::MakeHalo) : garantit que l'aperçu a EXACTEMENT
+// la même silhouette que le bâtiment réel, juste en mode holographique. Coupe aussi les
+// lampes ponctuelles (une prévisualisation ne doit pas éclairer la scène comme un vrai bâtiment).
+void AWOTOLCaptureObject::ApplyHologramMaterial()
+{
+	const FLinearColor Base = FFactionColors::Get(OwnerFaction);
+	HologramMID = WOTOLGlow::MakeHalo(this, Base * 2.2f, 0.35f);
+	if (!HologramMID) return;
+
+	TArray<UStaticMeshComponent*> Meshes;
+	GetComponents<UStaticMeshComponent>(Meshes);
+	for (UStaticMeshComponent* Mesh : Meshes)
+	{
+		if (!Mesh) continue;
+		const int32 NumSlots = FMath::Max(1, Mesh->GetNumMaterials());
+		for (int32 Slot = 0; Slot < NumSlots; ++Slot)
+		{
+			Mesh->SetMaterial(Slot, HologramMID);
+		}
+	}
+
+	TArray<UPointLightComponent*> Lights;
+	GetComponents<UPointLightComponent>(Lights);
+	for (UPointLightComponent* Light : Lights)
+	{
+		if (Light) Light->SetVisibility(false);
+	}
+}
+
+void AWOTOLCaptureObject::BeginConstruction(float Duration)
+{
+	bIsUnderConstruction = true;
+	ConstructionDuration = FMath::Max(0.1f, Duration);
+	ConstructionElapsed  = 0.f;
+	if (SceneRoot) SceneRoot->SetWorldScale3D(FVector(0.05f));
 }
 
 void AWOTOLCaptureObject::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+	// Aperçu holographique : pulsation lente (même langage que le feedback des éléments
+	// destructibles) — pas de PV à afficher, pas de rotation face-caméra de l'étiquette.
+	if (bIsGhostPreview)
+	{
+		if (HologramMID)
+		{
+			const float Pulse = 0.28f + 0.20f * FMath::Sin(GetWorld()->GetTimeSeconds() * 2.4f);
+			HologramMID->SetScalarParameterValue(TEXT("Opacity"), Pulse);
+		}
+		return;
+	}
+
+	if (bIsUnderConstruction && SceneRoot)
+	{
+		ConstructionElapsed += DeltaSeconds;
+		const float Alpha = FMath::Clamp(ConstructionElapsed / ConstructionDuration, 0.f, 1.f);
+		SceneRoot->SetWorldScale3D(FVector(FMath::Lerp(0.05f, 1.f, Alpha)));
+		if (Alpha >= 1.f)
+		{
+			bIsUnderConstruction = false;
+			SceneRoot->SetWorldScale3D(FVector(1.f));
+		}
+	}
+
 	if (!NameTag) return;
 
-	const FText TagText = FText::FromString(FString::Printf(TEXT("%s\n%d / %d"),
-		*GetDisplayName().ToString(), FMath::RoundToInt(CurrentHealth), FMath::RoundToInt(MaxHealth)));
+	const FText TagText = bIsUnderConstruction
+		? FText::FromString(FString::Printf(TEXT("%s\nConstruction... %d %%"),
+			*GetDisplayName().ToString(),
+			FMath::RoundToInt(FMath::Clamp(ConstructionElapsed / ConstructionDuration, 0.f, 1.f) * 100.f)))
+		: FText::FromString(FString::Printf(TEXT("%s\n%d / %d"),
+			*GetDisplayName().ToString(), FMath::RoundToInt(CurrentHealth), FMath::RoundToInt(MaxHealth)));
 	NameTag->SetText(TagText);
 	if (NameTagShadow) NameTagShadow->SetText(TagText);
 

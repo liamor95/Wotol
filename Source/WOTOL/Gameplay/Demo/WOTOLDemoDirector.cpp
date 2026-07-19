@@ -2391,9 +2391,11 @@ void AWOTOLDemoDirector::RestartDemo(bool bKeepFaction)
 	GetWorldTimerManager().ClearTimer(BattleStartHandle);
 	GetWorldTimerManager().ClearTimer(SiegeHandle);
 	GetWorldTimerManager().ClearTimer(TacticalHandle);
+	GetWorldTimerManager().ClearTimer(CrystalliserConstructionHandle);
 	CleanupUnits();
 	ClearPlacementBoundary();
 	ClearCoverStructures();
+	ClearCrystalliserPlacementMarkers();
 	if (CaptureObject) { CaptureObject->Destroy(); CaptureObject = nullptr; }
 	bBattleConcluded = false;
 	// Roster + arène de phase 1 (les valeurs phase 2/3 sont réappliquées à leur lancement)
@@ -2440,9 +2442,11 @@ void AWOTOLDemoDirector::ReplayCurrentPhase()
 	GetWorldTimerManager().ClearTimer(BattleStartHandle);
 	GetWorldTimerManager().ClearTimer(SiegeHandle);
 	GetWorldTimerManager().ClearTimer(TacticalHandle);
+	GetWorldTimerManager().ClearTimer(CrystalliserConstructionHandle);
 	CleanupUnits();
 	ClearPlacementBoundary();
 	ClearCoverStructures();
+	ClearCrystalliserPlacementMarkers();
 	if (CaptureObject) { CaptureObject->Destroy(); CaptureObject = nullptr; }
 	bBattleConcluded = false;
 
@@ -2798,16 +2802,35 @@ void AWOTOLDemoDirector::CompleteCrystalliserPlacement()
 			GetActorLocation().Z + 200.f));
 	if (!CaptureObject) return;
 
-	// ClaimZone est exécuté par SpawnCaptureObjectAt. Le territoire, les bonus et le nouvel
-	// objectif n'existent donc qu'après le clic de placement et le paiement complet.
-	SpawnReward(EWOTOLRewardType::HeartShard,
-		CrystalliserPlacementLocation + FVector(350.f, 0.f, 102.f));
-	Demo->OpenObjectiveWindow(TEXT("seq_collect_heart"),
-		TEXT("ZONE ACQUISE — COEUR-ECLAT"),
-		FString::Printf(TEXT("Le %s terraforme maintenant ce territoire et renforce vos troupes locales.\n"
-			"Un Coeur-Eclat a surgi a proximite : recuperez-le."),
+	// ClaimZone est exécuté par SpawnCaptureObjectAt : le territoire appartient déjà au
+	// joueur. Mais le bâtiment ne doit pas apparaître fini instantanément -> animation de
+	// construction (montée en échelle), puis seulement là les récompenses sont révélées.
+	CaptureObject->BeginConstruction(CrystalliserConstructionSeconds);
+	Demo->SetObjective(FString::Printf(TEXT("Construction du %s en cours..."),
+		*BuildingDisplayName(CachedPlayerFaction)));
+	GetWorldTimerManager().SetTimer(CrystalliserConstructionHandle, this,
+		&AWOTOLDemoDirector::FinishCrystalliserConstruction,
+		CrystalliserConstructionSeconds, false);
+}
+
+void AWOTOLDemoDirector::FinishCrystalliserConstruction()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || !CaptureObject) return;
+
+	// Bâtiment achevé mais encore sans défense : on le dit clairement avant de révéler la
+	// récompense. La pose effective des tourelles se fait depuis la vue Territoire
+	// (bouton « Installer une défense »), accessible dès maintenant et avant la contre-attaque.
+	Demo->OpenObjectiveWindow(TEXT("seq_defense_prompt"),
+		TEXT("BATIMENT ACHEVE — ZONE EXPOSEE"),
+		FString::Printf(TEXT(
+			"Le %s est construit : le territoire vous appartient desormais et vous octroie\n"
+			"bonus d'attaque/defense et capacite d'armee accrue.\n"
+			"Il reste sans defense active : pensez a installer une tourelle/sentinelle\n"
+			"(vue Territoire) avant que la faction rivale ne riposte."),
 			*BuildingDisplayName(CachedPlayerFaction)),
-		TEXT("RECUPERER"));
+		TEXT("COMPRIS"));
 }
 
 void AWOTOLDemoDirector::CreateCrystalliserPlacementMarkers()
@@ -2842,6 +2865,24 @@ void AWOTOLDemoDirector::CreateCrystalliserPlacementMarkers()
 			Mesh->SetMaterial(0, MID);
 		CrystalliserPlacementMarkers.Add(Marker);
 	}
+
+	// Aperçu HOLOGRAPHIQUE : la même forme que le vrai bâtiment (kitbash identique via
+	// AWOTOLCaptureObject), en coquille translucide pulsante — le joueur voit exactement
+	// ce qu'il va poser, pas juste un cercle générique.
+	if (CaptureObjectClass)
+	{
+		const FTransform TM(FRotator::ZeroRotator, CrystalliserPlacementLocation + FVector(0.f, 0.f, 18.f));
+		AWOTOLCaptureObject* Ghost = W->SpawnActorDeferred<AWOTOLCaptureObject>(
+			CaptureObjectClass, TM, this, nullptr,
+			ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		if (Ghost)
+		{
+			Ghost->OwnerFaction = CachedPlayerFaction;
+			Ghost->SetGhostPreviewMode(true);
+			UGameplayStatics::FinishSpawningActor(Ghost, TM);
+			CrystalliserGhost = Ghost;
+		}
+	}
 }
 
 void AWOTOLDemoDirector::ClearCrystalliserPlacementMarkers()
@@ -2851,6 +2892,12 @@ void AWOTOLDemoDirector::ClearCrystalliserPlacementMarkers()
 		if (Marker) Marker->Destroy();
 	}
 	CrystalliserPlacementMarkers.Empty();
+
+	if (CrystalliserGhost)
+	{
+		CrystalliserGhost->Destroy();
+		CrystalliserGhost = nullptr;
+	}
 }
 
 void AWOTOLDemoDirector::NotifyRangedProductionObjectiveComplete()
@@ -2923,6 +2970,17 @@ void AWOTOLDemoDirector::HandleObjectiveConfirmed(FName StepId)
 		// Le bouton de la fenêtre n'achète plus automatiquement le bâtiment : il ouvre le vrai
 		// mode de placement (inventaire -> cible 3D -> clic -> paiement).
 		BeginCrystalliserPlacement();
+	}
+	else if (StepId == TEXT("seq_defense_prompt"))
+	{
+		SpawnReward(EWOTOLRewardType::HeartShard,
+			CrystalliserPlacementLocation + FVector(350.f, 0.f, 102.f));
+		Demo->OpenObjectiveWindow(TEXT("seq_collect_heart"),
+			TEXT("ZONE ACQUISE — COEUR-ECLAT"),
+			FString::Printf(TEXT("Le %s terraforme maintenant ce territoire et renforce vos troupes locales.\n"
+				"Un Coeur-Eclat a surgi a proximite : recuperez-le."),
+				*BuildingDisplayName(CachedPlayerFaction)),
+			TEXT("RECUPERER"));
 	}
 	else if (StepId == TEXT("seq_collect_heart"))
 	{

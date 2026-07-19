@@ -8,6 +8,7 @@
 class USceneComponent;
 class UStaticMeshComponent;
 class UTextRenderComponent;
+class UMaterialInstanceDynamic;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCaptureObjectHealthChanged,
 	float, NewHealth, float, MaxHealth);
@@ -68,9 +69,39 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Capture")
 	FOnCaptureObjectDestroyed OnCaptureDestroyed;
 
+	// ── APERÇU HOLOGRAPHIQUE (placement) ─────────────────────────────────────────
+	// Mode aperçu : instance visuelle SEULE (pas de PV, pas de ClaimZone, pas de collision),
+	// reprend exactement la même forme que le vrai bâtiment mais en coquille translucide
+	// pulsante (WOTOLGlow::MakeHalo), même langage visuel que le feedback des éléments
+	// destructibles. À appeler avant BeginPlay (juste après SpawnActorDeferred).
+	UFUNCTION(BlueprintCallable, Category = "Capture|Ghost")
+	void SetGhostPreviewMode(bool bEnable) { bIsGhostPreview = bEnable; }
+
+	UFUNCTION(BlueprintPure, Category = "Capture|Ghost")
+	bool IsGhostPreview() const { return bIsGhostPreview; }
+
+	// ── ANIMATION DE CONSTRUCTION ─────────────────────────────────────────────────
+	// Démarre une montée en échelle (0 -> 1) sur Duration secondes après la pose réelle
+	// du bâtiment : feedback visuel clair que la construction est en cours.
+	UFUNCTION(BlueprintCallable, Category = "Capture")
+	void BeginConstruction(float Duration);
+
+	UFUNCTION(BlueprintPure, Category = "Capture")
+	bool IsUnderConstruction() const { return bIsUnderConstruction; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
+
+	void ApplyHologramMaterial();
+
+	bool  bIsGhostPreview     = false;
+	bool  bIsUnderConstruction = false;
+	float ConstructionDuration = 2.5f;
+	float ConstructionElapsed  = 0.f;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> HologramMID;
 
 	// Racine NON mise à l'échelle : le mesh (agrandi) et les étiquettes s'y attachent
 	// séparément -> le texte n'hérite pas de l'échelle (3,3,4) du mesh (sinon démesuré).

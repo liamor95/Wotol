@@ -10,16 +10,21 @@
 
 AWOTOLHeroCharacter::AWOTOLHeroCharacter()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	// Tick actif : sensation "action" (inclinaison en virage, FOV dynamique au sprint/dash,
+	// recharge de la ruée) — distincte du pilotage RTS des phases de bataille tactique.
+	PrimaryActorTick.bCanEverTick = true;
 
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	SpringArm->SetupAttachment(RootComponent);
 	SpringArm->TargetArmLength        = 400.f;
 	SpringArm->bUsePawnControlRotation = true;
+	SpringArm->bEnableCameraLag        = true;
+	SpringArm->CameraLagSpeed          = 9.f; // léger retard de caméra = sensation de poids/inertie
 
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(SpringArm, USpringArmComponent::SocketName);
 	Camera->bUsePawnControlRotation = false;
+	Camera->FieldOfView = 90.f;
 
 	GreyboxBody = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("GreyboxBody"));
 	GreyboxBody->SetupAttachment(RootComponent);
@@ -40,7 +45,7 @@ AWOTOLHeroCharacter::AWOTOLHeroCharacter()
 	Move->bOrientRotationToMovement = true;   // le corps s'oriente vers la nage
 	Move->RotationRate = FRotator(0.f, 360.f, 0.f);
 	Move->DefaultLandMovementMode = MOVE_Flying;
-	Move->MaxFlySpeed = 600.f;
+	Move->MaxFlySpeed = SwimSpeed;
 	Move->MaxAcceleration = 1400.f;
 	Move->BrakingDecelerationFlying = 1200.f; // dérive douce (sensation aquatique)
 	Move->GravityScale = 0.f;
@@ -50,6 +55,8 @@ void AWOTOLHeroCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	GetCharacterMovement()->SetMovementMode(MOVE_Flying);
+	GetCharacterMovement()->MaxFlySpeed = SwimSpeed;
+	if (Camera) BaseFOV = Camera->FieldOfView;
 
 	if (UWOTOLGameInstance* GI = Cast<UWOTOLGameInstance>(GetGameInstance()))
 	{
@@ -90,20 +97,37 @@ void AWOTOLHeroCharacter::SetupPlayerInputComponent(UInputComponent* Input)
 	Input->BindAxis("MoveUp",      this, &AWOTOLHeroCharacter::MoveUp);
 	Input->BindAxis("Turn",        this, &ACharacter::AddControllerYawInput);
 	Input->BindAxis("LookUp",      this, &ACharacter::AddControllerPitchInput);
+
+	// Sensation ACTION : sprint maintenu (Alt gauche) + ruée courte (touche C, recharge).
+	Input->BindAction("Sprint", IE_Pressed,  this, &AWOTOLHeroCharacter::StartSprint);
+	Input->BindAction("Sprint", IE_Released, this, &AWOTOLHeroCharacter::StopSprint);
+	Input->BindAction("Dash",   IE_Pressed,  this, &AWOTOLHeroCharacter::PerformDash);
 }
 
 void AWOTOLHeroCharacter::MoveForward(float Value)
 {
-	if (Value == 0.f) return;
-	const FRotator Rot(0.f, GetControlRotation().Yaw, 0.f);
-	AddMovementInput(FRotationMatrix(Rot).GetUnitAxis(EAxis::X), Value);
+	// Mémorisé CHAQUE tick (y compris à 0) : MoveForward/MoveRight sont deux callbacks
+	// d'axe séparés appelés dans un ordre non garanti, donc on ne peut pas accumuler un
+	// vecteur direction directement dans l'un des deux sans risquer de se faire écraser
+	// par l'autre — on stocke juste la valeur brute, recomposée à la demande.
+	CurrentForwardInput = Value;
+	if (Value != 0.f)
+	{
+		const FRotator Rot(0.f, GetControlRotation().Yaw, 0.f);
+		AddMovementInput(FRotationMatrix(Rot).GetUnitAxis(EAxis::X), Value);
+	}
 }
 
 void AWOTOLHeroCharacter::MoveRight(float Value)
 {
-	if (Value == 0.f) return;
-	const FRotator Rot(0.f, GetControlRotation().Yaw, 0.f);
-	AddMovementInput(FRotationMatrix(Rot).GetUnitAxis(EAxis::Y), Value);
+	// Mémorisé CHAQUE tick (y compris à 0) pour que l'inclinaison (banking) en Tick()
+	// revienne bien à plat quand le joueur relâche la touche de direction latérale.
+	CurrentLateralInput = Value;
+	if (Value != 0.f)
+	{
+		const FRotator Rot(0.f, GetControlRotation().Yaw, 0.f);
+		AddMovementInput(FRotationMatrix(Rot).GetUnitAxis(EAxis::Y), Value);
+	}
 }
 
 void AWOTOLHeroCharacter::MoveUp(float Value)
@@ -112,4 +136,73 @@ void AWOTOLHeroCharacter::MoveUp(float Value)
 	// rester simple à comprendre : Espace = monter, Maj/Ctrl = descendre.
 	if (Value == 0.f) return;
 	AddMovementInput(FVector::UpVector, Value);
+}
+
+void AWOTOLHeroCharacter::StartSprint()
+{
+	bIsSprinting = true;
+	GetCharacterMovement()->MaxFlySpeed = SprintSpeed;
+}
+
+void AWOTOLHeroCharacter::StopSprint()
+{
+	bIsSprinting = false;
+	GetCharacterMovement()->MaxFlySpeed = SwimSpeed;
+}
+
+void AWOTOLHeroCharacter::PerformDash()
+{
+	if (!IsDashReady()) return;
+
+	const FRotator Rot(0.f, GetControlRotation().Yaw, 0.f);
+	FVector Direction = FRotationMatrix(Rot).GetUnitAxis(EAxis::X) * CurrentForwardInput
+		+ FRotationMatrix(Rot).GetUnitAxis(EAxis::Y) * CurrentLateralInput;
+	if (Direction.IsNearlyZero())
+	{
+		// Pas de direction de nage tenue : rue dans l'axe du regard (geste toujours utile).
+		Direction = GetControlRotation().Vector();
+	}
+	Direction = Direction.GetSafeNormal();
+
+	GetCharacterMovement()->Velocity += Direction * DashImpulse;
+	DashCooldownRemaining = DashCooldown;
+	DashFOVPunchRemaining = DashFOVPunchDuration; // petit coup de zoom arrière, pas de shake asset en greybox
+}
+
+void AWOTOLHeroCharacter::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	if (DashCooldownRemaining > 0.f)
+	{
+		DashCooldownRemaining = FMath::Max(0.f, DashCooldownRemaining - DeltaSeconds);
+	}
+
+	// Inclinaison douce en virage (banking) : sensation de nage dirigée, pas un rail figé.
+	// Appliquée à la CAMÉRA (bUsePawnControlRotation=false), pas au SpringArm : celui-ci a
+	// bUsePawnControlRotation=true et recalcule sa rotation depuis le contrôleur chaque
+	// tick, ce qui écraserait un roll posé directement dessus.
+	const float TargetRoll = FMath::Clamp(-CurrentLateralInput * 18.f, -18.f, 18.f);
+	CurrentBankRoll = FMath::FInterpTo(CurrentBankRoll, TargetRoll, DeltaSeconds, 5.f);
+	if (Camera)
+	{
+		FRotator Local = Camera->GetRelativeRotation();
+		Local.Roll = CurrentBankRoll;
+		Camera->SetRelativeRotation(Local);
+	}
+
+	// FOV dynamique : légère ouverture en sprint + coup de zoom arrière bref sur la ruée
+	// (pas d'asset de camera shake en greybox) — sensation de vitesse/action, bien distincte
+	// de la caméra RTS fixe des phases de bataille.
+	if (DashFOVPunchRemaining > 0.f)
+	{
+		DashFOVPunchRemaining = FMath::Max(0.f, DashFOVPunchRemaining - DeltaSeconds);
+	}
+	if (Camera)
+	{
+		const float SprintFOV = bIsSprinting ? BaseFOV + 8.f : BaseFOV;
+		const float DashAlpha = DashFOVPunchDuration > 0.f ? DashFOVPunchRemaining / DashFOVPunchDuration : 0.f;
+		const float TargetFOV = SprintFOV + DashAlpha * 14.f;
+		Camera->SetFieldOfView(FMath::FInterpTo(Camera->FieldOfView, TargetFOV, DeltaSeconds, 6.f));
+	}
 }

@@ -367,6 +367,7 @@ private:
 	void DestroyExplorationHero();
 	void BeginCrystalliserPlacement();
 	void CompleteCrystalliserPlacement();
+	void FinishCrystalliserConstruction();
 	void CreateCrystalliserPlacementMarkers();
 	void ClearCrystalliserPlacementMarkers();
 	void BeginPostDefenseTransition();
@@ -476,14 +477,20 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<AActor>> PlacementMarkers;
 
-	// Marqueurs distincts de la limite de déploiement RTS : ils visualisent l'unique
-	// emplacement valide du Cristalliseur pendant la nage libre post-Kraken.
+	// Aperçu holographique de l'unique emplacement valide du Cristalliseur pendant la nage
+	// libre post-Kraken : une instance du VRAI bâtiment (même silhouette), en coquille
+	// translucide pulsante (AWOTOLCaptureObject::SetGhostPreviewMode).
 	UPROPERTY()
-	TArray<TObjectPtr<AActor>> CrystalliserPlacementMarkers;
+	TObjectPtr<class AWOTOLCaptureObject> CrystalliserGhost;
+
+	// Délai de l'animation de construction (montée en échelle) après le clic de pose.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	float CrystalliserConstructionSeconds = 2.5f;
 
 	FVector CrystalliserPlacementLocation = FVector::ZeroVector;
 	bool bCrystalliserPlacementAvailable = false;
 	bool bCrystalliserPlacementArmed = false;
+	FTimerHandle CrystalliserConstructionHandle;
 
 	EFactionID CachedPlayerFaction = EFactionID::None;
 	EFactionID CachedRivalFaction  = EFactionID::None;
