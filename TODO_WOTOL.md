@@ -204,6 +204,11 @@ Fait cette session (suite, meme jour) :
   isometrique peut etre deplacee/zoomee. Une seule ligne de texte, pas de nouvelle geometrie
   cliquable.
 
+- Astuces de l'ecran de CHARGEMENT completees : les 4 astuces existantes ne parlaient QUE de
+  tactique de combat, jamais des fonctions du HUD ajoutees cette session (competence R,
+  ecran Commandes). Ajoute 2 astuces d'interface au tirage (6 au lieu de 4) — moment ideal
+  pour enseigner ca, entre deux phases, pendant un temps mort deja utilise pour du texte.
+
 ## Idees de Liamor pour APRES la demo (meta-progression, hors scope actuel)
 
 Notees telles quelles pour ne rien perdre, mais PAS a implementer a l'aveugle - ce sont de

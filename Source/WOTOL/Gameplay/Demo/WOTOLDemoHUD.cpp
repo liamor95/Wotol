@@ -1491,13 +1491,18 @@ void AWOTOLDemoHUD::DrawLoadingScreen(float W, float H, UDemoFlowSubsystem* Demo
 	const FString Msg = (Demo && !Demo->CurrentMessage.IsEmpty()) ? Demo->CurrentMessage : TEXT("Chargement...");
 	DrawCenteredText(Msg, BY + 34.f, FLinearColor(0.85f, 0.92f, 1.f, 1.f), 1.1f);
 
-	// Astuce (comme les maquettes) — tourne parmi quelques conseils.
-	static const TCHAR* Tips[4] = {
+	// Astuce (comme les maquettes) — tourne parmi quelques conseils. Deux astuces d'INTERFACE
+	// ajoutees (R + ecran Commandes) en plus des astuces de combat existantes : les tirages
+	// precedents ne mentionnaient que la tactique, jamais les fonctions du HUD (moment ideal
+	// pour les enseigner, entre deux phases, cf. recherche onboarding session du 19/07/2026).
+	static const TCHAR* Tips[6] = {
 		TEXT("Astuce : attaquez depuis une couche inferieure pour un bonus de degats ascendant."),
 		TEXT("Astuce : les Aquilombre sont invisibles a l'arret — approchez pour frapper dans le dos."),
 		TEXT("Astuce : gardez vos unites groupees, la coordination Aquiloris renforce le groupe."),
-		TEXT("Astuce : les Noxeens sont plus puissants dans les zones bioluminescentes vertes.") };
-	const int32 Idx = ((int32)(T * 0.2f)) % 4;
+		TEXT("Astuce : les Noxeens sont plus puissants dans les zones bioluminescentes vertes."),
+		TEXT("Astuce : la touche R active la competence des unites selectionnees."),
+		TEXT("Astuce : Reglages > Commandes rappelle toutes les touches a tout moment.") };
+	const int32 Idx = ((int32)(T * 0.2f)) % 6;
 	DrawCenteredText(Tips[Idx], H * 0.86f, FLinearColor(0.75f, 0.85f, 0.95f, 0.9f), 0.95f);
 }
 
