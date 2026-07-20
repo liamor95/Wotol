@@ -47,6 +47,10 @@ public:
 	static FBox2D HeroPortraitNextRect(float W, float H);
 	static FBox2D HeroCustomizationConfirmRect(float W, float H);
 	static FBox2D HeroCustomizationBackRect(float W, float H);
+	// Récapitulatif avant lancement (UI_ResumePartie.png) : Retour (vers personnalisation) /
+	// Lancer la partie (lance réellement la démo — StartDemoAfterSelection).
+	static FBox2D PreGameSummaryBackRect(float W, float H);
+	static FBox2D PreGameSummaryLaunchRect(float W, float H);
 
 	// Boutons de couche verticale (nage) — montent/descendent la sélection
 	static FBox2D LayerUpButtonRect(float W, float H);
@@ -136,6 +140,9 @@ private:
 	// Écran de personnalisation du héros (héritage / spécialité / portrait), entre le choix
 	// de faction et le lancement effectif de la démo (StartDemoAfterSelection).
 	void DrawHeroCustomization(float W, float H, class UDemoFlowSubsystem* Demo);
+	// Récapitulatif final avant lancement (nom/faction/difficulté/héritage/spécialité),
+	// conforme à Content/UI/Reference/Maquettes/UI_ResumePartie.png.
+	void DrawPreGameSummary(float W, float H, class UDemoFlowSubsystem* Demo);
 	void DrawExplorationHUD(float W, float H, class UDemoFlowSubsystem* Demo);
 	// Vue cité : chrome par-dessus la scène 3D isométrique (AWOTOLCityEnvironment/
 	// AWOTOLCityCamera) — cristaux, cartes de production, fiche technique, bouton d'expédition.

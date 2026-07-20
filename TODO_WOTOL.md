@@ -209,6 +209,25 @@ Fait cette session (suite, meme jour) :
   ecran Commandes). Ajoute 2 astuces d'interface au tirage (6 au lieu de 4) — moment ideal
   pour enseigner ca, entre deux phases, pendant un temps mort deja utilise pour du texte.
 
+- COMPARAISON AUX VRAIES MAQUETTES : premiere fois que je regarde reellement
+  Content/UI/Reference/Maquettes/ au lieu de deviner. Bonnes surprises : mes libelles
+  Heritage (Thalassi/Givrelere/Abysseen/Gardien) et Specialite (Thalassi/Guerrier/Mage/
+  Inquisiteur) correspondent EXACTEMENT a UI_PersonnalisationHero.png, sans l'avoir jamais
+  vue. La jauge Surface/Mid/Sol existe deja (matche UI_HUD_Complet.png).
+  - AJOUTE : ECRAN RECAPITULATIF avant lancement (EDemoScreen::PreGameSummary), conforme a
+    UI_ResumePartie.png — la maquette revele un flux en 3 ecrans (Reglage joueur -> Perso
+    heros -> RECAPITULATIF avec bouton "LANCER LA PARTIE") alors que je n'en avais code
+    que 2 (Confirmer sur l'ecran heros lancait direct). Le bouton "CONFIRMER LE HEROS" ouvre
+    maintenant ce recap (nom/faction/difficulte/heritage/specialite/portrait), avec Retour
+    (vers personnalisation) et Lancer la partie (StartDemoAfterSelection, comme avant).
+  - PAS FAIT (decision explicite de Liamor, question posee) : champ de saisie libre pour le
+    nom du heros (la maquette en a un ; necessiterait de capturer le clavier caractere par
+    caractere en Canvas HUD sans UMG — plus risque a coder sans compilateur) ; Mode Ironman /
+    Mode Aleatoire (presents dans les maquettes Reglage du Joueur/Resume, mais semblent etre
+    des fonctions du JEU COMPLET — permadeath, carte procedurale — hors scope d'une demo a
+    arene unique) ; controle de vitesse de jeu (icone avance-rapide vue dans UI_HUD_Complet.png,
+    absente du code). Ces trois points restent a rediscuter si besoin, pas ecartes definitivement.
+
 ## Idees de Liamor pour APRES la demo (meta-progression, hors scope actuel)
 
 Notees telles quelles pour ne rien perdre, mais PAS a implementer a l'aveugle - ce sont de

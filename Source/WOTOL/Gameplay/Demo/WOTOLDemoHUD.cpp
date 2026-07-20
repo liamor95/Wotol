@@ -121,6 +121,19 @@ FBox2D AWOTOLDemoHUD::HeroCustomizationBackRect(float W, float H)
 	return FBox2D(FVector2D(24.f, H - BH - 24.f), FVector2D(24.f + BW, H - 24.f));
 }
 
+FBox2D AWOTOLDemoHUD::PreGameSummaryBackRect(float W, float H)
+{
+	const float BW = 220.f, BH = 60.f;
+	return FBox2D(FVector2D(24.f, H - BH - 24.f), FVector2D(24.f + BW, H - 24.f));
+}
+
+FBox2D AWOTOLDemoHUD::PreGameSummaryLaunchRect(float W, float H)
+{
+	const float BW = 420.f, BH = 62.f;
+	const float X = (W - BW) * 0.5f, Y = H * 0.85f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
 FBox2D AWOTOLDemoHUD::LaunchBattleButtonRect(float W, float H)
 {
 	// Petit bouton JUSTE SOUS le timer (haut centre) -> le centre de l'écran reste libre
@@ -194,6 +207,7 @@ void AWOTOLDemoHUD::DrawHUD()
 	if (Screen == EDemoScreen::MainMenu)      { DrawMainMenu(W, H); DrawModalIfNeeded(); return; }
 	if (Screen == EDemoScreen::FactionSelect) { DrawFactionSelect(W, H); DrawModalIfNeeded(); return; }
 	if (Screen == EDemoScreen::HeroCustomization) { DrawHeroCustomization(W, H, DemoFlow); DrawModalIfNeeded(); return; }
+	if (Screen == EDemoScreen::PreGameSummary) { DrawPreGameSummary(W, H, DemoFlow); DrawModalIfNeeded(); return; }
 	if (Screen == EDemoScreen::Summary)       { DrawSummary(W, H, DemoFlow); DrawModalIfNeeded(); return; }
 	if (Screen == EDemoScreen::Interlude)     { DrawInterlude(W, H, DemoFlow); DrawModalIfNeeded(); return; }
 	if (Screen == EDemoScreen::City)          { DrawCityView(W, H, DemoFlow); DrawModalIfNeeded(); return; }
@@ -819,6 +833,58 @@ void AWOTOLDemoHUD::DrawHeroCustomization(float W, float H, UDemoFlowSubsystem* 
 
 	DrawButton(HeroCustomizationBackRect(W, H), TEXT("< RETOUR"), FLinearColor(0.4f, 0.45f, 0.52f, 1.f), 1.0f);
 	DrawButton(HeroCustomizationConfirmRect(W, H), TEXT("CONFIRMER LE HEROS"), FLinearColor(1.f, 0.72f, 0.22f, 1.f), 1.3f);
+}
+
+void AWOTOLDemoHUD::DrawPreGameSummary(float W, float H, UDemoFlowSubsystem* Demo)
+{
+	DrawUnderwaterBackground(W, H);
+	DrawGlowTitle(TEXT("RESUME DE LA PARTIE"), H * 0.10f, 2.2f, FLinearColor(0.7f, 0.9f, 1.f, 1.f));
+	if (!Demo) return;
+
+	const FHeroLoadout& Loadout = Demo->GetHeroLoadout();
+	const bool bAq = Demo->SelectedFaction != EFactionID::Noxeens;
+	const FLinearColor Accent = bAq ? FLinearColor(0.3f, 0.6f, 1.f, 1.f) : FLinearColor(0.3f, 0.95f, 0.5f, 1.f);
+
+	const TCHAR* HeritageLabels[4] = { TEXT("Thalassi"), TEXT("Givrelere"), TEXT("Abysseen"), TEXT("Gardien") };
+	const EHeroHeritage HeritageVals[4] = { EHeroHeritage::Thalassi, EHeroHeritage::Givrelier, EHeroHeritage::Abysseen, EHeroHeritage::Gardien };
+	FString HeritageLabel = TEXT("?");
+	for (int32 i = 0; i < 4; ++i) if (HeritageVals[i] == Loadout.Heritage) HeritageLabel = HeritageLabels[i];
+
+	const TCHAR* SpecialtyLabels[4] = { TEXT("Thalassi"), TEXT("Guerrier"), TEXT("Mage"), TEXT("Inquisiteur") };
+	const EHeroSpecialty SpecialtyVals[4] = { EHeroSpecialty::Thalassi, EHeroSpecialty::Guerrier, EHeroSpecialty::Mage, EHeroSpecialty::Inquisiteur };
+	FString SpecialtyLabel = TEXT("?");
+	for (int32 i = 0; i < 4; ++i) if (SpecialtyVals[i] == Loadout.Specialty) SpecialtyLabel = SpecialtyLabels[i];
+
+	const TCHAR* DiffLabels[3] = { TEXT("Facile"), TEXT("Normal"), TEXT("Difficile") };
+	const EDemoDifficulty DiffVals[3] = { EDemoDifficulty::Facile, EDemoDifficulty::Normal, EDemoDifficulty::Difficile };
+	FString DiffLabel = TEXT("Normal");
+	for (int32 i = 0; i < 3; ++i) if (DiffVals[i] == Demo->GetDifficulty()) DiffLabel = DiffLabels[i];
+
+	const FBox2D Panel(FVector2D(W * 0.5f - 420.f, H * 0.22f), FVector2D(W * 0.5f + 420.f, H * 0.74f));
+	DrawRect(FLinearColor(0.01f, 0.05f, 0.09f, 0.88f), Panel.Min.X, Panel.Min.Y,
+		Panel.Max.X - Panel.Min.X, Panel.Max.Y - Panel.Min.Y);
+	DrawLine(Panel.Min.X, Panel.Min.Y, Panel.Max.X, Panel.Min.Y, Accent, 3.f);
+
+	// Deux colonnes, façon UI_ResumePartie.png (Faction | Difficulte, Heritage | Specialite).
+	const float ColL = Panel.Min.X + 50.f, ColR = Panel.Min.X + 470.f;
+	float Y = Panel.Min.Y + 40.f;
+	auto Row = [&](float X, const FString& Label, const FString& Value)
+	{
+		DrawText(Label, FLinearColor(0.75f, 0.82f, 0.9f, 0.9f), X, Y, GEngine ? GEngine->GetSmallFont() : nullptr, 0.9f);
+		DrawText(Value, FLinearColor::White, X, Y + 24.f, GEngine ? GEngine->GetMediumFont() : nullptr, 1.1f);
+	};
+	Row(ColL, TEXT("HEROS"), Loadout.HeroName);
+	Y += 84.f;
+	Row(ColL, TEXT("FACTION"), Demo->SelectedFaction == EFactionID::Noxeens ? TEXT("Noxeens") : TEXT("Aquiloris"));
+	Row(ColR, TEXT("NIVEAU DE DIFFICULTE"), DiffLabel);
+	Y += 84.f;
+	Row(ColL, TEXT("HERITAGE"), HeritageLabel);
+	Row(ColR, TEXT("SPECIALITE"), SpecialtyLabel);
+	Y += 84.f;
+	Row(ColL, TEXT("PORTRAIT"), FString::Printf(TEXT("%d / 5"), Loadout.PortraitIndex + 1));
+
+	DrawButton(PreGameSummaryBackRect(W, H), TEXT("< RETOUR"), FLinearColor(0.4f, 0.45f, 0.52f, 1.f), 1.0f);
+	DrawButton(PreGameSummaryLaunchRect(W, H), TEXT("LANCER LA PARTIE"), FLinearColor(1.f, 0.72f, 0.22f, 1.f), 1.35f);
 }
 
 void AWOTOLDemoHUD::DrawExplorationHUD(float W, float H, UDemoFlowSubsystem* Demo)

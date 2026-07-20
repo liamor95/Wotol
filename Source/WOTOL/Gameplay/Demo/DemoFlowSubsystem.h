@@ -57,7 +57,11 @@ enum class EDemoScreen : uint8
 	Skills        UMETA(DisplayName = "Compétences (arbre / axes)"),
 	Exploration   UMETA(DisplayName = "Exploration — nage libre 3D"),
 	Territory     UMETA(DisplayName = "Gestion du territoire"),
-	HeroCustomization UMETA(DisplayName = "Personnalisation du héros")
+	HeroCustomization UMETA(DisplayName = "Personnalisation du héros"),
+	// Récapitulatif final avant lancement (nom, faction, difficulté, héritage, spécialité) —
+	// conforme à Content/UI/Reference/Maquettes/UI_ResumePartie.png. À NE PAS confondre avec
+	// EDemoScreen::Summary (résumé de bataille, après une bataille — sens totalement différent).
+	PreGameSummary UMETA(DisplayName = "Recapitulatif avant lancement")
 };
 
 // Ligne de résumé : pertes d'un type d'unité (nom + perdus / total) pour une faction.

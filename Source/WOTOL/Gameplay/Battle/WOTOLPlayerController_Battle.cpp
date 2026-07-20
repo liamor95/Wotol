@@ -528,6 +528,23 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		}
 		else if (AWOTOLDemoHUD::HeroCustomizationConfirmRect(VpSize.X, VpSize.Y).IsInside(M))
 		{
+			// Ne lance plus directement : passe par le récapitulatif final avant lancement
+			// (conforme à Content/UI/Reference/Maquettes/UI_ResumePartie.png).
+			Demo->SetScreen(EDemoScreen::PreGameSummary);
+		}
+		return true;
+	}
+
+	// ── Récapitulatif final avant lancement (UI_ResumePartie.png) ──
+	if (Screen == EDemoScreen::PreGameSummary)
+	{
+		if (!Demo) return true;
+		if (AWOTOLDemoHUD::PreGameSummaryBackRect(VpSize.X, VpSize.Y).IsInside(M))
+		{
+			Demo->SetScreen(EDemoScreen::HeroCustomization);
+		}
+		else if (AWOTOLDemoHUD::PreGameSummaryLaunchRect(VpSize.X, VpSize.Y).IsInside(M))
+		{
 			if (AWOTOLDemoDirector* Dir = GetDemoDirector()) Dir->StartDemoAfterSelection();
 		}
 		return true;
