@@ -591,6 +591,19 @@ void AWOTOLDemoHUD::DrawUnderwaterBackground(float W, float H)
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.22f), 0.f, 0.f, W, H * 0.10f);
 }
 
+// Lavis translucide dans la teinte de la faction choisie, à appeler APRÈS
+// DrawUnderwaterBackground sur les écrans qui suivent le choix de faction (thème
+// d'interface dynamique par faction, décision Liamor du 22/07/2026). N'invente aucun
+// visuel définitif (pas de nouveaux motifs/matériaux) : simple teinte d'ambiance à partir
+// de FFactionColors, en attendant les fonds/matériaux réels fournis par Liamor. Sans effet
+// tant qu'aucune faction n'est choisie (EFactionID::None).
+void AWOTOLDemoHUD::DrawFactionAmbientTint(float W, float H, EFactionID Faction)
+{
+	if (Faction == EFactionID::None) return;
+	const FLinearColor Tint = FFactionColors::Get(Faction);
+	DrawRect(Tint.CopyWithNewOpacity(0.07f), 0.f, 0.f, W, H);
+}
+
 // Titre "LAVE" multicolore et lumineux (pour le nom du jeu) : halo chaud +
 // dégradé rouge->orange->jaune + braises scintillantes. Fait "péter" le titre.
 void AWOTOLDemoHUD::DrawLavaTitle(const FString& Text, float Y, float Scale)
@@ -719,24 +732,26 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 	UDemoFlowSubsystem* Flow = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	const EFactionID Selected = Flow ? Flow->SelectedFaction : EFactionID::None;
+	// Couleurs de faction : FFactionColors — source de vérité unique (thème d'interface par
+	// faction, décision Liamor du 22/07/2026) — jamais redéfinies localement.
 	DrawButton(FactionButtonRect(0, W, H),
 		Selected == EFactionID::Aquiloris ? TEXT("AQUILORIS  [CHOISIE]") : TEXT("AQUILORIS"),
-		FLinearColor(0.3f, 0.6f, 1.f, 1.f), 1.7f);
+		FFactionColors::Get(EFactionID::Aquiloris), 1.7f);
 	DrawButton(FactionButtonRect(1, W, H),
 		Selected == EFactionID::Noxeens ? TEXT("NOXEENS  [CHOISIE]") : TEXT("NOXEENS"),
-		FLinearColor(0.3f, 0.95f, 0.5f, 1.f), 1.7f);
+		FFactionColors::Get(EFactionID::Noxeens), 1.7f);
 	// Description COURTE, juste sous les boutons de faction (bien au-dessus du bloc difficulté).
 	DrawCenteredText(TEXT("Aquiloris : cristal-tech, coordination          Noxeens : abysses bioluminescents"),
 		FactionButtonRect(0, W, H).Max.Y + H * 0.04f, FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 1.0f);
 	if (Selected == EFactionID::Aquiloris)
 	{
 		DrawCenteredText(TEXT("Aquiloris — gardiens d'Aquilor, technologie cristalline et discipline collective."),
-			H * 0.545f, FLinearColor(0.65f, 0.88f, 1.f, 1.f), 0.95f);
+			H * 0.545f, FFactionColors::GetSecondary(EFactionID::Aquiloris), 0.95f);
 	}
 	else if (Selected == EFactionID::Noxeens)
 	{
 		DrawCenteredText(TEXT("Noxeens — peuple des failles, puissance abyssale et bioluminescence verte."),
-			H * 0.545f, FLinearColor(0.55f, 1.f, 0.66f, 1.f), 0.95f);
+			H * 0.545f, FFactionColors::GetSecondary(EFactionID::Noxeens), 0.95f);
 	}
 
 	// ── DIFFICULTÉ (3 niveaux) : le joueur la choisit AVANT de cliquer sur une faction.
@@ -769,6 +784,7 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 void AWOTOLDemoHUD::DrawHeroCustomization(float W, float H, UDemoFlowSubsystem* Demo)
 {
 	DrawUnderwaterBackground(W, H);
+	if (Demo) DrawFactionAmbientTint(W, H, Demo->SelectedFaction);
 	DrawGlowTitle(TEXT("PERSONNALISATION DU HEROS"), H * 0.10f, 2.0f, FLinearColor(0.7f, 0.9f, 1.f, 1.f));
 	if (!Demo) return;
 	const FHeroLoadout& Loadout = Demo->GetHeroLoadout();
@@ -821,8 +837,7 @@ void AWOTOLDemoHUD::DrawHeroCustomization(float W, float H, UDemoFlowSubsystem* 
 	if (Canvas)
 	{
 		const FVector2D Center(W * 0.5f, H * 0.66f + 30.f);
-		const FLinearColor FacCol = (Demo->SelectedFaction == EFactionID::Noxeens)
-			? FLinearColor(0.3f, 0.95f, 0.5f, 1.f) : FLinearColor(0.3f, 0.6f, 1.f, 1.f);
+		const FLinearColor FacCol = FFactionColors::Get(Demo->SelectedFaction);
 		Canvas->K2_DrawPolygon(nullptr, Center, FVector2D(46.f, 46.f), 16, FLinearColor(FacCol.R, FacCol.G, FacCol.B, 0.2f));
 		Canvas->K2_DrawPolygon(nullptr, Center, FVector2D(30.f, 30.f), 16, FacCol);
 	}
@@ -838,12 +853,12 @@ void AWOTOLDemoHUD::DrawHeroCustomization(float W, float H, UDemoFlowSubsystem* 
 void AWOTOLDemoHUD::DrawPreGameSummary(float W, float H, UDemoFlowSubsystem* Demo)
 {
 	DrawUnderwaterBackground(W, H);
+	if (Demo) DrawFactionAmbientTint(W, H, Demo->SelectedFaction);
 	DrawGlowTitle(TEXT("RESUME DE LA PARTIE"), H * 0.10f, 2.2f, FLinearColor(0.7f, 0.9f, 1.f, 1.f));
 	if (!Demo) return;
 
 	const FHeroLoadout& Loadout = Demo->GetHeroLoadout();
-	const bool bAq = Demo->SelectedFaction != EFactionID::Noxeens;
-	const FLinearColor Accent = bAq ? FLinearColor(0.3f, 0.6f, 1.f, 1.f) : FLinearColor(0.3f, 0.95f, 0.5f, 1.f);
+	const FLinearColor Accent = FFactionColors::Get(Demo->SelectedFaction);
 
 	const TCHAR* HeritageLabels[4] = { TEXT("Thalassi"), TEXT("Givrelere"), TEXT("Abysseen"), TEXT("Gardien") };
 	const EHeroHeritage HeritageVals[4] = { EHeroHeritage::Thalassi, EHeroHeritage::Givrelier, EHeroHeritage::Abysseen, EHeroHeritage::Gardien };
@@ -909,8 +924,7 @@ void AWOTOLDemoHUD::DrawExplorationHUD(float W, float H, UDemoFlowSubsystem* Dem
 		const bool bNox = Demo->GetPlayerFaction() == EFactionID::Noxeens;
 		DrawButton(ExplorationCrystalliserButtonRect(W, H),
 			bNox ? TEXT("BATIMENT : ABYSSALYSEUR") : TEXT("BATIMENT : CRISTALLISEUR"),
-			bNox ? FLinearColor(0.30f, 0.95f, 0.50f, 1.f)
-				: FLinearColor(0.35f, 0.85f, 1.f, 1.f), 1.05f);
+			FFactionColors::Get(Demo->GetPlayerFaction()), 1.05f);
 		DrawText(FString::Printf(TEXT("Cristaux %d   |   Materiaux %d"),
 			Demo->GetCrystals(), Demo->PlayerAbyssalMaterials),
 			FLinearColor(1.f, 0.94f, 0.58f, 1.f), 38.f, H - 87.f,
@@ -1060,8 +1074,7 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.46f), 0.f, H * 0.66f, W, H * 0.34f);    // bandeau bas (cartes)
 
 	const bool bAq = (Fac != EFactionID::Noxeens);
-	const FLinearColor Accent = bAq ? FLinearColor(0.45f, 0.85f, 1.f, 1.f)
-	                                : FLinearColor(0.30f, 0.95f, 0.50f, 1.f);
+	const FLinearColor Accent = FFactionColors::Get(Fac);
 	const FString CityName = bAq ? TEXT("CITE D'AQUILOR") : TEXT("FAILLE NOXEENNE");
 	DrawGlowTitle(CityName, H * 0.04f, 2.2f, Accent);
 
@@ -1308,8 +1321,7 @@ void AWOTOLDemoHUD::DrawTerritoryView(float W, float H, UDemoFlowSubsystem* Demo
 {
 	if (!Demo) return;
 	const bool bNox = Demo->GetPlayerFaction() == EFactionID::Noxeens;
-	const FLinearColor Accent = bNox ? FLinearColor(0.25f, 1.f, 0.48f, 1.f)
-		: FLinearColor(0.32f, 0.82f, 1.f, 1.f);
+	const FLinearColor Accent = FFactionColors::Get(Demo->GetPlayerFaction());
 	const FString Building = bNox ? TEXT("ABYSSALYSEUR") : TEXT("CRISTALLISEUR");
 
 	// Le monde 3D reste visible : deux panneaux latéraux encadrent le bâtiment et ses cinq
@@ -1486,8 +1498,8 @@ void AWOTOLDemoHUD::DrawSkillsView(float W, float H, UDemoFlowSubsystem* Demo)
 	DrawUnderwaterBackground(W, H);
 	if (!Demo) return;
 	const EFactionID Fac = Demo->GetPlayerFaction();
-	const bool bNox = (Fac == EFactionID::Noxeens);
-	const FLinearColor Accent = bNox ? FLinearColor(0.30f, 0.95f, 0.50f, 1.f) : FLinearColor(0.45f, 0.85f, 1.f, 1.f);
+	const FLinearColor Accent = FFactionColors::Get(Fac);
+	DrawFactionAmbientTint(W, H, Fac);
 
 	DrawGlowTitle(TEXT("COMPETENCES"), H * 0.06f, 2.2f, Accent);
 	DrawCenteredText(TEXT("Choisissez la VOIE de chaque type d'unite (change son axe tactique)"),
@@ -1521,8 +1533,10 @@ void AWOTOLDemoHUD::DrawLoadingScreen(float W, float H, UDemoFlowSubsystem* Demo
 
 	const EFactionID Fac = Demo ? Demo->GetPlayerFaction() : EFactionID::None;
 	const bool bNox = (Fac == EFactionID::Noxeens);
-	const FLinearColor Accent = bNox ? FLinearColor(0.30f, 0.95f, 0.50f, 1.f)
-	                                 : FLinearColor(0.50f, 0.85f, 1.f, 1.f);
+	const FLinearColor Accent = (Fac == EFactionID::None)
+		? FLinearColor(0.50f, 0.85f, 1.f, 1.f) // pas encore de faction choisie : bleu neutre
+		: FFactionColors::Get(Fac);
+	DrawFactionAmbientTint(W, H, Fac);
 
 	// Titre : nom de faction si connue, sinon le logo du jeu (comme les maquettes).
 	const FString Title = (Fac == EFactionID::None) ? TEXT("WOTOL")
@@ -1576,6 +1590,7 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 {
 	DrawUnderwaterBackground(W, H);
 	if (!Demo) return;
+	DrawFactionAmbientTint(W, H, Demo->GetPlayerFaction());
 
 	// Titre (or si victoire, rouge si défaite)
 	const bool bWin = Demo->bSummaryVictory;
@@ -1755,6 +1770,7 @@ void AWOTOLDemoHUD::DrawInterlude(float W, float H, UDemoFlowSubsystem* Demo)
 	{
 		DrawUnderwaterBackground(W, H);
 	}
+	if (Demo) DrawFactionAmbientTint(W, H, Demo->GetPlayerFaction());
 	DrawGlowTitle(TEXT("— ENTRE DEUX BATAILLES —"), H * 0.06f, 1.9f, FLinearColor(0.6f, 0.9f, 1.f, 1.f));
 
 	// Texte narratif (multi-lignes) — réparti sur la hauteur disponible AU-DESSUS du bouton

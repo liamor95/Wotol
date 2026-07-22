@@ -228,6 +228,60 @@ Fait cette session (suite, meme jour) :
     arene unique) ; controle de vitesse de jeu (icone avance-rapide vue dans UI_HUD_Complet.png,
     absente du code). Ces trois points restent a rediscuter si besoin, pas ecartes definitivement.
 
+- THEME D'INTERFACE DYNAMIQUE PAR FACTION — decision Liamor validee le 22/07/2026 (trouvee en
+  auditant Drive + Notion sur demande explicite). "Apres le choix de faction, tous les ecrans
+  suivants doivent charger l'identite visuelle de la faction" ; architecture demandee :
+  structure centralisee type "Faction UI Theme", jamais de couleurs codees en dur par ecran.
+  - Trouve en auditant le code : `FFactionColors::Get()` (WOTOLTypes.h) est DEJA la "source
+    de verite unique" documentee dans le fichier lui-meme ("Ne jamais definir ces couleurs
+    ailleurs") — mais PAS RESPECTEE : au moins 8 fonctions du HUD (FactionSelect,
+    HeroCustomization, PreGameSummary, DrawBuildingBar, CityView, TerritoryView, SkillsView,
+    LoadingScreen) redefinissaient CHACUNE leur propre bleu/vert legerement different au lieu
+    d'appeler cette fonction -> vraie incoherence de teinte d'un ecran a l'autre, exactement
+    ce que la decision de Liamor pointe.
+  - FAIT : ajoute `FFactionColors::GetSecondary()` (teinte claire/douce, palette secondaire
+    demandee) ; remplace TOUTES les couleurs codees en dur par faction dans WOTOLDemoHUD.cpp
+    par des appels a `FFactionColors::Get/GetSecondary()`. Les libelles TEXTE (noms de
+    batiments/unites par faction) restent inchanges, seules les COULEURS etaient dupliquees.
+  - FAIT : nouvelle fonction `DrawFactionAmbientTint()` — lavis translucide (opacite 0.07)
+    dans la teinte de la faction, appele apres le fond sous-marin sur les ecrans qui suivent
+    le choix de faction en pur Canvas 2D (personnalisation heros, recapitulatif, competences,
+    chargement, resume de bataille, transition entre deux batailles). PAS applique a la Cite/
+    Territoire : ce sont des scenes 3D reelles (camera isometrique/bataille), deja teintees par
+    faction via les materiaux 3D existants (WOTOLCityEnvironment/WOTOLCityBuildingProp
+    utilisent deja FFactionColors) — un lavis 2D par-dessus aurait ete redondant et aurait pu
+    ternir la lisibilite du gameplay (barres de vie, boutons).
+  - PAS TOUCHE (deliberement) : le fond sous-marin lui-meme (`DrawUnderwaterBackground`,
+    degrade bleu partage par ~10 ecrans) n'a pas ete redessine par faction — la consigne de
+    Liamor dit explicitement "ne pas inventer les visuels definitifs avant reception des
+    ressources" ; recolorer tout le degrade aurait ete inventer une identite visuelle, pas
+    juste centraliser une couleur deja decidee. Le lavis ci-dessus est le compromis : donne
+    une ambiance par faction sans redessiner le fond.
+  - Scope volontairement pas touche (hors periemetre "couleurs deja codees") : materiaux,
+    motifs, cadres, fonds d'ecran de chargement dedies par faction — necessitent les assets
+    de Liamor, pas inventes ici.
+
+- CONFIRME PAR LIAMOR (22/07/2026) : le scope "cite/recrutement" fait partie de la demo (etait
+  une question ouverte dans Notion — desormais tranchee). Deja largement implemente cote code
+  (DrawCityView, production par categorie, amelioration de batiment niveau 1-3, cite 3D
+  isometrique) : rien de nouveau a coder suite a cette confirmation, ca valide juste de
+  continuer a maintenir/completer ce qui existe deja plutot que de le considerer hors-scope.
+
+## Garde en memoire — PAS pour la demo (Drive/Notion, 22/07/2026)
+
+Explicitement hors scope demo par instruction de Liamor ("le reste, on le garde en memoire") :
+- **Pirates Abyssaux — roster corrompu** : escouades corrompues multi-origines (5 unites/
+  escouade), cohortes par role, mobilite verticale independante par variante (regle deja
+  tranchee dans Notion si jamais code un jour). Chef = **Nekryss** (jamais "Necris").
+- **Faction Mureniens** : stats/roster incomplets au GDD.
+- Identite de deux personnages du roster Pirates (peau bleue, femme rousse pale) : non definie.
+- Benchmark mecaniques RTS (Total War, AoM Retold, Company of Heroes, Homeworld 3...) dans
+  Notion "WOTOL — Game Design & Developpement" : explicitement "non valide par defaut", a
+  confronter au code avant toute decision — recoupe en partie la recherche genre deja faite
+  cette session (minimap, controles) mais reste a relire en detail si besoin un jour.
+- Mode Ironman, Mode Aleatoire (carte procedurale), controle de vitesse de jeu : deja notes
+  ci-dessus comme hors scope demo (arene unique).
+
 ## Idees de Liamor pour APRES la demo (meta-progression, hors scope actuel)
 
 Notees telles quelles pour ne rien perdre, mais PAS a implementer a l'aveugle - ce sont de

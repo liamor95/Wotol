@@ -166,6 +166,10 @@ private:
 	// Fond marin ANIMÉ (dégradé de profondeur + bulles qui montent + rais de lumière),
 	// partagé par tous les écrans plein-écran pour un rendu vivant (pas une couleur plate).
 	void DrawUnderwaterBackground(float W, float H);
+	// Lavis translucide dans la teinte de la faction choisie (thème d'interface par faction,
+	// décision Liamor du 22/07/2026) — à appeler après DrawUnderwaterBackground sur les
+	// écrans qui suivent le choix de faction. Sans effet si EFactionID::None.
+	void DrawFactionAmbientTint(float W, float H, EFactionID Faction);
 	// Grand titre lumineux avec halo + pulsation (menu principal).
 	void DrawGlowTitle(const FString& Text, float Y, float Scale, const FLinearColor& Color);
 	void DrawLavaTitle(const FString& Text, float Y, float Scale);

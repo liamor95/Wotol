@@ -444,6 +444,24 @@ struct FFactionColors
 		}
 	}
 
+	// Teinte SECONDAIRE (plus claire/douce, même famille de teinte que Get()) — pour le texte
+	// de lore, les halos, les titres, tout élément d'UI qui a besoin d'un ton moins saturé que
+	// l'accent principal. Fait partie de la même source de vérité unique que Get() : à utiliser
+	// PARTOUT où le HUD a besoin d'une couleur de faction, plutôt que de redéfinir une teinte
+	// approximative localement (thème d'interface par faction, décision Liamor du 22/07/2026).
+	static FLinearColor GetSecondary(EFactionID Faction)
+	{
+		switch (Faction)
+		{
+			case EFactionID::Aquiloris:       return FLinearColor(0.55f, 0.85f, 1.00f, 1.f);
+			case EFactionID::Noxeens:         return FLinearColor(0.50f, 1.00f, 0.62f, 1.f);
+			case EFactionID::Thalassidras:    return FLinearColor(1.00f, 0.85f, 0.45f, 1.f);
+			case EFactionID::Mureniens:       return FLinearColor(0.75f, 0.45f, 0.95f, 1.f);
+			case EFactionID::PiratesAbyssaux: return FLinearColor(1.00f, 0.45f, 0.40f, 1.f);
+			default:                          return FLinearColor::White;
+		}
+	}
+
 	// Vrai si la faction est jouable dans la démo (Couche 1 uniquement)
 	static bool IsPlayableInDemo(EFactionID Faction)
 	{
