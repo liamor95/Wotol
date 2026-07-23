@@ -282,11 +282,11 @@ public:
 		PlayerCrystals = 0;
 		PlayerAbyssalMaterials = 0;
 		PlayerBiomass = 0;
-		PlayerFood = 0;
+		PlayerOceanicEnergy = 0;
 		LastRewardCrystals = 0;
 		LastRewardAbyssalMaterials = 0;
 		LastRewardBiomass = 0;
-		LastRewardFood = 0;
+		LastRewardOceanicEnergy = 0;
 		ReserveUnits.Empty();
 		BuildingLevels.Empty();
 		UnitAxes.Empty();
@@ -395,8 +395,16 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
 	int32 PlayerBiomass = 0;
 
+	// Énergie Océanique — 4e ressource COMMUNE (pas "Nourriture", qui n'existe pas dans les
+	// visuels/GDD de Liamor : Content/UI/Reference/Ressources fournit exactement Cristaux
+	// (Aquiloris), Minéraux Abyssaux, Biomasse Marine et Énergie Océanique comme les 4
+	// ressources jouées en démo). SEULE ressource à capacité de STOCKAGE LIMITÉE — alimente
+	// bâtiments actifs, recherches, améliorations avancées.
 	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
-	int32 PlayerFood = 0;
+	int32 PlayerOceanicEnergy = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|City", meta = (ClampMin = "1"))
+	int32 MaxOceanicEnergy = 200;
 
 	// Dernier lot gagné : affiché sur le résumé de bataille, sans inventer de conversion entre
 	// les ressources. Remis à zéro au début d'une nouvelle récompense.
@@ -410,7 +418,7 @@ public:
 	int32 LastRewardBiomass = 0;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Demo|Summary")
-	int32 LastRewardFood = 0;
+	int32 LastRewardOceanicEnergy = 0;
 
 	// Unités produites en cité, en attente de déploiement à la bataille suivante
 	// (clé = ID d'unité canonique, valeur = nombre en réserve).
@@ -455,7 +463,7 @@ public:
 	void AddCrystals(int32 Amount) { PlayerCrystals = FMath::Max(0, PlayerCrystals + Amount); }
 
 	UFUNCTION(BlueprintCallable, Category = "Demo|City")
-	void GrantMissionRewards(int32 Crystals, int32 AbyssalMaterials, int32 Biomass, int32 Food);
+	void GrantMissionRewards(int32 Crystals, int32 AbyssalMaterials, int32 Biomass, int32 OceanicEnergy);
 
 	// ─── TERRITOIRE : réparation, défenses, garnison, alerte ──────────────────
 	// La réparation maximale coûte seulement une fraction du prix de construction ; le coût

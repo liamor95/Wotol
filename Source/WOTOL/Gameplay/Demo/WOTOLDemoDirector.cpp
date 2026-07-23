@@ -565,7 +565,7 @@ void AWOTOLDemoDirector::BeginPreparation()
 		Demo->LastRewardCrystals = 0;
 		Demo->LastRewardAbyssalMaterials = 0;
 		Demo->LastRewardBiomass = 0;
-		Demo->LastRewardFood = 0;
+		Demo->LastRewardOceanicEnergy = 0;
 	}
 	// Première prépa (menu) : on est sur la phase créature.
 	if (Demo && Demo->GetPhase() == EDemoPhase::None)
@@ -1826,7 +1826,7 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 		if (Demo)
 		{
 			Demo->GrantMissionRewards(CreatureRewardCrystals,
-				CreatureRewardAbyssalMaterials, CreatureRewardBiomass, CreatureRewardFood);
+				CreatureRewardAbyssalMaterials, CreatureRewardBiomass, CreatureRewardOceanicEnergy);
 			Demo->GrantProgressionXP(40, 30);
 			Demo->SummaryContinueLabel = TEXT("RETOURNER DANS LA ZONE");
 		}
@@ -1852,7 +1852,7 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 			Demo->ResolveZoneThreat();
 			Demo->SetDefenseMissionReady(false);
 			Demo->GrantMissionRewards(DefenseRewardCrystals,
-				DefenseRewardAbyssalMaterials, DefenseRewardBiomass, DefenseRewardFood);
+				DefenseRewardAbyssalMaterials, DefenseRewardBiomass, DefenseRewardOceanicEnergy);
 			Demo->GrantProgressionXP(60, 70);
 			Demo->SummaryContinueLabel = TEXT("SECURISER LA ZONE");
 		}

@@ -1018,16 +1018,25 @@ FBox2D AWOTOLDemoHUD::TerritoryReturnCityButtonRect(float W, float H)
 }
 
 // Nom du bâtiment producteur (Aquiloris) / générique Noxéen, par catégorie.
+// Noms alignés sur Drive/WOTOL/Images-Visuels/Ressources et bâtiments (planches ajoutées par
+// Liamor le 23/07/2026) et sur la table "Bâtiments Aquiloris (validés)" de Notion.
+// Noxéens Infanterie/Montée/Mythique : correspondance CERTAINE (catégorie de production
+// explicitement écrite sur la planche : "PRODUCTION D'INFANTERIE" / "PRODUCTION D'UNITÉS
+// LOURDES" / "Permet la production du Noxédrake"). Distance/Spéciale : MEILLEURE ESTIMATION
+// (la planche décrit la fonction — Nœud Bioluminescent booste portée/précision à distance,
+// Faille Abyssale invoque des entités rares — mais n'affiche pas explicitement la catégorie
+// de production ; à confirmer par Liamor). Aquiloris Montée alignée sur Notion ("Dôme des
+// Aquilances"), les autres noms Aquiloris étaient déjà corrects.
 static FString CityBuildingLabel(EFactionID Fac, EDemoUnitCategory Cat)
 {
 	const bool bAq = (Fac != EFactionID::Noxeens);
 	switch (Cat)
 	{
-		case EDemoUnitCategory::Infanterie: return bAq ? TEXT("Academie") : TEXT("Nid Noxeflare");
-		case EDemoUnitCategory::Distance:   return bAq ? TEXT("Champ de Tir") : TEXT("Fosse Noxeblast");
-		case EDemoUnitCategory::Montee:     return bAq ? TEXT("Dome des montures") : TEXT("Antre Noxebeast");
-		case EDemoUnitCategory::Speciale:   return bAq ? TEXT("Nexus des Ombres") : TEXT("Sanctuaire Noxeon");
-		case EDemoUnitCategory::Mythique:   return bAq ? TEXT("Coeur-Eclat") : TEXT("Couvain Noxedrake");
+		case EDemoUnitCategory::Infanterie: return bAq ? TEXT("Academie") : TEXT("Fosse d'Emergence");
+		case EDemoUnitCategory::Distance:   return bAq ? TEXT("Champ de Tir") : TEXT("Noeud Bioluminescent");
+		case EDemoUnitCategory::Montee:     return bAq ? TEXT("Dome des Aquilances") : TEXT("Cavite des Mastodontes");
+		case EDemoUnitCategory::Speciale:   return bAq ? TEXT("Nexus des Ombres") : TEXT("Faille Abyssale");
+		case EDemoUnitCategory::Mythique:   return bAq ? TEXT("Coeur-Eclat") : TEXT("Antre du Noxedrake");
 		default: return TEXT("");
 	}
 }
@@ -1078,10 +1087,13 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 	const FString CityName = bAq ? TEXT("CITE D'AQUILOR") : TEXT("FAILLE NOXEENNE");
 	DrawGlowTitle(CityName, H * 0.04f, 2.2f, Accent);
 
-	// Ressources persistantes gagnées en mission (haut-gauche).
+	// Ressources persistantes gagnées en mission (haut-gauche). 4 ressources conformes aux
+	// visuels Content/UI/Reference/Ressources : Cristaux/Biolumens (propre a la faction),
+	// Materiaux abyssaux, Biomasse, Energie Oceanique (SEULE a capacite de stockage limitee).
 	const FString Res = bAq ? TEXT("Cristaux") : TEXT("Biolumens");
-	DrawText(FString::Printf(TEXT("%s %d   |   Materiaux abyssaux %d   |   Biomasse %d   |   Nourriture %d"),
-		*Res, Demo->GetCrystals(), Demo->PlayerAbyssalMaterials, Demo->PlayerBiomass, Demo->PlayerFood),
+	DrawText(FString::Printf(TEXT("%s %d   |   Materiaux abyssaux %d   |   Biomasse %d   |   Energie Oceanique %d/%d"),
+		*Res, Demo->GetCrystals(), Demo->PlayerAbyssalMaterials, Demo->PlayerBiomass,
+		Demo->PlayerOceanicEnergy, Demo->MaxOceanicEnergy),
 		FLinearColor(1.f, 0.95f, 0.6f, 1.f), 44.f, 44.f, GEngine ? GEngine->GetLargeFont() : nullptr, 1.5f);
 	DrawText(FString::Printf(TEXT("ARMEE : %d / %d"), Demo->GetArmyUnitCount(), Demo->GetArmyUnitCap()),
 		Accent, 44.f, 84.f, GEngine ? GEngine->GetMediumFont() : nullptr, 1.15f);
@@ -1628,13 +1640,13 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 
 	const bool bHasRewards = Demo->LastRewardCrystals > 0
 		|| Demo->LastRewardAbyssalMaterials > 0 || Demo->LastRewardBiomass > 0
-		|| Demo->LastRewardFood > 0;
+		|| Demo->LastRewardOceanicEnergy > 0;
 	if (bHasRewards)
 	{
 		DrawCenteredText(FString::Printf(TEXT(
-			"RECOMPENSES : Cristaux +%d   |   Materiaux abyssaux +%d   |   Biomasse +%d   |   Nourriture +%d"),
+			"RECOMPENSES : Cristaux +%d   |   Materiaux abyssaux +%d   |   Biomasse +%d   |   Energie Oceanique +%d"),
 			Demo->LastRewardCrystals, Demo->LastRewardAbyssalMaterials,
-			Demo->LastRewardBiomass, Demo->LastRewardFood),
+			Demo->LastRewardBiomass, Demo->LastRewardOceanicEnergy),
 			H * 0.205f, FLinearColor(1.f, 0.88f, 0.35f, 1.f), 1.0f);
 	}
 

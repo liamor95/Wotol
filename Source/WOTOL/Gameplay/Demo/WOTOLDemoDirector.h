@@ -112,7 +112,7 @@ public:
 	int32 CreatureRewardBiomass = 30;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
-	int32 CreatureRewardFood = 20;
+	int32 CreatureRewardOceanicEnergy = 20;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
 	int32 CrystalliserCrystalCost = 26;
@@ -132,7 +132,7 @@ public:
 	int32 DefenseRewardBiomass = 70;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
-	int32 DefenseRewardFood = 15;
+	int32 DefenseRewardOceanicEnergy = 15;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Exploration", meta = (ClampMin = "200.0"))
 	float CrystalliserPlacementRadius = 520.f;

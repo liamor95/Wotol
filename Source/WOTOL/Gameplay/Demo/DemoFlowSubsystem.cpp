@@ -144,17 +144,19 @@ void UDemoFlowSubsystem::MarkZoneDamaged()         { Progress.bZoneDamaged = tru
 void UDemoFlowSubsystem::MarkZoneRepaired()        { Progress.bZoneRepaired = true; }
 
 void UDemoFlowSubsystem::GrantMissionRewards(int32 Crystals, int32 AbyssalMaterials,
-	int32 Biomass, int32 Food)
+	int32 Biomass, int32 OceanicEnergy)
 {
 	LastRewardCrystals          = FMath::Max(0, Crystals);
 	LastRewardAbyssalMaterials  = FMath::Max(0, AbyssalMaterials);
 	LastRewardBiomass           = FMath::Max(0, Biomass);
-	LastRewardFood              = FMath::Max(0, Food);
+	LastRewardOceanicEnergy     = FMath::Max(0, OceanicEnergy);
 
 	PlayerCrystals          += LastRewardCrystals;
 	PlayerAbyssalMaterials  += LastRewardAbyssalMaterials;
 	PlayerBiomass           += LastRewardBiomass;
-	PlayerFood              += LastRewardFood;
+	// SEULE ressource à capacité de stockage limitée (Content/UI/Reference/Ressources) —
+	// le surplus au-delà du plafond est perdu, pas juste affiché en trop.
+	PlayerOceanicEnergy = FMath::Clamp(PlayerOceanicEnergy + LastRewardOceanicEnergy, 0, MaxOceanicEnergy);
 	RefreshBiomassGoal();
 }
 

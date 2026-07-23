@@ -267,6 +267,36 @@ Fait cette session (suite, meme jour) :
   isometrique) : rien de nouveau a coder suite a cette confirmation, ca valide juste de
   continuer a maintenir/completer ce qui existe deja plutot que de le considerer hors-scope.
 
+- AUDIT DES VISUELS AJOUTES PAR LIAMOR (23/07/2026, Drive/WOTOL/Images-Visuels + Ressources et
+  batiments) — deux corrections de fond demandees explicitement apres le recap :
+  - RESSOURCE "NOURRITURE" REMPLACEE PAR "ENERGIE OCEANIQUE" (PlayerFood/LastRewardFood/
+    CreatureRewardFood/DefenseRewardFood -> PlayerOceanicEnergy/LastRewardOceanicEnergy/
+    CreatureRewardOceanicEnergy/DefenseRewardOceanicEnergy dans DemoFlowSubsystem +
+    WOTOLDemoDirector + WOTOLDemoHUD). "Nourriture" ne correspondait a AUCUNE des 4
+    ressources reelles montrees sur les planches (Cristaux/Biolumens propre-faction,
+    Materiaux abyssaux, Biomasse Marine, Energie Oceanique) — Biomasse couvrait deja le role
+    "alimentation". Energie Oceanique est en plus la SEULE ressource a capacite de stockage
+    LIMITEE d'apres sa planche -> ajoute MaxOceanicEnergy (plafond, EditAnywhere, defaut 200)
+    et clamp dans GrantMissionRewards (le surplus au-dela du plafond est perdu).
+  - NOMS DE BATIMENTS CORRIGES (CityBuildingLabel, WOTOLDemoHUD.cpp) d'apres les planches
+    Noxeens (texte+lore complets sur chaque image) et la table Notion validee pour Aquiloris :
+    - CERTAIN (categorie de production explicite sur la planche) : Infanterie "Nid Noxeflare"
+      -> "Fosse d'Emergence" ; Montee "Antre Noxebeast" -> "Cavite des Mastodontes" ; Mythique
+      "Couvain Noxedrake" -> "Antre du Noxedrake".
+    - MEILLEURE ESTIMATION (fonction decrite mais categorie non explicite sur la planche, a
+      confirmer par Liamor) : Distance "Fosse Noxeblast" -> "Noeud Bioluminescent" (booste
+      portee/precision a distance) ; Speciale "Sanctuaire Noxeon" -> "Faille Abyssale"
+      (entites rares/dangereuses, amplifie la puissance).
+    - Aquiloris "Dome des montures" -> "Dome des Aquilances" (aligne sur la table Notion
+      "Batiments Aquiloris (valides)"), les autres noms Aquiloris etaient deja corrects.
+  - PAS FAIT : les visuels Aquiloris (Batiments) n'ont AUCUN texte/nom detectable (renders
+    purs, contrairement aux planches Noxeens completes) — aucune correction possible cote
+    Aquiloris au-dela de l'alignement Notion ci-dessus. Les planches d'armes/equipements
+    ajoutees aujourd'hui (ex. "Epee et bouclier des Aquiloryons") sont du concept art de
+    reference, pas encore integrees (pas d'import d'assets binaires dans ce passage — texte
+    seul, coherent avec "ne pas inventer les visuels definitifs" deja applique au theme
+    d'interface).
+
 ## Garde en memoire — PAS pour la demo (Drive/Notion, 22/07/2026)
 
 Explicitement hors scope demo par instruction de Liamor ("le reste, on le garde en memoire") :
