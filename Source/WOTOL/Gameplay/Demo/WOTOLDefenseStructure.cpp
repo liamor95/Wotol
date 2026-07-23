@@ -67,7 +67,7 @@ void AWOTOLDefenseStructure::BuildVisual()
 
 	if (OwnerFaction == EFactionID::Noxeens)
 	{
-		// SENTINELLE Noxéenne : pilier sombre + orbe vert bioluminescent qui vise.
+		// OEIL BIOLUMINAL (Noxéens) : pilier sombre + orbe vert bioluminescent qui vise.
 		const FLinearColor Dark(0.07f, 0.10f, 0.11f, 1.f);
 		const FLinearColor Green(0.28f, 1.6f, 0.55f, 1.f);
 		Add(SceneRoot, M_CYL, FVector(0, 0, 100.f), FVector(0.7f, 0.7f, 2.0f), FRotator::ZeroRotator, Dark, false); // fût
@@ -77,7 +77,7 @@ void AWOTOLDefenseStructure::BuildVisual()
 	}
 	else
 	{
-		// TOURELLE Aquiloris : socle cristal + tête sphérique + canon (bleu énergie).
+		// TOURELLE HYDROCRISTALLINE (Aquiloris) : socle cristal + tête sphérique + canon (bleu énergie).
 		const FLinearColor Steel(0.20f, 0.24f, 0.30f, 1.f);
 		const FLinearColor Blue(0.35f, 0.85f, 3.0f, 1.f);
 		Add(SceneRoot, M_CYL, FVector(0, 0, 10.f),  FVector(1.7f, 1.7f, 0.25f), FRotator::ZeroRotator, Steel, false); // socle

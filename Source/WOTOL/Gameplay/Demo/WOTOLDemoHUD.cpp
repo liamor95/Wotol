@@ -1335,6 +1335,10 @@ void AWOTOLDemoHUD::DrawTerritoryView(float W, float H, UDemoFlowSubsystem* Demo
 	const bool bNox = Demo->GetPlayerFaction() == EFactionID::Noxeens;
 	const FLinearColor Accent = FFactionColors::Get(Demo->GetPlayerFaction());
 	const FString Building = bNox ? TEXT("ABYSSALYSEUR") : TEXT("CRISTALLISEUR");
+	// Noms des structures defensives alignes sur les planches Drive ajoutees le 23/07/2026 :
+	// tourelle individuelle (emplacements installables) + rempart perimetrique du batiment central.
+	const FString DefenseStructureName = bNox ? TEXT("OEIL BIOLUMINAL") : TEXT("TOURELLE HYDROCRISTALLINE");
+	const FString RampartName = bNox ? TEXT("Entraves abyssales") : TEXT("Rempart cristallin");
 
 	// Le monde 3D reste visible : deux panneaux latéraux encadrent le bâtiment et ses cinq
 	// emplacements lumineux, au lieu de remplacer la zone par un menu abstrait.
@@ -1347,8 +1351,8 @@ void AWOTOLDemoHUD::DrawTerritoryView(float W, float H, UDemoFlowSubsystem* Demo
 	DrawText(Building, Accent, 48.f, 138.f, GEngine ? GEngine->GetLargeFont() : nullptr, 1.3f);
 	DrawBar(48.f, 180.f, 360.f, 18.f, Demo->GetTerritoryHealthPercent(),
 		FLinearColor(0.30f, 0.92f, 0.48f, 1.f), FLinearColor(0.15f, 0.05f, 0.04f, 0.9f));
-	DrawText(FString::Printf(TEXT("Integrite : %d %%"),
-		FMath::RoundToInt(Demo->GetTerritoryHealthPercent() * 100.f)),
+	DrawText(FString::Printf(TEXT("Integrite : %d %%   —   %s"),
+		FMath::RoundToInt(Demo->GetTerritoryHealthPercent() * 100.f), *RampartName),
 		FLinearColor::White, 48.f, 205.f, nullptr, 1.0f);
 	DrawText(FString::Printf(TEXT("Cristaux %d   |   Materiaux %d"), Demo->GetCrystals(),
 		Demo->PlayerAbyssalMaterials), FLinearColor(1.f, 0.90f, 0.42f, 1.f),
@@ -1368,7 +1372,7 @@ void AWOTOLDemoHUD::DrawTerritoryView(float W, float H, UDemoFlowSubsystem* Demo
 		FLinearColor::White, 48.f, H * 0.365f - 28.f, nullptr, 0.92f);
 	DrawButton(TerritoryDefenseButtonRect(W, H),
 		Demo->CanInstallNextDefense()
-			? FString::Printf(TEXT("PLACER TOURELLE  —  %d C / %d M"),
+			? FString::Printf(TEXT("PLACER %s  —  %d C / %d M"), *DefenseStructureName,
 				Demo->DefenseInstallCrystalCost * NextDefense,
 				Demo->DefenseInstallAbyssalMaterialCost * NextDefense)
 			: (Demo->InstalledDefenseCount >= Demo->GetDefenseCapacity()

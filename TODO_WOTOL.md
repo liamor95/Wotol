@@ -329,3 +329,38 @@ vrais systemes de conception qui meritent une vraie session de design, pas un aj
 
 A rediscuter avec Liamor avant de coder quoi que ce soit ici : portee, nombre de formations
 pour la demo, quelles unites/batiments debloquent quoi.
+
+## Structures defensives + confirmation economie (23/07/2026, planches "obstacles/ressources" + reponses Liamor)
+
+Liamor a envoye (via chat direct, hors Drive) 32 planches de concept art supplementaires :
+fiches de ressources par faction (Cristaux/Biolumens/Miasmes Toxiques/Debris Technologiques/
+Corail Vivant), tourelles+remparts par faction (Aquiloris = Tourelle hydrocristalline + Rempart
+cristallin, Noxeens = Oeil bioluminal + Entraves abyssales, Mureniens = Puits de miasmes +
+Rempart de galeries toxiques, Pirates Abyssaux = Batterie du coeur obscur + Rempart de coque
+obscure, Thalassidra = Pointes rocheuses de corail + Rempart corallien), armes/roster complet
+Aquiloris/Noxeens (deja coherent avec l'existant), et tout le roster "corrompu" Pirates Abyssaux
+(Aquilombres/Piquiers/Sonariens/Aquisnipe/Noxebeast/Tortues Bastions/Murefrondes/Aquilances
+Abyssaux + armes + Vaisseau Abyssal) — ce dernier confirme/enrichit le systeme "roster corrompu"
+deja note ci-dessus comme hors scope demo ; aucune implementation faite sur cette partie.
+
+**Economie confirmee (question posee puis tranchee par Liamor) :** le modele actuel est correct
+tel quel — 3 ressources communes a toutes les factions (nourriture -> Biomasse Marine,
+constructions -> Mineraux Abyssaux, competences/recherche -> Energie Oceanique) + 1 ressource
+exclusive par faction (Cristaux Aquiloris / Biolumens Noxeens / etc.). Aucun changement de code :
+la refonte du 23/07 (Nourriture -> Energie Oceanique) reste valide. Deja ecrit dans le GDD/Notion
+selon Liamor — a garder en tete pour ne plus reposer la question.
+
+**Implemente (bâtiments defensifs Aquiloris/Noxeens, scope demo confirme par Liamor) :**
+- `WOTOLDefenseStructure.h/.cpp` : renomme les 2 types de tourelle greybox existants avec les
+  noms officiels des planches — "Tourelle Aquiloris" -> **Tourelle hydrocristalline**,
+  "Sentinelle Noxeenne" -> **Oeil bioluminal** (DisplayName de l'enum + commentaires). Aucun
+  changement de mesh/couleur : le greybox bleu-cristal / vert-orbe correspondait deja aux
+  planches.
+- `WOTOLDemoHUD.cpp` (`DrawTerritoryView`) : le bouton "PLACER TOURELLE" utilise maintenant le
+  nom par faction (PLACER TOURELLE HYDROCRISTALLINE / PLACER OEIL BIOLUMINAL). La ligne
+  "Integrite : X %" affiche en plus le nom du rempart perimetrique (Rempart cristallin /
+  Entraves abyssales) — texte descriptif uniquement, pas de nouveau champ/mecanique : le
+  batiment central (Cristalliseur/Abyssalyseur, deja etabli) reste l'entite mecanique unique,
+  le "Rempart" n'etant que son identite visuelle de fortification perimetrique.
+- PAS FAIT (hors scope) : structures Mureniens/Pirates Abyssaux/Thalassidra (3 factions hors
+  demo) — planches gardees en reference pour plus tard.

@@ -8,14 +8,15 @@
 class USceneComponent;
 class UStaticMeshComponent;
 
-// Type de défense (greybox). Identité propre à chaque faction :
-//  - Aquiloris : TOURELLE cristal (canon hydrosphère / laser d'énergie de cristaux)
-//  - Noxéens   : SENTINELLE bioluminescente (poste de tir Nox Blast)
+// Type de défense (greybox). Identité propre à chaque faction, noms alignés sur les
+// planches Drive/WOTOL/Images-Visuels (ajoutées par Liamor le 23/07/2026) :
+//  - Aquiloris : Tourelle hydrocristalline (socle cristal + canon d'énergie bleu)
+//  - Noxéens   : Œil bioluminal (pilier sombre + orbe vert qui vise)
 UENUM(BlueprintType)
 enum class EWOTOLDefenseType : uint8
 {
-	AquilorisTurret   UMETA(DisplayName = "Tourelle Aquiloris"),
-	NoxeenSentinel    UMETA(DisplayName = "Sentinelle Noxéenne")
+	AquilorisTurret   UMETA(DisplayName = "Tourelle hydrocristalline"),
+	NoxeenSentinel    UMETA(DisplayName = "Oeil bioluminal")
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
