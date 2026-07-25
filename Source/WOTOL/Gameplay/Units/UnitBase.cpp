@@ -1,0 +1,209 @@
+#include "UnitBase.h"
+#include "UnitDataAsset.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "VerticalLayerComponent.h"
+#include "UnitMoraleComponent.h"
+#include "AbilityComponent.h"
+#include "AbilityBase.h"
+#include "WOTOLProjectileBase.h"
+#include "Core/FactionRegistrySubsystem.h"
+#include "Gameplay/Factions/FactionSynergySubsystem.h"
+
+AUnitBase::AUnitBase()
+{
+	PrimaryActorTick.bCanEverTick = false;
+
+	VerticalLayer = CreateDefaultSubobject<UVerticalLayerComponent>(TEXT("VerticalLayer"));
+	AbilityComp   = CreateDefaultSubobject<UAbilityComponent>(TEXT("AbilityComp"));
+	MoraleComp    = CreateDefaultSubobject<UUnitMoraleComponent>(TEXT("MoraleComp"));
+}
+
+void AUnitBase::BeginPlay()
+{
+	Super::BeginPlay();
+	InitFromDataAsset();
+
+	if (UFactionRegistrySubsystem* Registry =
+			GetWorld()->GetSubsystem<UFactionRegistrySubsystem>())
+	{
+		Registry->RegisterUnit(this, Faction);
+	}
+
+	// La déroute (moral à 0) est exposée via MoraleComp->OnUnitRouting :
+	// le Blueprint de l'unité peut s'y abonner pour changer l'animation.
+}
+
+void AUnitBase::EndPlay(const EEndPlayReason::Type Reason)
+{
+	if (UFactionRegistrySubsystem* Registry =
+			GetWorld()->GetSubsystem<UFactionRegistrySubsystem>())
+	{
+		Registry->UnregisterUnit(this, Faction);
+	}
+	Super::EndPlay(Reason);
+}
+
+void AUnitBase::InitFromDataAsset()
+{
+	if (!UnitData) return;
+
+	Faction       = UnitData->Faction;
+	CurrentHealth = static_cast<float>(UnitData->Stats.MaxHealth);
+
+	if (VerticalLayer)
+	{
+		VerticalLayer->DefaultLayer = UnitData->Stats.PreferredLayer;
+	}
+
+	if (MoraleComp)
+	{
+		MoraleComp->StartingMorale = UnitData->Stats.StartingMorale;
+	}
+
+	// AbilityClasses dans le DataAsset sont TSoftClassPtr<UObject> — charger et filtrer
+	if (AbilityComp && UnitData->AbilityClasses.Num() > 0)
+	{
+		AbilityComp->AbilityClasses.Reset();
+		for (const TSoftClassPtr<UObject>& SoftClass : UnitData->AbilityClasses)
+		{
+			if (UClass* Cls = SoftClass.LoadSynchronous())
+			{
+				if (Cls->IsChildOf(UAbilityBase::StaticClass()))
+				{
+					AbilityComp->AbilityClasses.Add(Cls);
+				}
+			}
+		}
+	}
+
+	// MovementSpeed dans FUnitStats est un multiplicateur (1.0 = 600 UE units/s)
+	GetCharacterMovement()->MaxWalkSpeed = 600.f * UnitData->Stats.MovementSpeed;
+}
+
+float AUnitBase::GetHealthPercent() const
+{
+	if (!UnitData || UnitData->Stats.MaxHealth <= 0) return 0.f;
+	return CurrentHealth / static_cast<float>(UnitData->Stats.MaxHealth);
+}
+
+float AUnitBase::TakeDamageFromUnit(float Damage, AUnitBase* /*Instigator*/)
+{
+	if (!IsAlive()) return 0.f;
+
+	if (Damage < 0.f)
+	{
+		// Soin
+		const float MaxHP  = UnitData ? static_cast<float>(UnitData->Stats.MaxHealth) : CurrentHealth;
+		const float Healed = FMath::Min(-Damage, MaxHP - CurrentHealth);
+		CurrentHealth     += Healed;
+		OnHealthChanged.Broadcast(CurrentHealth, MaxHP);
+		return -Healed;
+	}
+
+	if (Damage <= 0.f) return 0.f;
+
+	// Appliquer la réduction de défense de CETTE unité (DEF%)
+	const float DefReduction = UnitData ? (UnitData->Stats.DefensePercent / 100.f) : 0.f;
+	const float EffDamage    = Damage * (1.f - DefReduction);
+	const float Applied      = FMath::Min(EffDamage, CurrentHealth);
+	CurrentHealth           -= Applied;
+
+	const float MaxHP = UnitData ? static_cast<float>(UnitData->Stats.MaxHealth) : CurrentHealth;
+	OnHealthChanged.Broadcast(CurrentHealth, MaxHP);
+
+	// Choc moral proportionnel (perte > 20% PV max = malus moral)
+	if (MoraleComp && UnitData)
+	{
+		const float DamageRatio = EffDamage / static_cast<float>(UnitData->Stats.MaxHealth);
+		if (DamageRatio > 0.2f)
+		{
+			MoraleComp->ApplyMoraleHit(DamageRatio * 20.f);
+		}
+	}
+
+	if (CurrentHealth <= 0.f)
+	{
+		Die();
+	}
+
+	return Applied;
+}
+
+void AUnitBase::PerformAttack(AUnitBase* Target)
+{
+	if (!Target || !Target->IsAlive() || !UnitData) return;
+
+	// Unité en déroute = ne peut pas attaquer
+	if (MoraleComp && MoraleComp->IsRouting()) return;
+
+	const float Now = GetWorld()->GetTimeSeconds();
+	if (Now - LastAttackTime < UnitData->Stats.AttackCooldown) return;
+
+	LastAttackTime = Now;
+
+	// Dégâts de base : ATK/s × cooldown = dégâts par frappe
+	float BaseDamage = UnitData->Stats.AttackDPS * UnitData->Stats.AttackCooldown;
+
+	// Appliquer le multiplicateur vertical (attaque ascendante depuis Hadal = ×3)
+	if (VerticalLayer && Target->VerticalLayer)
+	{
+		BaseDamage *= UVerticalLayerComponent::GetAttackDamageMultiplier(
+			VerticalLayer->GetCurrentLayer(),
+			Target->VerticalLayer->GetCurrentLayer());
+	}
+
+	// Appliquer les synergies de faction (Aquiloris coordination, Noxéens bio-zones)
+	if (UFactionSynergySubsystem* Synergy =
+			GetWorld()->GetSubsystem<UFactionSynergySubsystem>())
+	{
+		const FSynergyBonus Bonus = Synergy->ComputeSynergyBonus(this);
+		BaseDamage *= Bonus.DamageMultiplier;
+	}
+
+	if (UnitData->Stats.AttackType == EUnitAttackType::Ranged)
+	{
+		SpawnProjectileToward(Target, BaseDamage);
+	}
+	else
+	{
+		Target->TakeDamageFromUnit(BaseDamage, this);
+	}
+
+	OnAttackPerformed(Target);
+}
+
+void AUnitBase::SpawnProjectileToward(AUnitBase* Target, float OverrideDamage)
+{
+	if (!UnitData || UnitData->ProjectileClass.IsNull()) return;
+
+	TSubclassOf<AWOTOLProjectileBase> ProjClass = UnitData->ProjectileClass.LoadSynchronous();
+	if (!ProjClass) return;
+
+	const FVector SpawnLoc = GetActorLocation() + GetActorForwardVector() * 80.f;
+	FActorSpawnParameters Params;
+	Params.Instigator = this;
+
+	AWOTOLProjectileBase* Proj = GetWorld()->SpawnActor<AWOTOLProjectileBase>(
+		ProjClass, SpawnLoc, FRotator::ZeroRotator, Params);
+
+	if (Proj)
+	{
+		Proj->InitProjectile(this, Target, OverrideDamage);
+	}
+}
+
+void AUnitBase::SetSelected(bool bNewSelected)
+{
+	if (bSelected == bNewSelected) return;
+	bSelected = bNewSelected;
+	OnUnitSelected.Broadcast(bSelected);
+	OnSelectionChanged(bSelected);
+}
+
+void AUnitBase::Die()
+{
+	CurrentHealth = 0.f;
+	OnUnitDied.Broadcast(this);
+	SetSelected(false);
+	// Destruction effective déléguée au Blueprint (animation de mort + timer)
+}
