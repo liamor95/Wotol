@@ -15,6 +15,8 @@
 #include "Gameplay/AI/AIAdaptiveController.h"
 #include "Gameplay/Units/UnitAIStateComponent.h"
 #include "Gameplay/Battle/WOTOLBattleCamera.h"
+#include "Gameplay/Battle/WOTOLPlayerController_Battle.h"
+#include "Gameplay/Exploration/WOTOLHeroCharacter.h"
 #include "Core/FactionRegistrySubsystem.h"
 #include "EngineUtils.h"
 #include "WOTOLGreyboxEnvironment.h"
@@ -56,11 +58,8 @@ static float FactionSurvivability(EFactionID F)
 	}
 }
 
-// NORMALISATEUR DE PUISSANCE PAR FACTION : dans le miroir 80v80 (phase 3), les Noxéens
-// (DPS + compétences AoE plus fortes) ecrasaient les Aquiloris 80-0 QUEL QUE SOIT le camp du
-// joueur -> pur desequilibre de faction. On rehausse les degats AQUILORIS (plus lents/tanky)
-// pour rapprocher les deux factions d'une puissance de combat equivalente. S'applique a toute
-// unite Aquiloris (joueur comme rivale), toutes phases.
+// NORMALISATEUR DE PUISSANCE PAR FACTION : conserve les identités tank/glass-cannon tout en
+// rapprochant leur puissance globale. La phase 3 ajoute ensuite son asymétrie 60/100.
 static float FactionDamage(EFactionID F)
 {
 	switch (F)
@@ -133,17 +132,18 @@ static float PhaseEvoDMG(EDemoPhase P)
 	}
 }
 
-// CORRECTIF CIBLÉ (Aquiloris, phase 3, NORMAL uniquement) : dans le miroir 80v80, les Noxéens
-// écrasent les Aquiloris (rout 80-8 observé) alors que le joueur Noxéen, lui, gagne bien. On
-// booste donc UNIQUEMENT l'armée du JOUEUR quand il est AQUILORIS en phase 3 NORMAL. Comme la
-// RIVALE n'est jamais « le joueur », cela ne touche PAS le cas joueur-Noxéen (rivale Aquiloris)
-// -> les 3 phases Noxéens et les phases 1/2 Aquiloris restent INCHANGÉES. Facile/Difficile aussi.
-static bool IsAquiP3Normal(EFactionID F, EDemoPhase P, EDemoDifficulty D)
+// En phase 3, les 60 Aquiloris compensent leur infériorité numérique par une cohésion plus
+// forte, quel que soit le camp contrôlé. Ce bonus reste modeste : la boucle adaptative et les
+// ordres réels déterminent ensuite les pertes, pas un multiplicateur de victoire caché.
+static float GrandAquilorisCoordinationHP(EFactionID F, EDemoPhase P)
 {
-	return F == EFactionID::Aquiloris && P == EDemoPhase::Battle_Grand && D == EDemoDifficulty::Normal;
+	return (F == EFactionID::Aquiloris && P == EDemoPhase::Battle_Grand) ? 1.15f : 1.f;
 }
-static float AquiP3NormalHP(EFactionID F, EDemoPhase P, EDemoDifficulty D)  { return IsAquiP3Normal(F, P, D) ? 1.45f : 1.f; }
-static float AquiP3NormalDMG(EFactionID F, EDemoPhase P, EDemoDifficulty D) { return IsAquiP3Normal(F, P, D) ? 1.45f : 1.f; }
+
+static float GrandAquilorisCoordinationDMG(EFactionID F, EDemoPhase P)
+{
+	return (F == EFactionID::Aquiloris && P == EDemoPhase::Battle_Grand) ? 1.12f : 1.f;
+}
 
 AWOTOLDemoDirector::AWOTOLDemoDirector()
 {
@@ -158,6 +158,7 @@ void AWOTOLDemoDirector::BeginPlay()
 
 	CachedPlayerFaction = ResolvePlayerFaction();
 	CachedRivalFaction  = RivalOf(CachedPlayerFaction);
+	RegisterDemoTerritoryGraph();
 
 	// ── MUSIQUE : si un slot n'est pas rempli dans l'éditeur, on tente de charger
 	// automatiquement un son portant le bon NOM dans Content/Audio/Music (ou Content/Audio).
@@ -213,14 +214,201 @@ void AWOTOLDemoDirector::BeginPlay()
 		&AWOTOLDemoDirector::UpdateMusicForScreen, 0.25f, /*bLoop=*/true);
 }
 
+void AWOTOLDemoDirector::StartDemoAfterSelection()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || Demo->SelectedFaction == EFactionID::None) return;
+
+	CachedPlayerFaction = ResolvePlayerFaction();
+	CachedRivalFaction  = RivalOf(CachedPlayerFaction);
+	bEnableFullFlowV08  = true;
+	bCrystalliserPlacementAvailable = false;
+	bCrystalliserPlacementArmed = false;
+	ClearCrystalliserPlacementMarkers();
+
+	GetWorldTimerManager().ClearTimer(ExplorationTransitionHandle);
+	GetWorldTimerManager().ClearTimer(ExplorationProximityHandle);
+	Demo->SetPhase(EDemoPhase::Exploration_Creature);
+	Demo->SetMessage(TEXT("Une nouvelle zone inconnue a ete localisee..."));
+	Demo->SetScreen(EDemoScreen::Loading);
+
+	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+	{
+		PC->bShowMouseCursor = true;
+		PC->SetInputMode(FInputModeUIOnly());
+	}
+
+	GetWorldTimerManager().SetTimer(ExplorationTransitionHandle, this,
+		&AWOTOLDemoDirector::BeginOpeningExploration,
+		FMath::Max(0.5f, OpeningLoadingDuration), false);
+}
+
+void AWOTOLDemoDirector::PossessExplorationHero(const FVector& SpawnLocation,
+	const FRotator& SpawnRotation)
+{
+	DestroyExplorationHero();
+	UWorld* W = GetWorld();
+	if (!W) return;
+
+	FActorSpawnParameters P;
+	P.Owner = this;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	ExplorationHero = W->SpawnActor<AWOTOLHeroCharacter>(
+		AWOTOLHeroCharacter::StaticClass(), SpawnLocation, SpawnRotation, P);
+
+	if (APlayerController* PC = W->GetFirstPlayerController())
+	{
+		if (ExplorationHero) PC->Possess(ExplorationHero);
+		PC->bShowMouseCursor = true; // l'introduction modale doit pouvoir être validée
+		FInputModeGameAndUI Mode;
+		Mode.SetHideCursorDuringCapture(false);
+		PC->SetInputMode(Mode);
+	}
+}
+
+void AWOTOLDemoDirector::DestroyExplorationHero()
+{
+	if (ExplorationHero)
+	{
+		ExplorationHero->Destroy();
+		ExplorationHero = nullptr;
+	}
+}
+
+void AWOTOLDemoDirector::PossessBattleCamera()
+{
+	UWorld* W = GetWorld();
+	if (!W) return;
+	AWOTOLPlayerController_Battle* PC = Cast<AWOTOLPlayerController_Battle>(W->GetFirstPlayerController());
+	if (!PC) return;
+	for (TActorIterator<AWOTOLBattleCamera> It(W); It; ++It)
+	{
+		PC->SetBattleCamera(*It);
+		break;
+	}
+	PC->bShowMouseCursor = true;
+	FInputModeGameAndUI Mode;
+	Mode.SetHideCursorDuringCapture(false);
+	PC->SetInputMode(Mode);
+}
+
+void AWOTOLDemoDirector::BeginOpeningExploration()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+
+	CleanupUnits();
+	ClearPlacementBoundary();
+	ClearCoverStructures();
+	Demo->SetBoss(nullptr);
+	Demo->SetPhase(EDemoPhase::Exploration_Creature);
+	Demo->SetScreen(EDemoScreen::Exploration);
+	Demo->SetObjective(TEXT("Explorez la zone et approchez-vous de la creature inconnue"));
+
+	const FVector Center = GetActorLocation();
+	PossessExplorationHero(Center + ExplorationHeroOffset, FRotator(0.f, 0.f, 0.f));
+
+	// Le même Kraken greybox est visible au loin, cerveau désactivé. À l'approche il sera
+	// détruit puis recréé par BeginPreparation avec ses PV et son IA de combat complets.
+	SpawnEnemyForCreature(CachedRivalFaction, Center + ExplorationKrakenOffset,
+		FRotator(0.f, 180.f, 0.f));
+	ExplorationCreature = Cast<AWOTOLDemoUnit>(Demo->GetBoss());
+	if (ExplorationCreature) ExplorationCreature->bCreatureBrain = false;
+
+	const FString IntroBody = CachedPlayerFaction == EFactionID::Noxeens
+		? TEXT("Depuis leurs failles bioluminescentes, les Noxeens etendent leur influence.\n"
+			"Une expedition vient de decouvrir une zone inconnue : identifiez la menace qui s'y cache.")
+		: TEXT("Depuis Aquilor, les Aquiloris protegent les cristaux d'energie des profondeurs.\n"
+			"Une expedition vient de decouvrir une zone inconnue : identifiez la menace qui s'y cache.");
+	Demo->OpenObjectiveWindow(TEXT("intro_begin_exploration"),
+		CachedPlayerFaction == EFactionID::Noxeens ? TEXT("LES NOXEENS") : TEXT("LES AQUILORIS"),
+		IntroBody,
+		TEXT("COMMENCER L'EXPLORATION"));
+
+	GetWorldTimerManager().SetTimer(ExplorationProximityHandle, this,
+		&AWOTOLDemoDirector::CheckExplorationEncounter, 0.15f, true);
+}
+
+void AWOTOLDemoDirector::CheckExplorationEncounter()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || Demo->IsObjectiveWindowOpen() || !ExplorationHero || !ExplorationCreature) return;
+
+	const float Dist = FVector::Dist(ExplorationHero->GetActorLocation(),
+		ExplorationCreature->GetActorLocation());
+	if (Dist <= EncounterTriggerDistance) TransitionExplorationToBattle();
+}
+
+void AWOTOLDemoDirector::TransitionExplorationToBattle()
+{
+	GetWorldTimerManager().ClearTimer(ExplorationProximityHandle);
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+
+	Demo->SetMessage(TEXT("Creature detectee — deploiement de l'armee..."));
+	Demo->SetScreen(EDemoScreen::Loading);
+	PossessBattleCamera();
+	DestroyExplorationHero();
+
+	GetWorldTimerManager().SetTimer(ExplorationTransitionHandle, this,
+		&AWOTOLDemoDirector::BeginCreaturePreparationAfterExploration, 1.5f, false);
+}
+
+void AWOTOLDemoDirector::BeginCreaturePreparationAfterExploration()
+{
+	if (UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr)
+	{
+		Demo->SetPhase(EDemoPhase::Battle_Creature);
+	}
+	BeginPreparation();
+	ExplorationCreature = nullptr;
+}
+
+void AWOTOLDemoDirector::ResumePostBattleExploration()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+	Demo->SetMessage(TEXT("Retour dans la zone liberee..."));
+	Demo->SetScreen(EDemoScreen::Loading);
+	GetWorldTimerManager().SetTimer(ExplorationTransitionHandle, this,
+		&AWOTOLDemoDirector::BeginPostBattleExploration, 1.2f, false);
+}
+
+void AWOTOLDemoDirector::BeginPostBattleExploration()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+
+	CleanupUnits();
+	Demo->SetBoss(nullptr);
+	Demo->SetPhase(EDemoPhase::Capture_Zone);
+	Demo->SetScreen(EDemoScreen::Exploration);
+	Demo->SetObjective(TEXT("Consultez le rapport puis purifiez la nouvelle zone"));
+	PossessExplorationHero(GetActorLocation() + FVector(-1200.f, 0.f, 260.f),
+		FRotator(0.f, 0.f, 0.f));
+	BeginPostCreatureSequence();
+}
+
 uint8 AWOTOLDemoDirector::MusicCatForScreen(uint8 Screen) const
 {
 	switch (static_cast<EDemoScreen>(Screen))
 	{
 	case EDemoScreen::MainMenu:
-	case EDemoScreen::FactionSelect: return 1; // menu
+	case EDemoScreen::FactionSelect:
+	case EDemoScreen::Loading:
+	case EDemoScreen::City:
+	case EDemoScreen::Skills:        return 1; // menu / préparation narrative
 	case EDemoScreen::Prepare:
-	case EDemoScreen::Playing:       return 2; // bataille
+	case EDemoScreen::Playing:
+	case EDemoScreen::Exploration:
+	case EDemoScreen::Territory:     return 2; // monde 3D + bataille
 	case EDemoScreen::Summary:
 	case EDemoScreen::Interlude:     return 3; // résumé
 	default:                         return 0;
@@ -309,9 +497,25 @@ void AWOTOLDemoDirector::BeginPreparation()
 	// (La musique est gérée automatiquement par l'écran -> BattleMusic dès l'écran Prepare.)
 	CachedPlayerFaction = ResolvePlayerFaction();
 	CachedRivalFaction  = RivalOf(CachedPlayerFaction);
+	// Nouvelle tentative = nouvelle lecture tactique. Le seed mélange le temps, la phase et
+	// le numéro d'essai ; il est journalisé pour pouvoir reproduire un cas de test précis.
+	++BattleAttemptSerial;
+	AdaptiveEncounterSeed = static_cast<int32>(FPlatformTime::Cycles64())
+		^ (BattleAttemptSerial * 7919);
+	EncounterRandom.Initialize(AdaptiveEncounterSeed);
+	TacticalVariant = EncounterRandom.RandRange(0, 3);
+	TacticalPhaseOffset = EncounterRandom.FRandRange(0.f, 17.f);
+	AdaptiveEncounterVariance = EncounterRandom.FRandRange(0.92f, 1.08f);
 
 	UDemoFlowSubsystem* Demo = GetGameInstance()
 		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (Demo)
+	{
+		Demo->LastRewardCrystals = 0;
+		Demo->LastRewardAbyssalMaterials = 0;
+		Demo->LastRewardBiomass = 0;
+		Demo->LastRewardFood = 0;
+	}
 	// Première prépa (menu) : on est sur la phase créature.
 	if (Demo && Demo->GetPhase() == EDemoPhase::None)
 	{
@@ -320,16 +524,14 @@ void AWOTOLDemoDirector::BeginPreparation()
 	const EBattleType BT = Demo ? Demo->GetCurrentBattleType() : EBattleType::CreatureEncounter;
 	const bool bGrand = Demo && Demo->GetPhase() == EDemoPhase::Battle_Grand; // phase 3, zone neutre
 
-	// Phase 2 (défense rivale) : GRANDE bataille — plus d'unités des deux côtés.
-	// Valeurs volontairement mesurées : ~26 vs 26 unités entièrement riggées, pour
-	// rester fluide/stable sur un portable (évite les surcharges mémoire/GPU).
+	// Phase 2 (défense rivale) : 35 contre 35 (25 unités de base + les 10 distances
+	// produites côté joueur). Valeurs encore mesurées pour rester fluides sur portable.
 	bGrandBattle = bGrand;
 	if (bGrand)
 	{
-		// PHASE 3 — 80 UNITÉS AU TOTAL par faction : moins d'Aquiloryons, plus d'Aquilombres.
-		//   1 chef + 26 inf + 18 montées + 24 distance + 10 spéciales + 1 mythique = 80.
-		// Armée plus RÉSISTANTE -> la bataille DURE (~15 min). Formation ÉTALÉE.
-		InfantryCount = 26; MountedCount = 18; RangedCount = 24; SpecialCount = 10;
+		// Les compositions exactes sont attribuées par faction dans SpawnPlayerArmy et
+		// SpawnRivalSquad : Aquiloris 60, Noxéens 100, quel que soit le camp contrôlé.
+		InfantryCount = 20; MountedCount = 12; RangedCount = 18; SpecialCount = 8;
 		// Bataille jugee TROP COURTE (~3 min sur un budget de 15). On AUGMENTE fortement les PV
 		// des deux armees pour ETIRER l'affrontement : plus les unites encaissent, plus la
 		// bataille dure. Reste gagnable (le joueur perd deja ~la moitie de son armee). [Reglable]
@@ -388,6 +590,10 @@ void AWOTOLDemoDirector::BeginPreparation()
 	{
 		SpawnEnemyForCreature(CachedRivalFaction, EnemyOrigin, FRotator(0.f, 180.f, 0.f));
 	}
+	if (BT == EBattleType::RivalDefense)
+	{
+		RefreshDefenseStructuresFromTerritory();
+	}
 
 	SpawnPlacementBoundary(); // barrière visuelle : zone de placement = ton premier tiers
 	SpawnCoverStructures();   // ruines Éthériennes (couverture au centre de l'arène)
@@ -407,6 +613,8 @@ void AWOTOLDemoDirector::BeginPreparation()
 				: FString(TEXT("Vaincre la creature — le KRAKEN"))));
 	}
 	Say(TEXT("PREPARATION : placez vos unites dans VOTRE zone (barriere coloree), puis lancez."));
+	UE_LOG(LogTemp, Log, TEXT("[WOTOL Encounter] Attempt=%d Seed=%d Variant=%d Variance=%.3f"),
+		BattleAttemptSerial, AdaptiveEncounterSeed, TacticalVariant, AdaptiveEncounterVariance);
 }
 
 void AWOTOLDemoDirector::StartBattleNow()
@@ -558,16 +766,36 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	// l'ENNEMI qui est renforcé/affaibli (voir EnemyDiffK) -> garantit la winnabilité.
 	const float PScale = ArmyHealthScale * FactionSurvivability(Faction)
 		* PhaseEvoHP(Demo->GetPhase())
-		* AquiP3NormalHP(Faction, Demo->GetPhase(), Demo->GetDifficulty()); // correctif ciblé
+		* GrandAquilorisCoordinationHP(Faction, Demo->GetPhase());
 
 	// ── RENFORTS DE CITÉ (pattern Total War / XCOM) : les unités PRODUITES en cité
 	// (réserve) rejoignent l'armée pour cette bataille. On draine la réserve et on gonfle
 	// les effectifs par catégorie. Réserve vide (ex. bataille créature) = aucun effet. ──
 	int32 EffInfantry = InfantryCount, EffMounted = MountedCount;
-	int32 EffRanged   = RangedCount,   EffSpecial = SpecialCount;
+	// En phase 2, aucune unité à distance gratuite : celles que le joueur vient réellement
+	// de produire constituent tout le contingent. La dotation de scénario revient seulement
+	// pour la grande bataille finale, après l'ellipse temporelle.
+	int32 EffRanged   = bGrandBattle ? RangedCount : 0;
+	int32 EffSpecial  = SpecialCount;
+	if (bGrandBattle)
+	{
+		// Composition asymétrique canonique de phase 3. Chef + mythique sont ajoutés plus bas.
+		if (Faction == EFactionID::Noxeens)
+		{
+			// 1 + 34 + 22 + 30 + 12 + 1 = 100.
+			EffInfantry = 34; EffMounted = 22; EffRanged = 30; EffSpecial = 12;
+		}
+		else
+		{
+			// 1 + 20 + 12 + 18 + 8 + 1 = 60.
+			EffInfantry = 20; EffMounted = 12; EffRanged = 18; EffSpecial = 8;
+		}
+	}
 	{
 		TMap<FName, int32> Reserve;
-		Demo->DrainReserve(Reserve);
+		// La phase 3 est une ellipse scénarisée à 60/100 : les réserves de la phase 2 ne
+		// doivent pas casser ces effectifs. Elles ne sont drainées que pour les phases 1/2.
+		if (!bGrandBattle) Demo->DrainReserve(Reserve);
 		for (const TPair<FName, int32>& Pair : Reserve)
 		{
 			switch (UDemoFlowSubsystem::GetCategoryForUnit(Pair.Key))
@@ -701,7 +929,8 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 		// endroit GARANTI dans le champ : juste derrière le CENTRE de l'armée, faible recul.
 		const float MythBack = Depth * 2.0f;
 		if (AWOTOLDemoUnit* Myth = SpawnUnit(Demo->GetUnitID(Faction, EDemoUnitCategory::Mythique),
-				Origin + FVector(-MythBack, 0.f, GroundZ), Facing, /*ScaleBoost=*/1.0f, /*HealthScale=*/3.0f * FactionSurvivability(Faction)))
+				Origin + FVector(-MythBack, 0.f, GroundZ), Facing, /*ScaleBoost=*/1.0f,
+				/*HealthScale=*/bGrandBattle ? PScale * 1.15f : 3.0f * FactionSurvivability(Faction)))
 		{
 			// Il NAGE AU-DESSUS de l'armée (couche haute) -> visible, sélectionnable SEUL (clic sur
 			// son modèle en hauteur), sans gêner/être gêné par les unités au sol. Son IA de soutien
@@ -785,7 +1014,9 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	// presque à parité en Difficile). Ratio PV joueur/ennemi = 1/k, cumulé au ratio dégâts ->
 	// force de combat globale = 1/k² = R garanti > 1 (gagnable).
 	const float RivalScale = ArmyHealthScale * FactionSurvivability(RivalFaction)
-		* PhaseEvoHP(Demo->GetPhase()) * EnemyDiffKHP(Demo->GetDifficulty());
+		* PhaseEvoHP(Demo->GetPhase())
+		* GrandAquilorisCoordinationHP(RivalFaction, Demo->GetPhase())
+		* EnemyDiffKHP(Demo->GetDifficulty());
 
 	// PLACEMENT ALÉATOIRE par couche, PROPRE À LA FACTION : chaque unité peut être au sol
 	// ou en hauteur. Les caps de verticalité (ex. Noxebeast au grade 1) sont respectés
@@ -848,19 +1079,34 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	const int32 PRmon = bGrandBattle ? 12 : 6;
 	const int32 PRdis = bGrandBattle ? 16 : 8;
 	const int32 PRspe = bGrandBattle ? 6  : 3;
+	int32 RivalInfantry = InfantryCount;
+	int32 RivalMounted = MountedCount;
+	int32 RivalRanged = RangedCount;
+	int32 RivalSpecial = SpecialCount;
+	if (bGrandBattle)
+	{
+		if (RivalFaction == EFactionID::Noxeens)
+		{
+			RivalInfantry = 34; RivalMounted = 22; RivalRanged = 30; RivalSpecial = 12;
+		}
+		else
+		{
+			RivalInfantry = 20; RivalMounted = 12; RivalRanged = 18; RivalSpecial = 8;
+		}
+	}
 
 	FVector ChefLoc = O + FVector(-Depth, 0.f, 100.f);
 	ChefLoc.X = FMath::Max(ChefLoc.X, MirrorX);
 	SetLayer(SpawnUnit(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Chef), ChefLoc, Facing, 1.f, RivalScale),
 		PickLayer(EDemoUnitCategory::Chef));
 
-	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Infanterie), EDemoUnitCategory::Infanterie, InfantryCount, PRinf);
-	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Montee), EDemoUnitCategory::Montee, MountedCount, PRmon);
-	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Distance), EDemoUnitCategory::Distance, RangedCount, PRdis);
+	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Infanterie), EDemoUnitCategory::Infanterie, RivalInfantry, PRinf);
+	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Montee), EDemoUnitCategory::Montee, RivalMounted, PRmon);
+	PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Distance), EDemoUnitCategory::Distance, RivalRanged, PRdis);
 	// PHASE 3 : la rivale déploie AUSSI sa spéciale + son mythique.
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Speciale))
 	{
-		PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Speciale), EDemoUnitCategory::Speciale, SpecialCount, PRspe);
+		PlaceRows(Demo->GetUnitID(RivalFaction, EDemoUnitCategory::Speciale), EDemoUnitCategory::Speciale, RivalSpecial, PRspe);
 	}
 	if (Demo->IsCategoryUnlocked(EDemoUnitCategory::Mythique))
 	{
@@ -889,7 +1135,7 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 	{
 		const FVector Ctr = GetActorLocation();
 		FVector Flat = SafeLoc - Ctr; Flat.Z = 0.f;
-		const float MaxR = 4200.f; // marge devant le mur de montagnes (~4700)
+		const float MaxR = bGrandBattle ? 8200.f : 4200.f;
 		if (Flat.Size() > MaxR) SafeLoc = Ctr + Flat.GetSafeNormal() * MaxR + FVector(0.f, 0.f, SafeLoc.Z - Ctr.Z);
 	}
 
@@ -916,6 +1162,7 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 	Unit->UnitData    = Data;
 	Unit->HealthScale = HealthScale * ProgFactor;   // niveau/grade -> PV (appliqué dans BeginPlay)
 	Unit->bIsBoss     = bAsBoss;       // AVANT FinishSpawning -> silhouette Kraken forcée
+	Unit->TacticalPersonality = EncounterRandom.FRandRange(0.f, 1.f);
 	UGameplayStatics::FinishSpawningActor(Unit, SpawnTM);
 
 	// ── ÉQUILIBRAGE DES DÉGÂTS (difficulté + camp) : fixé au spawn, stable. Le boss (Kraken)
@@ -929,9 +1176,9 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 		// Dégâts = égalisation de faction × ÉVOLUTION DE PHASE (identique aux deux camps), et
 		// côté ENNEMI × k(difficulté). Le joueur ne dépend PAS de la difficulté (baseline
 		// stable) -> tout le curseur de défi est sur l'ennemi. Ratio dégâts joueur/ennemi = 1/k.
-		float M = FactionDamage(Unit->GetFaction()) * PhaseEvoDMG(Phase);
+		float M = FactionDamage(Unit->GetFaction()) * PhaseEvoDMG(Phase)
+			* GrandAquilorisCoordinationDMG(Unit->GetFaction(), Phase);
 		if (!bPlayerSide) M *= EnemyDiffKDMG(Diff); // degats ennemis peu reduits -> pertes garanties
-		else M *= AquiP3NormalDMG(Unit->GetFaction(), Phase, Diff); // correctif cible joueur Aquiloris P3 Normal
 		M *= ProgFactor; // niveau/grade de bâtiment -> dégâts (progression prise en compte)
 		Unit->BalanceDamageMult = M;
 	}
@@ -943,6 +1190,11 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 void AWOTOLDemoDirector::LaunchBattle()
 {
 	// (Musique geree par l'ecran : BattleMusic continue de Prepare a Playing, sans coupure.)
+	UDemoFlowSubsystem* BattleFlow = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	const EDemoPhase BattlePhase = BattleFlow ? BattleFlow->GetPhase() : EDemoPhase::None;
+	const bool bTerritoryDefense = BattlePhase == EDemoPhase::Battle_Rival;
+	const bool bCreatureBattle = BattlePhase == EDemoPhase::Battle_Creature;
 	if (URTSBattleManager* RTS = GetWorld()->GetSubsystem<URTSBattleManager>())
 	{
 		// Phase 3 (grande bataille) : chrono ÉTENDU à 15 min (900 s) ; sinon 10 min.
@@ -984,7 +1236,7 @@ void AWOTOLDemoDirector::LaunchBattle()
 				// encaisser beaucoup moins ET frapper plus fort. [Réglable]
 				// Calibrage : 0.7/1.0 -> défaite (35-8), 0.5/1.4 -> stomp (1-35). On vise le
 				// MILIEU pour un vrai combat disputé (~50/50, pertes des deux côtés).
-				if (CaptureObject != nullptr)
+				if (bTerritoryDefense && CaptureObject != nullptr)
 				{
 					// AVANTAGE DE ZONE dépendant de la FACTION du joueur : les Noxéens sont
 					// déjà plus forts (DPS + bonus bioluminescent) -> avec un avantage FORT ils
@@ -1012,7 +1264,7 @@ void AWOTOLDemoDirector::LaunchBattle()
 			// gagnaient : on CALIBRE les PV du Kraken sur la puissance RÉELLE de l'armée
 			// du joueur (PV totaux + un peu de sa capacité de survie) pour viser ~50/50
 			// quel que soit le camp. Vaut pour les deux factions, sans rien coder en dur.
-			if (CaptureObject == nullptr) // uniquement la bataille de créature
+			if (bCreatureBattle) // uniquement la bataille de créature
 			{
 				if (AWOTOLDemoUnit* Boss = Cast<AWOTOLDemoUnit>(
 						GetGameInstance() && GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()
@@ -1056,7 +1308,7 @@ void AWOTOLDemoDirector::LaunchBattle()
 		const FVector PlayerCenter = GetActorLocation() + FVector(-ArmySeparation * 0.5f, 0.f, 0.f);
 		// En phase 2, ~40% des rivaux FONCENT sur le bâtiment (siège), le reste engage
 		// l'armée du joueur -> il faut à la fois défendre le bâtiment ET tenir la ligne.
-		const bool bSiege = CaptureObject != nullptr;
+		const bool bSiege = bTerritoryDefense && CaptureObject != nullptr;
 		const FVector BuildingLoc = bSiege ? CaptureObject->GetActorLocation() : PlayerCenter;
 		int32 RivalIndex = 0;
 		if (UFactionRegistrySubsystem* Reg = W->GetSubsystem<UFactionRegistrySubsystem>())
@@ -1112,7 +1364,7 @@ void AWOTOLDemoDirector::LaunchBattle()
 		BattleCheckHandle, this, &AWOTOLDemoDirector::CheckBattleEnd, 2.f, true);
 
 	// Siège du bâtiment (phase 2) : dégâts en continu selon les assiégeants proches.
-	if (CaptureObject)
+	if (bTerritoryDefense && CaptureObject)
 	{
 		// ── ÉQUILIBRAGE ASYMÉTRIQUE de l'objectif selon l'ATTAQUANT ──
 		// Les Noxéens attaquants (gros DPS) écrasaient la défense Aquiloris et détruisaient
@@ -1120,8 +1372,16 @@ void AWOTOLDemoDirector::LaunchBattle()
 		// (cas "parfait" -> on n'y touche PAS). On RENFORCE donc l'objectif UNIQUEMENT quand
 		// l'attaquant est Noxéen, pour que la défense Aquiloris soit tenable jusqu'au chrono.
 		const float ObjHP = (CachedRivalFaction == EFactionID::Noxeens) ? 26000.f : 16000.f;
-		CaptureObject->MaxHealth     = ObjHP;
-		CaptureObject->CurrentHealth = ObjHP;
+		const bool bRetryingThreat = BattleFlow && BattleFlow->GetProgress().bZoneThreatened;
+		const float RestoredPct = bRetryingThreat
+			? BattleFlow->GetTerritoryHealthPercent() : 1.f;
+		CaptureObject->MaxHealth = ObjHP;
+		CaptureObject->CurrentHealth = FMath::Clamp(ObjHP * RestoredPct, 1.f, ObjHP);
+		if (BattleFlow)
+		{
+			BattleFlow->SnapshotTerritoryBuilding(
+				CaptureObject->CurrentHealth, CaptureObject->MaxHealth);
+		}
 		GetWorldTimerManager().SetTimer(
 			SiegeHandle, this, &AWOTOLDemoDirector::SiegeTick, 1.f, true);
 	}
@@ -1131,6 +1391,313 @@ void AWOTOLDemoDirector::LaunchBattle()
 		TacticalHandle, this, &AWOTOLDemoDirector::TacticalTick, 2.0f, true, 2.0f);
 
 	BattleStartTime = GetWorld()->GetTimeSeconds(); // pour la durée du résumé
+	InitializeAdaptiveBattleBalance();
+}
+
+void AWOTOLDemoDirector::ConfigureAdaptiveCasualtyTargets(EDemoPhase Phase,
+	EDemoDifficulty Difficulty, int32 ActualPlayerCount)
+{
+	AdaptiveTargetLossMin = AdaptiveTargetLossPreferred = AdaptiveTargetLossMax = 0;
+	if (ActualPlayerCount <= 1) return;
+
+	// Conversion proportionnelle depuis les effectifs explicitement validés (16 / 35).
+	// Elle garde les mêmes pourcentages si une composition, une sauvegarde ou un futur réglage
+	// modifie l'effectif réel ; aucune hypothèse fixe n'est injectée dans le combat.
+	auto Scale = [ActualPlayerCount](float ReferenceLosses, float ReferenceArmy) -> int32
+	{
+		return FMath::Clamp(FMath::RoundToInt(
+			ActualPlayerCount * ReferenceLosses / ReferenceArmy), 0, ActualPlayerCount - 1);
+	};
+	auto SetRange = [&](float ReferenceMin, float ReferenceMax, float ReferenceArmy)
+	{
+		AdaptiveTargetLossMin = Scale(ReferenceMin, ReferenceArmy);
+		AdaptiveTargetLossMax = Scale(ReferenceMax, ReferenceArmy);
+		AdaptiveTargetLossMax = FMath::Max(AdaptiveTargetLossMax, AdaptiveTargetLossMin);
+		// Le centre réel change à chaque tentative. Les chiffres de design restent les
+		// bornes de crédibilité, pas une issue écrite d'avance.
+		AdaptiveTargetLossPreferred = EncounterRandom.RandRange(
+			AdaptiveTargetLossMin, AdaptiveTargetLossMax);
+	};
+
+	if (Phase == EDemoPhase::Battle_Creature)
+	{
+		switch (Difficulty)
+		{
+		case EDemoDifficulty::Facile:
+			SetRange(2.f, 3.f, 16.f);
+			break;
+		case EDemoDifficulty::Difficile:
+			// 16 engagés -> 6 survivants, donc 10 pertes.
+			SetRange(8.f, 12.f, 16.f);
+			break;
+		default:
+			// Conserve le garde-fou validé : en Normal, le Kraken ne tombe pas avant 5 pertes.
+			SetRange(5.f, 7.f, 16.f);
+			break;
+		}
+	}
+	else if (Phase == EDemoPhase::Battle_Rival)
+	{
+		switch (Difficulty)
+		{
+		case EDemoDifficulty::Facile:
+			SetRange(6.f, 10.f, 35.f);
+			break;
+		case EDemoDifficulty::Difficile:
+			SetRange(15.f, 20.f, 35.f);
+			break;
+		default:
+			SetRange(12.f, 18.f, 35.f);
+			break;
+		}
+	}
+	else if (Phase == EDemoPhase::Battle_Grand)
+	{
+		// Phase 3 : chaque quota validé est le centre d'une plage ±5.
+		const bool bAquiloris = CachedPlayerFaction == EFactionID::Aquiloris;
+		const float ReferenceArmy = bAquiloris ? 60.f : 100.f;
+		float Center = 0.f;
+		if (bAquiloris)
+		{
+			switch (Difficulty)
+			{
+			case EDemoDifficulty::Facile:    Center = 15.f; break;
+			case EDemoDifficulty::Difficile: Center = 45.f; break;
+			default:                         Center = 25.f; break;
+			}
+		}
+		else
+		{
+			switch (Difficulty)
+			{
+			case EDemoDifficulty::Facile:    Center = 25.f; break;
+			case EDemoDifficulty::Difficile: Center = 75.f; break;
+			default:                         Center = 45.f; break;
+			}
+		}
+		SetRange(FMath::Max(0.f, Center - 5.f), Center + 5.f, ReferenceArmy);
+	}
+
+	AdaptiveTargetLossMax = FMath::Max(AdaptiveTargetLossMax, AdaptiveTargetLossMin);
+	AdaptiveTargetLossPreferred = FMath::Clamp(AdaptiveTargetLossPreferred,
+		AdaptiveTargetLossMin, AdaptiveTargetLossMax);
+}
+
+void AWOTOLDemoDirector::InitializeAdaptiveBattleBalance()
+{
+	ResetAdaptiveBattleBalance();
+	if (!bEnableAdaptiveCasualtyBalance || !GetWorld()) return;
+
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+	AdaptiveBalancePhase = Demo->GetPhase();
+	if (AdaptiveBalancePhase != EDemoPhase::Battle_Creature
+		&& AdaptiveBalancePhase != EDemoPhase::Battle_Rival
+		&& AdaptiveBalancePhase != EDemoPhase::Battle_Grand) return;
+
+	AdaptiveInitialPlayerCount = CountAlive(CachedPlayerFaction);
+	AdaptiveInitialEnemyCount = CountAlive(CachedRivalFaction);
+	ConfigureAdaptiveCasualtyTargets(AdaptiveBalancePhase, Demo->GetDifficulty(),
+		AdaptiveInitialPlayerCount);
+	if (AdaptiveInitialPlayerCount <= 1 || AdaptiveTargetLossMax <= 0) return;
+
+	// Abonnement immédiat aux morts : le plafond est posé dans la même frame, y compris au
+	// milieu d'une attaque de zone, avant qu'elle ne puisse dépasser la plage maximale.
+	for (TObjectPtr<AWOTOLDemoUnit>& Unit : SpawnedUnits)
+	{
+		if (!Unit) continue;
+		Unit->AdaptiveOutgoingDamageMult = 1.f;
+		Unit->AdaptiveIncomingDamageMult = 1.f;
+		Unit->MinimumHealthFloor = 0.f;
+		if (Unit->GetFaction() == CachedPlayerFaction)
+			Unit->OnUnitDied.AddUniqueDynamic(this,
+				&AWOTOLDemoDirector::HandleAdaptivePlayerUnitDied);
+	}
+
+	// Un seul ancrage de rencontre suffit : le Kraken en phase 1, le chef rival (ou l'unité
+	// la plus robuste disponible) en phase 2. Il empêche une victoire prématurée sans rendre
+	// toute l'armée ennemie artificiellement immortelle.
+	if (AdaptiveBalancePhase == EDemoPhase::Battle_Creature)
+	{
+		AdaptiveEnemyAnchor = Cast<AUnitBase>(Demo->GetBoss());
+	}
+	else
+	{
+		AUnitBase* Fallback = nullptr;
+		int32 BestMaxHealth = -1;
+		for (TObjectPtr<AWOTOLDemoUnit>& Unit : SpawnedUnits)
+		{
+			if (!Unit || Unit->GetFaction() != CachedRivalFaction || !Unit->IsAlive()) continue;
+			if (UDemoFlowSubsystem::GetCategoryForUnit(
+				Unit->GetUnitData() ? Unit->GetUnitData()->GetFName() : NAME_None)
+				== EDemoUnitCategory::Chef)
+			{
+				AdaptiveEnemyAnchor = Unit;
+				break;
+			}
+			const int32 MaxHealth = Unit->GetEffectiveMaxHealth();
+			if (MaxHealth > BestMaxHealth) { BestMaxHealth = MaxHealth; Fallback = Unit; }
+		}
+		if (!AdaptiveEnemyAnchor) AdaptiveEnemyAnchor = Fallback;
+	}
+
+	if (AWOTOLDemoUnit* Anchor = Cast<AWOTOLDemoUnit>(AdaptiveEnemyAnchor.Get()))
+	{
+		Anchor->MinimumHealthFloor = FMath::Max(1.f,
+			Anchor->GetEffectiveMaxHealth() * 0.06f);
+	}
+	else if (AdaptiveEnemyAnchor)
+	{
+		AdaptiveEnemyAnchor->MinimumHealthFloor = 1.f;
+	}
+
+	AdaptiveBalanceStartTime = GetWorld()->GetTimeSeconds();
+	bAdaptiveBalanceActive = true;
+	UpdateAdaptiveBattleBalance();
+	GetWorldTimerManager().SetTimer(AdaptiveBalanceHandle, this,
+		&AWOTOLDemoDirector::UpdateAdaptiveBattleBalance, 0.75f, true, 0.75f);
+
+	UE_LOG(LogTemp, Log, TEXT("[WOTOL Balance] Phase=%d Diff=%d Faction=%d Effectif=%d Cible=%d/%d/%d"),
+		static_cast<int32>(AdaptiveBalancePhase), static_cast<int32>(Demo->GetDifficulty()),
+		static_cast<int32>(CachedPlayerFaction), AdaptiveInitialPlayerCount,
+		AdaptiveTargetLossMin, AdaptiveTargetLossPreferred, AdaptiveTargetLossMax);
+}
+
+void AWOTOLDemoDirector::UpdateAdaptiveBattleBalance()
+{
+	if (!bAdaptiveBalanceActive || bBattleConcluded || !GetWorld()) return;
+	const int32 PlayerAlive = CountAlive(CachedPlayerFaction);
+	const int32 EnemyAlive = CountAlive(CachedRivalFaction);
+	const int32 Losses = FMath::Clamp(AdaptiveInitialPlayerCount - PlayerAlive,
+		0, AdaptiveInitialPlayerCount);
+
+	if (Losses >= AdaptiveTargetLossMin) ReleaseAdaptiveEnemyAnchor();
+	if (Losses >= AdaptiveTargetLossMax) ProtectAdaptivePlayerSurvivors();
+
+	const float Elapsed = FMath::Max(0.f,
+		GetWorld()->GetTimeSeconds() - AdaptiveBalanceStartTime);
+	const float Pacing = AdaptiveBalancePhase == EDemoPhase::Battle_Creature
+		? KrakenCasualtyPacingSeconds
+		: (AdaptiveBalancePhase == EDemoPhase::Battle_Grand
+			? GrandBattleCasualtyPacingSeconds : DefenseCasualtyPacingSeconds);
+	const float ExpectedLosses = AdaptiveTargetLossPreferred
+		* FMath::Clamp(Elapsed / FMath::Max(1.f, Pacing), 0.f, 1.f);
+	const float Error = (ExpectedLosses - Losses)
+		/ FMath::Max(1.f, static_cast<float>(AdaptiveTargetLossPreferred));
+
+	// Boucle fermée proportionnelle : retard de pertes -> l'ennemi frappe plus fort et tient
+	// mieux ; avance de pertes -> pression réduite et vulnérabilité accrue. Les bornes évitent
+	// tout saut brutal et conservent l'influence des ordres, formations, axes et améliorations.
+	AdaptivePlayerCommandIntensity = SamplePlayerCommandIntensity();
+	// Respiration organique de la rencontre + réaction mesurée à l'implication du joueur.
+	// Aucun jet ne choisit une victime : il change seulement le tempo collectif.
+	const float Rhythm = 1.f
+		+ FMath::Sin(Elapsed * 0.031f + TacticalPhaseOffset) * 0.06f
+		+ FMath::Sin(Elapsed * 0.079f + TacticalVariant * 1.7f) * 0.035f;
+	const float CommandResponse = FMath::Lerp(0.96f, 1.08f,
+		AdaptivePlayerCommandIntensity);
+	float Pressure = FMath::Clamp((1.f + Error * 1.8f) * Rhythm
+		* AdaptiveEncounterVariance * CommandResponse, 0.35f, AdaptiveMaxEnemyPressure);
+	float EnemyIncoming = FMath::Clamp(1.f - Error * 1.15f, 0.40f, 1.85f);
+
+	const AWOTOLDemoUnit* AdaptiveBoss = Cast<AWOTOLDemoUnit>(AdaptiveEnemyAnchor.Get());
+	const bool bEnemyNearDefeat = AdaptiveBalancePhase == EDemoPhase::Battle_Creature
+		? (AdaptiveBoss && AdaptiveBoss->GetEffectiveHealthPercent() <= 0.18f)
+		: (EnemyAlive <= FMath::Max(3, FMath::RoundToInt(AdaptiveInitialEnemyCount * 0.25f)));
+	if (Losses < AdaptiveTargetLossMin && bEnemyNearDefeat)
+	{
+		Pressure = FMath::Max(Pressure, FMath::Min(AdaptiveMaxEnemyPressure, 2.0f));
+		EnemyIncoming = FMath::Min(EnemyIncoming, 0.42f);
+	}
+	if (Losses >= AdaptiveTargetLossPreferred)
+	{
+		Pressure = FMath::Min(Pressure, 0.38f);
+		EnemyIncoming = FMath::Max(EnemyIncoming, 1.75f);
+	}
+	if (Losses >= AdaptiveTargetLossMax)
+	{
+		Pressure = 0.08f;
+		EnemyIncoming = 3.0f;
+	}
+
+	AdaptiveEnemyPressure = Pressure;
+	for (TObjectPtr<AWOTOLDemoUnit>& Unit : SpawnedUnits)
+	{
+		if (!Unit || Unit->GetFaction() != CachedRivalFaction) continue;
+		Unit->AdaptiveOutgoingDamageMult = Pressure;
+		Unit->AdaptiveIncomingDamageMult = EnemyIncoming;
+	}
+}
+
+float AWOTOLDemoDirector::SamplePlayerCommandIntensity() const
+{
+	if (!GetWorld()) return 0.f;
+	const float Now = GetWorld()->GetTimeSeconds();
+	int32 Alive = 0;
+	float Commanded = 0.f;
+	for (const TObjectPtr<AWOTOLDemoUnit>& Unit : SpawnedUnits)
+	{
+		if (!Unit || !Unit->IsAlive() || Unit->GetFaction() != CachedPlayerFaction) continue;
+		++Alive;
+		const float Age = Now - Unit->LastPlayerOrderTime;
+		if (Age < 18.f) Commanded += FMath::Clamp(1.f - Age / 18.f, 0.f, 1.f);
+		if (const UUnitAIStateComponent* State =
+			Unit->FindComponentByClass<UUnitAIStateComponent>())
+		{
+			if (State->bFollowingPlayerOrder) Commanded += 0.35f;
+		}
+	}
+	return Alive > 0 ? FMath::Clamp(Commanded / static_cast<float>(Alive), 0.f, 1.f) : 0.f;
+}
+
+void AWOTOLDemoDirector::ReleaseAdaptiveEnemyAnchor()
+{
+	if (AdaptiveEnemyAnchor) AdaptiveEnemyAnchor->MinimumHealthFloor = 0.f;
+}
+
+void AWOTOLDemoDirector::ProtectAdaptivePlayerSurvivors()
+{
+	if (bAdaptiveSurvivorsProtected) return;
+	bAdaptiveSurvivorsProtected = true;
+	for (TObjectPtr<AWOTOLDemoUnit>& Unit : SpawnedUnits)
+	{
+		if (Unit && Unit->IsAlive() && Unit->GetFaction() == CachedPlayerFaction)
+			Unit->MinimumHealthFloor = FMath::Max(Unit->MinimumHealthFloor, 1.f);
+	}
+}
+
+void AWOTOLDemoDirector::HandleAdaptivePlayerUnitDied(AUnitBase* Unit)
+{
+	if (!bAdaptiveBalanceActive || !Unit || Unit->GetFaction() != CachedPlayerFaction) return;
+	const int32 Losses = FMath::Clamp(
+		AdaptiveInitialPlayerCount - CountAlive(CachedPlayerFaction), 0, AdaptiveInitialPlayerCount);
+	if (Losses >= AdaptiveTargetLossMin) ReleaseAdaptiveEnemyAnchor();
+	if (Losses >= AdaptiveTargetLossMax) ProtectAdaptivePlayerSurvivors();
+	UpdateAdaptiveBattleBalance();
+}
+
+void AWOTOLDemoDirector::ResetAdaptiveBattleBalance()
+{
+	GetWorldTimerManager().ClearTimer(AdaptiveBalanceHandle);
+	for (TObjectPtr<AWOTOLDemoUnit>& Unit : SpawnedUnits)
+	{
+		if (!Unit) continue;
+		Unit->OnUnitDied.RemoveDynamic(this,
+			&AWOTOLDemoDirector::HandleAdaptivePlayerUnitDied);
+		Unit->AdaptiveOutgoingDamageMult = 1.f;
+		Unit->AdaptiveIncomingDamageMult = 1.f;
+		Unit->MinimumHealthFloor = 0.f;
+	}
+	AdaptiveEnemyAnchor = nullptr;
+	AdaptiveEnemyPressure = 1.f;
+	AdaptiveInitialPlayerCount = 0;
+	AdaptiveInitialEnemyCount = 0;
+	AdaptiveTargetLossMin = AdaptiveTargetLossPreferred = AdaptiveTargetLossMax = 0;
+	AdaptiveBalancePhase = EDemoPhase::None;
+	AdaptivePlayerCommandIntensity = 0.f;
+	bAdaptiveBalanceActive = false;
+	bAdaptiveSurvivorsProtected = false;
 }
 
 void AWOTOLDemoDirector::CheckBattleEnd()
@@ -1139,6 +1706,8 @@ void AWOTOLDemoDirector::CheckBattleEnd()
 
 	const int32 PlayerAlive = CountAlive(CachedPlayerFaction);
 	const int32 EnemyAlive  = CountAlive(CachedRivalFaction);
+	UDemoFlowSubsystem* Flow = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 
 	if (EnemyAlive <= 0 && PlayerAlive > 0)
 	{
@@ -1188,6 +1757,7 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 	// (Musique geree par l'ecran : SummaryMusic des le passage a l'ecran Summary.)
 	GetWorldTimerManager().ClearTimer(SiegeHandle);
 	GetWorldTimerManager().ClearTimer(TacticalHandle);
+	GetWorldTimerManager().ClearTimer(AdaptiveBalanceHandle);
 	UGameInstance* GI = GetGameInstance();
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 
@@ -1200,6 +1770,15 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 
 	if (Phase == EDemoPhase::Battle_Creature)
 	{
+		// Les récompenses sont attribuées au moment du rapport de victoire, pas plus tard dans
+		// la cité. Elles restent affichables sur le résumé et disponibles pour le Cristalliseur.
+		if (Demo)
+		{
+			Demo->GrantMissionRewards(CreatureRewardCrystals,
+				CreatureRewardAbyssalMaterials, CreatureRewardBiomass, CreatureRewardFood);
+			Demo->GrantProgressionXP(40, 30);
+			Demo->SummaryContinueLabel = TEXT("RETOURNER DANS LA ZONE");
+		}
 		// Résumé INTERMÉDIAIRE (pertes de la bataille du Kraken), puis bouton "Continuer".
 		GetWorldTimerManager().ClearTimer(BattleCheckHandle);
 		BuildBattleSummary(true, /*bFinal=*/false, TEXT("KRAKEN VAINCU"));
@@ -1210,17 +1789,26 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 	}
 	else if (Phase == EDemoPhase::Battle_Rival)
 	{
-		// Le bâtiment a tenu : on le remet à neuf (réparation post-bataille).
-		if (CaptureObject)
+		// Le bâtiment a tenu, mais ses dégâts PERSISTENT : la réparation se paie ensuite
+		// en cité selon le pourcentage manquant. L'ancien remplissage gratuit est supprimé.
+		if (Demo && CaptureObject)
 		{
-			CaptureObject->Repair(CaptureObject->MaxHealth);
+			Demo->SnapshotTerritoryBuilding(
+				CaptureObject->CurrentHealth, CaptureObject->MaxHealth);
 		}
-		// Résumé INTERMÉDIAIRE (bFinal=false -> bouton « Continuer ») : la démo enchaîne sur
-		// la PHASE 3 (grande bataille en zone neutre) au lieu de se terminer ici.
+		if (Demo)
+		{
+			Demo->ResolveZoneThreat();
+			Demo->SetDefenseMissionReady(false);
+			Demo->GrantMissionRewards(DefenseRewardCrystals,
+				DefenseRewardAbyssalMaterials, DefenseRewardBiomass, DefenseRewardFood);
+			Demo->GrantProgressionXP(60, 70);
+			Demo->SummaryContinueLabel = TEXT("SECURISER LA ZONE");
+		}
 		GetWorldTimerManager().ClearTimer(BattleCheckHandle);
 		BuildBattleSummary(true, /*bFinal=*/false, TEXT("VICTOIRE — LA FACTION RIVALE RECULE"));
 		if (Demo) Demo->SetScreen(EDemoScreen::Summary);
-		Say(TEXT("La rivale est repoussee. Des heures plus tard, elle revient en force sur un autre terrain..."));
+		Say(TEXT("La rivale est repoussee. Reparez le batiment et installez sa premiere defense autonome."));
 	}
 	else if (Phase == EDemoPhase::Battle_Grand)
 	{
@@ -1242,20 +1830,35 @@ void AWOTOLDemoDirector::OnPlayerDefeat()
 	// (Musique geree par l'ecran : SummaryMusic des le passage a l'ecran Summary.)
 	GetWorldTimerManager().ClearTimer(SiegeHandle);
 	GetWorldTimerManager().ClearTimer(TacticalHandle);
+	GetWorldTimerManager().ClearTimer(AdaptiveBalanceHandle);
 	if (URTSBattleManager* RTS = GetWorld()->GetSubsystem<URTSBattleManager>())
 	{
 		RTS->EndBattle(CachedRivalFaction, EBattleResult::Defeat);
 	}
 	GetWorldTimerManager().ClearTimer(BattleCheckHandle);
-	BuildBattleSummary(false, /*bFinal=*/true, TEXT("DEFAITE"));
 	if (UGameInstance* GI = GetGameInstance())
 	{
 		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
 		{
 			// MÉMORISE la phase perdue AVANT de basculer sur DemoEnd -> « Rejouer » la relance.
 			ReplayPhase = Demo->GetPhase();
+			const bool bDefenseDefeat = ReplayPhase == EDemoPhase::Battle_Rival;
+			if (bDefenseDefeat && CaptureObject && CaptureObject->CurrentHealth > 0.f)
+			{
+				Demo->SnapshotTerritoryBuilding(
+					CaptureObject->CurrentHealth, CaptureObject->MaxHealth);
+				Demo->bSummaryBuildingDestroyed = false;
+			}
+			else if (bDefenseDefeat)
+			{
+				Demo->MarkZoneLost();
+				Demo->bSummaryBuildingDestroyed = true;
+			}
+			Demo->bSummaryCanReturnToCity = bDefenseDefeat;
+			BuildBattleSummary(false, /*bFinal=*/true,
+				bDefenseDefeat ? TEXT("ECHEC — DEFENSE DE LA ZONE") : TEXT("DEFAITE"));
 			Demo->bDemoVictory = false;
-			Demo->SetPhase(EDemoPhase::DemoEnd);
+			if (!bDefenseDefeat) Demo->SetPhase(EDemoPhase::DemoEnd);
 			Demo->SetScreen(EDemoScreen::Summary);
 		}
 	}
@@ -1305,7 +1908,334 @@ void AWOTOLDemoDirector::BuildBattleSummary(bool bVictory, bool bFinal, const FS
 	Demo->SummaryTitle    = Title;
 	Demo->bSummaryVictory = bVictory;
 	Demo->bSummaryIsFinal = bFinal;
+	if (bVictory)
+	{
+		Demo->bSummaryCanReturnToCity = false;
+		Demo->bSummaryBuildingDestroyed = false;
+	}
 	Demo->SummaryDurationSeconds = FMath::Max(0.f, GetWorld()->GetTimeSeconds() - BattleStartTime);
+	if (bAdaptiveBalanceActive && AdaptiveTargetLossMax > 0)
+	{
+		const int32 ActualLosses = FMath::Clamp(
+			AdaptiveInitialPlayerCount - CountAlive(CachedPlayerFaction),
+			0, AdaptiveInitialPlayerCount);
+		UE_LOG(LogTemp, Log,
+			TEXT("[WOTOL Balance] Resultat pertes=%d, plage=%d..%d, cible=%d, effectif=%d"),
+			ActualLosses, AdaptiveTargetLossMin, AdaptiveTargetLossMax,
+			AdaptiveTargetLossPreferred, AdaptiveInitialPlayerCount);
+	}
+}
+
+void AWOTOLDemoDirector::ContinueFromBattleSummary()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+	if (Demo->GetPhase() == EDemoPhase::Battle_Rival)
+	{
+		BeginPostDefenseTransition();
+		return;
+	}
+	ShowInterlude();
+}
+
+void AWOTOLDemoDirector::BeginPostDefenseTransition()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+	Demo->SetMessage(TEXT("Stabilisation de la zone — preparation des reparations..."));
+	Demo->SetScreen(EDemoScreen::Loading);
+	GetWorldTimerManager().ClearTimer(ExplorationTransitionHandle);
+	GetWorldTimerManager().SetTimer(ExplorationTransitionHandle, this,
+		&AWOTOLDemoDirector::EnterPostDefenseManagement, 1.35f, false);
+}
+
+void AWOTOLDemoDirector::EnterPostDefenseManagement()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+	if (CaptureObject)
+	{
+		Demo->SnapshotTerritoryBuilding(
+			CaptureObject->CurrentHealth, CaptureObject->MaxHealth);
+	}
+	CleanupUnits();
+	PossessBattleCamera();
+	Demo->SetPhase(EDemoPhase::Repair_Zone);
+	if (Demo->GetProgress().bZoneLost)
+	{
+		if (CaptureObject) { CaptureObject->Destroy(); CaptureObject = nullptr; }
+		Demo->SetScreen(EDemoScreen::City);
+	}
+	else
+	{
+		Demo->SetScreen(EDemoScreen::Territory);
+		CreateDefensePlacementMarkers();
+		RefreshDefenseStructuresFromTerritory();
+	}
+	RefreshPostDefenseObjective();
+}
+
+void AWOTOLDemoDirector::RequestTerritoryRepair()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || !Demo->RepairTerritory()) return;
+	if (CaptureObject)
+	{
+		CaptureObject->Repair(CaptureObject->MaxHealth);
+		Demo->SnapshotTerritoryBuilding(
+			CaptureObject->CurrentHealth, CaptureObject->MaxHealth);
+	}
+	RefreshPostDefenseObjective();
+}
+
+void AWOTOLDemoDirector::RequestInstallDefense()
+{
+	ArmDefensePlacement();
+}
+
+void AWOTOLDemoDirector::RequestAssignGarrison()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || !Demo->AssignGarrisonUnit()) return;
+	SyncFortificationToTerritoryManager();
+	RefreshPostDefenseObjective();
+}
+
+void AWOTOLDemoDirector::RequestAssignGarrisonByCategory(EDemoUnitCategory Category)
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+	const FName UnitID = Demo->GetUnitID(CachedPlayerFaction, Category);
+	if (!Demo->AssignGarrisonUnitByID(UnitID)) return;
+	SyncFortificationToTerritoryManager();
+	RefreshPostDefenseObjective();
+}
+
+void AWOTOLDemoDirector::RequestRemoveGarrisonByCategory(EDemoUnitCategory Category)
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+	const FName UnitID = Demo->GetUnitID(CachedPlayerFaction, Category);
+	if (!Demo->RemoveGarrisonUnitByID(UnitID)) return;
+	SyncFortificationToTerritoryManager();
+	RefreshPostDefenseObjective();
+}
+
+void AWOTOLDemoDirector::ArmDefensePlacement()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || !Demo->CanInstallNextDefense()) return;
+	bDefensePlacementArmed = true;
+	Demo->SetObjective(TEXT("Selectionnez l'un des cinq emplacements lumineux autour du batiment"));
+}
+
+bool AWOTOLDemoDirector::TryPlaceDefenseAt(const FVector& ClickedWorldLocation)
+{
+	if (!bDefensePlacementArmed || DefenseSlotLocations.Num() != 5) return false;
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return false;
+	int32 BestSlot = INDEX_NONE;
+	float BestDistance = 430.f;
+	for (int32 Slot = 0; Slot < DefenseSlotLocations.Num(); ++Slot)
+	{
+		if (Demo->InstalledDefenseSlots.Contains(Slot)) continue;
+		const float Distance = FVector::Dist2D(ClickedWorldLocation, DefenseSlotLocations[Slot]);
+		if (Distance < BestDistance)
+		{
+			BestDistance = Distance;
+			BestSlot = Slot;
+		}
+	}
+	if (BestSlot == INDEX_NONE || !Demo->InstallDefenseAtSlot(BestSlot)) return false;
+	bDefensePlacementArmed = false;
+	SyncFortificationToTerritoryManager();
+	RefreshDefenseStructuresFromTerritory();
+	CreateDefensePlacementMarkers();
+	RefreshPostDefenseObjective();
+	return true;
+}
+
+void AWOTOLDemoDirector::ReturnToCityAfterTerritorySecured()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || Demo->GetRepairCrystalCost() > 0 || Demo->InstalledDefenseCount <= 0) return;
+	ClearDefensePlacementMarkers();
+	Demo->SetMessage(TEXT("Retour a la cite — le juvenile ressent l'appel de la biomasse..."));
+	Demo->SetScreen(EDemoScreen::Loading);
+	GetWorldTimerManager().SetTimer(ExplorationTransitionHandle, this,
+		&AWOTOLDemoDirector::CompleteReturnToCityAfterTerritorySecured, 1.35f, false);
+}
+
+void AWOTOLDemoDirector::CompleteReturnToCityAfterTerritorySecured()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+	PossessBattleCamera();
+	Demo->RefreshBiomassGoal();
+	Demo->SetScreen(EDemoScreen::City);
+	Demo->SetObjective(FString::Printf(TEXT(
+		"Nourrissez le %s — biomasse disponible %d / %d"),
+		*MythicDisplayName(CachedPlayerFaction), Demo->PlayerBiomass,
+		Demo->MythicGrowthBiomassGoal));
+}
+
+void AWOTOLDemoDirector::FeedMythicAndContinue()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || !Demo->FeedMythicForGrowth()) return;
+	Demo->SetMessage(FString::Printf(TEXT("Le %s grandit..."),
+		*MythicDisplayName(CachedPlayerFaction)));
+	Demo->SetScreen(EDemoScreen::Loading);
+	GetWorldTimerManager().SetTimer(ExplorationTransitionHandle, this,
+		&AWOTOLDemoDirector::EnterMythicGrowthInterlude, 1.8f, false);
+}
+
+void AWOTOLDemoDirector::EnterMythicGrowthInterlude()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+	Demo->UnlockAll();
+	Demo->SetInterludeText(FString::Printf(TEXT(
+		"Votre victoire a consolide le royaume.\n"
+		"Le heros atteint le niveau %d et la cite le niveau %d.\n\n"
+		"Nourri par la biomasse recoltee, le %s juvenile a grandi.\n"
+		"Il devient une unite mythique jouable pour la prochaine bataille.\n"
+		"Son cadeau ouvrira une nouvelle voie de progression dans le jeu complet.\n\n"
+		"Une grande zone voisine est maintenant contestee.\n"
+		"Les armees se rassemblent pour un affrontement d'une ampleur inedite."),
+		Demo->HeroLevel, Demo->CityLevel, *MythicDisplayName(CachedPlayerFaction)));
+	Demo->SetScreen(EDemoScreen::Interlude);
+}
+
+void AWOTOLDemoDirector::RefreshPostDefenseObjective()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+	if (Demo->GetProgress().bZoneLost)
+	{
+		Demo->SetObjective(TEXT("ZONE PERDUE — elle devra etre reconquise depuis un territoire adjacent"));
+		return;
+	}
+	if (Demo->GetProgress().bZoneThreatened)
+	{
+		const int32 Remaining = FMath::CeilToInt(Demo->ZoneDefenseWindowRemainingSeconds);
+		Demo->SetObjective(FString::Printf(TEXT(
+			"ZONE MENACEE — repartez defendre dans %02d:%02d"), Remaining / 60, Remaining % 60));
+		return;
+	}
+	if (Demo->GetRepairCrystalCost() > 0)
+	{
+		Demo->SetObjective(TEXT("Reparez le batiment territorial endommage"));
+		return;
+	}
+	if (Demo->InstalledDefenseCount <= 0)
+	{
+		Demo->SetObjective(TEXT("Installez la premiere defense autonome de la zone"));
+		return;
+	}
+	Demo->SetPhase(EDemoPhase::Territory_Management);
+	Demo->SetObjective(TEXT(
+		"Zone securisee — garnison facultative, puis retournez a la cite"));
+}
+
+void AWOTOLDemoDirector::ReturnToCityAfterDefenseDefeat()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || ReplayPhase != EDemoPhase::Battle_Rival) return;
+	if (!Demo->bSummaryBuildingDestroyed && CaptureObject && CaptureObject->CurrentHealth > 0.f)
+	{
+		Demo->SnapshotTerritoryBuilding(
+			CaptureObject->CurrentHealth, CaptureObject->MaxHealth);
+		Demo->StartZoneThreat();
+		if (UWorld* W = GetWorld())
+		{
+			if (UTerritoryStateManager* Territory = W->GetSubsystem<UTerritoryStateManager>())
+			{
+				Territory->SetZoneThreat(TEXT("NeutralZone_01"), CachedRivalFaction,
+					Demo->ZoneDefenseReactionWindowSeconds);
+			}
+		}
+		GetWorldTimerManager().SetTimer(TerritoryThreatHandle, this,
+			&AWOTOLDemoDirector::TickTerritoryThreat, 1.f, true);
+	}
+	else
+	{
+		Demo->MarkZoneLost();
+	}
+	Demo->SetMessage(TEXT("Retour vers la cite — la situation strategique est mise a jour..."));
+	Demo->SetScreen(EDemoScreen::Loading);
+	GetWorldTimerManager().SetTimer(ExplorationTransitionHandle, this,
+		&AWOTOLDemoDirector::CompleteReturnToCityAfterDefeat, 1.35f, false);
+}
+
+void AWOTOLDemoDirector::CompleteReturnToCityAfterDefeat()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+	CleanupUnits();
+	PossessBattleCamera();
+	Demo->SetPhase(EDemoPhase::Repair_Zone);
+	if (Demo->GetProgress().bZoneLost)
+	{
+		if (CaptureObject) { CaptureObject->Destroy(); CaptureObject = nullptr; }
+		Demo->SetDefenseMissionReady(false);
+		Demo->SetObjective(TEXT("ZONE PERDUE — elle devra etre reconquise depuis un territoire adjacent"));
+	}
+	else
+	{
+		Demo->SetDefenseMissionReady(true);
+		const int32 Remaining = FMath::CeilToInt(Demo->ZoneDefenseWindowRemainingSeconds);
+		Demo->SetObjective(FString::Printf(TEXT(
+			"ZONE MENACEE — repartez defendre dans %02d:%02d"), Remaining / 60, Remaining % 60));
+	}
+	Demo->SetScreen(EDemoScreen::City);
+}
+
+void AWOTOLDemoDirector::TickTerritoryThreat()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+	const bool bExpired = Demo->TickZoneThreat(1.f);
+	if (UWorld* W = GetWorld())
+	{
+		if (UTerritoryStateManager* Territory = W->GetSubsystem<UTerritoryStateManager>())
+		{
+			Territory->TickZoneThreat(TEXT("NeutralZone_01"), 1.f);
+		}
+	}
+	if (bExpired)
+	{
+		GetWorldTimerManager().ClearTimer(TerritoryThreatHandle);
+		if (CaptureObject) { CaptureObject->Destroy(); CaptureObject = nullptr; }
+		ClearDefenseStructures();
+		Demo->SetObjective(TEXT(
+			"ZONE PERDUE — le batiment a cede et le territoire redevient neutre"));
+	}
+	else if (Demo->GetProgress().bZoneThreatened
+		&& Demo->GetScreen() == EDemoScreen::City)
+	{
+		const int32 Remaining = FMath::CeilToInt(Demo->ZoneDefenseWindowRemainingSeconds);
+		Demo->SetObjective(FString::Printf(TEXT(
+			"ZONE MENACEE — repartez defendre dans %02d:%02d"), Remaining / 60, Remaining % 60));
+	}
+	if (Demo->GetScreen() == EDemoScreen::Territory) RefreshPostDefenseObjective();
 }
 
 // Écran de TRANSITION narrative (hors-champ) — appelé depuis le bouton du résumé phase 1.
@@ -1316,6 +2246,14 @@ void AWOTOLDemoDirector::ShowInterlude()
 	UGameInstance* GI = GetGameInstance();
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	if (!Demo) return;
+
+	// Flux actuel : après le rapport du Kraken, le joueur reprend réellement le contrôle du
+	// héros dans la zone libérée. L'ancien écran hors-champ reste le repli de diagnostic.
+	if (bEnableFullFlowV08 && Demo->GetPhase() == EDemoPhase::Battle_Creature)
+	{
+		ResumePostBattleExploration();
+		return;
+	}
 
 	const FString Building = BuildingDisplayName(CachedPlayerFaction);
 	const FString Ranged   = RangedUnitDisplayName(CachedPlayerFaction);
@@ -1367,7 +2305,9 @@ void AWOTOLDemoDirector::ContinueToPhase2()
 
 	// Le MÊME bouton « Continuer » enchaîne : après la phase 2 (Battle_Rival déjà jouée) il
 	// mène à la PHASE 3 (grande bataille neutre) au lieu de re-lancer la phase 2.
-	if (Demo && Demo->GetPhase() == EDemoPhase::Battle_Rival)
+	if (Demo && (Demo->GetPhase() == EDemoPhase::Battle_Rival
+		|| (Demo->GetProgress().bMythicPlayable
+			&& Demo->GetPhase() == EDemoPhase::Territory_Management)))
 	{
 		StartGrandBattle();
 		return;
@@ -1393,10 +2333,17 @@ void AWOTOLDemoDirector::ContinueToPhase2()
 // Bouton « Partir en expédition » de la cité (module 5) -> lance la défense (phase 10).
 void AWOTOLDemoDirector::LaunchDefenseFromCity()
 {
-	if (UGameInstance* GI = GetGameInstance())
-		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
-			Demo->SetScreen(EDemoScreen::Playing);
-	SpawnCaptureObject(CachedPlayerFaction); // Cristalliseur à défendre
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || !Demo->IsDefenseMissionReady()) return;
+
+	PossessBattleCamera();
+	DestroyExplorationHero();
+	Demo->SetScreen(EDemoScreen::Playing);
+	ClearCrystalliserPlacementMarkers();
+	// Le bâtiment posé par le joueur persiste. Repli de sécurité uniquement pour une ancienne
+	// sauvegarde/procédure de test qui entrerait dans la défense sans objet existant.
+	if (!IsValid(CaptureObject)) SpawnCaptureObject(CachedPlayerFaction);
 	StartRivalDefense();                     // -> défense en PRÉPARATION
 }
 
@@ -1415,10 +2362,9 @@ void AWOTOLDemoDirector::StartGrandBattle()
 	if (Demo) Demo->SetCaptureObject(nullptr);
 	ClearZoneCrystals();
 
-	// Arène un peu plus large que la phase 2 MAIS qui tient DANS l'enceinte de montagnes
-	// (mur de collision ~4700) : au-delà, les unités du fond spawnaient DANS les montagnes et
-	// restaient bloquées (mythique enterré/invisible). 5000 + placement rapproché = OK.
-	ArmySeparation = 5000.f;
+	// Grande plaine : le décor de phase 3 repousse récifs, reliefs et collision à l'extérieur.
+	ArmySeparation = 9000.f;
+	PlacementBoundaryOffsetX = -2600.f;
 	// Nettoie l'objectif/message résiduel de la phase 2 (sinon il reste affiché sous celui-ci).
 	if (Demo) { Demo->SetMessage(TEXT("")); }
 	if (UWorld* W = GetWorld())
@@ -1452,7 +2398,8 @@ void AWOTOLDemoDirector::RestartDemo(bool bKeepFaction)
 	bBattleConcluded = false;
 	// Roster + arène de phase 1 (les valeurs phase 2/3 sont réappliquées à leur lancement)
 	InfantryCount = 10; MountedCount = 5; RangedCount = 5;
-	ArmySeparation = 4500.f; // réinitialise l'arène (la phase 3 l'agrandit à 7000)
+	ArmySeparation = 4500.f;
+	PlacementBoundaryOffsetX = -1200.f;
 	// Remet le TERRAIN de base (si on rejoue après la phase 3, qui l'avait passé en abyssal).
 	if (UWorld* W = GetWorld())
 		for (TActorIterator<AWOTOLGreyboxEnvironment> It(W); It; ++It) { It->RebuildForPhase(1); break; }
@@ -1519,6 +2466,7 @@ void AWOTOLDemoDirector::ReplayCurrentPhase()
 		// PHASE 2 : distance + mythique déjà découverts, NOUVEL objet de capture, terrain
 		// standard, arène phase 2. BeginPreparation réapplique les effectifs de la phase 2.
 		ArmySeparation = 4500.f;
+		PlacementBoundaryOffsetX = -1200.f;
 		if (UWorld* W = GetWorld())
 			for (TActorIterator<AWOTOLGreyboxEnvironment> It(W); It; ++It) { It->RebuildForPhase(1); break; }
 		if (Demo) { Demo->UnlockRangedUnit(); Demo->DiscoverMythic(); Demo->SetPhase(EDemoPhase::Battle_Rival); }
@@ -1536,6 +2484,7 @@ void AWOTOLDemoDirector::ReplayCurrentPhase()
 	default: // Battle_Creature (ou inconnu) -> PHASE 1
 		InfantryCount = 10; MountedCount = 5; RangedCount = 5;
 		ArmySeparation = 4500.f;
+		PlacementBoundaryOffsetX = -1200.f;
 		if (UWorld* W = GetWorld())
 			for (TActorIterator<AWOTOLGreyboxEnvironment> It(W); It; ++It) { It->RebuildForPhase(1); break; }
 		if (Demo) Demo->SetPhase(EDemoPhase::Battle_Creature);
@@ -1555,12 +2504,14 @@ void AWOTOLDemoDirector::ReturnToMainMenu()
 
 void AWOTOLDemoDirector::CleanupUnits()
 {
+	ResetAdaptiveBattleBalance();
 	for (TObjectPtr<AWOTOLDemoUnit>& U : SpawnedUnits)
 	{
 		if (U) U->Destroy();
 	}
 	SpawnedUnits.Empty();
 	ClearDefenseStructures();
+	ClearDefensePlacementMarkers();
 }
 
 void AWOTOLDemoDirector::ClearDefenseStructures()
@@ -1572,11 +2523,151 @@ void AWOTOLDemoDirector::ClearDefenseStructures()
 	DefenseStructures.Empty();
 }
 
+void AWOTOLDemoDirector::RegisterDemoTerritoryGraph()
+{
+	UWorld* W = GetWorld();
+	if (!W) return;
+	UTerritoryStateManager* Territory = W->GetSubsystem<UTerritoryStateManager>();
+	if (!Territory) return;
+
+	FZoneState Capital;
+	Capital.Owner = CachedPlayerFaction;
+	Capital.CapturingFaction = CachedPlayerFaction;
+	Capital.Grade = 4;
+	Capital.CaptureProgress = 100.f;
+	Capital.ConquestObjective = EZoneConquestObjective::None;
+	Capital.bConquestObjectiveCompleted = true;
+	Territory->RegisterZone(TEXT("FactionCapital_00"), Capital);
+
+	FZoneState KrakenZone;
+	KrakenZone.ConquestObjective = EZoneConquestObjective::GuardianCreature;
+	Territory->RegisterZone(TEXT("NeutralZone_01"), KrakenZone);
+
+	FZoneState FrontierZone;
+	FrontierZone.ConquestObjective = EZoneConquestObjective::RivalArmy;
+	Territory->RegisterZone(TEXT("ContestedFrontier_02"), FrontierZone);
+
+	Territory->ConnectZones(TEXT("FactionCapital_00"), TEXT("NeutralZone_01"));
+	Territory->ConnectZones(TEXT("NeutralZone_01"), TEXT("ContestedFrontier_02"));
+}
+
+void AWOTOLDemoDirector::SyncFortificationToTerritoryManager()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+	if (UWorld* W = GetWorld())
+	{
+		if (UTerritoryStateManager* Territory = W->GetSubsystem<UTerritoryStateManager>())
+		{
+			Territory->SetZoneFortification(TEXT("NeutralZone_01"),
+				Demo->InstalledDefenseCount, Demo->DefenseTechnologyLevel,
+				Demo->GarrisonUnits, Demo->GetGarrisonCapacity());
+		}
+	}
+}
+
+void AWOTOLDemoDirector::CreateDefensePlacementMarkers()
+{
+	ClearDefensePlacementMarkers();
+	if (!CaptureObject) return;
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+
+	DefenseSlotLocations.Reset();
+	const FVector Center = CaptureObject->GetActorLocation();
+	const float Ring = 820.f;
+	for (int32 Slot = 0; Slot < 5; ++Slot)
+	{
+		const float Angle = -PI * 0.5f + static_cast<float>(Slot) / 5.f * 2.f * PI;
+		DefenseSlotLocations.Add(Center + FVector(
+			FMath::Cos(Angle) * Ring, FMath::Sin(Angle) * Ring, -190.f));
+	}
+
+	UWorld* W = GetWorld();
+	if (!W) return;
+	const FLinearColor Color = CachedPlayerFaction == EFactionID::Noxeens
+		? FLinearColor(0.20f, 1.5f, 0.45f, 1.f)
+		: FLinearColor(0.25f, 0.85f, 2.6f, 1.f);
+	for (int32 Slot = 0; Slot < DefenseSlotLocations.Num(); ++Slot)
+	{
+		if (Demo->InstalledDefenseSlots.Contains(Slot)) continue;
+		AStaticMeshActor* Marker = W->SpawnActor<AStaticMeshActor>(
+			DefenseSlotLocations[Slot], FRotator::ZeroRotator);
+		if (!Marker) continue;
+		UStaticMeshComponent* Mesh = Marker->GetStaticMeshComponent();
+		if (Mesh)
+		{
+			Mesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,
+				TEXT("/Engine/BasicShapes/Cylinder.Cylinder")));
+			Mesh->SetWorldScale3D(FVector(2.0f, 2.0f, 0.08f));
+			Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeGlow(this, Color))
+				Mesh->SetMaterial(0, MID);
+		}
+		DefensePlacementMarkers.Add(Marker);
+	}
+}
+
+void AWOTOLDemoDirector::ClearDefensePlacementMarkers()
+{
+	for (TObjectPtr<AActor>& Marker : DefensePlacementMarkers)
+	{
+		if (Marker) Marker->Destroy();
+	}
+	DefensePlacementMarkers.Empty();
+	bDefensePlacementArmed = false;
+}
+
+void AWOTOLDemoDirector::RefreshDefenseStructuresFromTerritory()
+{
+	ClearDefenseStructures();
+	if (!CaptureObject) return;
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	UWorld* W = GetWorld();
+	if (!Demo || !W) return;
+
+	if (DefenseSlotLocations.Num() != 5)
+	{
+		const FVector Center = CaptureObject->GetActorLocation();
+		const float Ring = 820.f;
+		DefenseSlotLocations.Reset();
+		for (int32 Slot = 0; Slot < 5; ++Slot)
+		{
+			const float Angle = -PI * 0.5f + static_cast<float>(Slot) / 5.f * 2.f * PI;
+			DefenseSlotLocations.Add(Center + FVector(
+				FMath::Cos(Angle) * Ring, FMath::Sin(Angle) * Ring, -190.f));
+		}
+	}
+
+	for (const int32 Slot : Demo->InstalledDefenseSlots)
+	{
+		if (!DefenseSlotLocations.IsValidIndex(Slot)) continue;
+		const FTransform TM(FRotator::ZeroRotator, DefenseSlotLocations[Slot]);
+		AWOTOLDefenseStructure* Defense = W->SpawnActorDeferred<AWOTOLDefenseStructure>(
+			AWOTOLDefenseStructure::StaticClass(), TM, this, nullptr,
+			ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		if (!Defense) continue;
+		Defense->OwnerFaction = CachedPlayerFaction;
+		Defense->StructureLevel = Demo->DefenseTechnologyLevel;
+		UGameplayStatics::FinishSpawningActor(Defense, TM);
+		DefenseStructures.Add(Defense);
+	}
+}
+
 void AWOTOLDemoDirector::SpawnCaptureObject(EFactionID Faction)
 {
+	SpawnCaptureObjectAt(Faction, GetActorLocation() + FVector(0.f, 0.f, 200.f));
+}
+
+void AWOTOLDemoDirector::SpawnCaptureObjectAt(EFactionID Faction, const FVector& ActorLocation)
+{
+	if (IsValid(CaptureObject)) return;
 	if (!CaptureObjectClass) return;
 
-	const FTransform TM(FRotator::ZeroRotator, GetActorLocation() + FVector(0.f, 0.f, 200.f));
+	const FTransform TM(FRotator::ZeroRotator, ActorLocation);
 	AWOTOLCaptureObject* Obj = GetWorld()->SpawnActorDeferred<AWOTOLCaptureObject>(
 		CaptureObjectClass, TM, this, nullptr,
 		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
@@ -1597,29 +2688,10 @@ void AWOTOLDemoDirector::SpawnCaptureObject(EFactionID Faction)
 	}
 	Obj->OnCaptureDestroyed.AddDynamic(this, &AWOTOLDemoDirector::HandleCaptureDestroyed);
 
-	// ── STRUCTURES DE DÉFENSE autour du bâtiment (Docs/SYSTEME_CITE_ET_DEFENSE.md) ──
-	// Le Cristalliseur seul ne suffit pas : on pose des tourelles (Aquiloris) / sentinelles
-	// (Noxéens) en couronne, qui tirent sur les assaillants. Débloquées via recherche = à venir ;
-	// ici, dotation de base pour rendre la défense crédible (pattern tower-defense).
-	if (UWorld* W = GetWorld())
-	{
-		const FVector C = Obj->GetActorLocation();
-		const int32 NumDef = 4;
-		const float Ring = 750.f;
-		for (int32 i = 0; i < NumDef; ++i)
-		{
-			const float A = (float)i / NumDef * 2.f * PI;
-			const FVector Loc = C + FVector(FMath::Cos(A) * Ring, FMath::Sin(A) * Ring, -200.f);
-			FActorSpawnParameters SP;
-			SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-			if (AWOTOLDefenseStructure* Def = W->SpawnActor<AWOTOLDefenseStructure>(
-					AWOTOLDefenseStructure::StaticClass(), Loc, FRotator::ZeroRotator, SP))
-			{
-				Def->OwnerFaction = Faction;
-				DefenseStructures.Add(Def);
-			}
-		}
-	}
+	// Aucune défense gratuite pendant le premier assaut. Après la victoire, le joueur choisit
+	// l'un des cinq emplacements et paie sa première tourelle/sentinelle. Une sauvegarde ou
+	// un retour ultérieur recrée uniquement les emplacements réellement installés.
+	RefreshDefenseStructuresFromTerritory();
 }
 
 // SIÈGE : périodiquement, chaque unité rivale proche du bâtiment lui inflige des dégâts
@@ -1636,10 +2708,167 @@ void AWOTOLDemoDirector::BeginPostCreatureSequence()
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	if (!Demo) return;
 	Demo->SetPhase(EDemoPhase::Capture_Zone);
-	Demo->OpenObjectiveWindow(TEXT("seq_victory"),
-		TEXT("OBJECTIF REMPLI"),
-		TEXT("Vous avez vaincu la creature.\nLa zone peut desormais etre purifiee."),
-		TEXT("Continuer"));
+	const FString Building = BuildingDisplayName(CachedPlayerFaction);
+	Demo->OpenObjectiveWindow(TEXT("seq_place_crystalliser"),
+		TEXT("NOUVEL OBJECTIF — PURIFIER LA ZONE"),
+		FString::Printf(TEXT(
+			"Le Kraken est vaincu. Vous possedez maintenant les ressources necessaires.\n"
+			"Placez le %s pour acquerir et terraformer ce territoire.\n"
+			"Cout provisoire : %d cristaux + %d materiaux abyssaux."),
+			*Building, CrystalliserCrystalCost, CrystalliserAbyssalMaterialCost),
+		FString::Printf(TEXT("PLACER LE %s"), *Building.ToUpper()));
+}
+
+void AWOTOLDemoDirector::BeginCrystalliserPlacement()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+
+	bCrystalliserPlacementAvailable = true;
+	bCrystalliserPlacementArmed = false;
+	CrystalliserPlacementLocation = GetActorLocation() + FVector(0.f, 0.f, 18.f);
+	CreateCrystalliserPlacementMarkers();
+	Demo->SetObjective(FString::Printf(TEXT("Ouvrez l'inventaire puis placez le %s sur l'emplacement lumineux"),
+		*BuildingDisplayName(CachedPlayerFaction)));
+
+	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+	{
+		PC->bShowMouseCursor = true;
+		FInputModeGameAndUI Mode;
+		Mode.SetHideCursorDuringCapture(false);
+		PC->SetInputMode(Mode);
+	}
+}
+
+void AWOTOLDemoDirector::ArmCrystalliserPlacement()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || !bCrystalliserPlacementAvailable || Demo->GetProgress().bZoneCaptured) return;
+	if (!Demo->CanAffordTerritoryBuilding(
+		CrystalliserCrystalCost, CrystalliserAbyssalMaterialCost))
+	{
+		Demo->OpenObjectiveWindow(TEXT("seq_place_crystalliser"),
+			TEXT("RESSOURCES INSUFFISANTES"),
+			TEXT("Le batiment territorial ne peut pas etre construit. Consultez le rapport de mission."),
+			TEXT("REESSAYER"), true);
+		return;
+	}
+	bCrystalliserPlacementArmed = true;
+	Demo->SetObjective(TEXT("Cliquez sur l'emplacement circulaire lumineux pour confirmer la construction"));
+}
+
+bool AWOTOLDemoDirector::TryPlaceCrystalliserAt(const FVector& ClickedWorldLocation)
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || !bCrystalliserPlacementAvailable || !bCrystalliserPlacementArmed) return false;
+	if (FVector::Dist2D(ClickedWorldLocation, CrystalliserPlacementLocation)
+		> CrystalliserPlacementRadius)
+	{
+		Demo->SetObjective(TEXT("Emplacement invalide — cliquez dans le cercle lumineux"));
+		return false;
+	}
+	if (!Demo->SpendTerritoryBuildingCost(
+		CrystalliserCrystalCost, CrystalliserAbyssalMaterialCost))
+	{
+		Demo->OpenObjectiveWindow(TEXT("seq_place_crystalliser"),
+			TEXT("RESSOURCES INSUFFISANTES"),
+			TEXT("La construction a ete annulee : le cout complet n'est plus disponible."),
+			TEXT("REESSAYER"), true);
+		return false;
+	}
+
+	CompleteCrystalliserPlacement();
+	return true;
+}
+
+void AWOTOLDemoDirector::CompleteCrystalliserPlacement()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+
+	bCrystalliserPlacementAvailable = false;
+	bCrystalliserPlacementArmed = false;
+	ClearCrystalliserPlacementMarkers();
+	SpawnCaptureObjectAt(CachedPlayerFaction,
+		FVector(CrystalliserPlacementLocation.X, CrystalliserPlacementLocation.Y,
+			GetActorLocation().Z + 200.f));
+	if (!CaptureObject) return;
+
+	// ClaimZone est exécuté par SpawnCaptureObjectAt. Le territoire, les bonus et le nouvel
+	// objectif n'existent donc qu'après le clic de placement et le paiement complet.
+	SpawnReward(EWOTOLRewardType::HeartShard,
+		CrystalliserPlacementLocation + FVector(350.f, 0.f, 102.f));
+	Demo->OpenObjectiveWindow(TEXT("seq_collect_heart"),
+		TEXT("ZONE ACQUISE — COEUR-ECLAT"),
+		FString::Printf(TEXT("Le %s terraforme maintenant ce territoire et renforce vos troupes locales.\n"
+			"Un Coeur-Eclat a surgi a proximite : recuperez-le."),
+			*BuildingDisplayName(CachedPlayerFaction)),
+		TEXT("RECUPERER"));
+}
+
+void AWOTOLDemoDirector::CreateCrystalliserPlacementMarkers()
+{
+	ClearCrystalliserPlacementMarkers();
+	UWorld* W = GetWorld();
+	if (!W) return;
+	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+	if (!Cube) return;
+
+	const FLinearColor Col = FFactionColors::Get(CachedPlayerFaction) * 3.2f;
+	constexpr int32 Segments = 16;
+	for (int32 i = 0; i < Segments; ++i)
+	{
+		const float A = 2.f * PI * static_cast<float>(i) / static_cast<float>(Segments);
+		const FVector Loc = CrystalliserPlacementLocation + FVector(
+			FMath::Cos(A) * CrystalliserPlacementRadius,
+			FMath::Sin(A) * CrystalliserPlacementRadius, 0.f);
+		FActorSpawnParameters P;
+		P.Owner = this;
+		P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		AStaticMeshActor* Marker = W->SpawnActor<AStaticMeshActor>(
+			AStaticMeshActor::StaticClass(), Loc,
+			FRotator(0.f, FMath::RadiansToDegrees(A) + 90.f, 0.f), P);
+		if (!Marker) continue;
+		UStaticMeshComponent* Mesh = Marker->GetStaticMeshComponent();
+		Mesh->SetMobility(EComponentMobility::Movable);
+		Mesh->SetStaticMesh(Cube);
+		Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Mesh->SetWorldScale3D(FVector(0.85f, 0.12f, 0.07f));
+		if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeGlow(Marker, Col))
+			Mesh->SetMaterial(0, MID);
+		CrystalliserPlacementMarkers.Add(Marker);
+	}
+}
+
+void AWOTOLDemoDirector::ClearCrystalliserPlacementMarkers()
+{
+	for (TObjectPtr<AActor>& Marker : CrystalliserPlacementMarkers)
+	{
+		if (Marker) Marker->Destroy();
+	}
+	CrystalliserPlacementMarkers.Empty();
+}
+
+void AWOTOLDemoDirector::NotifyRangedProductionObjectiveComplete()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || !Demo->IsRangedProductionObjectiveComplete() || Demo->WasRivalAlertShown()) return;
+
+	Demo->MarkRivalAlertShown();
+	Demo->SetPhase(EDemoPhase::Exploration_Rival);
+	const FString RivalName = CachedRivalFaction == EFactionID::Noxeens
+		? TEXT("NOXEENNE") : TEXT("AQUILORIS");
+	Demo->OpenObjectiveWindow(TEXT("city_nox_alert"),
+		FString::Printf(TEXT("ALERTE — CONTRE-ATTAQUE %s"), *RivalName),
+		FString::Printf(TEXT("Des forces rivales convergent vers le territoire que vous venez d'acquerir.\n"
+			"Leur objectif est votre %s. Preparez vos troupes puis partez defendre la zone."),
+			*BuildingDisplayName(CachedPlayerFaction)),
+		TEXT("PREPARER LA DEFENSE"));
 }
 
 AWOTOLRewardActor* AWOTOLDemoDirector::SpawnReward(EWOTOLRewardType Type, const FVector& Loc)
@@ -1679,25 +2908,21 @@ void AWOTOLDemoDirector::HandleObjectiveConfirmed(FName StepId)
 
 	const FVector Center = GetActorLocation();
 
-	if (StepId == TEXT("seq_victory"))
+	if (StepId == TEXT("intro_begin_exploration"))
 	{
-		// Étape 7 : demander la pose du Cristalliseur.
-		Demo->OpenObjectiveWindow(TEXT("seq_place_crystalliser"),
-			TEXT("PURIFICATION DE LA ZONE"),
-			TEXT("Placez le Cristalliseur pour stabiliser le territoire."),
-			TEXT("Placer le Cristalliseur"));
+		// Le clic ferme l'introduction ; la souris est reprise par la caméra 3e personne.
+		if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+		{
+			PC->bShowMouseCursor = false;
+			PC->SetInputMode(FInputModeGameOnly());
+		}
+		Demo->SetObjective(TEXT("Explorez la zone — approchez-vous du Kraken (5 a 10 m)"));
 	}
 	else if (StepId == TEXT("seq_place_crystalliser"))
 	{
-		// Pose du Cristalliseur (joueur) + apparition du Cœur-Éclat à proximité.
-		SpawnCaptureObject(CachedPlayerFaction);
-		if (CaptureObject) CaptureObject->ClaimZone();
-		Demo->MarkZoneCaptured();
-		SpawnReward(EWOTOLRewardType::HeartShard, Center + FVector(350.f, 0.f, 120.f));
-		Demo->OpenObjectiveWindow(TEXT("seq_collect_heart"),
-			TEXT("COEUR-ECLAT"),
-			TEXT("Un Coeur-Eclat a surgi pres du Cristalliseur.\nApprochez-vous pour le recuperer."),
-			TEXT("Recuperer"));
+		// Le bouton de la fenêtre n'achète plus automatiquement le bâtiment : il ouvre le vrai
+		// mode de placement (inventaire -> cible 3D -> clic -> paiement).
+		BeginCrystalliserPlacement();
 	}
 	else if (StepId == TEXT("seq_collect_heart"))
 	{
@@ -1713,9 +2938,9 @@ void AWOTOLDemoDirector::HandleObjectiveConfirmed(FName StepId)
 	else if (StepId == TEXT("seq_collect_egg"))
 	{
 		if (ActiveReward) { ActiveReward->Collect(); ActiveReward = nullptr; }
-		// Récompense : mythique débloqué + cristaux pour la cité, retour à la cité.
+		// Récompense : mythique débloqué, puis retour à la cité. Les ressources ont déjà été
+		// créditées et affichées sur le rapport de bataille du Kraken.
 		Demo->UnlockRangedUnit();
-		Demo->AddCrystals(600);
 		Demo->SetPhase(EDemoPhase::City_Unlock);
 		Demo->OpenObjectiveWindow(TEXT("seq_return_city"),
 			TEXT("RETOUR A LA CITE"),
@@ -1724,6 +2949,22 @@ void AWOTOLDemoDirector::HandleObjectiveConfirmed(FName StepId)
 	}
 	else if (StepId == TEXT("seq_return_city"))
 	{
+		PossessBattleCamera();
+		DestroyExplorationHero();
+		if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+		{
+			PC->bShowMouseCursor = true;
+			FInputModeGameAndUI Mode;
+			Mode.SetHideCursorDuringCapture(false);
+			PC->SetInputMode(Mode);
+		}
+		Demo->SetObjective(TEXT("Construisez le batiment a distance puis produisez 10 unites"));
+		Demo->SetScreen(EDemoScreen::City);
+	}
+	else if (StepId == TEXT("city_nox_alert"))
+	{
+		Demo->SetDefenseMissionReady(true);
+		Demo->SetObjective(TEXT("Defendez le Cristalliseur contre la contre-attaque noxeenne"));
 		Demo->SetScreen(EDemoScreen::City);
 	}
 	// (Les autres étapes du flux 13 phases seront ajoutées au module 10.)
@@ -1919,11 +3160,12 @@ void AWOTOLDemoDirector::TacticalTick()
 						// Kraken et le prendre à flanc/dos à découvert. Elles varient aussi la
 						// VERTICALITÉ (angle d'attaque haut/bas) au lieu de rester au sol.
 						const int32 c = monCol++;
-						const float SideSign = (c % 2 == 0) ? 1.f : -1.f;
-						const bool  bRear    = (c % 3 == 0); // un tiers tente le contournement arrière
+						const float SideSign = ((c + TacticalVariant) % 2 == 0) ? 1.f : -1.f;
+						const bool  bRear    = ((c + TacticalVariant) % 3 == 0); // axe différent à chaque tentative
 						const float Speed = Data ? Data->Stats.MovementSpeed : 1.f;
 						const float Cycle = FMath::Max(5.f, 11.f - Speed * 3.f);
-						const bool  bCharge = FMath::Fmod(Now + idx * 1.3f, Cycle) < 4.f;
+						const bool  bCharge = FMath::Fmod(Now + TacticalPhaseOffset
+							+ idx * 1.3f, Cycle) < 4.f;
 						const FVector FlankPos = bRear
 							? (BossLoc + ToBoss * 520.f)                        // derrière le Kraken
 							: (BossLoc - ToBoss * 500.f + Side * SideSign * 560.f); // large sur un flanc
@@ -2004,7 +3246,7 @@ void AWOTOLDemoDirector::TacticalTick()
 						const float Cycle = FMath::Max(6.f, 12.f - Speed * 3.f);
 						// HIVE-MIND : toutes les Aquilances chargent EN MÊME TEMPS (vague unique,
 						// pas de décalage par unité) -> percée coordonnée puis repli groupé.
-						const bool  bCharge = FMath::Fmod(Now, Cycle) < 4.f;
+						const bool  bCharge = FMath::Fmod(Now + TacticalPhaseOffset, Cycle) < 4.f;
 						Dest  = bCharge ? EnemyRangedC : (ObjLoc + Fwd * 520.f);
 						Layer = 0.f;
 						break;
@@ -2044,7 +3286,7 @@ void AWOTOLDemoDirector::TacticalTick()
 				// ~55% ASSIÈGENT l'objectif, ~45% CHASSENT les défenseurs (sinon elle se
 				// rue en masse sur le bâtiment et le détruit sans jamais combattre l'armée,
 				// ne laissant aucune chance à la défense). EnemyC = centre de l'armée adverse.
-				const bool bSiegeDuty = ((idx % 20) < 9); // ~45% siège / ~55% chasse l'armée
+				const bool bSiegeDuty = (((idx + TacticalVariant * 5) % 20) < 9);
 				if (!bSiegeDuty)
 				{
 					// CHASSE l'armée ennemie : engage les défenseurs pour les réduire.
@@ -2139,8 +3381,12 @@ void AWOTOLDemoDirector::TacticalTick()
 				{
 					// En RETRAIT derrière le mur + en HAUTEUR : canarde sans s'exposer.
 					const int32 c = disCol++;
-					Dest  = Front - Fwd * 950.f + Lateral * ((float)(c - 1) * 300.f);
-					Layer = bCanLayer ? 1600.f : 0.f;
+					const float Personality = DU ? DU->TacticalPersonality : 0.5f;
+					const float BackDistance = FMath::Lerp(760.f, 1160.f, 1.f - Personality)
+						+ TacticalVariant * 35.f;
+					Dest  = Front - Fwd * BackDistance + Lateral * ((float)(c - 1) * 300.f);
+					Layer = bCanLayer
+						? FMath::Lerp(1200.f, 1900.f, Personality) : 0.f;
 					break;
 				}
 				case EUnitRole::Montee:
@@ -2151,9 +3397,13 @@ void AWOTOLDemoDirector::TacticalTick()
 					const float Cycle = FMath::Max(6.f, 12.f - Speed * 3.f); // rapide -> cycle court
 					// HIVE-MIND : percée COORDONNÉE (toutes chargent ensemble), puis repli en
 					// ligne à leur position -> on lit une vague de lances, pas des charges éparses.
-					const bool  bCharge = FMath::Fmod(Now, Cycle) < 3.5f;
+					const bool  bCharge = FMath::Fmod(Now + TacticalPhaseOffset, Cycle) < 3.5f;
 					const int32 c = monCol++;
-					Dest  = bCharge ? EnemyC : (Front - Fwd * 250.f + Lateral * ((float)(c - 1) * 320.f));
+					const float FlankSign = ((c + TacticalVariant) % 2 == 0) ? 1.f : -1.f;
+					const FVector ChargeTarget = (TacticalVariant == 0)
+						? EnemyC : EnemyC + Lateral * FlankSign * (320.f + TacticalVariant * 110.f);
+					Dest  = bCharge ? ChargeTarget
+						: (Front - Fwd * 250.f + Lateral * ((float)(c - 1) * 320.f));
 					Layer = 0.f; // monture : sol / 1re couche uniquement
 					break;
 				}
@@ -2215,7 +3465,12 @@ void AWOTOLDemoDirector::HandleCaptureDestroyed()
 	{
 		if (UWorld* W = GetWorld())
 			if (UTerritoryStateManager* Terr = W->GetSubsystem<UTerritoryStateManager>())
-				Terr->UnregisterZone(CaptureObject->ZoneID);
+				Terr->NeutralizeZone(CaptureObject->ZoneID);
+		if (UDemoFlowSubsystem* Demo = GetGameInstance()
+			? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr)
+		{
+			Demo->MarkZoneLost();
+		}
 	}
 
 	OnPlayerDefeat();

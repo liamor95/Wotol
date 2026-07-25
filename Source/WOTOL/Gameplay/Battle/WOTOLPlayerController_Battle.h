@@ -90,7 +90,7 @@ private:
 
 	// Flux d'écrans
 	class AWOTOLDemoDirector* GetDemoDirector() const;
-	void PickFactionAndPrepare(EFactionID Faction);
+	void SelectFaction(EFactionID Faction);
 
 	// Verticalité : monte/descend la couche des unités sélectionnées
 	void ChangeLayerForSelection(float DeltaZ);
@@ -98,6 +98,8 @@ private:
 	// Raycast helpers
 	AUnitBase* GetUnitUnderCursor() const;
 	bool       GetGroundLocationUnderCursor(FVector& OutLocation) const;
+	bool       GetWorldLocationOnHorizontalPlane(const FVector2D& ScreenPosition,
+		float PlaneZ, FVector& OutLocation) const;
 
 	// Box select state
 	bool       bIsBoxSelecting   = false;

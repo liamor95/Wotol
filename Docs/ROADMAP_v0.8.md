@@ -45,21 +45,60 @@ défense, et écrans de transition/chargement.
 - HUD `DrawLoading` (fond animé + logo + barre/anneau + astuce). Écran `Loading` intercalé
   entre phases lourdes (cité↔bataille, monde↔bataille).
 
-### 7. Monde ouvert / nage libre 3D ✅ 🧪 (commit `89a8e32`)
-- Pion nageur ZQSD + montée/descente, caméra 3e personne, zone neutre ~70 m².
-- Transition automatique à ~5–10 m de la créature → bataille (fenêtre d'objectif).
+### 7. Monde ouvert / nage libre 3D ✅ 🧪
+- Pion nageur ZQSD/WASD + montée/descente, caméra 3e personne, silhouette greybox visible.
+- **Connecté à la démo jouée dans la même carte procédurale** : possession caméra RTS ↔ héros,
+  sans `OpenLevel` et sans perdre les ressources/progression du `GameInstance`.
+- Après le bouton explicite « Lancer la partie » : chargement/lore → exploration → approche à
+  5–10 m du Kraken → chargement → placement de l'armée → bataille tutorielle.
+- Après le rapport du Kraken : retour réel en nage libre avant la séquence Cristalliseur.
 
-### 8. Séquence Cristalliseur → Cœur-Éclat → œuf ✅ 🧪 (acteurs + fenetres d objectif)
-- Après victoire créature : fenêtre « Placez le Cristalliseur » → pose → Cœur-Éclat apparaît →
-  fenêtre « Récupérez le Cœur-Éclat » → œuf de Léviaphénix (récompense).
+### 8. Séquence Cristalliseur → Cœur-Éclat → œuf ✅ 🧪
+- Après victoire créature : fenêtre d'objectif → carte du Cristalliseur dans l'inventaire →
+  sélection → cible circulaire lumineuse dans le monde 3D → clic valide → dépense atomique →
+  construction et acquisition du territoire → Cœur-Éclat → œuf de Léviaphénix.
+- Le bâtiment posé est conservé jusqu'à la défense ; aucun deuxième Cristalliseur n'est généré.
 
 ### 9. Défense du Cristalliseur (phases 10-12) ✅ 🧪
 - Bâtiment avec PV/bonus/réparation (`WOTOLCaptureObject` existe déjà — à étendre).
 - Destruction = **échec immédiat** (fenêtre rouge) → zone neutre. Pas de bâtiment ennemi posé.
 
-### 10. Câblage du flux 13 phases dans le Director 🔨 (interrupteur bEnableFullFlowV08)
-- Remplacer l'enchaînement 3-batailles par la machine 13 phases pilotée par les fenêtres
-  d'objectif (`OnObjectiveConfirmed` → `Director` agit → phase suivante).
+### 10. Câblage du flux 13 phases dans le Director ✅ 🧪
+- `bEnableFullFlowV08` est désormais **activé par défaut** ; l'ancienne boucle reste seulement
+  comme repli de diagnostic.
+- Fenêtres plein écran corrigées : une modale d'objectif peut maintenant s'afficher sur
+  Exploration, Interlude, Cité et Chargement sans être masquée par un `return` du HUD.
+- Rapport Kraken : récompenses séparées (cristaux, matériaux abyssaux, biomasse, nourriture),
+  puis coût atomique du Cristalliseur. Montants provisoires et éditables dans le Director.
+- Cité : bâtiment Akisfères/Nox Blast à construire sur l'une des 3 parcelles libres, coûts
+  cristal + matériau abyssal retirés seulement au clic de placement.
+- Objectif obligatoire : produire 10 unités à distance. Progression visible, plafond d'armée
+  à 35 et réservation automatique des places/cristaux nécessaires pour éviter tout soft-lock.
+- La 10e production déclenche une alerte noxéenne modale. Après validation, le bouton de cité
+  devient « Défendre le Cristalliseur » et mène à la préparation de la bataille rivale.
+- Économie greybox provisoire : récompense Kraken 2200 cristaux / 100 matériaux, bâtiment
+  distance 300 / 25, unité distance 140. Ces valeurs restent éditables, pas validées comme balance.
+
+### 10b. Équilibrage adaptatif des pertes — phases 1 et 2 ✅ 🧪
+- Le Director mesure toutes les 0,75 s : faction, difficulté, effectifs réels, pertes joueur,
+  effectif/état de santé ennemi et temps écoulé.
+- Il applique un correcteur séparé aux dégâts infligés/reçus par l'ennemi. Les statistiques,
+  bonus de faction, axes, bâtiments et avantages de territoire restent intacts et continuent
+  d'influencer le résultat ; la boucle fermée compense leur effet observé pendant la partie.
+- Un unique ennemi « ancre » (Kraken ou chef rival) conserve 6 % de PV tant que le minimum de
+  pertes n'est pas atteint. Au maximum de la plage, les survivants sont protégés à 1 PV et
+  l'ennemi devient très vulnérable : une partie terminée reste dans la plage demandée.
+- Cibles de référence :
+
+| Phase | Facile | Normal | Difficile |
+|---|---:|---:|---:|
+| Kraken — 16 unités | 2–3 pertes | 5 pertes | 10 pertes, 6 survivants |
+| Défense — 35 unités | 7–8 pertes | 14–16 pertes (cible 15) | 15–20 pertes (cible 18) |
+
+- Si l'effectif réel change, chaque borne est recalculée par
+  `arrondi(effectif réel × pertes de référence / effectif de référence)`.
+- Correction du compteur cité : la phase 2 possède 25 unités de base (1 + 16 + 8), puis les
+  10 unités à distance produites remplissent exactement le plafond `35/35`.
 
 ### 11. Intégrations UI d'assets ⏳
 - Logo (menu), emblèmes (sélection faction), icônes de rôles (marqueurs HUD), écran carte.
@@ -101,8 +140,11 @@ Warcraft III) avec les patterns concrets à copier. Synthèse : *« campagne Tot
 en volume Homeworld »*.
 
 ## Reste à faire (nécessite un PC pour compiler/valider)
-- **Activer le flux 13 phases** : mettre `bEnableFullFlowV08 = true` sur le Director (une fois compilé),
-  puis tester l'enchaînement créature → Cristalliseur → Cœur-Éclat → œuf → cité → défense.
+- Compiler UE 5.8 et tester l'enchaînement réellement branché : menu → lancement manuel → nage →
+  proximité Kraken → placement/bataille → rapport/récompenses → retour nage → placement spatial
+  Cristalliseur → récompenses → cité → bâtiment distance → 10 unités → alerte → défense.
+- Faire au minimum 3 simulations par faction et difficulté sur les phases 1/2 ; vérifier les
+  plages de pertes ci-dessus, la durée, et l'absence de blocage à 6 %/1 PV.
 - **HUD** : jauge verticale SURFACE/MID/SOL (Homeworld), panneau héros + capacités, restyle fenêtre d'objectif.
 - **Module 11** : intégrer logo/emblèmes/icônes de rôles (assets de référence).
 - **Module 12** : build autonome (packaging Windows) — côté éditeur.

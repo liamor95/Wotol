@@ -78,6 +78,21 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Combat")
 	float BalanceDamageMult = 1.f;
 
+	// Correcteur ADAPTATIF de rencontre, recalculé en temps réel par le DemoDirector selon
+	// l'effectif réellement déployé, les pertes et le rythme du combat. Séparé du multiplicateur
+	// de base pour ne jamais écraser les statistiques, la faction, les bâtiments ou la difficulté.
+	UPROPERTY(BlueprintReadWrite, Category = "Combat")
+	float AdaptiveOutgoingDamageMult = 1.f;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Combat")
+	float AdaptiveIncomingDamageMult = 1.f;
+
+	// Plancher de PV temporaire utilisé uniquement comme garde-fou de rencontre. À 0, aucun
+	// changement. Le Kraken/l'unité d'ancrage ne peut pas mourir avant la plage de pertes
+	// demandée ; les derniers survivants ne peuvent pas dépasser le maximum prévu.
+	UPROPERTY(BlueprintReadWrite, Category = "Combat")
+	float MinimumHealthFloor = 0.f;
+
 	// Multiplicateur de dégâts issu d'une SYNERGIE de faction dynamique (1 = aucune).
 	// STACKE avec OutgoingDamageMult sans l'écraser (ex. Aquiloryons protégés par un
 	// bouclier + soutenus par une lance Aquilance derrière -> frappent plus fort).

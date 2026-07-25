@@ -68,6 +68,13 @@ FBox2D AWOTOLDemoHUD::DifficultyButtonRect(int32 Index, float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
+FBox2D AWOTOLDemoHUD::FactionLaunchButtonRect(float W, float H)
+{
+	const float BW = 420.f, BH = 62.f;
+	const float X = (W - BW) * 0.5f, Y = H * 0.85f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
 FBox2D AWOTOLDemoHUD::LaunchBattleButtonRect(float W, float H)
 {
 	// Petit bouton JUSTE SOUS le timer (haut centre) -> le centre de l'écran reste libre
@@ -132,14 +139,21 @@ void AWOTOLDemoHUD::DrawHUD()
 		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	const EDemoScreen Screen = DemoFlow ? DemoFlow->GetScreen() : EDemoScreen::Playing;
 
-	// ─── Écrans avant-jeu (menu / faction) : on dessine UNIQUEMENT l'écran ───
-	if (Screen == EDemoScreen::MainMenu)   { DrawMainMenu(W, H);      return; }
-	if (Screen == EDemoScreen::FactionSelect) { DrawFactionSelect(W, H); return; }
-	if (Screen == EDemoScreen::Summary)    { DrawSummary(W, H, DemoFlow); return; }
-	if (Screen == EDemoScreen::Interlude)  { DrawInterlude(W, H, DemoFlow); return; }
-	if (Screen == EDemoScreen::City)       { DrawCityView(W, H, DemoFlow); return; }
-	if (Screen == EDemoScreen::Skills)     { DrawSkillsView(W, H, DemoFlow); return; }
-	if (Screen == EDemoScreen::Loading)    { DrawLoadingScreen(W, H, DemoFlow); return; }
+	// Les écrans plein écran doivent quand même laisser une fenêtre d'objectif se dessiner
+	// AU-DESSUS. L'ancien return prématuré rendait le flux v0.8 invisible/bloqué sur Interlude.
+	auto DrawModalIfNeeded = [&]()
+	{
+		if (DemoFlow && DemoFlow->IsObjectiveWindowOpen()) DrawObjectiveWindow(W, H, DemoFlow);
+	};
+	if (Screen == EDemoScreen::MainMenu)      { DrawMainMenu(W, H); DrawModalIfNeeded(); return; }
+	if (Screen == EDemoScreen::FactionSelect) { DrawFactionSelect(W, H); DrawModalIfNeeded(); return; }
+	if (Screen == EDemoScreen::Summary)       { DrawSummary(W, H, DemoFlow); DrawModalIfNeeded(); return; }
+	if (Screen == EDemoScreen::Interlude)     { DrawInterlude(W, H, DemoFlow); DrawModalIfNeeded(); return; }
+	if (Screen == EDemoScreen::City)          { DrawCityView(W, H, DemoFlow); DrawModalIfNeeded(); return; }
+	if (Screen == EDemoScreen::Territory)     { DrawTerritoryView(W, H, DemoFlow); DrawModalIfNeeded(); return; }
+	if (Screen == EDemoScreen::Skills)        { DrawSkillsView(W, H, DemoFlow); DrawModalIfNeeded(); return; }
+	if (Screen == EDemoScreen::Loading)       { DrawLoadingScreen(W, H, DemoFlow); DrawModalIfNeeded(); return; }
+	if (Screen == EDemoScreen::Exploration)   { DrawExplorationHUD(W, H, DemoFlow); DrawModalIfNeeded(); return; }
 
 	// ─── 1) Boîte de sélection (rectangle de drag) ───────────────────────────
 	if (AWOTOLPlayerController_Battle* PC =
@@ -289,6 +303,12 @@ FBox2D AWOTOLDemoHUD::ObjectiveContinueButtonRect(float W, float H)
 	const float X = W * 0.5f - BW * 0.5f;
 	const float Y = H * 0.5f + 70.f;
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
+FBox2D AWOTOLDemoHUD::ExplorationCrystalliserButtonRect(float W, float H)
+{
+	const float BW = 330.f, BH = 76.f;
+	return FBox2D(FVector2D(28.f, H - BH - 92.f), FVector2D(28.f + BW, H - 92.f));
 }
 
 void AWOTOLDemoHUD::DrawObjectiveWindow(float W, float H, class UDemoFlowSubsystem* Demo)
@@ -618,11 +638,28 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 		Canvas->K2_DrawPolygon(nullptr, CN, FVector2D(40.f, 40.f), 16, FLinearColor(0.3f, 0.95f, 0.5f, 0.95f));
 	}
 
-	DrawButton(FactionButtonRect(0, W, H), TEXT("AQUILORIS"), FLinearColor(0.3f, 0.6f, 1.f, 1.f), 1.7f);
-	DrawButton(FactionButtonRect(1, W, H), TEXT("NOXEENS"), FLinearColor(0.3f, 0.95f, 0.5f, 1.f), 1.7f);
+	UDemoFlowSubsystem* Flow = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	const EFactionID Selected = Flow ? Flow->SelectedFaction : EFactionID::None;
+	DrawButton(FactionButtonRect(0, W, H),
+		Selected == EFactionID::Aquiloris ? TEXT("AQUILORIS  [CHOISIE]") : TEXT("AQUILORIS"),
+		FLinearColor(0.3f, 0.6f, 1.f, 1.f), 1.7f);
+	DrawButton(FactionButtonRect(1, W, H),
+		Selected == EFactionID::Noxeens ? TEXT("NOXEENS  [CHOISIE]") : TEXT("NOXEENS"),
+		FLinearColor(0.3f, 0.95f, 0.5f, 1.f), 1.7f);
 	// Description COURTE, juste sous les boutons de faction (bien au-dessus du bloc difficulté).
 	DrawCenteredText(TEXT("Aquiloris : cristal-tech, coordination          Noxeens : abysses bioluminescents"),
 		FactionButtonRect(0, W, H).Max.Y + H * 0.04f, FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 1.0f);
+	if (Selected == EFactionID::Aquiloris)
+	{
+		DrawCenteredText(TEXT("Aquiloris — gardiens d'Aquilor, technologie cristalline et discipline collective."),
+			H * 0.545f, FLinearColor(0.65f, 0.88f, 1.f, 1.f), 0.95f);
+	}
+	else if (Selected == EFactionID::Noxeens)
+	{
+		DrawCenteredText(TEXT("Noxeens — peuple des failles, puissance abyssale et bioluminescence verte."),
+			H * 0.545f, FLinearColor(0.55f, 1.f, 0.66f, 1.f), 0.95f);
+	}
 
 	// ── DIFFICULTÉ (3 niveaux) : le joueur la choisit AVANT de cliquer sur une faction.
 	// Le niveau sélectionné est mis en évidence (couleur vive) ; les autres sont grisés.
@@ -642,6 +679,43 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 		const FLinearColor Col = bSel ? FLinearColor(1.f, 0.85f, 0.3f, 1.f)   // sélectionné : or vif
 									  : FLinearColor(0.45f, 0.5f, 0.6f, 1.f); // autre : grisé
 		DrawButton(DifficultyButtonRect(i, W, H), DLabels[i], Col, bSel ? 1.3f : 1.05f);
+	}
+
+	const bool bReady = Selected != EFactionID::None;
+	DrawButton(FactionLaunchButtonRect(W, H),
+		bReady ? TEXT("LANCER LA PARTIE") : TEXT("CHOISISSEZ UNE FACTION"),
+		bReady ? FLinearColor(1.f, 0.72f, 0.22f, 1.f) : FLinearColor(0.38f, 0.42f, 0.48f, 1.f),
+		1.35f);
+}
+
+void AWOTOLDemoHUD::DrawExplorationHUD(float W, float H, UDemoFlowSubsystem* Demo)
+{
+	// On garde le monde 3D visible : seulement deux bandeaux translucides, jamais le HUD RTS.
+	DrawRect(FLinearColor(0.f, 0.02f, 0.06f, 0.72f), 0.f, 0.f, W, 94.f);
+	DrawRect(FLinearColor(0.f, 0.02f, 0.06f, 0.68f), 0.f, H - 72.f, W, 72.f);
+	DrawCenteredText(TEXT("EXPLORATION — NOUVELLE ZONE"), 20.f,
+		FLinearColor(0.55f, 0.88f, 1.f, 1.f), 1.45f);
+	if (Demo && !Demo->ObjectiveText.IsEmpty())
+	{
+		DrawCenteredText(Demo->ObjectiveText, 57.f, FLinearColor::White, 1.0f);
+	}
+	DrawCenteredText(TEXT("ZQSD/WASD : nager   |   Souris : regarder   |   Espace/E : monter   |   Maj/Ctrl : descendre"),
+		H - 48.f, FLinearColor(0.86f, 0.93f, 1.f, 0.95f), 0.95f);
+
+	// Après le rapport du Kraken, le Cristalliseur arrive dans un véritable inventaire de
+	// bâtiment. Le joueur doit sélectionner cette carte puis cliquer la cible 3D lumineuse.
+	if (Demo && Demo->GetPhase() == EDemoPhase::Capture_Zone
+		&& !Demo->GetProgress().bZoneCaptured)
+	{
+		const bool bNox = Demo->GetPlayerFaction() == EFactionID::Noxeens;
+		DrawButton(ExplorationCrystalliserButtonRect(W, H),
+			bNox ? TEXT("BATIMENT : ABYSSALYSEUR") : TEXT("BATIMENT : CRISTALLISEUR"),
+			bNox ? FLinearColor(0.30f, 0.95f, 0.50f, 1.f)
+				: FLinearColor(0.35f, 0.85f, 1.f, 1.f), 1.05f);
+		DrawText(FString::Printf(TEXT("Cristaux %d   |   Materiaux %d"),
+			Demo->GetCrystals(), Demo->PlayerAbyssalMaterials),
+			FLinearColor(1.f, 0.94f, 0.58f, 1.f), 38.f, H - 87.f,
+			GEngine ? GEngine->GetMediumFont() : nullptr, 0.9f);
 	}
 }
 
@@ -681,6 +755,53 @@ FBox2D AWOTOLDemoHUD::CityDepartButtonRect(float W, float H)
 {
 	const float BW = 340.f, BH = 60.f;
 	return FBox2D(FVector2D(W - BW - 40.f, 40.f), FVector2D(W - 40.f, 40.f + BH));
+}
+
+FBox2D AWOTOLDemoHUD::CityBuildPlotRect(int32 Index, float W, float H)
+{
+	const float BW = FMath::Clamp(W * 0.14f, 150.f, 230.f);
+	const float BH = FMath::Clamp(H * 0.11f, 82.f, 122.f);
+	const float Gap = W * 0.045f;
+	const float TotalW = BW * 3.f + Gap * 2.f;
+	const float X = (W - TotalW) * 0.5f + FMath::Clamp(Index, 0, 2) * (BW + Gap);
+	const float Y = H * 0.29f + (Index == 1 ? -28.f : 18.f);
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
+FBox2D AWOTOLDemoHUD::CityFeedMythicButtonRect(float W, float H)
+{
+	const float BW = 460.f, BH = 70.f;
+	return FBox2D(FVector2D((W - BW) * 0.5f, H * 0.49f),
+		FVector2D((W + BW) * 0.5f, H * 0.49f + BH));
+}
+
+FBox2D AWOTOLDemoHUD::TerritoryRepairButtonRect(float W, float H)
+{
+	return FBox2D(FVector2D(48.f, H * 0.27f), FVector2D(408.f, H * 0.27f + 66.f));
+}
+
+FBox2D AWOTOLDemoHUD::TerritoryDefenseButtonRect(float W, float H)
+{
+	return FBox2D(FVector2D(48.f, H * 0.40f), FVector2D(408.f, H * 0.40f + 66.f));
+}
+
+FBox2D AWOTOLDemoHUD::TerritoryGarrisonMinusRect(int32 Index, float W, float H)
+{
+	const float Y = H * 0.31f + FMath::Clamp(Index, 0, 2) * 72.f;
+	return FBox2D(FVector2D(W - 410.f, Y), FVector2D(W - 354.f, Y + 50.f));
+}
+
+FBox2D AWOTOLDemoHUD::TerritoryGarrisonPlusRect(int32 Index, float W, float H)
+{
+	const float Y = H * 0.31f + FMath::Clamp(Index, 0, 2) * 72.f;
+	return FBox2D(FVector2D(W - 112.f, Y), FVector2D(W - 56.f, Y + 50.f));
+}
+
+FBox2D AWOTOLDemoHUD::TerritoryReturnCityButtonRect(float W, float H)
+{
+	const float BW = 430.f, BH = 66.f;
+	return FBox2D(FVector2D((W - BW) * 0.5f, H - 104.f),
+		FVector2D((W + BW) * 0.5f, H - 104.f + BH));
 }
 
 // Nom du bâtiment producteur (Aquiloris) / générique Noxéen, par catégorie.
@@ -732,6 +853,18 @@ UTexture2D* AWOTOLDemoHUD::GetCityBackground(EFactionID Faction)
 	return CityBgTexture;
 }
 
+UTexture2D* AWOTOLDemoHUD::GetTransitionBackground()
+{
+	if (TransitionBgTexture || bTransitionBgTried) return TransitionBgTexture;
+	bTransitionBgTried = true;
+	const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/WOTOL_Transition_Background.png");
+	if (FPaths::FileExists(PngPath))
+	{
+		TransitionBgTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+	}
+	return TransitionBgTexture;
+}
+
 void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 {
 	if (!Demo) { DrawUnderwaterBackground(W, H); return; }
@@ -755,14 +888,83 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 	const FString CityName = bAq ? TEXT("CITE D'AQUILOR") : TEXT("FAILLE NOXEENNE");
 	DrawGlowTitle(CityName, H * 0.04f, 2.2f, Accent);
 
-	// Compteur de cristaux (haut-gauche).
+	// Ressources persistantes gagnées en mission (haut-gauche).
 	const FString Res = bAq ? TEXT("Cristaux") : TEXT("Biolumens");
-	DrawText(FString::Printf(TEXT("%s : %d"), *Res, Demo->GetCrystals()),
+	DrawText(FString::Printf(TEXT("%s %d   |   Materiaux abyssaux %d   |   Biomasse %d   |   Nourriture %d"),
+		*Res, Demo->GetCrystals(), Demo->PlayerAbyssalMaterials, Demo->PlayerBiomass, Demo->PlayerFood),
 		FLinearColor(1.f, 0.95f, 0.6f, 1.f), 44.f, 44.f, GEngine ? GEngine->GetLargeFont() : nullptr, 1.5f);
+	DrawText(FString::Printf(TEXT("ARMEE : %d / %d"), Demo->GetArmyUnitCount(), Demo->GetArmyUnitCap()),
+		Accent, 44.f, 84.f, GEngine ? GEngine->GetMediumFont() : nullptr, 1.15f);
 
-	// Instruction.
-	DrawCenteredText(TEXT("Produisez des unites, puis partez en expedition"),
-		H * 0.60f, FLinearColor(0.9f, 0.95f, 1.f, 0.95f), 1.1f);
+	// Progression persistante : visible à chaque passage en cité.
+	const float ProgW = 230.f;
+	DrawText(FString::Printf(TEXT("HEROS NIV. %d"), Demo->HeroLevel), FLinearColor::White,
+		W - ProgW - 44.f, 116.f, nullptr, 0.9f);
+	DrawBar(W - ProgW - 44.f, 138.f, ProgW, 10.f, Demo->GetHeroXPPercent(),
+		FLinearColor(0.35f, 0.85f, 1.f, 1.f), FLinearColor(0.f, 0.f, 0.f, 0.7f));
+	DrawText(FString::Printf(TEXT("CITE NIV. %d"), Demo->CityLevel), FLinearColor::White,
+		W - ProgW - 44.f, 158.f, nullptr, 0.9f);
+	DrawBar(W - ProgW - 44.f, 180.f, ProgW, 10.f, Demo->GetCityXPPercent(),
+		FLinearColor(1.f, 0.75f, 0.25f, 1.f), FLinearColor(0.f, 0.f, 0.f, 0.7f));
+
+	if (Demo->GetProgress().bDefenseSystemInstalled && !Demo->GetProgress().bMythicPlayable)
+	{
+		const FBox2D Feed = CityFeedMythicButtonRect(W, H);
+		DrawRect(FLinearColor(0.01f, 0.04f, 0.08f, 0.88f), Feed.Min.X - 70.f,
+			Feed.Min.Y - 100.f, (Feed.Max.X - Feed.Min.X) + 140.f, 190.f);
+		DrawCenteredText(FString::Printf(TEXT("FAIRE GRANDIR LE %s"),
+			*CityUnitLabel(Fac, EDemoUnitCategory::Mythique).ToUpper()),
+			Feed.Min.Y - 75.f, Accent, 1.35f);
+		DrawCenteredText(FString::Printf(TEXT("Biomasse : %d / %d"), Demo->PlayerBiomass,
+			Demo->MythicGrowthBiomassGoal), Feed.Min.Y - 38.f,
+			Demo->HasEnoughBiomassForMythic() ? FLinearColor(0.55f, 1.f, 0.6f, 1.f)
+				: FLinearColor(1.f, 0.55f, 0.45f, 1.f), 1.05f);
+		DrawButton(Feed, Demo->HasEnoughBiomassForMythic()
+			? TEXT("NOURRIR ET LIBERER") : TEXT("BIOMASSE INSUFFISANTE"),
+			Demo->HasEnoughBiomassForMythic() ? Accent
+				: FLinearColor(0.38f, 0.40f, 0.45f, 1.f), 1.2f);
+	}
+
+	// Construction spatiale sur la vue isométrique : trois parcelles valides. Une fois posé,
+	// le bâtiment reste représenté à son emplacement et sa carte devient son panneau d'action.
+	if (Demo->IsCityBuildingPlacementArmed())
+	{
+		DrawCenteredText(TEXT("CHOISISSEZ UN EMPLACEMENT LIBRE POUR LE BATIMENT A DISTANCE"),
+			H * 0.20f, FLinearColor(1.f, 0.88f, 0.35f, 1.f), 1.2f);
+		for (int32 Plot = 0; Plot < 3; ++Plot)
+		{
+			DrawButton(CityBuildPlotRect(Plot, W, H),
+				FString::Printf(TEXT("EMPLACEMENT %d"), Plot + 1), Accent, 0.95f);
+		}
+	}
+	else if (Demo->IsRangedBuildingConstructed() && Demo->RangedBuildingPlotIndex != INDEX_NONE)
+	{
+		const FBox2D Plot = CityBuildPlotRect(Demo->RangedBuildingPlotIndex, W, H);
+		DrawRect(FLinearColor(0.02f, 0.10f, 0.16f, 0.86f), Plot.Min.X, Plot.Min.Y,
+			Plot.Max.X - Plot.Min.X, Plot.Max.Y - Plot.Min.Y);
+		DrawLine(Plot.Min.X, Plot.Min.Y, Plot.Max.X, Plot.Min.Y, Accent, 4.f);
+		DrawText(bAq ? TEXT("CENTRE AKISFERES") : TEXT("FOSSE NOX BLAST"), FLinearColor::White,
+			Plot.Min.X + 12.f, Plot.Min.Y + 22.f, GEngine ? GEngine->GetMediumFont() : nullptr, 1.0f);
+		DrawText(TEXT("BATIMENT ACTIF — NIV. 1"), Accent,
+			Plot.Min.X + 12.f, Plot.Min.Y + 56.f, nullptr, 0.9f);
+	}
+
+	const bool bStrategicAlert = Demo->GetProgress().bZoneThreatened
+		|| Demo->GetProgress().bZoneLost;
+	const FString Objective = bStrategicAlert
+		? Demo->ObjectiveText
+		: (Demo->GetProgress().bDefenseSystemInstalled && !Demo->GetProgress().bMythicPlayable
+			? FString::Printf(TEXT("OBJECTIF : NOURRIR LE %s"),
+				*CityUnitLabel(Fac, EDemoUnitCategory::Mythique).ToUpper())
+			: (Demo->IsRangedProductionObjectiveComplete()
+				? FString(TEXT("Objectif rempli — preparez vos ameliorations puis defendez la zone"))
+				: FString::Printf(TEXT("OBJECTIF : PRODUIRE 10 UNITES A DISTANCE   %d / %d"),
+					Demo->GetRangedProductionProgress(), Demo->RangedProductionTarget)));
+	DrawCenteredText(Objective, H * 0.60f,
+		(bStrategicAlert && Demo->GetProgress().bZoneLost)
+			? FLinearColor(1.f, 0.36f, 0.26f, 1.f)
+			: Demo->IsRangedProductionObjectiveComplete() ? FLinearColor(0.45f, 1.f, 0.55f, 1.f)
+			: FLinearColor(0.9f, 0.95f, 1.f, 0.95f), 1.1f);
 
 	// Cartes de production (bâtiments).
 	for (int32 i = 0; i < CityCardCount(); ++i)
@@ -771,7 +973,12 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		const FBox2D R = CityCardRect(i, W, H);
 		const int32 Cost = Demo->GetProductionCost(Cat);
 		const bool bUnlocked = Demo->IsCategoryUnlocked(Cat);
-		const bool bAfford = Demo->CanProduce(Cat);
+		const bool bNeedsBuilding = Cat == EDemoUnitCategory::Distance
+			&& !Demo->IsRangedBuildingConstructed();
+		const bool bCanBuild = bNeedsBuilding
+			&& Demo->CanAffordTerritoryBuilding(Demo->RangedBuildingCrystalCost,
+				Demo->RangedBuildingAbyssalMaterialCost);
+		const bool bAfford = bNeedsBuilding ? bCanBuild : Demo->CanProduce(Cat);
 		const FName UnitID = Demo->GetUnitID(Fac, Cat);
 		const int32 InReserve = Demo->GetReserveCount(UnitID);
 
@@ -792,14 +999,21 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		const int32 UpCost = Demo->GetBuildingUpgradeCost(Cat);
 		const bool  bCanUp = Demo->CanUpgradeBuilding(Cat);
 		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.35f), R.Min.X, R.Min.Y, R.Max.X - R.Min.X, 34.f);
-		DrawText(FString::Printf(TEXT("Niv.%d"), BLevel), Accent, CX, R.Min.Y + 8.f, nullptr, 1.0f);
-		if (UpCost > 0)
+		const FString LevelLabel = bNeedsBuilding
+			? FString(TEXT("A CONSTRUIRE")) : FString::Printf(TEXT("Niv.%d"), BLevel);
+		DrawText(LevelLabel, Accent, CX, R.Min.Y + 8.f, nullptr, bNeedsBuilding ? 0.9f : 1.0f);
+		if (bNeedsBuilding)
+		{
+			DrawText(TEXT("Selectionnez puis placez"), FLinearColor(1.f, 0.9f, 0.5f, 1.f),
+				CX + 92.f, R.Min.Y + 8.f, nullptr, 0.78f);
+		}
+		else if (UpCost > 0)
 		{
 			DrawText(FString::Printf(TEXT("Ameliorer (%d)"), UpCost),
 				bCanUp ? FLinearColor(1.f, 0.9f, 0.5f, 1.f) : FLinearColor(0.6f, 0.6f, 0.65f, 1.f),
 				CX + 78.f, R.Min.Y + 8.f, nullptr, 0.95f);
 		}
-		else
+		else if (!bNeedsBuilding)
 		{
 			DrawText(TEXT("Niveau max"), FLinearColor(0.6f, 0.7f, 0.6f, 1.f), CX + 78.f, R.Min.Y + 8.f, nullptr, 0.95f);
 		}
@@ -810,21 +1024,116 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		{
 			DrawText(TEXT("Verrouille"), FLinearColor(0.7f, 0.7f, 0.75f, 1.f), CX, R.Min.Y + 96.f, nullptr, 1.f);
 		}
+		else if (bNeedsBuilding)
+		{
+			DrawText(FString::Printf(TEXT("Construction : %d cristaux + %d materiaux"),
+				Demo->RangedBuildingCrystalCost, Demo->RangedBuildingAbyssalMaterialCost),
+				bCanBuild ? FLinearColor(1.f, 0.95f, 0.6f, 1.f) : FLinearColor(1.f, 0.55f, 0.5f, 1.f),
+				CX, R.Min.Y + 96.f, nullptr, 0.82f);
+			DrawText(bCanBuild ? TEXT("+ CONSTRUIRE") : TEXT("RESSOURCES INSUFFISANTES"),
+				bCanBuild ? Accent : FLinearColor(0.7f, 0.5f, 0.5f, 1.f),
+				CX, R.Max.Y - 28.f, GEngine ? GEngine->GetMediumFont() : nullptr, 0.9f);
+		}
 		else
 		{
 			DrawText(FString::Printf(TEXT("Cout : %d   Reserve : %d"), Cost, InReserve),
 				bAfford ? FLinearColor(1.f, 0.95f, 0.6f, 1.f) : FLinearColor(1.f, 0.55f, 0.5f, 1.f),
 				CX, R.Min.Y + 96.f, nullptr, 0.95f);
-			DrawCenteredText(bAfford ? TEXT("+ Produire") : TEXT("Cristaux insuffisants"),
-				R.Max.Y - 20.f, bAfford ? Accent : FLinearColor(0.7f, 0.5f, 0.5f, 1.f), 0.95f);
+			const FString Action = bAfford ? TEXT("+ PRODUIRE")
+				: (Demo->GetArmyUnitCount() >= Demo->GetArmyUnitCap()
+					? TEXT("PLAFOND D'ARMEE") : TEXT("INDISPONIBLE / RESERVE OBJECTIF"));
+			DrawText(Action, bAfford ? Accent : FLinearColor(0.7f, 0.5f, 0.5f, 1.f),
+				CX, R.Max.Y - 28.f, GEngine ? GEngine->GetMediumFont() : nullptr, 0.82f);
 		}
 	}
 
 	// Bouton d'expédition + bouton compétences.
-	DrawButton(CityDepartButtonRect(W, H), TEXT("PARTIR EN EXPEDITION"),
-		FLinearColor(1.f, 0.7f, 0.25f, 1.f), 1.3f);
+	DrawButton(CityDepartButtonRect(W, H),
+		Demo->IsDefenseMissionReady() ? TEXT("DEFENDRE LA ZONE") : TEXT("OBJECTIF : 10 UNITES"),
+		Demo->IsDefenseMissionReady() ? FLinearColor(1.f, 0.7f, 0.25f, 1.f)
+			: FLinearColor(0.38f, 0.42f, 0.48f, 1.f), 1.15f);
 	DrawButton(CitySkillsButtonRect(W, H), TEXT("COMPETENCES"),
 		FLinearColor(0.6f, 0.8f, 1.f, 1.f), 1.2f);
+}
+
+void AWOTOLDemoHUD::DrawTerritoryView(float W, float H, UDemoFlowSubsystem* Demo)
+{
+	if (!Demo) return;
+	const bool bNox = Demo->GetPlayerFaction() == EFactionID::Noxeens;
+	const FLinearColor Accent = bNox ? FLinearColor(0.25f, 1.f, 0.48f, 1.f)
+		: FLinearColor(0.32f, 0.82f, 1.f, 1.f);
+	const FString Building = bNox ? TEXT("ABYSSALYSEUR") : TEXT("CRISTALLISEUR");
+
+	// Le monde 3D reste visible : deux panneaux latéraux encadrent le bâtiment et ses cinq
+	// emplacements lumineux, au lieu de remplacer la zone par un menu abstrait.
+	DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, 0.88f), 24.f, 28.f, 420.f, H - 150.f);
+	DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, 0.88f), W - 444.f, 28.f, 420.f, H - 150.f);
+	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.64f), 0.f, 0.f, W, 112.f);
+	DrawGlowTitle(TEXT("GESTION DU TERRITOIRE"), 24.f, 2.05f, Accent);
+	DrawCenteredText(Demo->ObjectiveText, 76.f, FLinearColor(0.9f, 0.96f, 1.f, 1.f), 1.0f);
+
+	DrawText(Building, Accent, 48.f, 138.f, GEngine ? GEngine->GetLargeFont() : nullptr, 1.3f);
+	DrawBar(48.f, 180.f, 360.f, 18.f, Demo->GetTerritoryHealthPercent(),
+		FLinearColor(0.30f, 0.92f, 0.48f, 1.f), FLinearColor(0.15f, 0.05f, 0.04f, 0.9f));
+	DrawText(FString::Printf(TEXT("Integrite : %d %%"),
+		FMath::RoundToInt(Demo->GetTerritoryHealthPercent() * 100.f)),
+		FLinearColor::White, 48.f, 205.f, nullptr, 1.0f);
+	DrawText(FString::Printf(TEXT("Cristaux %d   |   Materiaux %d"), Demo->GetCrystals(),
+		Demo->PlayerAbyssalMaterials), FLinearColor(1.f, 0.90f, 0.42f, 1.f),
+		48.f, 235.f, nullptr, 0.9f);
+
+	const int32 RepairC = Demo->GetRepairCrystalCost();
+	const int32 RepairM = Demo->GetRepairAbyssalMaterialCost();
+	DrawButton(TerritoryRepairButtonRect(W, H), RepairC > 0
+		? FString::Printf(TEXT("REPARER  —  %d C / %d M"), RepairC, RepairM)
+		: FString(TEXT("BATIMENT REPARE")),
+		RepairC > 0 && Demo->CanRepairTerritory() ? Accent
+			: FLinearColor(0.34f, 0.38f, 0.42f, 1.f), 1.0f);
+
+	const int32 NextDefense = Demo->InstalledDefenseCount + 1;
+	DrawText(FString::Printf(TEXT("DEFENSES : %d / %d   —   TECHNOLOGIE NIV. %d"),
+		Demo->InstalledDefenseCount, Demo->GetDefenseCapacity(), Demo->DefenseTechnologyLevel),
+		FLinearColor::White, 48.f, H * 0.365f - 28.f, nullptr, 0.92f);
+	DrawButton(TerritoryDefenseButtonRect(W, H),
+		Demo->CanInstallNextDefense()
+			? FString::Printf(TEXT("PLACER TOURELLE  —  %d C / %d M"),
+				Demo->DefenseInstallCrystalCost * NextDefense,
+				Demo->DefenseInstallAbyssalMaterialCost * NextDefense)
+			: (Demo->InstalledDefenseCount >= Demo->GetDefenseCapacity()
+				? FString(TEXT("CAPACITE DE DEFENSE ATTEINTE"))
+				: FString(TEXT("RESSOURCES INSUFFISANTES"))),
+		Demo->CanInstallNextDefense() ? Accent : FLinearColor(0.34f, 0.38f, 0.42f, 1.f), 0.9f);
+	DrawText(TEXT("Cliquez ensuite l'un des 5 emplacements lumineux."),
+		FLinearColor(0.76f, 0.86f, 0.94f, 1.f), 48.f, H * 0.40f + 78.f, nullptr, 0.82f);
+
+	const float RX = W - 420.f;
+	DrawText(FString::Printf(TEXT("GARNISON : %d / %d"), Demo->GarrisonUnits,
+		Demo->GetGarrisonCapacity()), Accent, RX, 138.f,
+		GEngine ? GEngine->GetLargeFont() : nullptr, 1.25f);
+	DrawText(TEXT("Ne compte pas dans l'armee de campagne"),
+		FLinearColor(0.75f, 0.84f, 0.92f, 1.f), RX, 176.f, nullptr, 0.86f);
+	const EDemoUnitCategory Cats[3] = { EDemoUnitCategory::Infanterie,
+		EDemoUnitCategory::Montee, EDemoUnitCategory::Distance };
+	const TCHAR* Labels[3] = { TEXT("Infanterie"), TEXT("Montees"), TEXT("Distance") };
+	for (int32 i = 0; i < 3; ++i)
+	{
+		const FName UnitID = Demo->GetUnitID(Demo->GetPlayerFaction(), Cats[i]);
+		const int32 Count = Demo->GetGarrisonCount(UnitID);
+		const FBox2D Minus = TerritoryGarrisonMinusRect(i, W, H);
+		const FBox2D Plus = TerritoryGarrisonPlusRect(i, W, H);
+		DrawButton(Minus, TEXT("-"), Count > 0 ? Accent : FLinearColor(0.32f, 0.34f, 0.38f, 1.f), 1.2f);
+		DrawButton(Plus, TEXT("+"), Demo->CanAssignGarrisonUnit()
+			? Accent : FLinearColor(0.32f, 0.34f, 0.38f, 1.f), 1.2f);
+		DrawText(FString::Printf(TEXT("%s     %d"), Labels[i], Count), FLinearColor::White,
+			Minus.Max.X + 22.f, Minus.Min.Y + 14.f, GEngine ? GEngine->GetMediumFont() : nullptr, 1.0f);
+	}
+
+	const bool bCanReturn = RepairC <= 0 && Demo->InstalledDefenseCount > 0;
+	DrawButton(TerritoryReturnCityButtonRect(W, H), bCanReturn
+		? TEXT("VALIDER ET RETOURNER A LA CITE")
+		: TEXT("REPAREZ ET INSTALLEZ UNE DEFENSE"),
+		bCanReturn ? FLinearColor(1.f, 0.72f, 0.24f, 1.f)
+			: FLinearColor(0.34f, 0.38f, 0.42f, 1.f), 1.05f);
 }
 
 FBox2D AWOTOLDemoHUD::CitySkillsButtonRect(float W, float H)
@@ -1040,10 +1349,22 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 		DrawText(Sub, Blk, SX, SY, SF, 1.4f);
 	}
 
+	const bool bHasRewards = Demo->LastRewardCrystals > 0
+		|| Demo->LastRewardAbyssalMaterials > 0 || Demo->LastRewardBiomass > 0
+		|| Demo->LastRewardFood > 0;
+	if (bHasRewards)
+	{
+		DrawCenteredText(FString::Printf(TEXT(
+			"RECOMPENSES : Cristaux +%d   |   Materiaux abyssaux +%d   |   Biomasse +%d   |   Nourriture +%d"),
+			Demo->LastRewardCrystals, Demo->LastRewardAbyssalMaterials,
+			Demo->LastRewardBiomass, Demo->LastRewardFood),
+			H * 0.205f, FLinearColor(1.f, 0.88f, 0.35f, 1.f), 1.0f);
+	}
+
 	// Deux colonnes : pertes de TON armée (gauche) / pertes de l'ennemi (droite).
 	// Hauteur bornée AU-DESSUS des boutons + interligne DYNAMIQUE -> tout tient, rien ne
 	// chevauche (2 lignes compactes par unité).
-	const float ColTop  = H * 0.22f;
+	const float ColTop  = bHasRewards ? H * 0.255f : H * 0.22f;
 	const float ColBot  = SummaryReplayButtonRect(W, H).Min.Y - 24.f; // au-dessus des boutons
 	auto DrawColumn = [&](float X, float ColW, const FString& Header,
 		const TArray<FUnitLossEntry>& Entries, const FLinearColor& Accent)
@@ -1098,9 +1419,11 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 	if (Demo->bSummaryIsFinal)
 	{
 		// « Rejouer » relance la MÊME phase (celle qu'on vient de finir/perdre), pas la démo.
-		DrawButton(SummaryReplayButtonRect(W, H), TEXT("REJOUER LA PHASE"),
+		DrawButton(SummaryReplayButtonRect(W, H), Demo->bSummaryCanReturnToCity
+			? TEXT("REJOUER LA DEFENSE") : TEXT("REJOUER LA PHASE"),
 			FLinearColor(0.3f, 0.7f, 1.f, 1.f), 1.15f);
-		DrawButton(SummaryChangeFactionButtonRect(W, H), TEXT("CHANGER DE FACTION"),
+		DrawButton(SummaryChangeFactionButtonRect(W, H), Demo->bSummaryCanReturnToCity
+			? TEXT("RETOUR A LA CITE") : TEXT("CHANGER DE FACTION"),
 			FLinearColor(0.3f, 0.9f, 0.5f, 1.f), 1.05f);
 		DrawButton(SummaryMenuButtonRect(W, H), TEXT("MENU PRINCIPAL"),
 			FLinearColor(0.9f, 0.8f, 0.35f, 1.f), 1.1f);
@@ -1109,7 +1432,9 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 	}
 	else
 	{
-		DrawButton(SummaryContinueButtonRect(W, H), TEXT("CONTINUER — Defense de la zone"),
+		DrawButton(SummaryContinueButtonRect(W, H),
+			Demo->SummaryContinueLabel.IsEmpty()
+				? FString(TEXT("CONTINUER")) : Demo->SummaryContinueLabel,
 			FLinearColor(1.f, 0.7f, 0.2f, 1.f), 1.4f);
 	}
 }
@@ -1157,7 +1482,17 @@ void AWOTOLDemoHUD::DrawCurrentIndicator(float W, float H, UWorld* World)
 
 void AWOTOLDemoHUD::DrawInterlude(float W, float H, UDemoFlowSubsystem* Demo)
 {
-	DrawUnderwaterBackground(W, H);
+	if (UTexture2D* BG = GetTransitionBackground())
+	{
+		DrawTexture(BG, 0.f, 0.f, W, H, 0.f, 0.f, 1.f, 1.f);
+		// Voile central seulement : conserve les coraux/cristaux latéraux et garantit la lecture.
+		DrawRect(FLinearColor(0.f, 0.025f, 0.07f, 0.36f), W * 0.17f, H * 0.02f,
+			W * 0.66f, H * 0.90f);
+	}
+	else
+	{
+		DrawUnderwaterBackground(W, H);
+	}
 	DrawGlowTitle(TEXT("— ENTRE DEUX BATAILLES —"), H * 0.06f, 1.9f, FLinearColor(0.6f, 0.9f, 1.f, 1.f));
 
 	// Texte narratif (multi-lignes) — réparti sur la hauteur disponible AU-DESSUS du bouton

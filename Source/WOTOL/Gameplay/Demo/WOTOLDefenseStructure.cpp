@@ -23,11 +23,22 @@ AWOTOLDefenseStructure::AWOTOLDefenseStructure()
 void AWOTOLDefenseStructure::BeginPlay()
 {
 	Super::BeginPlay();
+	ApplyLevelStats();
 	CurrentHealth = MaxHealth;
 	// La faction impose le type (identité visuelle propre).
 	DefenseType = (OwnerFaction == EFactionID::Noxeens)
 		? EWOTOLDefenseType::NoxeenSentinel : EWOTOLDefenseType::AquilorisTurret;
 	BuildVisual();
+}
+
+void AWOTOLDefenseStructure::ApplyLevelStats()
+{
+	StructureLevel = FMath::Clamp(StructureLevel, 1, 3);
+	const float Step = static_cast<float>(StructureLevel - 1);
+	DamagePerShot *= 1.f + 0.25f * Step;
+	Range *= 1.f + 0.12f * Step;
+	FireCooldown *= FMath::Pow(0.90f, Step);
+	MaxHealth *= 1.f + 0.35f * Step;
 }
 
 void AWOTOLDefenseStructure::BuildVisual()

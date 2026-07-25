@@ -11,7 +11,9 @@ class AWOTOLDemoUnit;
 class AWOTOLCaptureObject;
 class AWOTOLCoverStructure;
 class AWOTOLRewardActor;
+class AWOTOLHeroCharacter;
 class UUnitDataAsset;
+class AUnitBase;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDemoMessage, const FString&, Message);
 
@@ -79,6 +81,92 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
 	float PhaseTransitionDelay = 4.f;
 
+	// ── Introduction / nage libre connectée ───────────────────────────────────
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Exploration", meta = (ClampMin = "0.5"))
+	float OpeningLoadingDuration = 2.5f;
+
+	// Le combat se déclenche à 5–10 m du Kraken (900 uu = 9 m avec l'échelle UE standard).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Exploration", meta = (ClampMin = "500.0", ClampMax = "1000.0"))
+	float EncounterTriggerDistance = 900.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Exploration")
+	FVector ExplorationHeroOffset = FVector(-2600.f, 0.f, 260.f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Exploration")
+	FVector ExplorationKrakenOffset = FVector(2200.f, 0.f, 80.f);
+
+	// Valeurs PROVISOIRES et éditables : le joueur a précisé que les nombres cités à l'oral
+	// n'étaient que des exemples. Aucun de ces montants n'est considéré comme équilibrage final.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 CreatureRewardCrystals = 2200;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 CreatureRewardAbyssalMaterials = 100;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 CreatureRewardBiomass = 30;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 CreatureRewardFood = 20;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 CrystalliserCrystalCost = 26;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 CrystalliserAbyssalMaterialCost = 15;
+
+	// La défense finance la réparation, la première fortification et la croissance
+	// du mythique : aucune expédition intermédiaire n'est imposée dans la démo.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 DefenseRewardCrystals = 600;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 DefenseRewardAbyssalMaterials = 40;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 DefenseRewardBiomass = 70;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	int32 DefenseRewardFood = 15;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Exploration", meta = (ClampMin = "200.0"))
+	float CrystalliserPlacementRadius = 520.f;
+
+	// ── ÉQUILIBRAGE ADAPTATIF DES PERTES (phases 1, 2 et 3) ───────────────────
+	// Les nombres validés sont des centres de plage. Une cible différente est tirée à chaque
+	// tentative ; le système corrige doucement la pression sans dicter les victimes ni le déroulé.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Balance")
+	bool bEnableAdaptiveCasualtyBalance = true;
+
+	// Horizons de rythme, pas des durées forcées : si les pertes sont en retard à cet instant,
+	// la pression atteint son maximum. La victoire peut arriver avant/après selon le joueur.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Balance", meta = (ClampMin = "60.0"))
+	float KrakenCasualtyPacingSeconds = 180.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Balance", meta = (ClampMin = "120.0"))
+	float DefenseCasualtyPacingSeconds = 300.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Balance", meta = (ClampMin = "180.0"))
+	float GrandBattleCasualtyPacingSeconds = 600.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Balance", meta = (ClampMin = "1.0", ClampMax = "4.0"))
+	float AdaptiveMaxEnemyPressure = 2.4f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Balance")
+	int32 AdaptiveInitialPlayerCount = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Balance")
+	int32 AdaptiveTargetLossMin = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Balance")
+	int32 AdaptiveTargetLossPreferred = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Balance")
+	int32 AdaptiveTargetLossMax = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Balance")
+	float AdaptiveEnemyPressure = 1.f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo")
 	TSubclassOf<AWOTOLDemoUnit> DemoUnitClass;
 
@@ -135,6 +223,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void StartCurrentBattle();
 
+	// Appelé UNIQUEMENT par le bouton « Lancer la partie » après faction/difficulté.
+	// Enchaîne chargement narratif → nage 3D → approche Kraken → préparation RTS.
+	UFUNCTION(BlueprintCallable, Category = "Demo|Exploration")
+	void StartDemoAfterSelection();
+
 	// Flux d'écrans : monte les armées en PRÉPARATION (placement, sans combat).
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void BeginPreparation();
@@ -169,6 +262,69 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void ReturnToMainMenu();
 
+	// Séquence interactive après le Kraken : inventaire de bâtiment -> emplacement lumineux
+	// dans le monde -> dépense atomique -> construction réelle du Cristalliseur.
+	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
+	void ArmCrystalliserPlacement();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
+	bool TryPlaceCrystalliserAt(const FVector& ClickedWorldLocation);
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Flux")
+	bool IsCrystalliserPlacementAvailable() const { return bCrystalliserPlacementAvailable; }
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Flux")
+	bool IsCrystalliserPlacementArmed() const { return bCrystalliserPlacementArmed; }
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Flux")
+	FVector GetCrystalliserPlacementLocation() const { return CrystalliserPlacementLocation; }
+
+	// Appelé quand la dixième unité à distance est produite : affiche l'alerte noxéenne,
+	// mais laisse le joueur libre d'améliorer la cité avant de cliquer « Défendre ».
+	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
+	void NotifyRangedProductionObjectiveComplete();
+
+	// Lance la défense seulement après validation de l'alerte et conserve le Cristalliseur
+	// réellement placé (aucun doublon n'est recréé au centre de l'arène).
+	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
+	void LaunchDefenseFromCity();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
+	void ContinueFromBattleSummary();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
+	void ReturnToCityAfterDefenseDefeat();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	void RequestTerritoryRepair();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	void RequestInstallDefense();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	void RequestAssignGarrison();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	void RequestAssignGarrisonByCategory(EDemoUnitCategory Category);
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	void RequestRemoveGarrisonByCategory(EDemoUnitCategory Category);
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	void ArmDefensePlacement();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Territory")
+	bool TryPlaceDefenseAt(const FVector& ClickedWorldLocation);
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Territory")
+	bool IsDefensePlacementArmed() const { return bDefensePlacementArmed; }
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
+	void ReturnToCityAfterTerritorySecured();
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|Mythic")
+	void FeedMythicAndContinue();
+
 	// Phase à rejouer sur « Rejouer » (mémorisée à la conclusion de la bataille, avant que la
 	// phase ne bascule sur DemoEnd).
 	EDemoPhase ReplayPhase = EDemoPhase::Battle_Creature;
@@ -192,18 +348,39 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
 	void BeginPostCreatureSequence();
 
-	// Interrupteur du FLUX 13 PHASES v0.8 (module 10). Désactivé par défaut : la démo
-	// conserve son enchaînement 3-batailles testé. Activé (éditeur ou BP) : la victoire
-	// créature enchaîne la séquence Cristalliseur → Cœur-Éclat → œuf → cité → défense.
-	// À basculer sur true UNE FOIS le projet recompilé et le flux validé.
+	// Le flux demandé est désormais le chemin par défaut. L'interrupteur reste exposé pour
+	// permettre un diagnostic de l'ancienne boucle de bataille sans supprimer le code de repli.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Flux")
-	bool bEnableFullFlowV08 = false;
-
-	// Lance la défense du Cristalliseur depuis la cité (bouton « Partir en expédition »).
-	UFUNCTION(BlueprintCallable, Category = "Demo|Flux")
-	void LaunchDefenseFromCity();
+	bool bEnableFullFlowV08 = true;
 
 private:
+	// Nage 3D dans la même carte procédurale que la bataille : on alterne la possession entre
+	// le héros et la caméra RTS, sans OpenLevel et sans perdre l'état du GameInstance.
+	void BeginOpeningExploration();
+	void CheckExplorationEncounter();
+	void TransitionExplorationToBattle();
+	void BeginCreaturePreparationAfterExploration();
+	void ResumePostBattleExploration();
+	void BeginPostBattleExploration();
+	void PossessBattleCamera();
+	void PossessExplorationHero(const FVector& SpawnLocation, const FRotator& SpawnRotation);
+	void DestroyExplorationHero();
+	void BeginCrystalliserPlacement();
+	void CompleteCrystalliserPlacement();
+	void CreateCrystalliserPlacementMarkers();
+	void ClearCrystalliserPlacementMarkers();
+	void BeginPostDefenseTransition();
+	void EnterPostDefenseManagement();
+	void CompleteReturnToCityAfterDefeat();
+	void RefreshPostDefenseObjective();
+	void TickTerritoryThreat();
+	void RegisterDemoTerritoryGraph();
+	void SyncFortificationToTerritoryManager();
+	void RefreshDefenseStructuresFromTerritory();
+	void CreateDefensePlacementMarkers();
+	void ClearDefensePlacementMarkers();
+	void CompleteReturnToCityAfterTerritorySecured();
+	void EnterMythicGrowthInterlude();
 	// Réagit à la validation d'une fenêtre d'objectif -> avance la séquence.
 	UFUNCTION()
 	void HandleObjectiveConfirmed(FName StepId);
@@ -215,6 +392,16 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<AWOTOLRewardActor> ActiveReward;
+
+	UPROPERTY()
+	TObjectPtr<AWOTOLHeroCharacter> ExplorationHero;
+
+	UPROPERTY()
+	TObjectPtr<AWOTOLDemoUnit> ExplorationCreature;
+
+	FTimerHandle ExplorationTransitionHandle;
+	FTimerHandle ExplorationProximityHandle;
+	FTimerHandle TerritoryThreatHandle;
 
 	EFactionID ResolvePlayerFaction() const;
 	EFactionID RivalOf(EFactionID Faction) const;
@@ -238,6 +425,19 @@ private:
 	FVector FactionCentroid(EFactionID Faction) const;
 	FTimerHandle TacticalHandle;
 
+	// Directeur de difficulté en boucle fermée : cible de pertes -> observation -> correction.
+	void InitializeAdaptiveBattleBalance();
+	void UpdateAdaptiveBattleBalance();
+	void ConfigureAdaptiveCasualtyTargets(EDemoPhase Phase, EDemoDifficulty Difficulty,
+		int32 ActualPlayerCount);
+	void ReleaseAdaptiveEnemyAnchor();
+	void ProtectAdaptivePlayerSurvivors();
+	void ResetAdaptiveBattleBalance();
+	float SamplePlayerCommandIntensity() const;
+	UFUNCTION()
+	void HandleAdaptivePlayerUnitDied(AUnitBase* Unit);
+	FTimerHandle AdaptiveBalanceHandle;
+
 	void SpawnPlayerArmy(EFactionID Faction, const FVector& Origin, const FRotator& Facing);
 	void SpawnEnemyForCreature(EFactionID RivalFaction, const FVector& Origin, const FRotator& Facing);
 	void SpawnRivalSquad(EFactionID RivalFaction, const FVector& Origin, const FRotator& Facing);
@@ -250,6 +450,7 @@ private:
 	void OnPlayerDefeat();
 	void CleanupUnits();
 	void SpawnCaptureObject(EFactionID Faction);
+	void SpawnCaptureObjectAt(EFactionID Faction, const FVector& ActorLocation);
 	void StartRivalDefense();
 	// PHASE 3 : grande bataille rangée en ZONE NEUTRE (pas d'objectif, pas d'avantage de
 	// terrain). Débloque tout le roster (spéciale + mythique), agrandit l'arène.
@@ -275,6 +476,15 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<AActor>> PlacementMarkers;
 
+	// Marqueurs distincts de la limite de déploiement RTS : ils visualisent l'unique
+	// emplacement valide du Cristalliseur pendant la nage libre post-Kraken.
+	UPROPERTY()
+	TArray<TObjectPtr<AActor>> CrystalliserPlacementMarkers;
+
+	FVector CrystalliserPlacementLocation = FVector::ZeroVector;
+	bool bCrystalliserPlacementAvailable = false;
+	bool bCrystalliserPlacementArmed = false;
+
 	EFactionID CachedPlayerFaction = EFactionID::None;
 	EFactionID CachedRivalFaction  = EFactionID::None;
 
@@ -289,8 +499,30 @@ private:
 	TArray<TObjectPtr<class AWOTOLDefenseStructure>> DefenseStructures;
 	void ClearDefenseStructures();
 
+	UPROPERTY()
+	TArray<TObjectPtr<AActor>> DefensePlacementMarkers;
+
+	TArray<FVector> DefenseSlotLocations;
+	bool bDefensePlacementArmed = false;
+
 	FTimerHandle BattleStartHandle;
 	FTimerHandle BattleCheckHandle;
 	FTimerHandle PhaseHandle;
 	bool bBattleConcluded = false;
+
+	UPROPERTY()
+	TObjectPtr<AUnitBase> AdaptiveEnemyAnchor;
+
+	EDemoPhase AdaptiveBalancePhase = EDemoPhase::None;
+	int32 AdaptiveInitialEnemyCount = 0;
+	float AdaptiveBalanceStartTime = 0.f;
+	int32 BattleAttemptSerial = 0;
+	int32 AdaptiveEncounterSeed = 0;
+	int32 TacticalVariant = 0;
+	float TacticalPhaseOffset = 0.f;
+	float AdaptiveEncounterVariance = 1.f;
+	float AdaptivePlayerCommandIntensity = 0.f;
+	FRandomStream EncounterRandom;
+	bool bAdaptiveBalanceActive = false;
+	bool bAdaptiveSurvivorsProtected = false;
 };

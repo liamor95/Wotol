@@ -90,7 +90,7 @@ void UTerritoryStateManager::HandleFactionChange(
 void UTerritoryStateManager::AdvanceGrade(
 	FName ZoneID, FZoneState& Zone, EFactionID Faction)
 {
-	const int32 MaxGrade = 4;
+	const int32 MaxGrade = 5;
 	if (Zone.Grade >= MaxGrade) return;
 
 	Zone.Grade++;
@@ -160,6 +160,94 @@ TArray<FName> UTerritoryStateManager::GetAllZonesOwnedBy(EFactionID Faction) con
 		}
 	}
 	return Result;
+}
+
+void UTerritoryStateManager::ConnectZones(FName ZoneA, FName ZoneB)
+{
+	if (ZoneA.IsNone() || ZoneB.IsNone() || ZoneA == ZoneB) return;
+	FZoneState* A = Zones.Find(ZoneA);
+	FZoneState* B = Zones.Find(ZoneB);
+	if (!A || !B) return;
+	A->AdjacentZoneIDs.AddUnique(ZoneB);
+	B->AdjacentZoneIDs.AddUnique(ZoneA);
+}
+
+bool UTerritoryStateManager::AreZonesAdjacent(FName ZoneA, FName ZoneB) const
+{
+	const FZoneState* A = Zones.Find(ZoneA);
+	return A && A->AdjacentZoneIDs.Contains(ZoneB);
+}
+
+bool UTerritoryStateManager::CanFactionContestZone(FName TargetZoneID, EFactionID Faction) const
+{
+	if (Faction == EFactionID::None) return false;
+	const FZoneState* Target = Zones.Find(TargetZoneID);
+	if (!Target) return false;
+	if (Target->Owner == Faction) return true;
+	for (const FName AdjacentID : Target->AdjacentZoneIDs)
+	{
+		const FZoneState* Adjacent = Zones.Find(AdjacentID);
+		if (Adjacent && Adjacent->Owner == Faction) return true;
+	}
+	return false;
+}
+
+bool UTerritoryStateManager::CompleteConquestObjective(FName ZoneID, EFactionID Faction)
+{
+	FZoneState* Zone = Zones.Find(ZoneID);
+	if (!Zone || !CanFactionContestZone(ZoneID, Faction)) return false;
+	Zone->bConquestObjectiveCompleted = true;
+	Zone->CapturingFaction = Faction;
+	Zone->StrategicStatus = EZoneStrategicStatus::Contested;
+	return true;
+}
+
+void UTerritoryStateManager::SetZoneThreat(
+	FName ZoneID, EFactionID Attacker, float ReactionWindowSeconds)
+{
+	FZoneState* Zone = Zones.Find(ZoneID);
+	if (!Zone || Zone->Owner == EFactionID::None || Attacker == EFactionID::None) return;
+	Zone->StrategicStatus = EZoneStrategicStatus::Threatened;
+	Zone->ThreateningFaction = Attacker;
+	Zone->DefenseWindowRemainingSeconds = FMath::Max(0.f, ReactionWindowSeconds);
+}
+
+bool UTerritoryStateManager::TickZoneThreat(FName ZoneID, float DeltaSeconds)
+{
+	FZoneState* Zone = Zones.Find(ZoneID);
+	if (!Zone || Zone->StrategicStatus != EZoneStrategicStatus::Threatened) return false;
+	Zone->DefenseWindowRemainingSeconds = FMath::Max(0.f,
+		Zone->DefenseWindowRemainingSeconds - FMath::Max(0.f, DeltaSeconds));
+	if (Zone->DefenseWindowRemainingSeconds > 0.f) return false;
+	NeutralizeZone(ZoneID);
+	return true;
+}
+
+void UTerritoryStateManager::NeutralizeZone(FName ZoneID)
+{
+	FZoneState* Zone = Zones.Find(ZoneID);
+	if (!Zone) return;
+	const EFactionID Previous = Zone->Owner;
+	Zone->Grade = 0;
+	Zone->Owner = EFactionID::None;
+	Zone->CapturingFaction = EFactionID::None;
+	Zone->CaptureProgress = 0.f;
+	Zone->StrategicStatus = EZoneStrategicStatus::Lost;
+	Zone->ThreateningFaction = EFactionID::None;
+	Zone->DefenseWindowRemainingSeconds = 0.f;
+	Zone->bConquestObjectiveCompleted = false;
+	if (Previous != EFactionID::None) OnZoneLost.Broadcast(ZoneID, Previous);
+}
+
+void UTerritoryStateManager::SetZoneFortification(FName ZoneID, int32 DefenseCount,
+	int32 InDefenseTechnologyLevel, int32 InGarrisonUnits, int32 InGarrisonCapacity)
+{
+	FZoneState* Zone = Zones.Find(ZoneID);
+	if (!Zone) return;
+	Zone->InstalledDefenseCount = FMath::Clamp(DefenseCount, 0, 5);
+	Zone->DefenseTechnologyLevel = FMath::Clamp(InDefenseTechnologyLevel, 1, 3);
+	Zone->GarrisonCapacity = FMath::Max(0, InGarrisonCapacity);
+	Zone->GarrisonUnits = FMath::Clamp(InGarrisonUnits, 0, Zone->GarrisonCapacity);
 }
 
 void UTerritoryStateManager::AddTerrainModifier(const FTerrainModifier& Modifier)

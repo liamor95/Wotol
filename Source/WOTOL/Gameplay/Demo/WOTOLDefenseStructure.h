@@ -39,6 +39,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense")
 	EWOTOLDefenseType DefenseType = EWOTOLDefenseType::AquilorisTurret;
 
+	// Niveau technologique indépendant du nombre d'emplacements. 1 = base, 2/3 = portée,
+	// dégâts, cadence et robustesse améliorés.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense", meta = (ClampMin = "1", ClampMax = "3"))
+	int32 StructureLevel = 1;
+
 	// Portée de tir (uu). ~14 m.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense")
 	float Range = 1400.f;
@@ -71,6 +76,7 @@ protected:
 	TObjectPtr<USceneComponent> Head;
 
 	void BuildVisual();
+	void ApplyLevelStats();
 	class AUnitBase* FindTarget() const;
 
 private:

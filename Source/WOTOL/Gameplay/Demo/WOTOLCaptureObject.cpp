@@ -91,11 +91,15 @@ void AWOTOLCaptureObject::ClaimZone()
 	{
 		if (UTerritoryStateManager* Territory = W->GetSubsystem<UTerritoryStateManager>())
 		{
-			FZoneState State;
+			// Préserve le graphe, le type d'objectif et les fortifications déjà enregistrés.
+			// Réinitialiser toute la structure ici supprimait silencieusement les liens de carte.
+			FZoneState State = Territory->GetZoneState(ZoneID);
 			State.Grade = 1;
 			State.Owner = OwnerFaction;
 			State.CapturingFaction = OwnerFaction;
 			State.CaptureProgress = 100.f;
+			State.bConquestObjectiveCompleted = true;
+			State.StrategicStatus = EZoneStrategicStatus::Stable;
 			Territory->RegisterZone(ZoneID, State);
 		}
 	}

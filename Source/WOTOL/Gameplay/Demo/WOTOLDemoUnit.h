@@ -63,6 +63,12 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Demo|Greybox")
 	float LastPlayerOrderTime = -1000.f;
 
+	// Tempérament propre à cette incarnation (0 prudent, 1 audacieux). Il est retiré à chaque
+	// bataille et module légèrement hauteur, distance de sécurité et repli : deux unités d'un
+	// même type ne rejouent donc pas exactement la même trajectoire.
+	UPROPERTY(BlueprintReadWrite, Category = "Demo|AI")
+	float TacticalPersonality = 0.5f;
+
 	// PV max effectifs (en tenant compte de HealthScale)
 	UFUNCTION(BlueprintPure, Category = "Demo|Greybox")
 	int32 GetEffectiveMaxHealth() const;

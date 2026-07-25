@@ -101,14 +101,30 @@ Caractéristiques communes (référence tower-defense / They Are Billions) :
 - débloquées par **recherche** (progression) ;
 - **identité de faction** forte (une tourelle Aquiloris ≠ une sentinelle Noxéenne).
 
+### Implémentation jouable de la démo
+
+- après la victoire de défense, les dégâts du Cristalliseur/Abyssalyseur persistent ;
+- la réparation consomme des cristaux et des matériaux abyssaux, proportionnellement aux PV manquants ;
+- cinq emplacements spatiaux sont proposés autour du bâtiment ; au grade 1, une seule défense
+  autonome peut être construite ;
+- les défenses utilisent l'identité visuelle de la faction et leurs statistiques progressent avec
+  leur niveau technologique ;
+- une garnison facultative par type d'unité est limitée par le grade du bâtiment et retirée du
+  plafond de l'armée de campagne ;
+- en cas d'échec avec bâtiment survivant, le joueur peut rejouer immédiatement ou retourner en
+  cité, améliorer son armée et revenir dans une fenêtre de 20 minutes ; à expiration, la zone
+  redevient neutre. Si le bâtiment est détruit, la neutralisation est immédiate.
+
+Les coûts restent des variables éditables de démo, pas un équilibrage économique définitif.
+
 ---
 
 ## 6. ORDRE DE MISE EN PLACE (ne pas tout faire d'un coup — §26)
 
-1. **Démo 0.8** : cité (production) + défense du Cristalliseur (1re brique). ✅ en cours.
+1. **Démo 0.8** : cité, défense, réparation, première tourelle et garnison. ✅ jouable en C++.
 2. **Niveaux de bâtiment → niveau d'unité** (progression indépendante). ← prochaine brique data.
 3. **Bâtiment recherche/militaire/ressources**.
-4. **Structures de défense** (tourelles Aquiloris / sentinelles Noxéennes) + emplacements.
+4. **Structures de défense** (tourelles Aquiloris / sentinelles Noxéennes) + emplacements. ✅ première brique.
 5. **Défense de forteresse** sur la carte-cité complète (raids jouables).
 6. **Onglet Compétences / arbre** (choix d'axe par unité) — quand Liamor envoie le détail.
 
