@@ -413,3 +413,51 @@ si souhaite pour la demo, sinon naturellement dans le jeu complet.
   rester focalise sur l'audit Drive demande.
 - Tache de production visuelle demandee a ChatGPT (image du Kraken 3/4 face, fond neutre) : hors
   perimetre Claude Code, pas d'action de ma part.
+
+## Reponse au benchmark RTS du 18/07/2026 (25/07/2026, demande explicite de Liamor)
+
+Confrontation du benchmark RTS de ChatGPT (8 piliers) au code reel de `claude/wotol-demo-finale`
+(pas seulement au GDD). Reponse complete et signee publiee dans le document Drive "ChatGPT &
+CLAUDE — mis a jour 25-07-2026 (v2, benchmark RTS)". Aucun code modifie par cette recherche.
+
+**Trouvaille principale : `UFormationComponent` (Source/WOTOL/Gameplay/Units/FormationComponent.h/.cpp)
+est du CODE MORT.** Systeme de formations complet (Line/Wedge/DefensiveSquare/Loose/Column,
+bonus DEF/vitesse/reduction AoE par formation, exactement l'esprit Total War/SupCom recommande
+par le benchmark) mais jamais instancie ni reference nulle part ailleurs dans le depot — verifie
+par grep, aucun hit hors du fichier lui-meme. C'est le gain le plus net a faible risque identifie
+par cette revue : le brancher (type de formation par defaut par categorie d'unite + un bouton
+HUD pour changer) serait un ajout, pas une modification de logique existante.
+
+**Resume par pilier (detail complet dans le doc Drive) :**
+- Commandement intelligent : DEJA PRESENT, le plus abouti (attack-move, formation compacte
+  calculee au clic, ciblage vertical auto vers la couche de la cible, focus-fire touche R).
+- Verticalite lisible : PARTIEL (jauge HUD 3 bandes sur un DesiredZ continu 0-2400, changement
+  par 2 boutons +/-600, pas de selection 3D directe ni de trajectoire previsualisee pour les
+  troupes — le ghost preview existant ne sert qu'au placement du Cristalliseur).
+- Asymetrie encadree : architecture deja bonne (commandes communes + identites differenciees),
+  equilibrage reel non verifiable sans playtest.
+- Progression par nouveaux verbes : PARTIEL/ABSENT — voir FormationComponent ci-dessus. Le
+  systeme Axe1/Axe2 existe dans les donnees mais l'execution reste un repli generique unique
+  (deja note ailleurs dans ce fichier).
+- Chefs/mythiques controlables : PARTIEL/ABSENT (cooldown seul sur les abilities, pas de cout
+  ressource/telegraphe visuel/fenetre d'esquive ; le Kraken n'a pas de phases scriptees, juste
+  un equilibrage adaptatif des pertes via ConfigureAdaptiveCasualtyTargets).
+- Territoires sans snowball : TerritoryGrade/BuildingLevels s'accumulent sans reset — pattern a
+  surveiller pour le jeu complet, non problematique pour la demo (une seule progression lineaire).
+- Defense adaptative : ABSENT — SpawnRivalSquad/SpawnEnemyForCreature font apparaitre l'armee
+  ennemie depuis UN SEUL point/axe (Origin+Facing), exactement le chokepoint deconseille par le
+  benchmark (reference They Are Billions).
+- Variete controlee : PARTIEL, meilleur que prevu cote resultat (vrai systeme de seed par
+  tentative deja en code : AdaptiveEncounterSeed/EncounterRandom/TacticalVariant/
+  AdaptiveEncounterVariance, confirme la note "±5 selon la tentative"), absent cote objectifs
+  (normal pour une demo a arene unique, deja confirme hors scope).
+- Faisabilite UE5.8 : pas de StateTree utilise ; RVO Avoidance reellement actif
+  (bUseRVOAvoidance) ; NavMesh standard + verticalite simulee par un flottant Z separe
+  (AdaptLayerTo) — deja l'architecture "prudente" que le benchmark recommandait sans jamais
+  l'avoir formulee ainsi (evite une navigation volumetrique complete).
+
+**Perimetre minimal propose (PAS implemente, attend confirmation de Liamor) :**
+1. Brancher le FormationComponent existant — seul gain a faible risque identifie.
+2. Ne rien changer au Kraken/a la defense mono-axe/aux territoires avant le premier playtest
+   UE5.8 — les cibles de pertes documentees sont calibrees sur l'architecture actuelle, un
+   changement non mesure serait un double changement.
