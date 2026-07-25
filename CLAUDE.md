@@ -24,7 +24,7 @@ Marque INPI n° 26 5230895. Cible : PC Windows 10/11, Steam, PEGI 12+.
 
 ## 2. Stack technique — NE PAS DÉVIER
 
-- **Moteur : UE 5.7.4** — ne pas migrer
+- **Moteur : UE 5.8** — ne pas migrer
 - **Hybride C++/Blueprint** : Claude Code écrit le C++ (subsystems, logique, data), Liamor fait les Blueprints visuels, UMG, animations
 - Éclairage : Lumen (bioluminescence), Géométrie : Nanite, Audio : MetaSounds
 - **Bloqueur actif VRAM** : assets Meshy haute densité → plan : poly count audit → Low Poly Meshy → LOD chains → BC7/BC5 textures. Nanite stable skeletal meshes depuis UE5.5.
@@ -306,10 +306,10 @@ E_VerticalLevel :
 ## 12. Build & compilation — RÈGLES ANTI-BUG (vécues, ne JAMAIS réintroduire)
 
 Ces problèmes ont déjà bloqué l'ouverture du projet. Tout code généré doit respecter
-ces règles pour compiler du premier coup dans UE 5.7.4.
+ces règles pour compiler du premier coup dans UE 5.8.
 
 ### Environnement
-- **Moteur installé : Unreal Engine 5.7.4** → `WOTOL.uproject` doit avoir `"EngineAssociation": "5.7"`
+- **Moteur installé : Unreal Engine 5.8** → `WOTOL.uproject` doit avoir `"EngineAssociation": "5.8"`
 - **Visual Studio 2022** avec la charge de travail **« Game development with C++ »** OBLIGATOIRE
 - Fichiers `Target.cs` obligatoires dans `Source/` : `WOTOL.Target.cs` + `WOTOLEditor.Target.cs`
 - Dans les `Target.cs` : `DefaultBuildSettings = BuildSettingsVersion.Latest` (JAMAIS `V5` →
