@@ -364,3 +364,52 @@ selon Liamor — a garder en tete pour ne plus reposer la question.
   le "Rempart" n'etant que son identite visuelle de fortification perimetrique.
 - PAS FAIT (hors scope) : structures Mureniens/Pirates Abyssaux/Thalassidra (3 factions hors
   demo) — planches gardees en reference pour plus tard.
+
+## Audit Drive complet (25/07/2026) — liste canonique des 22 batiments + resolution finale
+
+Sur demande explicite de Liamor : audit complet du dossier Drive WOTOL (tous sous-dossiers,
+fichiers modifies depuis le 23/07). Deux nouveaux documents Drive trouves, crees le 24/07 :
+
+- **"CLAUDE — REFERENCE ACTIVE WOTOL"** (statut canonique au 24/07/2026, ecrit explicitement
+  a mon intention) : liste DEFINITIVE des 22 batiments (11 Aquiloris + 11 Noxeens). Remplace
+  toute liste anterieure. Regle absolue citee : "ne jamais inventer ni reutiliser un ancien
+  nom de batiment".
+- **"ChatGPT & CLAUDE"** (document d'echange, sync ChatGPT du 25/07/2026) : confirme la meme
+  liste + resout explicitement le point ouvert Distance/Speciale Noxeens : "Foyer des
+  Decharges recrute les Noxeblasts et Faille Abyssale recrute les Noxeons".
+
+**FAIT (code) :**
+- `CityBuildingLabel()` (WOTOLDemoHUD.cpp) : "Noeud Bioluminescent" (estimation, desormais
+  fausse) -> **"Foyer des Decharges"** (Distance Noxeens, CERTAIN). Speciale Noxeens
+  ("Faille Abyssale") etait deja juste par coincidence — confirme. Commentaire de la fonction
+  mis a jour (retrait des mentions "MEILLEURE ESTIMATION", tout est desormais CERTAIN pour les
+  5 categories de recrutement des deux factions).
+- `DrawTerritoryView()` : la section defense (tourelle + rempart, deja nommee la session
+  precedente) est maintenant rattachee a son batiment canonique — prefixe "BASTION CRISTALLIN"
+  (Aquiloris) / "ENCEINTE NOXEENNE" (Noxeens) ajoute devant la ligne "DEFENSES : x/y".
+
+**PAS FAIT (hors scope demo, documente pour reference future) :**
+La liste canonique compte 22 batiments au total par faction (11+11), mais le systeme de cite
+de la demo ne modelise que 5 categories de RECRUTEMENT (Infanterie/Distance/Montee/Speciale/
+Mythique) + le batiment central (Cristalliseur/Abyssalyseur, deja code) + la defense (Bastion
+Cristallin/Enceinte Noxeenne, nom ajoute ci-dessus). Les 6 batiments restants de la liste
+canonique — batiment-siege (Noyau Cristalin/Trone des profondeurs) et les 3 batiments de
+ressources partagees par faction (Aquiloris: Puits des Courants Cristallins=Energie Oceanique,
+Carriere des Profondeurs=Mineraux Abyssaux, Bassin de Vie Cristalline=Biomasse ; Noxeens:
+Matrice Luminale=Energie Oceanique, Gisement Abyssal=Mineraux Abyssaux, Fosse Nourriciere=
+Biomasse) — n'ont PAS de representation dediee dans la demo actuelle (les ressources se
+generent directement via les recompenses de mission, sans batiment de production visible).
+Ajouter ces 6 batiments serait une extension de scope non demandee — a rediscuter avec Liamor
+si souhaite pour la demo, sinon naturellement dans le jeu complet.
+
+**Autres elements trouves dans l'audit (non actionnables cote code) :**
+- Nouveau GDD "WOTOL_GDD_v3_Complet — REFERENCE ACTIVE" (cree 24/07) : GDD complet du jeu fini
+  (4 couches oceaniques, lore Nekryss/Aetheriens, twist de l'artefact...) — hors scope demo,
+  deja largement coherent avec le dossier maitre Notion existant.
+- Une "Demande a Claude" du 18/07/2026 (doc "ChatGPT & CLAUDE") reste sans reponse : confronter
+  le benchmark RTS (Total War, AoM Retold, CoH3, Homeworld 3, XCOM2, SupCom...) au GDD/code/etat
+  reel de la demo, item par item. Tache de DOCUMENTATION uniquement (pas de code), a faire dans
+  une prochaine session si Liamor le souhaite — volontairement pas traitee dans cette passe pour
+  rester focalise sur l'audit Drive demande.
+- Tache de production visuelle demandee a ChatGPT (image du Kraken 3/4 face, fond neutre) : hors
+  perimetre Claude Code, pas d'action de ma part.

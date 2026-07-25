@@ -1018,22 +1018,23 @@ FBox2D AWOTOLDemoHUD::TerritoryReturnCityButtonRect(float W, float H)
 }
 
 // Nom du bâtiment producteur (Aquiloris) / générique Noxéen, par catégorie.
-// Noms alignés sur Drive/WOTOL/Images-Visuels/Ressources et bâtiments (planches ajoutées par
-// Liamor le 23/07/2026) et sur la table "Bâtiments Aquiloris (validés)" de Notion.
-// Noxéens Infanterie/Montée/Mythique : correspondance CERTAINE (catégorie de production
-// explicitement écrite sur la planche : "PRODUCTION D'INFANTERIE" / "PRODUCTION D'UNITÉS
-// LOURDES" / "Permet la production du Noxédrake"). Distance/Spéciale : MEILLEURE ESTIMATION
-// (la planche décrit la fonction — Nœud Bioluminescent booste portée/précision à distance,
-// Faille Abyssale invoque des entités rares — mais n'affiche pas explicitement la catégorie
-// de production ; à confirmer par Liamor). Aquiloris Montée alignée sur Notion ("Dôme des
-// Aquilances"), les autres noms Aquiloris étaient déjà corrects.
+// Noms alignés sur la liste des 22 bâtiments canoniques (doc Drive "CLAUDE — RÉFÉRENCE ACTIVE
+// WOTOL", statut canonique au 24/07/2026, confirmée par sync ChatGPT du 25/07/2026) : TOUS les
+// noms ci-dessous sont désormais CERTAINS, y compris Distance/Spéciale Noxéens qui n'étaient
+// jusque-là que des estimations ("Foyer des Décharges" recrute les Noxeblasts, "Faille
+// Abyssale" recrute les Noxeons — confirmé, l'estimation précédente pour cette dernière était
+// déjà correcte). Les 6 autres bâtiments canoniques (Noyau Cristalin/Trône des profondeurs,
+// Bastion Cristallin/Enceinte Noxéenne, et les 3 bâtiments de ressources partagées par
+// faction) ne correspondent à aucune catégorie de recrutement du système de cartes actuel de
+// la démo (Infanterie/Distance/Montée/Spéciale/Mythique) — hors scope de cette fonction,
+// documentés dans TODO_WOTOL.md.
 static FString CityBuildingLabel(EFactionID Fac, EDemoUnitCategory Cat)
 {
 	const bool bAq = (Fac != EFactionID::Noxeens);
 	switch (Cat)
 	{
 		case EDemoUnitCategory::Infanterie: return bAq ? TEXT("Academie") : TEXT("Fosse d'Emergence");
-		case EDemoUnitCategory::Distance:   return bAq ? TEXT("Champ de Tir") : TEXT("Noeud Bioluminescent");
+		case EDemoUnitCategory::Distance:   return bAq ? TEXT("Champ de Tir") : TEXT("Foyer des Decharges");
 		case EDemoUnitCategory::Montee:     return bAq ? TEXT("Dome des Aquilances") : TEXT("Cavite des Mastodontes");
 		case EDemoUnitCategory::Speciale:   return bAq ? TEXT("Nexus des Ombres") : TEXT("Faille Abyssale");
 		case EDemoUnitCategory::Mythique:   return bAq ? TEXT("Coeur-Eclat") : TEXT("Antre du Noxedrake");
@@ -1367,8 +1368,10 @@ void AWOTOLDemoHUD::DrawTerritoryView(float W, float H, UDemoFlowSubsystem* Demo
 			: FLinearColor(0.34f, 0.38f, 0.42f, 1.f), 1.0f);
 
 	const int32 NextDefense = Demo->InstalledDefenseCount + 1;
-	DrawText(FString::Printf(TEXT("DEFENSES : %d / %d   —   TECHNOLOGIE NIV. %d"),
-		Demo->InstalledDefenseCount, Demo->GetDefenseCapacity(), Demo->DefenseTechnologyLevel),
+	const FString DefenseBuildingName = bNox ? TEXT("ENCEINTE NOXEENNE") : TEXT("BASTION CRISTALLIN");
+	DrawText(FString::Printf(TEXT("%s — DEFENSES : %d / %d   —   TECHNOLOGIE NIV. %d"),
+		*DefenseBuildingName, Demo->InstalledDefenseCount, Demo->GetDefenseCapacity(),
+		Demo->DefenseTechnologyLevel),
 		FLinearColor::White, 48.f, H * 0.365f - 28.f, nullptr, 0.92f);
 	DrawButton(TerritoryDefenseButtonRect(W, H),
 		Demo->CanInstallNextDefense()
