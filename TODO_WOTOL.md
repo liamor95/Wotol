@@ -11,6 +11,32 @@ Priorite au prochain retour PC : compiler `claude/wotol-demo-finale` et jouer la
 placement Cristalliseur en 3D -> cite -> batiment distance -> alerte -> defense -> phase 3).
 Rien de tout cela n'a ete compile/vu tourner cote assistant (pas d'editeur Unreal ici).
 
+Fait cette session (26/07/2026, retours de Liamor sur l'illustration 3D de la cite) :
+- Correction de nom : le chef Aquiloris s'appelle **Aquis** (pas "Akis") ; renomme partout
+  (code, batiment Aquisferes/unite distance, commentaires, doc install).
+- Controle de vitesse de jeu (x1/x1.5/x2) dans l'ecran Reglages, sous le bouton plein ecran :
+  AWOTOLPlayerController_Battle::SetGameSpeed + UGameplayStatics::SetGlobalTimeDilation.
+- Materialisation VISUELLE de la croissance de la cite avant la phase 3 : jusqu'ici la
+  transition (UnlockAll) enchainait directement sur la grande bataille sans jamais repasser
+  par la cite -> le joueur ne voyait jamais ses nouveaux batiments Speciale/Mythique, seulement
+  le texte de l'interlude. Nouveau retour obligatoire en cite (bReadyForGrandBattleDeparture),
+  badge "NOUVEAU !" sur les cartes fraichement debloquees, bouton "EMBARQUER - GRANDE BATAILLE".
+- Armee de phase 3 desormais COMPOSEE PAR LE JOUEUR au lieu d'une liste scriptee fixe
+  (34/22/30/12 Noxeens, 20/12/18/8 Aquiloris, qui ignorait le recrutement en cite) : base fixe
+  reduite (~18 troupes incl. chef+mythique) + recrutement libre jusqu'au plafond par faction
+  (60 Aquiloris / 100 Noxeens), reutilisant le systeme ProduceUnit/CanProduce existant. Le
+  Mythique reste non-recrutable en serie (creature unique, deja ajoutee automatiquement).
+- Fiche technique des batiments : le niveau (attaque+defense, une seule jauge dans ce systeme)
+  et la voie tactique choisie (axe de competence) s'affichent maintenant ensemble.
+- Confirme via grep : le cout ressource des defenses et l'objectif "10 unites a distance"
+  ETAIENT DEJA implementes avant ce message (DemoFlowSubsystem::DefenseInstallCrystalCost/
+  CanInstallNextDefense, IsRangedBuildingConstructed/IsDefenseMissionReady) - pas des ajouts
+  manquants, juste pas encore vus en jeu faute de compilation.
+- Confirme : Mode Ironman / Mode Aleatoire n'ont JAMAIS ete implementes comme fonctionnalites
+  (voir entree du 19/07/2026 plus bas) - seulement des champs de donnees INERTES
+  (bIronmanMode/bRandomMode) herites de la structure de sauvegarde, jamais lus par le jeu,
+  aucune UI ne les expose. Confirmation demandee par Liamor, aucune correction necessaire.
+
 Fait cette session (19/07/2026, en plus de la fusion agent/connect-exploration-flow) :
 - Minimap schematique (coin haut-droit, sous pause/reglages) : AWOTOLDemoHUD::DrawMinimap.
   Absente jusqu'ici alors que c'est un standard du genre (Total War, Company of Heroes,
@@ -309,8 +335,13 @@ Explicitement hors scope demo par instruction de Liamor ("le reste, on le garde 
   Notion "WOTOL — Game Design & Developpement" : explicitement "non valide par defaut", a
   confronter au code avant toute decision — recoupe en partie la recherche genre deja faite
   cette session (minimap, controles) mais reste a relire en detail si besoin un jour.
-- Mode Ironman, Mode Aleatoire (carte procedurale), controle de vitesse de jeu : deja notes
-  ci-dessus comme hors scope demo (arene unique).
+- Mode Ironman, Mode Aleatoire (carte procedurale) : toujours hors scope demo (arene unique) -
+  CONFIRME PAS DEMANDES PAR LIAMOR (juste releves dans ses maquettes de reference) ; les champs
+  bIronmanMode/bRandomMode (WOTOLTypes.h/WOTOLSaveGame.h) restent des placeholders INERTES,
+  jamais lus par aucune logique de jeu, aucune UI ne les expose (reponse au message du
+  26/07/2026 demandant confirmation que je ne les avais pas implementes de mon propre chef).
+- Controle de vitesse de jeu (x1/x1.5/x2) : FAIT le 26/07/2026 (WOTOLPlayerController_Battle::
+  SetGameSpeed + 3 chips dans l'ecran Reglages, SetGlobalTimeDilation).
 
 ## Idees de Liamor pour APRES la demo (meta-progression, hors scope actuel)
 
@@ -494,6 +525,25 @@ et inversement). Les Noxeens ne sont pas concernes : Noxar reste le seul chef jo
 - Aucun changement visuel/mesh : Aquira reutilise le meme portrait cyclable generique
   (halo teinte par la faction) que le reste du systeme de personnalisation, en attendant de
   vrais portraits illustres.
+
+## Personnalisation modulaire du portrait du heros (26/07/2026, question de Liamor)
+
+Question posee : peut-on swapper independamment des traits visuels du portrait (ex. pointes
+sur la tete, forme du nez) tout en gardant le reste du design, plutot que de cycler entre
+plusieurs portraits complets ? Reponse (pas de code a faire tant que non demande explicitement -
+Liamor a lui-meme propose "sinon on laisse tomber") :
+- Cycler entre PLUSIEURS PORTRAITS COMPLETS (image entiere par entiere) est deja simple avec le
+  systeme existant (`PortraitIndex`, meme pattern de chargement PNG que ce qui a servi cette
+  session pour les batiments/fonds) : chaque portrait est juste un fichier de plus dans
+  `Content/UI/`, aucun obstacle technique.
+- Le vrai swap MODULAIRE (changer le nez SANS toucher au reste) demande que l'art SOURCE soit
+  deja prepare en CALQUES separes et alignes (un fichier transparent par trait, tous calibres
+  sur le meme cadrage/la meme echelle) - c'est un travail de PRODUCTION D'ART, pas de code : le
+  moteur peut superposer des calques PNG (meme systeme WOTOLBuildingArt::GetXxx), mais il ne
+  peut pas decouper/isoler un trait a partir d'une seule image finie et deja assemblee.
+- Si Liamor veut poursuivre : il faudrait qu'il fournisse (ou fasse fournir) les traits en
+  calques separes (tete/nez/pointes/etc., transparents, alignes) plutot que des portraits deja
+  finalises - a rediscuter s'il envoie ces images plus tard.
 
 ## Silhouettes de biome par faction sur les ecrans 2D (25/07/2026, demande de Liamor)
 
