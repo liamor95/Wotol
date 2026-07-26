@@ -18,7 +18,7 @@ public:
 	EFactionID Faction = EFactionID::None;
 
 	// Toutes les unités disponibles pour cette faction avec leurs quotas
-	// Ex: Aquistance (Distance, max 3), Léviaphénix (Mythique, max 1)
+	// Ex: Aquisphères (Distance, max 3), Léviaphénix (Mythique, max 1)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Roster")
 	TArray<FUnitRosterEntry> AvailableUnits;
 

@@ -98,7 +98,7 @@ triangulaires**, technologiquement différentes. Visibles dans certaines cartes.
 | Infanterie | **Noxeflare** | 1,70 m |
 | Distance | **Noxeblast** | 1,60 m |
 | Montée | **Noxebeast** (quadrupède 4 membres, massif) | 2,50 m |
-| Spéciale | **Noxeon** | 1,80 m |
+| Spéciale | **Noxeons** | 1,80 m |
 | Mythique | **Noxedrake** | 6,5–7 m |
 
 > Terme officiel : **unité spéciale**, jamais « Joker ».
@@ -242,7 +242,7 @@ Windows 10 Home, **NVIDIA GTX** (pilote 472.84). Erreur **« Video memory exhaus
 11. Une correction locale **ne modifie pas** les éléments déjà validés.
 12. Tailles d'unités **respectées**.
 13. Terme officiel : **« unité spéciale »**.
-14. Noms validés : **Leviaphenix**, **Noxedrake**.
+14. Noms validés : **Léviaphénix**, **Noxedrake**.
 15. Les phases **ne s'enchaînent pas** automatiquement sans interface.
 16. Destruction du bâtiment défendu = **défaite immédiate** (v0.8).
 17. Après défaite défensive : territoire **neutre**.

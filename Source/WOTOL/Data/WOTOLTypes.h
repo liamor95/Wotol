@@ -241,7 +241,7 @@ struct FUnitRosterEntry
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EUnitRole Role = EUnitRole::Infanterie;
 
-	// Quota max dans l'escouade (ex: 3 pour Aquistance, 1 pour Léviaphénix)
+	// Quota max dans l'escouade (ex: 3 pour Aquisphères, 1 pour Léviaphénix)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "1"))
 	int32 MaxCount = 1;
 };

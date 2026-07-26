@@ -104,7 +104,7 @@ public:
 
 	// ─── Recrutement ───────────────────────────────────────────────────────────
 
-	// Quota max dans l'escouade (ex: 3 pour Aquistance, 1 pour Léviaphénix)
+	// Quota max dans l'escouade (ex: 3 pour Aquisphères, 1 pour Léviaphénix)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recruitment", meta = (ClampMin = "1"))
 	int32 MaxCountInSquad = 1;
 
