@@ -20,6 +20,12 @@ Fait cette session (26/07/2026, retours de Liamor sur l'illustration 3D de la ci
   Aquisphères, confirme par Liamor). Batiment requis du Chef Aquis corrige : **Noyau Cristallin**
   (pas "Aquilore" - confusion avec "Aquilor", qui est le nom de la CITE globale, pas d'un
   batiment ; chaque batiment a son propre nom specifique, y compris celui du chef).
+- Batiment requis Noxeens synchronises avec le HUD (jamais mis a jour lors de l'audit du
+  23-25/07) : Fosse d'Emergence (Infanterie), Foyer des Decharges (Distance), Cavite des
+  Mastodontes (Montee), Faille Abyssale (Speciale), Antre du Noxedrake (Mythique).
+- Nom de la cite Noxeens corrige : **Nox Cave** (pas "Faille Noxeenne", qui designait deja
+  autre chose - la Faille est l'environnement/ambiance, pas le nom propre de la cite elle-meme).
+  Equivalent Noxeens de "Cite d'Aquilor" cote Aquiloris. `AWOTOLDemoHUD::DrawCityView`.
 - Controle de vitesse de jeu (x1/x1.5/x2) dans l'ecran Reglages, sous le bouton plein ecran :
   AWOTOLPlayerController_Battle::SetGameSpeed + UGameplayStatics::SetGlobalTimeDilation.
 - Materialisation VISUELLE de la croissance de la cite avant la phase 3 : jusqu'ici la
