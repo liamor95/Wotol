@@ -35,7 +35,7 @@ static void FillAquis(UUnitDataAsset* A)
 	A->AxisOneDescription = FText::FromString(TEXT("Onde dégâts importants sur plusieurs unités"));
 	A->AxisTwoName        = FText::FromString(TEXT("Onde de Repoussement"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Onde circulaire projette ennemis proches"));
-	A->PassiveDescription = FText::FromString(TEXT("Bonus coordination + réduction recharge alliés proches. Synergie : Aquilombre"));
+	A->PassiveDescription = FText::FromString(TEXT("Bonus coordination + réduction recharge alliés proches. Synergie : Aquilombres"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Aquilore"));
 }
 
@@ -70,7 +70,7 @@ static void FillLeviaphenix(UUnitDataAsset* A)
 	A->AxisOneDescription = FText::FromString(TEXT("Amplification poussée, zone élargie"));
 	A->AxisTwoName        = FText::FromString(TEXT("Rayonnement Vital"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Fait revenir quelques unités tombées"));
-	A->PassiveDescription = FText::FromString(TEXT("Amplifie dégâts, réduit recharges, augmente défense boucliers. Synergie : Aquisfères"));
+	A->PassiveDescription = FText::FromString(TEXT("Amplifie dégâts, réduit recharges, augmente défense boucliers. Synergie : Aquisphères"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Cœur-Éclat du Léviaphénix"));
 }
 
@@ -105,13 +105,13 @@ static void FillAquiloryons(UUnitDataAsset* A)
 	A->AxisOneDescription = FText::FromString(TEXT("Protection collective accrue"));
 	A->AxisTwoName        = FText::FromString(TEXT("Double Lames"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Sacrifie défense pour dégâts"));
-	A->PassiveDescription = FText::FromString(TEXT("Bonus coordination, renforce unités adjacentes. Synergie : Aquilans"));
+	A->PassiveDescription = FText::FromString(TEXT("Bonus coordination, renforce unités adjacentes. Synergie : Aquilances"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Académie Aquiloryon"));
 }
 
 static void FillAquilances(UUnitDataAsset* A)
 {
-	A->DisplayName   = FText::FromString(TEXT("Aquilans"));
+	A->DisplayName   = FText::FromString(TEXT("Aquilances"));
 	A->Description   = FText::FromString(TEXT("Montée Aquiloris — Percée Ondulatoire (Charge ligne)"));
 	A->Faction       = EFactionID::Aquiloris;
 	A->Role          = EUnitRole::Montee;
@@ -141,12 +141,12 @@ static void FillAquilances(UUnitDataAsset* A)
 	A->AxisTwoName        = FText::FromString(TEXT("Rempart Synthétique"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Formation hauteur, empêche attaques descendantes"));
 	A->PassiveDescription = FText::FromString(TEXT("Résistance frontale, saignement au contact. Synergie : Aquiloryons"));
-	A->RequiredBuilding   = FText::FromString(TEXT("Dôme des Aquilans"));
+	A->RequiredBuilding   = FText::FromString(TEXT("Dôme des Aquilances"));
 }
 
 static void FillAquipheres(UUnitDataAsset* A)
 {
-	A->DisplayName   = FText::FromString(TEXT("Aquisfères"));
+	A->DisplayName   = FText::FromString(TEXT("Aquisphères"));
 	A->Description   = FText::FromString(TEXT("Distance Aquiloris — Hydrolaser (Petite zone)"));
 	A->Faction       = EFactionID::Aquiloris;
 	A->Role          = EUnitRole::Distance;
@@ -176,12 +176,12 @@ static void FillAquipheres(UUnitDataAsset* A)
 	A->AxisTwoName        = FText::FromString(TEXT("Hydropompe"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Tir zone, dégâts réduits mais AoE"));
 	A->PassiveDescription = FText::FromString(TEXT("Bonne précision naturelle. Synergie : Léviaphénix"));
-	A->RequiredBuilding   = FText::FromString(TEXT("Champ de Tir des Aquisfères"));
+	A->RequiredBuilding   = FText::FromString(TEXT("Champ de Tir des Aquisphères"));
 }
 
 static void FillAquilombres(UUnitDataAsset* A)
 {
-	A->DisplayName   = FText::FromString(TEXT("Aquilombre"));
+	A->DisplayName   = FText::FromString(TEXT("Aquilombres"));
 	A->Description   = FText::FromString(TEXT("Spéciale Aquiloris — Ombres Glissées (Mono)"));
 	A->Faction       = EFactionID::Aquiloris;
 	A->Role          = EUnitRole::Speciale;

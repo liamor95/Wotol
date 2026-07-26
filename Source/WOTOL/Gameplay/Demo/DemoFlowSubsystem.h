@@ -465,7 +465,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|City", meta = (ClampMin = "1"))
 	int32 RangedProductionTarget = 10;
 
-	// Coûts PROVISOIRES et éditables du bâtiment Aquisfères / Noxeblast.
+	// Coûts PROVISOIRES et éditables du bâtiment Aquisphères / Noxeblast.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|City", meta = (ClampMin = "0"))
 	int32 RangedBuildingCrystalCost = 300;
 

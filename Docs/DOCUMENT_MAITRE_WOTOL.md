@@ -13,9 +13,9 @@ la référence pour les règles techniques de build (UE 5.8, conventions UHT, an
 |---|---|---|---|
 | Chef Aquiloris | Aquis / Thalior | **Aquis** | ✅ nom affiché |
 | Infanterie Aquiloris | Aquiloryons | **Aquiloryons** | ✅ nom affiché |
-| Distance Aquiloris | Aquisphères | **Aquisfères** | ✅ nom affiché |
-| Montée Aquiloris | Aquilances | **Aquilans** | ✅ nom affiché |
-| Spéciale Aquiloris | Aquilombres | **Aquilombre** | ✅ nom affiché |
+| Distance Aquiloris | Aquisphères | **Aquisphères** | ✅ nom affiché |
+| Montée Aquiloris | Aquilances | **Aquilances** | ✅ nom affiché |
+| Spéciale Aquiloris | Aquilombres | **Aquilombres** | ✅ nom affiché |
 | Couleur Noxéens | violet/bleu/vert | **VERT bioluminescent uniquement** | ✅ appliqué |
 | Couleur violette | (Noxéens) | **Muréniens** (hors démo) | ✅ |
 | Taille Léviaphénix | 8 m | **3,5–4 m** (code : 3,8 m) | ✅ |
@@ -86,9 +86,9 @@ triangulaires**, technologiquement différentes. Visibles dans certaines cartes.
 |---|---|---|
 | Chef | **Aquis** | 1,80 m |
 | Infanterie | **Aquiloryons** (boucliers) | 1,75 m |
-| Distance | **Aquisfères** (canon) | 1,70 m |
-| Montée | **Aquilans** | 2 m (monture ~2,5 m) |
-| Spéciale | **Aquilombre** (translucide) | humanoïde |
+| Distance | **Aquisphères** (canon) | 1,70 m |
+| Montée | **Aquilances** | 2 m (monture ~2,5 m) |
+| Spéciale | **Aquilombres** (translucide) | humanoïde |
 | Mythique | **Léviaphénix** | 3,5–4 m |
 
 ### Noxéens
@@ -127,7 +127,7 @@ Spéciale = pentagone · Mythique = cercle. Couleurs = factions. Respecter les t
 8. **Territoire acquis** — terraformation au biome de faction, bonus attaque/défense et capacité
    d'armée ; Cœur-Éclat puis œuf/juvénile mythique récupérés.
 9. **Retour cité volontaire** — bouton dédié ; vue isométrique fixe, bâtiments visibles et cliquables.
-10. **Développement de la cité** — construire le bâtiment des unités à distance (Aquisfères pour
+10. **Développement de la cité** — construire le bâtiment des unités à distance (Aquisphères pour
     Aquiloris), payer son coût puis produire 10 unités ; limite d'armée de démo visée : 35.
 11. **Alerte noxéenne** — la faction rivale se dirige vers la zone nouvellement conquise ; le joueur
     décide de partir défendre le Cristalliseur.
@@ -235,7 +235,7 @@ Windows 10 Home, **NVIDIA GTX** (pilote 472.84). Erreur **« Video memory exhaus
 4. Muréniens = **queue**, pas de jambes.
 5. **Noxar a des jambes**.
 6. Aquiloris = blanc/bleu/énergie bleue.
-7. **Aquilombre translucide**.
+7. **Aquilombres translucide**.
 8. **Nuxim** montrée entièrement.
 9. Vaisseau pirate = cité mobile + fief mythique.
 10. Une unité demandée séparément = **image séparée**.
@@ -279,7 +279,7 @@ agréable, conquête compréhensible, enjeu de défense, identité visuelle/stra
 - Pose du Cristalliseur/Abyssalyseur : inventaire, emplacement 3D signalé, validation spatiale,
   paiement atomique et conservation du même acteur jusqu'à la défense.
 - Cité : construction du bâtiment de distance sur 3 parcelles, puis production obligatoire de
-  10 Aquisfères/Noxeblast ; compteur d'objectif et plafond d'armée de démonstration à 35.
+  10 Aquisphères/Noxeblast ; compteur d'objectif et plafond d'armée de démonstration à 35.
 - Protection anti-blocage : les places d'armée et les cristaux nécessaires à l'objectif restent
   réservés tant que les 10 unités ne sont pas produites.
 - La 10e unité ouvre l'alerte de contre-attaque noxéenne ; le départ en défense reste un clic

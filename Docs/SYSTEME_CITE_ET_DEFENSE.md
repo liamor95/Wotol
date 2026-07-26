@@ -20,9 +20,9 @@ Chaque type d'unité a **son propre bâtiment**, amélioré **indépendamment** 
 | Faction | Type d'unité | Bâtiment producteur |
 |---|---|---|
 | Aquiloris | Infanterie (Aquiloryons) | Académie Aquiloryon |
-| Aquiloris | Montée (Aquilans) | Dôme des Aquilans |
-| Aquiloris | Distance (Aquisfères) | Champ de Tir des Aquisfères |
-| Aquiloris | Spéciale (Aquilombre) | Nexus des Ombres |
+| Aquiloris | Montée (Aquilances) | Dôme des Aquilances |
+| Aquiloris | Distance (Aquisphères) | Champ de Tir des Aquisphères |
+| Aquiloris | Spéciale (Aquilombres) | Nexus des Ombres |
 | Aquiloris | Mythique (Léviaphénix) | Cœur-Éclat du Léviaphénix |
 | Noxéens | (équivalents) | Nid / Fosse / Antre / Sanctuaire / Couvain |
 

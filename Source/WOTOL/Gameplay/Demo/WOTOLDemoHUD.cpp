@@ -1232,7 +1232,7 @@ static FString CityBuildingLabel(EFactionID Fac, EDemoUnitCategory Cat)
 	{
 		case EDemoUnitCategory::Infanterie: return bAq ? TEXT("Academie") : TEXT("Fosse d'Emergence");
 		case EDemoUnitCategory::Distance:   return bAq ? TEXT("Champ de Tir") : TEXT("Foyer des Decharges");
-		case EDemoUnitCategory::Montee:     return bAq ? TEXT("Dome des Aquilans") : TEXT("Cavite des Mastodontes");
+		case EDemoUnitCategory::Montee:     return bAq ? TEXT("Dome des Aquilances") : TEXT("Cavite des Mastodontes");
 		case EDemoUnitCategory::Speciale:   return bAq ? TEXT("Nexus des Ombres") : TEXT("Faille Abyssale");
 		case EDemoUnitCategory::Mythique:   return bAq ? TEXT("Coeur-Eclat") : TEXT("Antre du Noxedrake");
 		default: return TEXT("");
@@ -1246,9 +1246,9 @@ static FString CityUnitLabel(EFactionID Fac, EDemoUnitCategory Cat)
 	switch (Cat)
 	{
 		case EDemoUnitCategory::Infanterie: return bAq ? TEXT("Aquiloryons") : TEXT("Noxeflare");
-		case EDemoUnitCategory::Distance:   return bAq ? TEXT("Aquisferes")  : TEXT("Noxeblast");
-		case EDemoUnitCategory::Montee:     return bAq ? TEXT("Aquilans")   : TEXT("Noxebeast");
-		case EDemoUnitCategory::Speciale:   return bAq ? TEXT("Aquilombre") : TEXT("Noxeons");
+		case EDemoUnitCategory::Distance:   return bAq ? TEXT("Aquispheres")  : TEXT("Noxeblast");
+		case EDemoUnitCategory::Montee:     return bAq ? TEXT("Aquilances")   : TEXT("Noxebeast");
+		case EDemoUnitCategory::Speciale:   return bAq ? TEXT("Aquilombres") : TEXT("Noxeons");
 		case EDemoUnitCategory::Mythique:   return bAq ? TEXT("Leviaphenix"): TEXT("Noxedrake");
 		default: return TEXT("");
 	}
@@ -1844,7 +1844,7 @@ void AWOTOLDemoHUD::DrawLoadingScreen(float W, float H, UDemoFlowSubsystem* Demo
 	// pour les enseigner, entre deux phases, cf. recherche onboarding session du 19/07/2026).
 	static const TCHAR* Tips[6] = {
 		TEXT("Astuce : attaquez depuis une couche inferieure pour un bonus de degats ascendant."),
-		TEXT("Astuce : les Aquilombre sont invisibles a l'arret — approchez pour frapper dans le dos."),
+		TEXT("Astuce : les Aquilombres sont invisibles a l'arret — approchez pour frapper dans le dos."),
 		TEXT("Astuce : gardez vos unites groupees, la coordination Aquiloris renforce le groupe."),
 		TEXT("Astuce : les Noxeens sont plus puissants dans les zones bioluminescentes vertes."),
 		TEXT("Astuce : la touche R active la competence des unites selectionnees."),
