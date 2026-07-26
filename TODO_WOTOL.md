@@ -529,3 +529,40 @@ touche — aucune faction n'y est "choisie" avant le clic final, et il n'existe 
 survol (hover) dans le code actuel pour changer le fond en fonction de la carte survolee comme
 dans les exemples envoyes (carrousel 5 factions). Les vues Cite/Territoire (scenes 3D reelles)
 restent hors scope de cet ajout, deja teintees par des materiaux 3D existants.
+
+## Vrais fonds de biome par faction integres (25/07/2026, images officielles de Liamor)
+
+Liamor a confirme que le mecanisme decouvert pour MainMenuBG.png (PNG charge directement
+depuis le disque via FImageUtils::ImportFileAsTexture2D, sans import manuel dans l'editeur)
+peut etre reutilise pour d'autres fonds, et a fourni des images officielles (pas des
+exemples cette fois) : planches de batiments Noxeens (confirment a nouveau les 11 noms
+canoniques deja en code, rien de nouveau a corriger), deux fonds de biome, l'embleme officiel
+Noxeens (lettre "N" bioluminescente).
+
+**Implemente :**
+- `AWOTOLDemoHUD::GetFactionBackground(EFactionID)` (meme pattern que GetMenuBackground/
+  GetTransitionBackground) : charge `Content/UI/BackgroundAquiloris.png` /
+  `BackgroundNoxeens.png` depuis le disque, mis en cache.
+- `DrawFactionAmbientTint()` : utilise maintenant la vraie image (melangee a 55% d'opacite
+  par-dessus le dégradé procedural existant, pour garder la vignette de lisibilite de
+  DrawUnderwaterBackground) quand le fichier existe, sinon repli sur les silhouettes
+  procedurales ajoutees plus tot dans la session. Memes 6 ecrans concernes (HeroCustomization,
+  PreGameSummary, SkillsView, LoadingScreen, Summary, Interlude).
+- Fichiers ajoutes : `Content/UI/BackgroundAquiloris.png` (grotte de cristaux bleus, image
+  fournie par Liamor pour ce role) et `Content/UI/BackgroundNoxeens.png` (grotte
+  bioluminescente teal/meduses, fournie par Liamor).
+
+**Recu mais PAS encore integre (a decider avec Liamor) :**
+- `Content/UI/EmblemNoxeens.png` : embleme officiel Noxeens ("N" bioluminescent) copie dans
+  le projet, mais pas encore branche a un endroit precis du HUD. L'ecran de choix de faction
+  (DrawFactionSelect) utilise actuellement des icones procedurales simples pour les 2
+  boutons Aquiloris/Noxeens ; remplacer UNIQUEMENT celle des Noxeens par ce vrai embleme
+  creerait une incoherence visuelle (un bouton avec une vraie image, l'autre avec une forme
+  generique) tant qu'un embleme Aquiloris equivalent n'est pas fourni. A rediscuter.
+- Planches de batiments Noxeens envoyees (Enceinte Noxeenne, Trone des profondeurs, Cavite
+  des mastodontes, Fosse nourriciere, Fosse d'Emergence, Foyer des decharges, Faille
+  Abyssale, Antre du Noxedrake, Abysalyseur, Oeil bioluminal, Entraves abyssales) :
+  confirment les noms deja corrects en code (section "Audit Drive complet" plus haut), pas
+  d'image de batiment integree dans le jeu pour l'instant (la demo n'affiche pas de rendu de
+  batiment illustre, seulement du texte + de la 3D greybox) — a voir si Liamor veut une fiche
+  visuelle par batiment quelque part (ex. vue Territoire/Cite).

@@ -695,15 +695,25 @@ static void DrawFactionBiomeSilhouette(UCanvas* Canvas, float W, float H, float 
 	}
 }
 
-// Lavis translucide + silhouettes de biome dans la teinte de la faction choisie, à appeler
-// APRÈS DrawUnderwaterBackground sur les écrans qui suivent le choix de faction (thème
-// d'interface dynamique par faction, décision Liamor du 22/07/2026, enrichi le 25/07/2026 pour
-// que les écrans ne paraissent plus vides/neutres). Sans effet tant qu'aucune faction n'est
-// choisie (EFactionID::None).
+// Lavis translucide + fond de biome dans la teinte de la faction choisie, à appeler APRÈS
+// DrawUnderwaterBackground sur les écrans qui suivent le choix de faction (thème d'interface
+// dynamique par faction, décision Liamor du 22/07/2026, enrichi le 25/07/2026 pour que les
+// écrans ne paraissent plus vides/neutres). Priorité à la vraie image (Content/UI/
+// BackgroundAquiloris.png / BackgroundNoxeens.png, fournies par Liamor) si présente ; sinon
+// repli sur les silhouettes procédurales. Sans effet tant qu'aucune faction n'est choisie.
 void AWOTOLDemoHUD::DrawFactionAmbientTint(float W, float H, EFactionID Faction)
 {
 	if (Faction == EFactionID::None) return;
-	DrawFactionBiomeSilhouette(Canvas, W, H, GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f, Faction);
+	if (UTexture2D* BG = GetFactionBackground(Faction))
+	{
+		// Mélangé à 55% par-dessus le dégradé procédural existant (garde la vignette de
+		// lisibilité de DrawUnderwaterBackground en dessous) plutôt que de le remplacer.
+		DrawTexture(BG, 0.f, 0.f, W, H, 0.f, 0.f, 1.f, 1.f, FLinearColor(1.f, 1.f, 1.f, 0.55f));
+	}
+	else
+	{
+		DrawFactionBiomeSilhouette(Canvas, W, H, GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f, Faction);
+	}
 	const FLinearColor Tint = FFactionColors::Get(Faction);
 	DrawRect(Tint.CopyWithNewOpacity(0.05f), 0.f, 0.f, W, H);
 }
@@ -787,6 +797,29 @@ UTexture2D* AWOTOLDemoHUD::GetMenuBackground()
 		}
 	}
 	return MenuBgTexture;
+}
+
+UTexture2D* AWOTOLDemoHUD::GetFactionBackground(EFactionID Faction)
+{
+	// Meme mecanisme que GetMenuBackground (PNG charge directement depuis le disque, sans
+	// import manuel). Images officielles fournies par Liamor le 25/07/2026.
+	if (Faction == EFactionID::Aquiloris)
+	{
+		if (bAquilorisBgTried) return AquilorisBgTexture;
+		bAquilorisBgTried = true;
+		const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/BackgroundAquiloris.png");
+		if (FPaths::FileExists(PngPath)) AquilorisBgTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+		return AquilorisBgTexture;
+	}
+	if (Faction == EFactionID::Noxeens)
+	{
+		if (bNoxeensBgTried) return NoxeensBgTexture;
+		bNoxeensBgTried = true;
+		const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/BackgroundNoxeens.png");
+		if (FPaths::FileExists(PngPath)) NoxeensBgTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+		return NoxeensBgTexture;
+	}
+	return nullptr; // Hors scope demo (Thalassidra/Mureniens/Pirates Abyssaux)
 }
 
 void AWOTOLDemoHUD::DrawMainMenu(float W, float H)

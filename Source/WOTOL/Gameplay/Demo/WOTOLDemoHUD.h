@@ -183,6 +183,17 @@ private:
 	UPROPERTY(Transient) TObjectPtr<class UTexture2D> MenuBgTexture = nullptr;
 	bool bMenuBgTried = false;
 
+	// Fonds de biome réels par faction (Content/UI/BackgroundAquiloris.png /
+	// BackgroundNoxeens.png), même mécanisme que GetMenuBackground (PNG chargé directement
+	// depuis le disque, pas d'import manuel requis). Utilisés par DrawFactionAmbientTint à la
+	// place des silhouettes procédurales quand le fichier existe. Hors scope démo pour les
+	// 3 autres factions (retourne toujours nullptr pour elles).
+	class UTexture2D* GetFactionBackground(EFactionID Faction);
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> AquilorisBgTexture = nullptr;
+	bool bAquilorisBgTried = false;
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> NoxeensBgTexture = nullptr;
+	bool bNoxeensBgTried = false;
+
 	// Éléments style Total War
 	void DrawTopBar(float W, float H, class UWorld* World, class UDemoFlowSubsystem* Demo);
 	void DrawBossBar(float W, float H, class AWOTOLDemoUnit* Boss);
