@@ -11,6 +11,19 @@ Priorite au prochain retour PC : compiler `claude/wotol-demo-finale` et jouer la
 placement Cristalliseur en 3D -> cite -> batiment distance -> alerte -> defense -> phase 3).
 Rien de tout cela n'a ete compile/vu tourner cote assistant (pas d'editeur Unreal ici).
 
+Recherches autonomes (26/07/2026, relecture des changements de grade/phase 3) :
+- BUG CORRIGE : `ResetProgress()` n'oubliait pas MaxArmyUnits/InitialArmyUnits/
+  bReadyForGrandBattleDeparture -> "Recommencer" apres avoir atteint la grande bataille
+  repartirait sinon en phase 1 avec le mauvais plafond/effectif.
+- Chef et Mythique EXCLUS du tirage de grade individuel (RollUnitGrade) : ce sont des unites
+  SOLO (MaxCountInSquad=1), la variete de grade n'a aucun sens pour un exemplaire unique et
+  n'ajoutait qu'un bruit +/-15% non voulu a l'equilibrage calibre. Seules les categories en
+  escouade (Infanterie/Montee/Distance/Speciale) tirent toujours un grade.
+- Avertissement (non bloquant) sur le bouton EMBARQUER si l'armee de phase 3 recrutee est sous
+  la moitie du plafond (60/100) : l'ennemi garde toujours son contingent scripte complet, donc
+  embarquer sous-effectif serait tres desequilibre - le joueur reste libre de le faire, juste
+  prevenu au lieu d'etre surpris.
+
 Fait cette session (26/07/2026, retours de Liamor sur l'illustration 3D de la cite) :
 - Correction de nom : le chef Aquiloris s'appelle **Aquis** (pas "Akis") ; renomme partout
   (code, batiment Aquisferes/unite distance, commentaires, doc install).
