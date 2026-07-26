@@ -40,6 +40,17 @@ Fait cette session (26/07/2026, retours de Liamor sur l'illustration 3D de la ci
   Docs/DOCUMENT_MAITRE_WOTOL.md : invalides selon Liamor (deja retires cote conception, ne
   jamais les reutiliser). Remplaces par "nom a redefinir" en attendant validation depuis les
   images officielles (faction entierement hors scope demo, jamais dans le code).
+- SUITE (meme jour) : Liamor envoie 12 planches officielles de creatures (factions hors scope
+  demo). Chef Murenien confirme : **Muron** (remplace "Korvass"). Mythique Murenien : candidat
+  probable **Mureen** (planche officielle, immense serpent pur sans bras/jambes, coherent avec
+  la convention des mythiques Aquiloris/Noxeens) mais PAS ENCORE confirme explicitement par
+  Liamor - a valider avant d'ecrire "Mureen" comme definitif. Deux autres planches Murenien
+  vues, role non assigne : Muroxic, Mureblog. Planches des autres factions hors scope vues le
+  meme jour (non assignees a un role precis, notees pour reference future) : Sonarien,
+  Murefronde (cavalier+monture), Piquiers Oceaniques, Tortue Bastion (deja notes plus haut,
+  confirmes Pirates Abyssaux) ; Kalyth, Coralyth, Crabes d'Assaut, Thalor (Thalassidra - Thalor
+  ressemble fortement au Chef Thalassidra decrit dans les Docs, cornes+couronne de corail+
+  torse humanoide, mais pas confirme non plus).
 - Controle de vitesse de jeu (x1/x1.5/x2) dans l'ecran Reglages, sous le bouton plein ecran :
   AWOTOLPlayerController_Battle::SetGameSpeed + UGameplayStatics::SetGlobalTimeDilation.
 - Materialisation VISUELLE de la croissance de la cite avant la phase 3 : jusqu'ici la
