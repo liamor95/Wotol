@@ -328,6 +328,13 @@ public:
 		bSummaryBuildingDestroyed = false;
 		SummaryContinueLabel.Empty();
 		bCitySelectionValid = false;
+		// Remis a zero : ReturnToCityForGrandBattleReveal() (phase 3) modifie ces trois champs
+		// a l'execution (plafond de recrutement 60/100, base reduite) - sans ce reset, un
+		// "Recommencer" apres avoir atteint la grande bataille repartirait avec le mauvais
+		// plafond/effectif des la phase 1 (bug introduit le 26/07/2026, corrige ici).
+		bReadyForGrandBattleDeparture = false;
+		MaxArmyUnits = 35;
+		InitialArmyUnits = 25;
 	}
 
 	// Difficulté choisie (défaut Normal = l'équilibrage de référence).
