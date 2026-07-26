@@ -395,6 +395,16 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 			}
 			if (AWOTOLDemoHUD::CityDepartButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 			{
+				// Même bouton, 3e état prioritaire : la cité a grandi (phase 2 -> 3), on embarque
+				// pour la grande bataille au lieu de repartir défendre le Cristalliseur.
+				if (Demo->bReadyForGrandBattleDeparture)
+				{
+					if (AWOTOLDemoDirector* Dir = GetDemoDirector())
+					{
+						Dir->EmbarkGrandBattleFromCity();
+					}
+					return true;
+				}
 				// Part en expédition : le Director lance la défense du Cristalliseur (phase 10),
 				// en déployant aussi les unités produites en cité (réserve).
 				if (Demo->IsDefenseMissionReady())

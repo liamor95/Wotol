@@ -258,6 +258,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void ContinueToPhase2();
 
+	// Depuis l'écran de TRANSITION phase 2 -> 3 : au lieu de lancer directement la grande
+	// bataille, renvoie le joueur à la cité (déjà débloquée par UnlockAll) pour qu'il VOIE sa
+	// croissance avant d'embarquer. Voir bReadyForGrandBattleDeparture.
+	UFUNCTION(BlueprintCallable, Category = "Demo")
+	void ReturnToCityForGrandBattleReveal();
+
+	// Depuis la cité, une fois bReadyForGrandBattleDeparture actif : lance enfin la phase 3.
+	UFUNCTION(BlueprintCallable, Category = "Demo")
+	void EmbarkGrandBattleFromCity();
+
 	// Depuis l'écran de RÉSUMÉ final : relance la démo (même faction ou choix).
 	//   bKeepFaction=true  -> rejoue directement avec la faction actuelle
 	//   bKeepFaction=false -> retourne à l'écran de choix de faction

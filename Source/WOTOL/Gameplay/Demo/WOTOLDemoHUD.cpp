@@ -1356,7 +1356,9 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 
 	const bool bStrategicAlert = Demo->GetProgress().bZoneThreatened
 		|| Demo->GetProgress().bZoneLost;
-	const FString Objective = bStrategicAlert
+	const FString Objective = Demo->bReadyForGrandBattleDeparture
+		? FString(TEXT("VOTRE CITE A GRANDI — nouveaux batiments Speciale/Mythique debloques !"))
+		: bStrategicAlert
 		? Demo->ObjectiveText
 		: (Demo->GetProgress().bDefenseSystemInstalled && !Demo->GetProgress().bMythicPlayable
 			? FString::Printf(TEXT("OBJECTIF : NOURRIR LE %s"),
@@ -1366,7 +1368,8 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 				: FString::Printf(TEXT("OBJECTIF : PRODUIRE 10 UNITES A DISTANCE   %d / %d"),
 					Demo->GetRangedProductionProgress(), Demo->RangedProductionTarget)));
 	DrawCenteredText(Objective, H * 0.60f,
-		(bStrategicAlert && Demo->GetProgress().bZoneLost)
+		Demo->bReadyForGrandBattleDeparture ? FLinearColor(0.95f, 0.75f, 0.15f, 1.f)
+			: (bStrategicAlert && Demo->GetProgress().bZoneLost)
 			? FLinearColor(1.f, 0.36f, 0.26f, 1.f)
 			: Demo->IsRangedProductionObjectiveComplete() ? FLinearColor(0.45f, 1.f, 0.55f, 1.f)
 			: FLinearColor(0.9f, 0.95f, 1.f, 0.95f), 1.1f);
@@ -1405,6 +1408,19 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 			DrawLine(R.Min.X - 3.f, R.Max.Y + 3.f, R.Max.X + 3.f, R.Max.Y + 3.f, FLinearColor::White, 3.f);
 			DrawLine(R.Min.X - 3.f, R.Min.Y - 3.f, R.Min.X - 3.f, R.Max.Y + 3.f, FLinearColor::White, 3.f);
 			DrawLine(R.Max.X + 3.f, R.Min.Y - 3.f, R.Max.X + 3.f, R.Max.Y + 3.f, FLinearColor::White, 3.f);
+		}
+		// Badge "NOUVEAU !" : marque visuellement les bâtiments tout juste débloqués par la
+		// croissance de phase 3 (Spéciale/Mythique) — matérialise le déblocage sans dépendre
+		// uniquement du texte de l'interlude (demande de Liamor du 26/07/2026).
+		if (Demo->bReadyForGrandBattleDeparture
+			&& (Cat == EDemoUnitCategory::Speciale || Cat == EDemoUnitCategory::Mythique))
+		{
+			const FString Badge = TEXT("NOUVEAU !");
+			float BgW, BgH; GetTextSize(Badge, BgW, BgH, GEngine ? GEngine->GetSmallFont() : nullptr, 1.0f);
+			DrawRect(FLinearColor(0.95f, 0.75f, 0.15f, 0.95f),
+				R.Max.X - BgW - 16.f, R.Min.Y - BgH * 0.5f - 6.f, BgW + 12.f, BgH + 8.f);
+			DrawText(Badge, FLinearColor(0.08f, 0.06f, 0.02f, 1.f), R.Max.X - BgW - 10.f,
+				R.Min.Y - BgH * 0.5f - 2.f, GEngine ? GEngine->GetSmallFont() : nullptr, 1.0f);
 		}
 
 		const float CX = R.Min.X + 12.f;
@@ -1527,10 +1543,13 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		}
 	}
 
-	// Bouton d'expédition + bouton compétences.
+	// Bouton d'expédition + bouton compétences. 3e état prioritaire : cité déjà débloquée
+	// (phase 2 -> 3), le joueur embarque pour la grande bataille au lieu de repartir en défense.
 	DrawButton(CityDepartButtonRect(W, H),
-		Demo->IsDefenseMissionReady() ? TEXT("DEFENDRE LA ZONE") : TEXT("OBJECTIF : 10 UNITES"),
-		Demo->IsDefenseMissionReady() ? FLinearColor(1.f, 0.7f, 0.25f, 1.f)
+		Demo->bReadyForGrandBattleDeparture ? TEXT("EMBARQUER - GRANDE BATAILLE")
+			: Demo->IsDefenseMissionReady() ? TEXT("DEFENDRE LA ZONE") : TEXT("OBJECTIF : 10 UNITES"),
+		Demo->bReadyForGrandBattleDeparture ? FLinearColor(0.95f, 0.75f, 0.15f, 1.f)
+			: Demo->IsDefenseMissionReady() ? FLinearColor(1.f, 0.7f, 0.25f, 1.f)
 			: FLinearColor(0.38f, 0.42f, 0.48f, 1.f), 1.15f);
 	DrawButton(CitySkillsButtonRect(W, H), TEXT("COMPETENCES"),
 		FLinearColor(0.6f, 0.8f, 1.f, 1.f), 1.2f);

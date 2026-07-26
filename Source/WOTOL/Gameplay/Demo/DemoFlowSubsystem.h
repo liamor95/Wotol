@@ -378,6 +378,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void SetObjective(const FString& Text) { ObjectiveText = Text; }
 
+	// Vrai entre la fin de l'interlude de croissance (phase 2 -> 3) et l'embarquement pour la
+	// grande bataille : force un retour obligatoire a la cite pour que ses nouveaux batiments
+	// (Speciale/Mythique, debloques par UnlockAll) soient VUS, pas seulement racontes par texte
+	// (demande de Liamor du 26/07/2026). Remis a false des que la bataille demarre.
+	UPROPERTY(BlueprintReadOnly, Category = "Demo")
+	bool bReadyForGrandBattleDeparture = false;
+
+	UFUNCTION(BlueprintCallable, Category = "Demo")
+	void SetReadyForGrandBattleDeparture(bool bReady) { bReadyForGrandBattleDeparture = bReady; }
+
 	// Boss courant (créature) — pour la barre de vie du HUD
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void SetBoss(AActor* InBoss) { BossActor = InBoss; }

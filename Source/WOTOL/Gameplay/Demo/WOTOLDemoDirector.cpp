@@ -2355,12 +2355,15 @@ void AWOTOLDemoDirector::ContinueToPhase2()
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 
 	// Le MÊME bouton « Continuer » enchaîne : après la phase 2 (Battle_Rival déjà jouée) il
-	// mène à la PHASE 3 (grande bataille neutre) au lieu de re-lancer la phase 2.
+	// mène à la PHASE 3 (grande bataille neutre) au lieu de re-lancer la phase 2. On ne lance
+	// PLUS directement la bataille depuis cet écran hors-champ : on repasse d'abord par la
+	// cité (déjà débloquée par UnlockAll) pour que sa croissance se VOIE (demande de Liamor
+	// du 26/07/2026 — la matérialisation ne doit pas reposer uniquement sur ce texte).
 	if (Demo && (Demo->GetPhase() == EDemoPhase::Battle_Rival
 		|| (Demo->GetProgress().bMythicPlayable
 			&& Demo->GetPhase() == EDemoPhase::Territory_Management)))
 	{
-		StartGrandBattle();
+		ReturnToCityForGrandBattleReveal();
 		return;
 	}
 
@@ -2396,6 +2399,33 @@ void AWOTOLDemoDirector::LaunchDefenseFromCity()
 	// sauvegarde/procédure de test qui entrerait dans la défense sans objet existant.
 	if (!IsValid(CaptureObject)) SpawnCaptureObject(CachedPlayerFaction);
 	StartRivalDefense();                     // -> défense en PRÉPARATION
+}
+
+// Retour obligatoire à la cité entre l'interlude de croissance et la grande bataille : la
+// cité est DÉJÀ débloquée (UnlockAll appelé dans EnterMythicGrowthInterlude) donc les
+// bâtiments Spéciale/Mythique s'affichent immédiatement actifs (AWOTOLCityBuildingProp::
+// Refresh relit IsCategoryUnlocked à chaque frame) — le joueur les VOIT au lieu de se
+// contenter du texte de l'interlude (demande de Liamor du 26/07/2026).
+void AWOTOLDemoDirector::ReturnToCityForGrandBattleReveal()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return;
+	PossessBattleCamera();
+	Demo->SetReadyForGrandBattleDeparture(true);
+	Demo->SetObjective(TEXT(
+		"VOTRE CITE A GRANDI — nouveaux batiments debloques. Embarquez pour la grande bataille."));
+	Demo->SetScreen(EDemoScreen::City);
+}
+
+// Bouton "EMBARQUER" affiché en cité tant que bReadyForGrandBattleDeparture est actif.
+void AWOTOLDemoDirector::EmbarkGrandBattleFromCity()
+{
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo || !Demo->bReadyForGrandBattleDeparture) return;
+	Demo->SetReadyForGrandBattleDeparture(false);
+	StartGrandBattle();
 }
 
 // PHASE 3 — grande bataille rangée en ZONE NEUTRE : on débloque TOUT le roster (spéciale +
