@@ -1357,7 +1357,7 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 	const bool bStrategicAlert = Demo->GetProgress().bZoneThreatened
 		|| Demo->GetProgress().bZoneLost;
 	const FString Objective = Demo->bReadyForGrandBattleDeparture
-		? FString(TEXT("VOTRE CITE A GRANDI — nouveaux batiments Speciale/Mythique debloques !"))
+		? Demo->ObjectiveText // "VOTRE CITE A GRANDI... Recrutez (X / Y)..." tenu à jour à chaque recrutement
 		: bStrategicAlert
 		? Demo->ObjectiveText
 		: (Demo->GetProgress().bDefenseSystemInstalled && !Demo->GetProgress().bMythicPlayable
@@ -1463,6 +1463,13 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 			DrawText(bCanBuild ? TEXT("+ CONSTRUIRE") : TEXT("RESSOURCES INSUFFISANTES"),
 				bCanBuild ? Accent : FLinearColor(0.7f, 0.5f, 0.5f, 1.f),
 				CX, R.Max.Y - 28.f, GEngine ? GEngine->GetMediumFont() : nullptr, 0.9f);
+		}
+		else if (Cat == EDemoUnitCategory::Mythique)
+		{
+			// Créature unique élevée par la narration (Feed & Grow) : jamais recrutable en
+			// série en cité, déjà comptée dans l'armée automatiquement.
+			DrawText(TEXT("Deja dans votre armee (creature unique)"),
+				FLinearColor(0.7f, 0.85f, 0.75f, 1.f), CX, R.Min.Y + 96.f, nullptr, 0.85f);
 		}
 		else
 		{

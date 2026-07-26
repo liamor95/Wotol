@@ -376,13 +376,24 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 					}
 					else if (Demo->ProduceUnit(Cat))
 					{
-						Demo->SetObjective(FString::Printf(TEXT("Produisez 10 unites a distance : %d / %d"),
-							Demo->GetRangedProductionProgress(), Demo->RangedProductionTarget));
-						if (Cat == EDemoUnitCategory::Distance
-							&& Demo->IsRangedProductionObjectiveComplete())
+						// Phase 3 (post-croissance) : recrutement libre jusqu'au plafond faction,
+						// plus rien à voir avec l'objectif "10 unites a distance" de la phase 2.
+						if (Demo->bReadyForGrandBattleDeparture)
 						{
-							if (AWOTOLDemoDirector* Dir = GetDemoDirector())
-								Dir->NotifyRangedProductionObjectiveComplete();
+							Demo->SetObjective(FString::Printf(TEXT(
+								"VOTRE CITE A GRANDI — nouveaux batiments debloques. Recrutez votre armee (%d / %d) puis embarquez."),
+								Demo->GetArmyUnitCount(), Demo->GetArmyUnitCap()));
+						}
+						else
+						{
+							Demo->SetObjective(FString::Printf(TEXT("Produisez 10 unites a distance : %d / %d"),
+								Demo->GetRangedProductionProgress(), Demo->RangedProductionTarget));
+							if (Cat == EDemoUnitCategory::Distance
+								&& Demo->IsRangedProductionObjectiveComplete())
+							{
+								if (AWOTOLDemoDirector* Dir = GetDemoDirector())
+									Dir->NotifyRangedProductionObjectiveComplete();
+							}
 						}
 					}
 					return true;

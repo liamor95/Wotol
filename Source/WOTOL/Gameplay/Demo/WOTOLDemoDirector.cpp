@@ -830,23 +830,19 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 	int32 EffSpecial  = SpecialCount;
 	if (bGrandBattle)
 	{
-		// Composition asymétrique canonique de phase 3. Chef + mythique sont ajoutés plus bas.
-		if (Faction == EFactionID::Noxeens)
-		{
-			// 1 + 34 + 22 + 30 + 12 + 1 = 100.
-			EffInfantry = 34; EffMounted = 22; EffRanged = 30; EffSpecial = 12;
-		}
-		else
-		{
-			// 1 + 20 + 12 + 18 + 8 + 1 = 60.
-			EffInfantry = 20; EffMounted = 12; EffRanged = 18; EffSpecial = 8;
-		}
+		// PHASE 3 (JOUEUR) : base fixe réduite (vétérans de la phase 2 ; chef + mythique
+		// ajoutés séparément plus bas) — le reste vient du recrutement libre en cité, drainé
+		// juste en dessous comme pour les phases 1/2 (demande de Liamor du 26/07/2026: fini
+		// la composition scriptée imposée, place au recrutement joueur jusqu'au plafond
+		// faction réglé dans ReturnToCityForGrandBattleReveal).
+		EffInfantry = GrandBattleBaselineInfantry;
+		EffMounted  = GrandBattleBaselineMounted;
+		EffRanged   = GrandBattleBaselineRanged;
+		EffSpecial  = GrandBattleBaselineSpecial;
 	}
 	{
 		TMap<FName, int32> Reserve;
-		// La phase 3 est une ellipse scénarisée à 60/100 : les réserves de la phase 2 ne
-		// doivent pas casser ces effectifs. Elles ne sont drainées que pour les phases 1/2.
-		if (!bGrandBattle) Demo->DrainReserve(Reserve);
+		Demo->DrainReserve(Reserve); // phases 1/2/3 : toujours les unités RÉELLEMENT recrutées
 		for (const TPair<FName, int32>& Pair : Reserve)
 		{
 			switch (UDemoFlowSubsystem::GetCategoryForUnit(Pair.Key))
@@ -2412,9 +2408,26 @@ void AWOTOLDemoDirector::ReturnToCityForGrandBattleReveal()
 		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	if (!Demo) return;
 	PossessBattleCamera();
+
+	// PHASE 3 : l'armée passe d'une composition scriptée fixe à une base réduite (vétérans
+	// de la phase 2, chef + mythique compris) + recrutement libre en cité, plafonné par
+	// faction (60 Aquiloris / 100 Noxéens) — demande de Liamor du 26/07/2026. On repart
+	// d'une réserve vide : la garnison de la phase 2 reste garder la zone, elle ne rejoint
+	// pas la grande bataille en zone neutre.
+	const EFactionID Fac = Demo->GetPlayerFaction();
+	Demo->MaxArmyUnits = (Fac == EFactionID::Noxeens) ? 100 : 60;
+	Demo->InitialArmyUnits = 2 // chef + mythique, ajoutés séparément dans SpawnPlayerArmy
+		+ GrandBattleBaselineInfantry + GrandBattleBaselineMounted
+		+ GrandBattleBaselineRanged + GrandBattleBaselineSpecial;
+	Demo->TotalProducedUnits = 0;
+	Demo->GarrisonUnits = 0;
+	Demo->GarrisonByUnit.Empty();
+	Demo->ReserveUnits.Empty();
+
 	Demo->SetReadyForGrandBattleDeparture(true);
-	Demo->SetObjective(TEXT(
-		"VOTRE CITE A GRANDI — nouveaux batiments debloques. Embarquez pour la grande bataille."));
+	Demo->SetObjective(FString::Printf(TEXT(
+		"VOTRE CITE A GRANDI — nouveaux batiments debloques. Recrutez votre armee (%d / %d) puis embarquez."),
+		Demo->GetArmyUnitCount(), Demo->GetArmyUnitCap()));
 	Demo->SetScreen(EDemoScreen::City);
 }
 

@@ -423,6 +423,11 @@ int32 UDemoFlowSubsystem::GetProductionCost(EDemoUnitCategory Category) const
 
 bool UDemoFlowSubsystem::CanProduce(EDemoUnitCategory Category) const
 {
+	// Le mythique est UNIQUE (élevé depuis le juvénile via la narration, ajouté automatiquement
+	// à l'armée) : jamais recrutable en série — sans ce garde-fou, SpawnPlayerArmy ignore
+	// silencieusement tout exemplaire produit ici (catégorie "gérée séparément"), ce qui
+	// gaspillerait des cristaux pour rien.
+	if (Category == EDemoUnitCategory::Mythique) return false;
 	const int32 Cost = GetProductionCost(Category);
 	if (Cost <= 0 || !IsCategoryUnlocked(Category) || PlayerCrystals < Cost) return false;
 	if (GetArmyUnitCount() >= MaxArmyUnits) return false;
