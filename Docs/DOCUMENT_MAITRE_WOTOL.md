@@ -67,10 +67,9 @@ monture tortue. Chef ~1,70 m. Mythique : **méduse géante** (nom à fixer).
 
 ### 3.4 Muréniens *(hors démo)* — **violet/pourpre**, grottes toxiques. Torse humanoïde + **queue de murène**
 (pas de jambes). Chef : **Muron** (confirmé par Liamor le 26/07/2026, planche officielle — remplace
-"Korvass", invalide). Mythique : *à confirmer* — candidat probable **Mureen** (planche officielle,
-immense serpent pur sans bras/jambes, cohérent avec la convention des mythiques Aquiloris/Noxéens)
-mais pas encore validé explicitement par Liamor ; remplace "Reine Nuxim", invalide. Autres planches
-officielles vues le même jour, non assignées à un rôle précis : Muroxic, Muréblog.
+"Korvass", invalide). Mythique : **Mureen**, la **Reine** des Muréniens — confirmée par Liamor,
+**seule femelle de la faction** (remplace "Reine Nuxim", invalide). Autres planches officielles
+vues le même jour, non assignées à un rôle précis : Muroxic, Muréblog.
 
 ### 3.5 Pirates Abyssaux *(hors démo)* — **énergie rouge**, récupération, exilés multi-origines.
 1 membre mécanique max par perso. Cité = **vaisseau-fief mobile** (= élément mythique). **Jamais** un bateau de surface.
@@ -240,8 +239,8 @@ Windows 10 Home, **NVIDIA GTX** (pilote 472.84). Erreur **« Video memory exhaus
 5. **Noxar a des jambes**.
 6. Aquiloris = blanc/bleu/énergie bleue.
 7. **Aquilombres translucide**.
-8. Mythique Muréniens montrée entièrement (nom "Nuxim" retiré, invalide - candidat probable
-   "Mureen", pas encore confirme).
+8. Mythique Muréniens (**Mureen**, la Reine, seule femelle de la faction) montrée entièrement
+   (nom "Nuxim" retiré, invalide).
 9. Vaisseau pirate = cité mobile + fief mythique.
 10. Une unité demandée séparément = **image séparée**.
 11. Une correction locale **ne modifie pas** les éléments déjà validés.
