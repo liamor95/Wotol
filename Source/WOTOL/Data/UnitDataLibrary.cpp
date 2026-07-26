@@ -283,7 +283,7 @@ static void FillNoxedrake(UUnitDataAsset* A)
 	A->AxisTwoName        = FText::FromString(TEXT("Dominion Radieux"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Marquage cumulatif, légère auto-régénération sur dégâts infligés"));
 	A->PassiveDescription = FText::FromString(TEXT("En infligeant dégâts continus : vitesse augmente, résistance contrôle s'améliore. Synergie : Noxar. ⚠️ Vulnérable pendant canalisation"));
-	A->RequiredBuilding   = FText::FromString(TEXT("Repaire du Noxedrake"));
+	A->RequiredBuilding   = FText::FromString(TEXT("Antre du Noxedrake"));
 }
 
 static void FillNoxeflare(UUnitDataAsset* A)
@@ -318,7 +318,7 @@ static void FillNoxeflare(UUnitDataAsset* A)
 	A->AxisTwoName        = FText::FromString(TEXT("Voie de la Frappe Aveugle"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Bonus dégâts massifs sur aveuglés, recharge réduite sur élimination"));
 	A->PassiveDescription = FText::FromString(TEXT("Ennemis proches subissent légère baisse précision passive permanente. Synergie clé : Noxeblast"));
-	A->RequiredBuilding   = FText::FromString(TEXT("Caserne Noxeflare"));
+	A->RequiredBuilding   = FText::FromString(TEXT("Fosse d'Emergence"));
 }
 
 static void FillNoxeblast(UUnitDataAsset* A)
@@ -353,7 +353,7 @@ static void FillNoxeblast(UUnitDataAsset* A)
 	A->AxisTwoName        = FText::FromString(TEXT("Explosion Bioluminescente"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Explose à l'impact — aveugle unités proches — désorganise formations"));
 	A->PassiveDescription = FText::FromString(TEXT("Bonus dégâts significatif sur cible affectée par désorientation/aveuglement. Synergie clé : Noxeflare"));
-	A->RequiredBuilding   = FText::FromString(TEXT("Tour de Décharge Noxéenne"));
+	A->RequiredBuilding   = FText::FromString(TEXT("Foyer des Décharges"));
 }
 
 static void FillNoxeons(UUnitDataAsset* A)
@@ -388,7 +388,7 @@ static void FillNoxeons(UUnitDataAsset* A)
 	A->AxisTwoName        = FText::FromString(TEXT("Ancrage Abyssal"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Zone plus large, résistance accrue alliés, régénération continue, réduction contrôles"));
 	A->PassiveDescription = FText::FromString(TEXT("Chaque Noxéon actif augmente légèrement la production énergétique globale. Cumulatif. Synergie : Noxar et Noxedrake. ⚠️ Faible mobilité"));
-	A->RequiredBuilding   = FText::FromString(TEXT("Bassin Luminal"));
+	A->RequiredBuilding   = FText::FromString(TEXT("Faille Abyssale"));
 }
 
 static void FillNoxebeast(UUnitDataAsset* A)
@@ -423,7 +423,7 @@ static void FillNoxebeast(UUnitDataAsset* A)
 	A->AxisTwoName        = FText::FromString(TEXT("Défoncement"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Charge plus rapide, dégâts augmentés, perfore formations, renverse unités lourdes"));
 	A->PassiveDescription = FText::FromString(TEXT("Plus il subit dégâts consécutifs, plus résistance augmente. Immunité brève contrôle à haut seuil. Synergie : Noxedrake. ⚠️ Vulnérable 2-3s APRÈS la charge"));
-	A->RequiredBuilding   = FText::FromString(TEXT("Fosse aux Noxebeasts"));
+	A->RequiredBuilding   = FText::FromString(TEXT("Cavité des Mastodontes"));
 }
 
 // ─── Dispatch ─────────────────────────────────────────────────────────────────
