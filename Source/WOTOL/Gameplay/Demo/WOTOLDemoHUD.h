@@ -194,6 +194,14 @@ private:
 	UPROPERTY(Transient) TObjectPtr<class UTexture2D> NoxeensBgTexture = nullptr;
 	bool bNoxeensBgTried = false;
 
+	// Emblèmes officiels par faction (Content/UI/EmblemAquiloris.png / EmblemNoxeens.png),
+	// utilisés sur l'écran de choix de faction. Même mécanisme de chargement.
+	class UTexture2D* GetFactionEmblem(EFactionID Faction);
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> AquilorisEmblemTexture = nullptr;
+	bool bAquilorisEmblemTried = false;
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> NoxeensEmblemTexture = nullptr;
+	bool bNoxeensEmblemTried = false;
+
 	// Éléments style Total War
 	void DrawTopBar(float W, float H, class UWorld* World, class UDemoFlowSubsystem* Demo);
 	void DrawBossBar(float W, float H, class AWOTOLDemoUnit* Boss);

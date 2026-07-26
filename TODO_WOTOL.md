@@ -566,3 +566,26 @@ Noxeens (lettre "N" bioluminescente).
   d'image de batiment integree dans le jeu pour l'instant (la demo n'affiche pas de rendu de
   batiment illustre, seulement du texte + de la 3D greybox) — a voir si Liamor veut une fiche
   visuelle par batiment quelque part (ex. vue Territoire/Cite).
+
+## Embleme Aquiloris recu, equilibre resolu (25/07/2026)
+
+Liamor a envoye le lot complet des visuels officiels Aquiloris (batiments confirmant a
+nouveau les 11 noms canoniques deja en code, armes, personnages Aquiloryon/Akis, fonds de
+biome) — dont l'embleme officiel Aquiloris (bouclier bleu "A"), symetrique a l'embleme
+Noxeens ("N") recu precedemment. Le point laisse ouvert dans l'entree precedente
+("remplacer un seul bouton par une vraie image creerait une incoherence") est resolu :
+les deux emblemes existent maintenant.
+
+**Implemente :**
+- `AWOTOLDemoHUD::GetFactionEmblem(EFactionID)` (meme mecanisme que GetFactionBackground) :
+  charge `Content/UI/EmblemAquiloris.png` / `EmblemNoxeens.png`.
+- `DrawFactionSelect()` : les deux boutons de faction affichent maintenant les vrais
+  emblemes officiels au lieu des icones procedurales (triangle cyan / hexagone vert),
+  avec repli automatique sur l'ancien procedural si un fichier venait a manquer.
+
+Fichiers ajoutes : `Content/UI/EmblemAquiloris.png`, `Content/UI/EmblemNoxeens.png`.
+
+**Toujours pas fait :** aucune fiche/icone de batiment ou d'unite individuelle integree
+dans le jeu (la demo n'affiche que du texte + de la 3D greybox pour les batiments/unites,
+pas de rendu illustre) — a voir si Liamor veut ca quelque part precisement (vue Cite ?
+Territoire ? fiche technique au clic ?).

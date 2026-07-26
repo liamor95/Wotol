@@ -822,6 +822,27 @@ UTexture2D* AWOTOLDemoHUD::GetFactionBackground(EFactionID Faction)
 	return nullptr; // Hors scope demo (Thalassidra/Mureniens/Pirates Abyssaux)
 }
 
+UTexture2D* AWOTOLDemoHUD::GetFactionEmblem(EFactionID Faction)
+{
+	if (Faction == EFactionID::Aquiloris)
+	{
+		if (bAquilorisEmblemTried) return AquilorisEmblemTexture;
+		bAquilorisEmblemTried = true;
+		const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/EmblemAquiloris.png");
+		if (FPaths::FileExists(PngPath)) AquilorisEmblemTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+		return AquilorisEmblemTexture;
+	}
+	if (Faction == EFactionID::Noxeens)
+	{
+		if (bNoxeensEmblemTried) return NoxeensEmblemTexture;
+		bNoxeensEmblemTried = true;
+		const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/EmblemNoxeens.png");
+		if (FPaths::FileExists(PngPath)) NoxeensEmblemTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+		return NoxeensEmblemTexture;
+	}
+	return nullptr;
+}
+
 void AWOTOLDemoHUD::DrawMainMenu(float W, float H)
 {
 	// IMAGE d'accueil : asset importé OU PNG chargé depuis le disque (voir GetMenuBackground).
@@ -858,12 +879,29 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 		const float bobN = FMath::Sin(T * 1.4f + 1.6f) * 8.f;
 		const FVector2D CA((RA.Min.X + RA.Max.X) * 0.5f, RA.Min.Y - H * 0.07f + bobA);
 		const FVector2D CN((RN.Min.X + RN.Max.X) * 0.5f, RN.Min.Y - H * 0.07f + bobN);
-		// Aquiloris : cristal (triangle cyan) + halo
-		Canvas->K2_DrawPolygon(nullptr, CA, FVector2D(52.f, 52.f), 16, FLinearColor(0.2f, 0.6f, 1.f, 0.15f));
-		Canvas->K2_DrawPolygon(nullptr, CA, FVector2D(34.f, 46.f), 3, FLinearColor(0.5f, 0.9f, 1.f, 0.95f));
-		// Noxéens : organisme (hexa vert) + halo
-		Canvas->K2_DrawPolygon(nullptr, CN, FVector2D(52.f, 52.f), 16, FLinearColor(0.2f, 0.9f, 0.45f, 0.15f));
-		Canvas->K2_DrawPolygon(nullptr, CN, FVector2D(40.f, 40.f), 16, FLinearColor(0.3f, 0.95f, 0.5f, 0.95f));
+		// Emblèmes officiels (Content/UI/EmblemAquiloris.png / EmblemNoxeens.png, fournis par
+		// Liamor le 25/07/2026) si présents ; repli sur les icônes procédurales sinon.
+		const float IconSize = 100.f;
+		if (UTexture2D* EmblemA = GetFactionEmblem(EFactionID::Aquiloris))
+		{
+			DrawTexture(EmblemA, CA.X - IconSize * 0.5f, CA.Y - IconSize * 0.5f, IconSize, IconSize, 0.f, 0.f, 1.f, 1.f);
+		}
+		else
+		{
+			// Aquiloris : cristal (triangle cyan) + halo
+			Canvas->K2_DrawPolygon(nullptr, CA, FVector2D(52.f, 52.f), 16, FLinearColor(0.2f, 0.6f, 1.f, 0.15f));
+			Canvas->K2_DrawPolygon(nullptr, CA, FVector2D(34.f, 46.f), 3, FLinearColor(0.5f, 0.9f, 1.f, 0.95f));
+		}
+		if (UTexture2D* EmblemN = GetFactionEmblem(EFactionID::Noxeens))
+		{
+			DrawTexture(EmblemN, CN.X - IconSize * 0.5f, CN.Y - IconSize * 0.5f, IconSize, IconSize, 0.f, 0.f, 1.f, 1.f);
+		}
+		else
+		{
+			// Noxéens : organisme (hexa vert) + halo
+			Canvas->K2_DrawPolygon(nullptr, CN, FVector2D(52.f, 52.f), 16, FLinearColor(0.2f, 0.9f, 0.45f, 0.15f));
+			Canvas->K2_DrawPolygon(nullptr, CN, FVector2D(40.f, 40.f), 16, FLinearColor(0.3f, 0.95f, 0.5f, 0.95f));
+		}
 	}
 
 	UDemoFlowSubsystem* Flow = GetGameInstance()
