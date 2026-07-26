@@ -2505,7 +2505,11 @@ FBox2D AWOTOLDemoHUD::CommandCardRect(int32 Index, float W, float H)
 }
 
 // Construit les groupes du roster : TOUTES les unités vivantes de la faction joueur,
-// agrégées par nom, dans l'ordre du registre. Partagé HUD (rendu) ↔ PlayerController (clic).
+// agrégées par nom ET PAR GRADE (AWOTOLDemoUnit::GradeLevel), dans l'ordre du registre.
+// Deux grades du même type ne sont JAMAIS fusionnés dans le même groupe -> chaque grade a sa
+// propre carte, sélectionnable/déplaçable indépendamment (demande de Liamor du 26/07/2026,
+// façon Total War Warhammer III : un même type d'unité à des rangs différents = des cartes
+// distinctes). Partagé HUD (rendu) ↔ PlayerController (clic) : les deux restent synchronisés.
 void AWOTOLDemoHUD::BuildRosterGroups(UWorld* World, EFactionID Faction,
 	TArray<FString>& OutOrder, TMap<FString, TArray<AUnitBase*>>& OutByName)
 {
@@ -2517,8 +2521,12 @@ void AWOTOLDemoHUD::BuildRosterGroups(UWorld* World, EFactionID Faction,
 	for (AUnitBase* U : Reg->GetUnitsForFaction(Faction))
 	{
 		if (!U || !U->IsAlive()) continue;
-		const FString Name = (U->GetUnitData() && !U->GetUnitData()->DisplayName.IsEmpty())
+		const FString BaseName = (U->GetUnitData() && !U->GetUnitData()->DisplayName.IsEmpty())
 			? U->GetUnitData()->DisplayName.ToString() : U->GetName();
+		const int32 Grade = Cast<AWOTOLDemoUnit>(U) ? Cast<AWOTOLDemoUnit>(U)->GradeLevel : 1;
+		// Suffixe COURT (les cartes du bandeau de commandement sont petites, ~120px) : "N2"
+		// plutot que "Niveau 2" pour limiter le risque de debordement du texte sur la carte.
+		const FString Name = FString::Printf(TEXT("%s N%d"), *BaseName, Grade);
 		if (!OutByName.Contains(Name)) OutOrder.Add(Name);
 		OutByName.FindOrAdd(Name).Add(U);
 	}

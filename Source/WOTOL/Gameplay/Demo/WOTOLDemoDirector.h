@@ -493,12 +493,16 @@ private:
 	void HandleAdaptivePlayerUnitDied(AUnitBase* Unit);
 	FTimerHandle AdaptiveBalanceHandle;
 
-	// Tire un GRADE individuel (1/2/3, +15% PV+degats par grade, meme echelle que le niveau de
-	// batiment) autour d'un centre donne : une meme categorie d'unites n'est plus TOUTE au
-	// meme niveau (elle mourrait alors toute d'un coup) — certaines restent au stade de base,
-	// d'autres sont deja ameliorees, cote joueur COMME cote rival (demande de Liamor du
-	// 26/07/2026). Ne deplace pas la moyenne du groupe -> l'equilibrage adaptatif reste valide.
-	float RollUnitGradeFactor(int32 CenterLevel) const;
+	// Tire un GRADE individuel (1/2/3, meme echelle que le niveau de batiment, +15%
+	// PV+degats par grade) autour d'un centre donne : une meme categorie d'unites n'est plus
+	// TOUTE au meme niveau (elle mourrait alors toute d'un coup) — certaines restent au stade
+	// de base, d'autres sont deja ameliorees, cote joueur COMME cote rival (demande de Liamor
+	// du 26/07/2026). Ne deplace pas la moyenne du groupe -> l'equilibrage adaptatif reste
+	// valide. Le niveau retourne est aussi stocke sur l'unite (AWOTOLDemoUnit::GradeLevel) pour
+	// que la barre de commandement separe les grades en groupes distincts et selectionnables
+	// independamment (meme demande : "façon Total War Warhammer III").
+	int32 RollUnitGrade(int32 CenterLevel) const;
+	static float GradeLevelToFactor(int32 Level) { return 1.f + 0.15f * static_cast<float>(Level - 1); }
 
 	void SpawnPlayerArmy(EFactionID Faction, const FVector& Origin, const FRotator& Facing);
 	void SpawnEnemyForCreature(EFactionID RivalFaction, const FVector& Origin, const FRotator& Facing);

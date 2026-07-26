@@ -1164,17 +1164,17 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	}
 }
 
-float AWOTOLDemoDirector::RollUnitGradeFactor(int32 CenterLevel) const
+int32 AWOTOLDemoDirector::RollUnitGrade(int32 CenterLevel) const
 {
-	// Meme echelle que GetBuildingLevel (+15% PV/degats par grade au-dessus de 1). Tirage
-	// biaise AUTOUR du centre (60% le grade central, 25% un cran en-dessous si possible, 15%
-	// un cran au-dessus si possible) -> variete individuelle sans deplacer la moyenne du groupe.
+	// Tirage biaise AUTOUR du centre (60% le grade central, 25% un cran en-dessous si
+	// possible, 15% un cran au-dessus si possible) -> variete individuelle sans deplacer la
+	// moyenne du groupe.
 	const int32 MaxLvl = UDemoFlowSubsystem::MaxBuildingLevel;
 	const float R = EncounterRandom.FRand();
 	int32 Lvl = CenterLevel;
 	if (R < 0.25f && CenterLevel > 1) Lvl = CenterLevel - 1;
 	else if (R > 0.85f && CenterLevel < MaxLvl) Lvl = CenterLevel + 1;
-	return 1.f + 0.15f * static_cast<float>(Lvl - 1);
+	return Lvl;
 }
 
 AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, const FRotator& Facing,
@@ -1206,11 +1206,11 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 	// (Niv 1 = ×1.0, Niv 2 = ×1.15, Niv 3 = ×1.30). Voir Docs/SYSTEME_CITE_ET_DEFENSE.md.
 	// GRADE INDIVIDUEL (demande de Liamor du 26/07/2026) : le niveau de bâtiment sert de CENTRE,
 	// pas de valeur unique imposée à tout le groupe -> chaque unité tire son propre grade autour
-	// de ce centre (RollUnitGradeFactor), côté JOUEUR et côté RIVAL (qui n'a pas de bâtiment à
+	// de ce centre (RollUnitGrade), côté JOUEUR et côté RIVAL (qui n'a pas de bâtiment à
 	// améliorer dans cette démo, donc centré sur le grade de base 1). Un même type d'unité n'est
 	// plus détruit d'un seul coup en bloc : certaines sont encore au stade de base, d'autres déjà
 	// améliorées, des deux côtés du champ de bataille. ──
-	float ProgFactor = 1.f;
+	int32 GradeLvl = 1;
 	if (!bAsBoss)
 	{
 		if (Data->Faction == CachedPlayerFaction)
@@ -1218,14 +1218,15 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 			if (UDemoFlowSubsystem* Flow = GI->GetSubsystem<UDemoFlowSubsystem>())
 			{
 				const int32 Lvl = Flow->GetBuildingLevel(UDemoFlowSubsystem::GetCategoryForUnit(UnitID));
-				ProgFactor = RollUnitGradeFactor(Lvl);
+				GradeLvl = RollUnitGrade(Lvl);
 			}
 		}
 		else
 		{
-			ProgFactor = RollUnitGradeFactor(1);
+			GradeLvl = RollUnitGrade(1);
 		}
 	}
+	const float ProgFactor = GradeLevelToFactor(GradeLvl);
 
 	AWOTOLDemoUnit* Unit = GetWorld()->SpawnActorDeferred<AWOTOLDemoUnit>(
 		DemoUnitClass, SpawnTM, this, nullptr,
@@ -1234,6 +1235,7 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 
 	Unit->UnitData    = Data;
 	Unit->HealthScale = HealthScale * ProgFactor;   // niveau/grade -> PV (appliqué dans BeginPlay)
+	Unit->GradeLevel  = GradeLvl;    // sépare la barre de commandement en groupes par grade
 	Unit->bIsBoss     = bAsBoss;       // AVANT FinishSpawning -> silhouette Kraken forcée
 	Unit->TacticalPersonality = EncounterRandom.FRandRange(0.f, 1.f);
 	UGameplayStatics::FinishSpawningActor(Unit, SpawnTM);

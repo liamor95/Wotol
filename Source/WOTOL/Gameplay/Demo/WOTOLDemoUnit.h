@@ -69,6 +69,14 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Demo|AI")
 	float TacticalPersonality = 0.5f;
 
+	// Grade individuel (1/2/3, roulé au spawn autour du niveau du bâtiment — voir
+	// AWOTOLDemoDirector::RollUnitGrade) : deux unités du MÊME type peuvent être à des
+	// grades différents dans la même armée, ce qui les sépare en groupes DISTINCTS et
+	// sélectionnables indépendamment dans la barre de commandement (demande de Liamor du
+	// 26/07/2026, façon Total War Warhammer III : chaque rang/grade a sa propre carte).
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Greybox")
+	int32 GradeLevel = 1;
+
 	// PV max effectifs (en tenant compte de HealthScale)
 	UFUNCTION(BlueprintPure, Category = "Demo|Greybox")
 	int32 GetEffectiveMaxHealth() const;
