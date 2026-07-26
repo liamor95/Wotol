@@ -11,7 +11,7 @@ enum class EFactionID : uint8
 	None             UMETA(DisplayName = "None"),
 	Aquiloris        UMETA(DisplayName = "Aquiloris"),
 	Noxeens          UMETA(DisplayName = "Noxéens"),
-	Thalassidras     UMETA(DisplayName = "Thalassidras"),
+	Thalassidra      UMETA(DisplayName = "Thalassidra"),
 	Mureniens        UMETA(DisplayName = "Muréniens"),
 	PiratesAbyssaux  UMETA(DisplayName = "Pirates Abyssaux")
 };
@@ -428,7 +428,7 @@ struct FSessionConfig
 // ─── Couleurs officielles des factions — SOURCE DE VÉRITÉ UNIQUE ─────────────
 // Aquiloris   = Bleu
 // Noxéens     = Vert (PAS violet)
-// Thalassidras = Jaune-orange
+// Thalassidra = Jaune-orange
 // Muréniens   = Violet (PAS vert)
 // Pirates Abyssaux = Rouge
 // Ne jamais définir ces couleurs ailleurs dans le code ou les assets.
@@ -444,7 +444,7 @@ struct FFactionColors
 		{
 			case EFactionID::Aquiloris:       return FLinearColor(0.05f, 0.35f, 0.90f, 1.f); // Bleu
 			case EFactionID::Noxeens:         return FLinearColor(0.05f, 0.75f, 0.20f, 1.f); // Vert
-			case EFactionID::Thalassidras:    return FLinearColor(0.95f, 0.65f, 0.05f, 1.f); // Jaune-orange
+			case EFactionID::Thalassidra:    return FLinearColor(0.95f, 0.65f, 0.05f, 1.f); // Jaune-orange
 			case EFactionID::Mureniens:       return FLinearColor(0.50f, 0.10f, 0.80f, 1.f); // Violet
 			case EFactionID::PiratesAbyssaux: return FLinearColor(0.85f, 0.10f, 0.10f, 1.f); // Rouge
 			default:                          return FLinearColor::White;
@@ -462,7 +462,7 @@ struct FFactionColors
 		{
 			case EFactionID::Aquiloris:       return FLinearColor(0.55f, 0.85f, 1.00f, 1.f);
 			case EFactionID::Noxeens:         return FLinearColor(0.50f, 1.00f, 0.62f, 1.f);
-			case EFactionID::Thalassidras:    return FLinearColor(1.00f, 0.85f, 0.45f, 1.f);
+			case EFactionID::Thalassidra:    return FLinearColor(1.00f, 0.85f, 0.45f, 1.f);
 			case EFactionID::Mureniens:       return FLinearColor(0.75f, 0.45f, 0.95f, 1.f);
 			case EFactionID::PiratesAbyssaux: return FLinearColor(1.00f, 0.45f, 0.40f, 1.f);
 			default:                          return FLinearColor::White;
