@@ -14,7 +14,7 @@ défense, et écrans de transition/chargement.
 
 ### 1. Nettoyage de canon ✅ 🧪
 - Noxéens en **vert** (Noxeflare, Noxeblast, effets, éblouissement) — plus de violet.
-- Noms affichés : Akis / Aquiloryons / Aquilans / Akisfères / Aquilombre.
+- Noms affichés : Aquis / Aquiloryons / Aquilans / Aquisfères / Aquilombre.
 - Tailles : Léviaphénix 3,8 m · Noxedrake 6,75 m.
 - Commit `fb31233`.
 
@@ -36,7 +36,7 @@ défense, et écrans de transition/chargement.
 
 ### 5. Vue cité — rendu & interaction ✅ 🧪 (commit `2ffba03`)
 - HUD `DrawCityView` : fond `Cite_Aquiloris.png`, compteur de cristaux, cartes de bâtiments
-  cliquables (Académie→Aquiloryons, Dôme→Aquilans, Champ de tir→Akisfères, Nexus→Aquilombre,
+  cliquables (Académie→Aquiloryons, Dôme→Aquilans, Champ de tir→Aquisfères, Nexus→Aquilombre,
   Cœur-Éclat→Léviaphénix), bouton « Partir en expédition ».
 - PlayerController : clics des cartes → `ProduceUnit`, bouton départ → lance la phase suivante.
 - Director : au spawn de l'armée joueur, `DrainReserve` pour ajouter les unités produites.
@@ -70,7 +70,7 @@ défense, et écrans de transition/chargement.
   Exploration, Interlude, Cité et Chargement sans être masquée par un `return` du HUD.
 - Rapport Kraken : récompenses séparées (cristaux, matériaux abyssaux, biomasse, nourriture),
   puis coût atomique du Cristalliseur. Montants provisoires et éditables dans le Director.
-- Cité : bâtiment Akisfères/Nox Blast à construire sur l'une des 3 parcelles libres, coûts
+- Cité : bâtiment Aquisfères/Noxeblast à construire sur l'une des 3 parcelles libres, coûts
   cristal + matériau abyssal retirés seulement au clic de placement.
 - Objectif obligatoire : produire 10 unités à distance. Progression visible, plafond d'armée
   à 35 et réservation automatique des places/cristaux nécessaires pour éviter tout soft-lock.
@@ -129,7 +129,7 @@ Fournies par Liamor — cibles visuelles pour styliser les écrans C++.
 ### Écarts de nommage dans les maquettes (⚠️ ne PAS suivre)
 Les maquettes affichent d'anciens noms (Aquistance, Aquiloryon, Aquilance, « Thalassidras (A) »
 comme faction jouée, héros « Aquilian/Aquilance Roi des Profondeurs »). Le **canon du code** prévaut :
-Akis / Aquiloryons / Aquilans / Akisfères / Aquilombre, factions démo = Aquiloris + Noxéens.
+Aquis / Aquiloryons / Aquilans / Aquisfères / Aquilombre, factions démo = Aquiloris + Noxéens.
 Les maquettes servent pour le **style visuel**, pas pour les noms.
 
 ---

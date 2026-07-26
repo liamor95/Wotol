@@ -20,8 +20,8 @@ Chaque type d'unité a **son propre bâtiment**, amélioré **indépendamment** 
 | Faction | Type d'unité | Bâtiment producteur |
 |---|---|---|
 | Aquiloris | Infanterie (Aquiloryons) | Académie Aquiloryon |
-| Aquiloris | Montée (Aquilans) | Dôme des Aquilances |
-| Aquiloris | Distance (Akisfères) | Champ de Tir des Aquisphères |
+| Aquiloris | Montée (Aquilans) | Dôme des Aquilans |
+| Aquiloris | Distance (Aquisfères) | Champ de Tir des Aquisfères |
 | Aquiloris | Spéciale (Aquilombre) | Nexus des Ombres |
 | Aquiloris | Mythique (Léviaphénix) | Cœur-Éclat du Léviaphénix |
 | Noxéens | (équivalents) | Nid / Fosse / Antre / Sanctuaire / Couvain |
@@ -90,7 +90,7 @@ débloquées et améliorées via le bâtiment recherche/militaire, **propres à 
 | Faction | Défenses (pistes) |
 |---|---|
 | **Aquiloris** | Tourelles cristal, **méga-tourelles hydrosphère**, tourelles laser à énergie de cristaux |
-| **Noxéens** | **Sentinelles Nox Blast** postées autour de la cité, zones-pièges à Abyssaliseur, tourelles bioluminescentes |
+| **Noxéens** | **Sentinelles Noxeblast** postées autour de la cité, zones-pièges à Abyssaliseur, tourelles bioluminescentes |
 | Thalassidra | (à définir — corail défensif / barrières vivantes) |
 | Muréniens | (à définir — pièges toxiques / gardiens de galerie) |
 | Pirates Abyssaux | (à définir — défenses mobiles autour du vaisseau-fief) |

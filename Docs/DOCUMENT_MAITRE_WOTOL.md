@@ -11,9 +11,9 @@ la référence pour les règles techniques de build (UE 5.8, conventions UHT, an
 
 | Élément | Ancien (CLAUDE.md) | **Canon v0.8** | État code |
 |---|---|---|---|
-| Chef Aquiloris | Aquis / Thalior | **Akis** | ✅ nom affiché |
+| Chef Aquiloris | Aquis / Thalior | **Aquis** | ✅ nom affiché |
 | Infanterie Aquiloris | Aquiloryons | **Aquiloryons** | ✅ nom affiché |
-| Distance Aquiloris | Aquisphères | **Akisfères** | ✅ nom affiché |
+| Distance Aquiloris | Aquisphères | **Aquisfères** | ✅ nom affiché |
 | Montée Aquiloris | Aquilances | **Aquilans** | ✅ nom affiché |
 | Spéciale Aquiloris | Aquilombres | **Aquilombre** | ✅ nom affiché |
 | Couleur Noxéens | violet/bleu/vert | **VERT bioluminescent uniquement** | ✅ appliqué |
@@ -54,7 +54,7 @@ clairement sous-marin. **Modèle éco :** pas de pay-to-win, orientation **pack 
 ## 3. LES CINQ FACTIONS
 
 ### 3.1 Aquiloris — blanc/bleu, énergie & cristaux bleus, sable, architecture élégante, yeux bleus.
-Boucliers = **énergie pure** (pas de cadre métallique). Cité : **Aquilor**. Chef démo : **Akis**.
+Boucliers = **énergie pure** (pas de cadre métallique). Cité : **Aquilor**. Chef démo : **Aquis**.
 Mythique : **Léviaphénix** (3,5–4 m).
 
 ### 3.2 Noxéens — noir, teintes abyssales, **bioluminescence VERTE**, **AUCUN violet**, aucun cristal bleu,
@@ -84,9 +84,9 @@ triangulaires**, technologiquement différentes. Visibles dans certaines cartes.
 ### Aquiloris
 | Catégorie | Nom canon | Taille |
 |---|---|---|
-| Chef | **Akis** | 1,80 m |
+| Chef | **Aquis** | 1,80 m |
 | Infanterie | **Aquiloryons** (boucliers) | 1,75 m |
-| Distance | **Akisfères** (canon) | 1,70 m |
+| Distance | **Aquisfères** (canon) | 1,70 m |
 | Montée | **Aquilans** | 2 m (monture ~2,5 m) |
 | Spéciale | **Aquilombre** (translucide) | humanoïde |
 | Mythique | **Léviaphénix** | 3,5–4 m |
@@ -95,9 +95,9 @@ triangulaires**, technologiquement différentes. Visibles dans certaines cartes.
 | Catégorie | Nom | Taille |
 |---|---|---|
 | Chef | **Noxar** (trapu, jambes) | 1,50 m |
-| Infanterie | **Nox Flare** | 1,70 m |
-| Distance | **Nox Blast** | 1,60 m |
-| Montée | **Nox Beast** (quadrupède 4 membres, massif) | 2,50 m |
+| Infanterie | **Noxeflare** | 1,70 m |
+| Distance | **Noxeblast** | 1,60 m |
+| Montée | **Noxebeast** (quadrupède 4 membres, massif) | 2,50 m |
 | Spéciale | **Noxeon** | 1,80 m |
 | Mythique | **Noxedrake** | 6,5–7 m |
 
@@ -127,7 +127,7 @@ Spéciale = pentagone · Mythique = cercle. Couleurs = factions. Respecter les t
 8. **Territoire acquis** — terraformation au biome de faction, bonus attaque/défense et capacité
    d'armée ; Cœur-Éclat puis œuf/juvénile mythique récupérés.
 9. **Retour cité volontaire** — bouton dédié ; vue isométrique fixe, bâtiments visibles et cliquables.
-10. **Développement de la cité** — construire le bâtiment des unités à distance (Akisfères pour
+10. **Développement de la cité** — construire le bâtiment des unités à distance (Aquisfères pour
     Aquiloris), payer son coût puis produire 10 unités ; limite d'armée de démo visée : 35.
 11. **Alerte noxéenne** — la faction rivale se dirige vers la zone nouvellement conquise ; le joueur
     décide de partir défendre le Cristalliseur.
@@ -174,7 +174,7 @@ rochers, horizon insuffisant, manque de relief/couleurs, environnements vides.
 
 ## 12. ANIMATION & RIG
 Coudes, poignets, genoux, chevilles, colonne, flexion du tronc, articulations de monture, **4 membres
-fonctionnels pour la Nox Beast**. Animations tenant compte de la **flottabilité** (pas une marche terrestre).
+fonctionnels pour la Noxebeast**. Animations tenant compte de la **flottabilité** (pas une marche terrestre).
 
 ---
 
@@ -279,7 +279,7 @@ agréable, conquête compréhensible, enjeu de défense, identité visuelle/stra
 - Pose du Cristalliseur/Abyssalyseur : inventaire, emplacement 3D signalé, validation spatiale,
   paiement atomique et conservation du même acteur jusqu'à la défense.
 - Cité : construction du bâtiment de distance sur 3 parcelles, puis production obligatoire de
-  10 Akisfères/Nox Blast ; compteur d'objectif et plafond d'armée de démonstration à 35.
+  10 Aquisfères/Noxeblast ; compteur d'objectif et plafond d'armée de démonstration à 35.
 - Protection anti-blocage : les places d'armée et les cristaux nécessaires à l'objectif restent
   réservés tant que les 10 unités ne sont pas produites.
 - La 10e unité ouvre l'alerte de contre-attaque noxéenne ; le départ en défense reste un clic
@@ -302,7 +302,7 @@ les garde-fous empêchent seulement une victoire avant le minimum ou des pertes 
 
 ## 20. POINTS ENCORE OUVERTS (§24 — NE PAS VERROUILLER)
 
-Nom lore du Cristalliseur · nom équivalent noxéen · rôle de Thalior vs Akis · nom mythique Thalassidra ·
+Nom lore du Cristalliseur · nom équivalent noxéen · rôle de Thalior vs Aquis · nom mythique Thalassidra ·
 nom/définition du Kraken · les 4 cartes de bataille · ordre Cœur-Éclat ↔ Cristalliseur · contenu du craft
 post-bataille 1 · valeurs des 3 niveaux territoriaux · bonus de chaque bâtiment · graphie « 3DÉCORS » ·
 relations juridiques · accès GitHub par outil · version finale du logo · intégration des 5 drapeaux ·

@@ -1232,7 +1232,7 @@ static FString CityBuildingLabel(EFactionID Fac, EDemoUnitCategory Cat)
 	{
 		case EDemoUnitCategory::Infanterie: return bAq ? TEXT("Academie") : TEXT("Fosse d'Emergence");
 		case EDemoUnitCategory::Distance:   return bAq ? TEXT("Champ de Tir") : TEXT("Foyer des Decharges");
-		case EDemoUnitCategory::Montee:     return bAq ? TEXT("Dome des Aquilances") : TEXT("Cavite des Mastodontes");
+		case EDemoUnitCategory::Montee:     return bAq ? TEXT("Dome des Aquilans") : TEXT("Cavite des Mastodontes");
 		case EDemoUnitCategory::Speciale:   return bAq ? TEXT("Nexus des Ombres") : TEXT("Faille Abyssale");
 		case EDemoUnitCategory::Mythique:   return bAq ? TEXT("Coeur-Eclat") : TEXT("Antre du Noxedrake");
 		default: return TEXT("");
@@ -1245,10 +1245,10 @@ static FString CityUnitLabel(EFactionID Fac, EDemoUnitCategory Cat)
 	const bool bAq = (Fac != EFactionID::Noxeens);
 	switch (Cat)
 	{
-		case EDemoUnitCategory::Infanterie: return bAq ? TEXT("Aquiloryons") : TEXT("Nox Flare");
-		case EDemoUnitCategory::Distance:   return bAq ? TEXT("Aquisferes")  : TEXT("Nox Blast");
-		case EDemoUnitCategory::Montee:     return bAq ? TEXT("Aquilans")   : TEXT("Nox Beast");
-		case EDemoUnitCategory::Speciale:   return bAq ? TEXT("Aquilombre") : TEXT("Noxeon");
+		case EDemoUnitCategory::Infanterie: return bAq ? TEXT("Aquiloryons") : TEXT("Noxeflare");
+		case EDemoUnitCategory::Distance:   return bAq ? TEXT("Aquisferes")  : TEXT("Noxeblast");
+		case EDemoUnitCategory::Montee:     return bAq ? TEXT("Aquilans")   : TEXT("Noxebeast");
+		case EDemoUnitCategory::Speciale:   return bAq ? TEXT("Aquilombre") : TEXT("Noxeons");
 		case EDemoUnitCategory::Mythique:   return bAq ? TEXT("Leviaphenix"): TEXT("Noxedrake");
 		default: return TEXT("");
 	}
