@@ -36,7 +36,7 @@ FBox2D AWOTOLDemoHUD::MenuButtonRect(int32 Index, float W, float H)
 {
 	const float BW = 280.f, BH = 54.f, Gap = 18.f;
 	const float X = (W - BW) * 0.5f;
-	const float Y0 = H * 0.42f;
+	const float Y0 = H * 0.50f; // decale vers le bas (place liberee pour la rangee vitesse de jeu)
 	const float Y = Y0 + Index * (BH + Gap);
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
@@ -2183,6 +2183,16 @@ FBox2D AWOTOLDemoHUD::FullscreenToggleButtonRect(float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
+FBox2D AWOTOLDemoHUD::GameSpeedButtonRect(int32 Index, float W, float H)
+{
+	const FBox2D FsRect = FullscreenToggleButtonRect(W, H);
+	const float BW = 88.f, BH = 32.f, Gap = 12.f;
+	const float TotalW = BW * 3.f + Gap * 2.f;
+	const float X = (W - TotalW) * 0.5f + Index * (BW + Gap);
+	const float Y = FsRect.Max.Y + 34.f; // sous le libelle "Vitesse de jeu"
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
 FBox2D AWOTOLDemoHUD::ControlsBackButtonRect(float W, float H)
 {
 	const float BW = 220.f, BH = 60.f;
@@ -2239,6 +2249,30 @@ void AWOTOLDemoHUD::DrawPauseOverlay(float W, float H)
 		float FW, FH; GetTextSize(FsLabel, FW, FH, GEngine->GetMediumFont(), 1.0f);
 		DrawText(FsLabel, FLinearColor::White, FsRect.Min.X + (Sz.X - FW) * 0.5f,
 			FsRect.Min.Y + (Sz.Y - FH) * 0.5f, GEngine->GetMediumFont(), 1.0f);
+	}
+
+	// Vitesse de jeu : x1 / x1.5 / x2 (demande de Liamor du 26/07/2026). Dilate le temps
+	// moteur ; ne touche pas au rendu de l'UI (dessinee en temps reel de toute facon).
+	{
+		const float Speed = PC ? PC->GetGameSpeed() : 1.f;
+		const FBox2D FirstChip = GameSpeedButtonRect(0, W, H);
+		float LW, LH; GetTextSize(TEXT("Vitesse de jeu"), LW, LH, GEngine->GetSmallFont(), 1.f);
+		DrawText(TEXT("Vitesse de jeu"), FLinearColor(0.85f, 0.9f, 1.f, 1.f),
+			(W - LW) * 0.5f, FirstChip.Min.Y - LH - 6.f, GEngine->GetSmallFont(), 1.f);
+
+		const TCHAR* SpeedLabels[3] = { TEXT("x1"), TEXT("x1.5"), TEXT("x2") };
+		const float SpeedVals[3] = { 1.f, 1.5f, 2.f };
+		for (int32 i = 0; i < 3; ++i)
+		{
+			const FBox2D R = GameSpeedButtonRect(i, W, H);
+			const FVector2D Sz = R.Max - R.Min;
+			const bool bSel = FMath::IsNearlyEqual(Speed, SpeedVals[i], 0.01f);
+			DrawRect(bSel ? FLinearColor(0.25f, 0.55f, 0.95f, 0.95f) : FLinearColor(0.10f, 0.16f, 0.28f, 0.9f),
+				R.Min.X, R.Min.Y, Sz.X, Sz.Y);
+			float TW, TH; GetTextSize(SpeedLabels[i], TW, TH, GEngine->GetSmallFont(), 1.0f);
+			DrawText(SpeedLabels[i], FLinearColor::White, R.Min.X + (Sz.X - TW) * 0.5f,
+				R.Min.Y + (Sz.Y - TH) * 0.5f, GEngine->GetSmallFont(), 1.0f);
+		}
 	}
 
 	const TCHAR* Labels[4] = { TEXT("Reprendre"), TEXT("Recommencer"), TEXT("Quitter"), TEXT("Commandes") };

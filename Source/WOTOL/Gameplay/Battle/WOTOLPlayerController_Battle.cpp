@@ -171,6 +171,16 @@ void AWOTOLPlayerController_Battle::ToggleFullscreen()
 	Settings->ApplySettings(false);
 }
 
+void AWOTOLPlayerController_Battle::SetGameSpeed(float NewSpeed)
+{
+	// 3 crans fixes (x1 / x1.5 / x2) : evite les valeurs intermediaires bizarres au clic.
+	CurrentGameSpeed = (NewSpeed >= 1.75f) ? 2.f : (NewSpeed >= 1.25f) ? 1.5f : 1.f;
+	if (UWorld* World = GetWorld())
+	{
+		UGameplayStatics::SetGlobalTimeDilation(World, CurrentGameSpeed);
+	}
+}
+
 AWOTOLDemoDirector* AWOTOLPlayerController_Battle::GetDemoDirector() const
 {
 	for (TActorIterator<AWOTOLDemoDirector> It(GetWorld()); It; ++It)
@@ -715,6 +725,18 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		{
 			ToggleFullscreen();
 			return true;
+		}
+		// Vitesse de jeu : 3 chips x1 / x1.5 / x2.
+		{
+			const float SpeedVals[3] = { 1.f, 1.5f, 2.f };
+			for (int32 i = 0; i < 3; ++i)
+			{
+				if (AWOTOLDemoHUD::GameSpeedButtonRect(i, VpSize.X, VpSize.Y).IsInside(M))
+				{
+					SetGameSpeed(SpeedVals[i]);
+					return true;
+				}
+			}
 		}
 		if (AWOTOLDemoHUD::MenuButtonRect(0, VpSize.X, VpSize.Y).IsInside(M)) // Reprendre (ferme)
 		{

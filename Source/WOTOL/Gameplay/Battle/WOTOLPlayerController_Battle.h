@@ -108,6 +108,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Battle")
 	void ToggleFullscreen();
 
+	// ── Vitesse de jeu (x1 / x1.5 / x2), demande de Liamor du 26/07/2026 ──
+	// Dilate le temps moteur (unites, animations, production) ; l'UI (Canvas, Slate) reste en
+	// temps reel puisqu'elle ne depend pas de TimeDilation. Persiste tant que la partie tourne.
+	UFUNCTION(BlueprintPure, Category = "Battle")
+	float GetGameSpeed() const { return CurrentGameSpeed; }
+
+	UFUNCTION(BlueprintCallable, Category = "Battle")
+	void SetGameSpeed(float NewSpeed);
+
+private:
+	float CurrentGameSpeed = 1.f;
+
 private:
 	// Traite un clic gauche sur l'UI (bouton pause / menu / écrans). Vrai = consommé.
 	bool HandleUIClick();

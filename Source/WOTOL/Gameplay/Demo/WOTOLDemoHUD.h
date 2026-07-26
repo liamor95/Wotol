@@ -27,6 +27,8 @@ public:
 	// bouton plein écran / fenêtré, entre le titre et les boutons Reprendre/Recommencer/Quitter.
 	static FBox2D MusicVolumeBarRect(float W, float H);
 	static FBox2D FullscreenToggleButtonRect(float W, float H);
+	// Vitesse de jeu : 3 chips (0 = x1, 1 = x1.5, 2 = x2), sous le bouton plein écran.
+	static FBox2D GameSpeedButtonRect(int32 Index, float W, float H);
 	// Sous-écran "COMMANDES" (liste des touches, ouvert depuis le menu réglages) : bouton
 	// RETOUR, ancré en bas (la liste est plus haute que le menu réglages standard).
 	static FBox2D ControlsBackButtonRect(float W, float H);
