@@ -600,17 +600,112 @@ void AWOTOLDemoHUD::DrawUnderwaterBackground(float W, float H)
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.22f), 0.f, 0.f, W, H * 0.10f);
 }
 
-// Lavis translucide dans la teinte de la faction choisie, à appeler APRÈS
-// DrawUnderwaterBackground sur les écrans qui suivent le choix de faction (thème
-// d'interface dynamique par faction, décision Liamor du 22/07/2026). N'invente aucun
-// visuel définitif (pas de nouveaux motifs/matériaux) : simple teinte d'ambiance à partir
-// de FFactionColors, en attendant les fonds/matériaux réels fournis par Liamor. Sans effet
-// tant qu'aucune faction n'est choisie (EFactionID::None).
+// Silhouettes stylisées du biome de la faction (cristaux dressés Aquiloris / croissance
+// bioluminescente Noxéenne) — dessinées en fond, concentrées sur les bords/coins bas de
+// l'écran pour ne jamais empiéter sur le contenu central (texte/boutons). Demande de Liamor
+// le 25/07/2026 : les écrans ne doivent plus paraître vides/neutres une fois la faction
+// choisie. Purement procédural (formes géométriques via Canvas, mêmes primitives que
+// DrawUnderwaterBackground) — reste un habillage STYLISÉ, pas un visuel définitif : aucune
+// image/texture n'est importée (impossible sans éditeur Unreal disponible ici), à remplacer
+// plus tard par de vrais fonds/matériaux une fois les assets de Liamor reçus et validés.
+// Hors scope démo (Thalassidra/Muréniens/Pirates Abyssaux) : pas de motif inventé pour elles.
+static void DrawFactionBiomeSilhouette(UCanvas* Canvas, float W, float H, float T, EFactionID Faction)
+{
+	if (!Canvas || (Faction != EFactionID::Aquiloris && Faction != EFactionID::Noxeens)) return;
+
+	auto Rnd = [](int32 n) -> float
+	{
+		n = (n << 13) ^ n;
+		return (float)((n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 2147483647.f;
+	};
+	const FLinearColor Primary   = FFactionColors::Get(Faction);
+	const FLinearColor Secondary = FFactionColors::GetSecondary(Faction);
+	const float Corners[2] = { 0.f, W };
+
+	if (Faction == EFactionID::Aquiloris)
+	{
+		// Flèches de cristal dressées aux deux coins bas, en éventail vers le centre.
+		for (int32 c = 0; c < 2; ++c)
+		{
+			const float Dir = (c == 0) ? 1.f : -1.f;
+			for (int32 i = 0; i < 5; ++i)
+			{
+				const float BaseX  = Corners[c] + Dir * (30.f + i * 55.f);
+				const float BaseY  = H * (0.97f - Rnd(c * 20 + i) * 0.05f);
+				const float SpireH = H * (0.22f + Rnd(c * 20 + i + 7) * 0.20f) * (1.f - i * 0.10f);
+				const float SpireW = 26.f + Rnd(c * 20 + i + 3) * 20.f;
+				Canvas->K2_DrawPolygon(nullptr, FVector2D(BaseX, BaseY - SpireH * 0.5f),
+					FVector2D(SpireW, SpireH * 0.5f), 3,
+					FLinearColor(Primary.R, Primary.G, Primary.B, 0.14f + 0.045f * (4 - i)));
+			}
+		}
+		// Éclats de cristal scintillants dispersés (accents pulsants).
+		for (int32 i = 0; i < 14; ++i)
+		{
+			const float px    = Rnd(i + 900) * W;
+			const float py    = H * (0.55f + Rnd(i + 910) * 0.4f);
+			const float Pulse = 0.5f + 0.5f * FMath::Sin(T * 1.3f + i * 2.1f);
+			Canvas->K2_DrawPolygon(nullptr, FVector2D(px, py),
+				FVector2D(3.f + Pulse * 3.f, 3.f + Pulse * 3.f), 4,
+				FLinearColor(Secondary.R, Secondary.G, Secondary.B, 0.09f + Pulse * 0.11f));
+		}
+	}
+	else // Noxeens
+	{
+		// Amas sombres bioluminescents aux coins bas (silhouette irrégulière, triangles superposés).
+		for (int32 c = 0; c < 2; ++c)
+		{
+			const float Dir = (c == 0) ? 1.f : -1.f;
+			for (int32 i = 0; i < 6; ++i)
+			{
+				const float BaseX  = Corners[c] + Dir * (20.f + i * 42.f + Rnd(c * 30 + i) * 20.f);
+				const float BaseY  = H * (0.99f - Rnd(c * 30 + i + 2) * 0.04f);
+				const float MoundH = H * (0.10f + Rnd(c * 30 + i + 5) * 0.16f);
+				Canvas->K2_DrawPolygon(nullptr, FVector2D(BaseX, BaseY - MoundH * 0.5f),
+					FVector2D(20.f + Rnd(c * 30 + i + 9) * 16.f, MoundH * 0.5f), 5,
+					FLinearColor(0.02f, 0.05f, 0.045f, 0.5f));
+			}
+		}
+		// Spores bioluminescentes qui pulsent doucement, dispersées vers le haut de l'écran.
+		for (int32 i = 0; i < 16; ++i)
+		{
+			const float px    = Rnd(i + 1000) * W;
+			const float py    = H * (0.62f + Rnd(i + 1010) * 0.35f);
+			const float Pulse = 0.5f + 0.5f * FMath::Sin(T * 0.9f + i * 1.7f);
+			Canvas->K2_DrawPolygon(nullptr, FVector2D(px, py),
+				FVector2D(2.5f + Pulse * 3.5f, 2.5f + Pulse * 3.5f), 8,
+				FLinearColor(Primary.R, Primary.G, Primary.B, 0.10f + Pulse * 0.16f));
+		}
+		// Tentacules filiformes qui ondulent depuis le bas de l'écran (courbes en segments).
+		for (int32 t = 0; t < 4; ++t)
+		{
+			const float StartX = W * (0.08f + t * 0.28f + Rnd(t + 50) * 0.06f);
+			FVector2D Prev(StartX, H);
+			const int32 Segs = 10;
+			for (int32 s = 1; s <= Segs; ++s)
+			{
+				const float f    = (float)s / Segs;
+				const float Sway = FMath::Sin(f * 3.1f + T * 0.5f + t * 1.5f) * 24.f * f;
+				const FVector2D Cur(StartX + Sway, H * (1.f - f * 0.32f));
+				const FLinearColor LineCol(Secondary.R, Secondary.G, Secondary.B, 0.13f * (1.f - f * 0.5f));
+				Canvas->K2_DrawLine(Prev, Cur, 2.f, LineCol);
+				Prev = Cur;
+			}
+		}
+	}
+}
+
+// Lavis translucide + silhouettes de biome dans la teinte de la faction choisie, à appeler
+// APRÈS DrawUnderwaterBackground sur les écrans qui suivent le choix de faction (thème
+// d'interface dynamique par faction, décision Liamor du 22/07/2026, enrichi le 25/07/2026 pour
+// que les écrans ne paraissent plus vides/neutres). Sans effet tant qu'aucune faction n'est
+// choisie (EFactionID::None).
 void AWOTOLDemoHUD::DrawFactionAmbientTint(float W, float H, EFactionID Faction)
 {
 	if (Faction == EFactionID::None) return;
+	DrawFactionBiomeSilhouette(Canvas, W, H, GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f, Faction);
 	const FLinearColor Tint = FFactionColors::Get(Faction);
-	DrawRect(Tint.CopyWithNewOpacity(0.07f), 0.f, 0.f, W, H);
+	DrawRect(Tint.CopyWithNewOpacity(0.05f), 0.f, 0.f, W, H);
 }
 
 // Titre "LAVE" multicolore et lumineux (pour le nom du jeu) : halo chaud +

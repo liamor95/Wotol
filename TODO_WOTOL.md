@@ -494,3 +494,38 @@ et inversement). Les Noxeens ne sont pas concernes : Noxar reste le seul chef jo
 - Aucun changement visuel/mesh : Aquira reutilise le meme portrait cyclable generique
   (halo teinte par la faction) que le reste du systeme de personnalisation, en attendant de
   vrais portraits illustres.
+
+## Silhouettes de biome par faction sur les ecrans 2D (25/07/2026, demande de Liamor)
+
+Demande explicite : les ecrans ne doivent plus paraitre vides/neutres une fois la faction
+choisie — il faut un fond qui rappelle l'identite/le biome de la faction, stylise et
+harmonieux, sans surcharger. Images envoyees par Liamor comme EXEMPLES d'intention
+uniquement (mockups IA tres polis, pas des assets finaux WOTOL — explicitement dit par
+Liamor : "c'est pas definitif, c'est des exemples pour imager mes propos").
+
+**Contrainte technique assumee et expliquee :** aucun outil d'import d'image/texture n'est
+disponible dans cet environnement (pas d'editeur Unreal), et le HUD est 100% Canvas (pas
+d'UMG). Impossible donc de reproduire des illustrations peintes comme les exemples envoyes.
+Solution retenue : silhouettes 100% procedurales (formes geometriques via Canvas, memes
+primitives que `DrawUnderwaterBackground` deja en place : K2_DrawPolygon/K2_DrawLine/DrawRect),
+concentrees sur les bords/coins bas de l'ecran pour ne jamais empieter sur le texte/les
+boutons centraux. Reste un habillage STYLISE, a remplacer par de vrais fonds/materiaux une
+fois les assets definitifs de Liamor recus et valides (meme logique que le reste du theme
+UI par faction deja en place).
+
+**Implemente :** nouvelle fonction statique `DrawFactionBiomeSilhouette()` (WOTOLDemoHUD.cpp),
+appelee automatiquement depuis `DrawFactionAmbientTint()` (donc sur les 6 ecrans qui
+l'appellent deja : HeroCustomization, PreGameSummary, SkillsView, LoadingScreen, Summary,
+Interlude — aucun nouveau site d'appel necessaire) :
+- Aquiloris : fleches de cristal dressees en eventail aux deux coins bas + eclats scintillants
+  disperses qui pulsent doucement, teintes via FFactionColors (source de verite deja en place).
+- Noxeens : amas sombres bioluminescents aux coins bas + spores qui pulsent + tentacules
+  filiformes qui ondulent depuis le bas de l'ecran.
+- Hors scope demo (Thalassidra/Mureniens/Pirates Abyssaux) : fonction sans effet pour ces
+  factions, pas de motif invente pour elles sans plus d'infos de Liamor.
+
+**PAS FAIT (deliberement) :** l'ecran de choix de faction (DrawFactionSelect) n'a pas ete
+touche — aucune faction n'y est "choisie" avant le clic final, et il n'existe pas de suivi de
+survol (hover) dans le code actuel pour changer le fond en fonction de la carte survolee comme
+dans les exemples envoyes (carrousel 5 factions). Les vues Cite/Territoire (scenes 3D reelles)
+restent hors scope de cet ajout, deja teintees par des materiaux 3D existants.
