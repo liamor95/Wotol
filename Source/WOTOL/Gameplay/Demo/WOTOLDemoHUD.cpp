@@ -1245,7 +1245,7 @@ static FString CityUnitLabel(EFactionID Fac, EDemoUnitCategory Cat)
 	const bool bAq = (Fac != EFactionID::Noxeens);
 	switch (Cat)
 	{
-		case EDemoUnitCategory::Infanterie: return bAq ? TEXT("Akilorions") : TEXT("Nox Flare");
+		case EDemoUnitCategory::Infanterie: return bAq ? TEXT("Aquiloryons") : TEXT("Nox Flare");
 		case EDemoUnitCategory::Distance:   return bAq ? TEXT("Aquisferes")  : TEXT("Nox Blast");
 		case EDemoUnitCategory::Montee:     return bAq ? TEXT("Aquilans")   : TEXT("Nox Beast");
 		case EDemoUnitCategory::Speciale:   return bAq ? TEXT("Aquilombre") : TEXT("Noxeon");

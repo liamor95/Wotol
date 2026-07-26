@@ -19,7 +19,7 @@ Chaque type d'unité a **son propre bâtiment**, amélioré **indépendamment** 
 
 | Faction | Type d'unité | Bâtiment producteur |
 |---|---|---|
-| Aquiloris | Infanterie (Akilorions) | Académie Aquiloryon |
+| Aquiloris | Infanterie (Aquiloryons) | Académie Aquiloryon |
 | Aquiloris | Montée (Aquilans) | Dôme des Aquilances |
 | Aquiloris | Distance (Akisfères) | Champ de Tir des Aquisphères |
 | Aquiloris | Spéciale (Aquilombre) | Nexus des Ombres |
@@ -43,8 +43,8 @@ Les bâtiments, en montant de niveau, **débloquent** :
 C'est là qu'on choisit la **VOIE (axe)** de chaque type d'unité. Correspond aux **Axe 1 / Axe 2**
 déjà décrits dans le GDD pour chaque unité.
 
-- Exemple : au lieu d'« Akilorions » génériques, on obtient **« Akilorions — axe offensif »**
-  (Double Lames) OU **« Akilorions — axe défensif »** (Mur amplifié).
+- Exemple : au lieu d'« Aquiloryons » génériques, on obtient **« Aquiloryons — axe offensif »**
+  (Double Lames) OU **« Aquiloryons — axe défensif »** (Mur amplifié).
 - **Un axe par type d'unité** à la fois (choix stratégique). Change l'identité tactique de tout
   le groupe de ce type.
 - S'applique à **toutes** les unités (chaque unité a ses 2 axes dans le GDD §7).

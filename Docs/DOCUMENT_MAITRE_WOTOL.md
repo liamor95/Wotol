@@ -12,7 +12,7 @@ la référence pour les règles techniques de build (UE 5.8, conventions UHT, an
 | Élément | Ancien (CLAUDE.md) | **Canon v0.8** | État code |
 |---|---|---|---|
 | Chef Aquiloris | Aquis / Thalior | **Akis** | ✅ nom affiché |
-| Infanterie Aquiloris | Aquiloryons | **Akilorions** | ✅ nom affiché |
+| Infanterie Aquiloris | Aquiloryons | **Aquiloryons** | ✅ nom affiché |
 | Distance Aquiloris | Aquisphères | **Akisfères** | ✅ nom affiché |
 | Montée Aquiloris | Aquilances | **Aquilans** | ✅ nom affiché |
 | Spéciale Aquiloris | Aquilombres | **Aquilombre** | ✅ nom affiché |
@@ -85,7 +85,7 @@ triangulaires**, technologiquement différentes. Visibles dans certaines cartes.
 | Catégorie | Nom canon | Taille |
 |---|---|---|
 | Chef | **Akis** | 1,80 m |
-| Infanterie | **Akilorions** (boucliers) | 1,75 m |
+| Infanterie | **Aquiloryons** (boucliers) | 1,75 m |
 | Distance | **Akisfères** (canon) | 1,70 m |
 | Montée | **Aquilans** | 2 m (monture ~2,5 m) |
 | Spéciale | **Aquilombre** (translucide) | humanoïde |

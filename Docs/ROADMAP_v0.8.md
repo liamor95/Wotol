@@ -14,7 +14,7 @@ défense, et écrans de transition/chargement.
 
 ### 1. Nettoyage de canon ✅ 🧪
 - Noxéens en **vert** (Noxeflare, Noxeblast, effets, éblouissement) — plus de violet.
-- Noms affichés : Akis / Akilorions / Aquilans / Akisfères / Aquilombre.
+- Noms affichés : Akis / Aquiloryons / Aquilans / Akisfères / Aquilombre.
 - Tailles : Léviaphénix 3,8 m · Noxedrake 6,75 m.
 - Commit `fb31233`.
 
@@ -36,7 +36,7 @@ défense, et écrans de transition/chargement.
 
 ### 5. Vue cité — rendu & interaction ✅ 🧪 (commit `2ffba03`)
 - HUD `DrawCityView` : fond `Cite_Aquiloris.png`, compteur de cristaux, cartes de bâtiments
-  cliquables (Académie→Akilorions, Dôme→Aquilans, Champ de tir→Akisfères, Nexus→Aquilombre,
+  cliquables (Académie→Aquiloryons, Dôme→Aquilans, Champ de tir→Akisfères, Nexus→Aquilombre,
   Cœur-Éclat→Léviaphénix), bouton « Partir en expédition ».
 - PlayerController : clics des cartes → `ProduceUnit`, bouton départ → lance la phase suivante.
 - Director : au spawn de l'armée joueur, `DrainReserve` pour ajouter les unités produites.
@@ -129,7 +129,7 @@ Fournies par Liamor — cibles visuelles pour styliser les écrans C++.
 ### Écarts de nommage dans les maquettes (⚠️ ne PAS suivre)
 Les maquettes affichent d'anciens noms (Aquistance, Aquiloryon, Aquilance, « Thalassidras (A) »
 comme faction jouée, héros « Aquilian/Aquilance Roi des Profondeurs »). Le **canon du code** prévaut :
-Akis / Akilorions / Aquilans / Akisfères / Aquilombre, factions démo = Aquiloris + Noxéens.
+Akis / Aquiloryons / Aquilans / Akisfères / Aquilombre, factions démo = Aquiloris + Noxéens.
 Les maquettes servent pour le **style visuel**, pas pour les noms.
 
 ---

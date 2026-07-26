@@ -76,7 +76,7 @@ static void FillLeviaphenix(UUnitDataAsset* A)
 
 static void FillAquiloryons(UUnitDataAsset* A)
 {
-	A->DisplayName   = FText::FromString(TEXT("Akilorions"));
+	A->DisplayName   = FText::FromString(TEXT("Aquiloryons"));
 	A->Description   = FText::FromString(TEXT("Infanterie Aquiloris — Mur de Cristal (Mono)"));
 	A->Faction       = EFactionID::Aquiloris;
 	A->Role          = EUnitRole::Infanterie;
