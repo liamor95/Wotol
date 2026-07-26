@@ -1588,10 +1588,17 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 
 	// Bouton d'expédition + bouton compétences. 3e état prioritaire : cité déjà débloquée
 	// (phase 2 -> 3), le joueur embarque pour la grande bataille au lieu de repartir en défense.
+	// Avertissement NON BLOQUANT (le joueur reste libre d'embarquer sous-effectif s'il le veut,
+	// mais rien ne devait le prevenir avant) si l'armee recrutee est tres faible face au
+	// contingent ennemi fixe (60/100 selon la faction) : recherche autonome du 26/07/2026.
+	const bool bArmyLow = Demo->bReadyForGrandBattleDeparture
+		&& Demo->GetArmyUnitCount() < Demo->GetArmyUnitCap() / 2;
 	DrawButton(CityDepartButtonRect(W, H),
-		Demo->bReadyForGrandBattleDeparture ? TEXT("EMBARQUER - GRANDE BATAILLE")
+		Demo->bReadyForGrandBattleDeparture
+			? (bArmyLow ? TEXT("EMBARQUER - ARMEE FAIBLE") : TEXT("EMBARQUER - GRANDE BATAILLE"))
 			: Demo->IsDefenseMissionReady() ? TEXT("DEFENDRE LA ZONE") : TEXT("OBJECTIF : 10 UNITES"),
-		Demo->bReadyForGrandBattleDeparture ? FLinearColor(0.95f, 0.75f, 0.15f, 1.f)
+		Demo->bReadyForGrandBattleDeparture
+			? (bArmyLow ? FLinearColor(0.9f, 0.35f, 0.25f, 1.f) : FLinearColor(0.95f, 0.75f, 0.15f, 1.f))
 			: Demo->IsDefenseMissionReady() ? FLinearColor(1.f, 0.7f, 0.25f, 1.f)
 			: FLinearColor(0.38f, 0.42f, 0.48f, 1.f), 1.15f);
 	DrawButton(CitySkillsButtonRect(W, H), TEXT("COMPETENCES"),
