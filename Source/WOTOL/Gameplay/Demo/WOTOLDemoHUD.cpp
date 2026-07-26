@@ -1268,7 +1268,7 @@ static FString SkillAxisLabel(EFactionID Fac, EDemoUnitCategory Cat, int32 Axis)
 		                                               : (Axis==1?TEXT("Rayon Perforant"):TEXT("Explosion Biolum."));
 		case EDemoUnitCategory::Montee:     return bAq ? (Axis==1?TEXT("Percee amplifiee"):TEXT("Rempart Synth."))
 		                                               : (Axis==1?TEXT("Bastion Brutal"):TEXT("Defoncement"));
-		case EDemoUnitCategory::Speciale:   return bAq ? (Axis==1?TEXT("Critiques +"):TEXT("Ombres Projetees"))
+		case EDemoUnitCategory::Speciale:   return bAq ? (Axis==1?TEXT("Critique Amplifie"):TEXT("Ombres Projetees"))
 		                                               : (Axis==1?TEXT("Reacteur de Guerre"):TEXT("Ancrage Abyssal"));
 		case EDemoUnitCategory::Mythique:   return bAq ? (Axis==1?TEXT("Rayon. Stabilisateur"):TEXT("Rayon. Vital"))
 		                                               : (Axis==1?TEXT("Devastation Totale"):TEXT("Dominion Radieux"));
