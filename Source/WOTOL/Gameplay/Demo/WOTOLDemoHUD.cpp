@@ -2,6 +2,7 @@
 #include "DemoFlowSubsystem.h"
 #include "WOTOLDemoUnit.h"
 #include "WOTOLCaptureObject.h"
+#include "WOTOLBuildingArt.h"
 #include "OceanCurrentSubsystem.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/Texture2D.h"
@@ -1471,7 +1472,16 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 			Panel.Max.X - Panel.Min.X, Panel.Max.Y - Panel.Min.Y);
 		DrawLine(Panel.Min.X, Panel.Min.Y, Panel.Max.X, Panel.Min.Y, Accent, 3.f);
 
-		float Y = Panel.Min.Y + 26.f;
+		float Y = Panel.Min.Y + 16.f;
+		// Illustration officielle réelle (même image que le plan 3D affiché dans la scène —
+		// cohérence demandée par Liamor le 25/07/2026 : pas d'écran qui contredit la vue 3D).
+		if (UTexture2D* Icon = WOTOLBuildingArt::GetBuildingIcon(Fac, SelCat))
+		{
+			const float ImgSize = 108.f;
+			const float ImgX = (Panel.Min.X + Panel.Max.X) * 0.5f - ImgSize * 0.5f;
+			DrawTexture(Icon, ImgX, Y, ImgSize, ImgSize, 0.f, 0.f, 1.f, 1.f);
+			Y += ImgSize + 6.f;
+		}
 		DrawCenteredText(CityBuildingLabel(Fac, SelCat).ToUpper(), Y, Accent, 1.15f); Y += 34.f;
 		DrawCenteredText(CityUnitLabel(Fac, SelCat), Y, FLinearColor::White, 1.0f); Y += 42.f;
 

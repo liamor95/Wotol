@@ -43,4 +43,14 @@ namespace WOTOLGlow
 
 	/** MID halo prêt à l'emploi : coquille translucide émissive (couleur + opacité donnés). */
 	UMaterialInstanceDynamic* MakeHalo(UObject* Outer, const FLinearColor& EmissiveHDR, float Opacity);
+
+	/** Matériau parent SPRITE : unlit, MASQUÉ (alpha de la texture = découpe nette, pas de tri
+	 *  de transparence à gérer) et DEUX FACES (bTwoSided — évite tout risque de face arrière
+	 *  invisible si l'orientation du plan billboard n'est pas parfaite). Paramètre texture
+	 *  « Texture ». Sert aux illustrations de bâtiments réelles (planches détourées) affichées
+	 *  sur un plan en 3D à la place d'un kitbash de formes primitives. */
+	UMaterialInterface* GetSpriteParent();
+
+	/** MID sprite prêt à l'emploi : plan texturé avec la texture donnée. */
+	UMaterialInstanceDynamic* MakeSprite(UObject* Outer, class UTexture2D* Texture);
 }

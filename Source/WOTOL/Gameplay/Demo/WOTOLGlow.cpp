@@ -2,6 +2,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Engine/Texture2D.h"
 #include "UObject/Package.h"
 #include "UObject/StrongObjectPtr.h"
 
@@ -9,6 +10,8 @@
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionConstant.h"
+#include "Materials/MaterialExpressionTextureSampleParameter2D.h"
+#include "Materials/MaterialExpressionMultiply.h"
 #endif
 
 namespace
@@ -18,6 +21,7 @@ namespace
 	TStrongObjectPtr<UMaterialInterface> GGlowParent;
 	TStrongObjectPtr<UMaterialInterface> GMatteParent;
 	TStrongObjectPtr<UMaterialInterface> GHaloParent;
+	TStrongObjectPtr<UMaterialInterface> GSpriteParent;
 }
 
 namespace WOTOLGlow { bool bLowGpuVFX = false; }
@@ -193,6 +197,80 @@ UMaterialInstanceDynamic* WOTOLGlow::MakeHalo(UObject* Outer, const FLinearColor
 	{
 		MID->SetVectorParameterValue(TEXT("Color"), EmissiveHDR);
 		MID->SetScalarParameterValue(TEXT("Opacity"), Opacity);
+	}
+	return MID;
+}
+
+UMaterialInterface* WOTOLGlow::GetSpriteParent()
+{
+	if (GSpriteParent.IsValid())
+	{
+		return GSpriteParent.Get();
+	}
+
+	UMaterialInterface* Result = nullptr;
+
+#if WITH_EDITOR
+	// UNLIT + MASQUÉ (l'alpha de la texture découpe net, pas de tri de transparence) +
+	// DEUX FACES (bTwoSided : le plan reste visible même si l'orientation calculée pour
+	// faire face à la caméra isométrique fixe n'est pas parfaitement exacte -> filet de
+	// sécurité, jamais de face invisible). BaseColor ET Emissive lisent la texture (rendu
+	// fidèle aux couleurs de la planche, pas assombri par un éclairage de scène).
+	if (UMaterial* M = NewObject<UMaterial>(GetTransientPackage(), NAME_None, RF_Transient))
+	{
+		M->SetShadingModel(MSM_Unlit);
+		M->BlendMode = BLEND_Masked;
+		M->TwoSided = true;
+
+		UMaterialExpressionTextureSampleParameter2D* Tex =
+			NewObject<UMaterialExpressionTextureSampleParameter2D>(M);
+		Tex->ParameterName = TEXT("Texture");
+		M->GetExpressionCollection().AddExpression(Tex);
+
+		// Multiplie la texture par un scalaire "Brightness" (1 = actif/couleurs pleines,
+		// <1 = terne pour verrouillé/pas-encore-construit) — même sémantique visuelle que
+		// le repli kitbash (Color * 0.35 vs Color * 2.0 dans Refresh()).
+		UMaterialExpressionScalarParameter* Brightness = NewObject<UMaterialExpressionScalarParameter>(M);
+		Brightness->ParameterName = TEXT("Brightness");
+		Brightness->DefaultValue = 1.0f;
+		M->GetExpressionCollection().AddExpression(Brightness);
+
+		UMaterialExpressionMultiply* Mul = NewObject<UMaterialExpressionMultiply>(M);
+		Mul->A.Expression = Tex;
+		Mul->B.Expression = Brightness;
+		M->GetExpressionCollection().AddExpression(Mul);
+
+		M->GetEditorOnlyData()->EmissiveColor.Expression = Mul;
+		M->GetEditorOnlyData()->OpacityMask.Expression = Tex;
+		M->GetEditorOnlyData()->OpacityMask.Mask = 0;
+		M->GetEditorOnlyData()->OpacityMask.MaskA = 1; // canal alpha = decoupe
+
+		M->PostEditChange();
+		Result = M;
+	}
+#endif
+
+	if (!Result)
+	{
+		Result = LoadObject<UMaterialInterface>(
+			nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+	}
+
+	GSpriteParent.Reset(Result);
+	return Result;
+}
+
+UMaterialInstanceDynamic* WOTOLGlow::MakeSprite(UObject* Outer, UTexture2D* Texture)
+{
+	UMaterialInterface* Parent = GetSpriteParent();
+	if (!Parent || !Texture)
+	{
+		return nullptr;
+	}
+	UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Parent, Outer);
+	if (MID)
+	{
+		MID->SetTextureParameterValue(TEXT("Texture"), Texture);
 	}
 	return MID;
 }

@@ -46,9 +46,16 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UStaticMeshComponent> BaseMesh;
 
-	// Corps du bâtiment : la hauteur reflète le niveau (1/2/3).
+	// Corps du bâtiment : la TAILLE (échelle uniforme) reflète le niveau (1/2/3). Depuis le
+	// 25/07/2026, c'est un plan texturé (illustration officielle réelle, WOTOLBuildingArt)
+	// orienté pour faire face à la caméra isométrique FIXE de la vue Cité (jamais de rotation
+	// possible -> l'illusion "trompe l'œil" tient à tous les niveaux de zoom). Repli
+	// automatique sur l'ancien kitbash (cylindre émissif) si l'image officielle est absente.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UStaticMeshComponent> TierMesh;
+
+	// Vrai si TierMesh est le plan texturé (bâtiment officiel) plutôt que le repli cylindre.
+	bool bUsingRealArt = false;
 
 	// Anneau lumineux au sol, visible uniquement quand ce bâtiment est sélectionné.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)

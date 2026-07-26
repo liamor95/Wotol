@@ -589,3 +589,69 @@ Fichiers ajoutes : `Content/UI/EmblemAquiloris.png`, `Content/UI/EmblemNoxeens.p
 dans le jeu (la demo n'affiche que du texte + de la 3D greybox pour les batiments/unites,
 pas de rendu illustre) — a voir si Liamor veut ca quelque part precisement (vue Cite ?
 Territoire ? fiche technique au clic ?).
+
+## Illustrations reelles des batiments en 3D (vue Cite) + fiche technique (25/07/2026)
+
+Suite a la question de Liamor sur le detourage/trompe-l'oeil : implemente pour la VUE CITE
+uniquement (camera isometrique FIXE, ne tourne jamais — verifie dans le code,
+AWOTOLCityCamera::FixedYaw/FixedPitch jamais modifies). PAS applique a la Bataille/
+Territoire/Exploration : la camera de bataille (AWOTOLBattleCamera) PEUT orbiter librement
+(clic milieu + glisser, verifie dans le code) — un plan 2D y paraitrait plat/faux des qu'on
+tourne autour, contrairement a la Cite. Ces vues gardent leur kitbash 3D greybox.
+
+**Preparation des images (Python/Pillow, installe pour cette tache) :**
+- 14 planches officielles (batiments Aquiloris/Noxeens envoyees par Liamor) recadrees sur
+  l'illustration principale (coin haut-gauche de chaque planche) puis detourees par
+  suppression de couleur (le fond gris clair uni des planches est rendu transparent —
+  PAS un vrai detourage IA/segmentation, une simple soustraction de fond par similarite de
+  couleur, suffisante ici vu la propretee des planches). Sauvegardees dans
+  `Content/UI/Buildings/Building<Faction><Categorie>.png` (Infanterie/Distance/Montee/
+  Speciale/Mythique) + `Building<Faction>Central.png` (Cristalliseur/Abysalyseur) +
+  `Building<Faction>Defense.png` (Tourelle hydrocristalline/Oeil bioluminal).
+- 2 fonds de cite grand format : `Content/UI/CityBackdropAquiloris.png` (vraie image de cite
+  flottante envoyee par Liamor) et `CityBackdropNoxeens.png` (repli sur BackgroundNoxeens.png
+  deja utilise en 2D — AUCUNE image de "cite Noxeens" grand format n'a ete fournie ; a
+  remplacer si Liamor en envoie une plus tard).
+- Correction en cours de route : le premier mapping de fichiers etait faux pour 2 batiments
+  Aquiloris (confusion entre "Tourelle hydrocristalline", "Rempart cristallin" et
+  "Cristalliseur", 3 planches visuellement proches) — corrige apres verification directe du
+  texte de chaque planche avant de finaliser.
+
+**Nouveau materiau partage (`WOTOLGlow::MakeSprite`, WOTOLGlow.h/.cpp) :** unlit, MASQUE
+(alpha de la texture = decoupe nette), DEUX FACES (`TwoSided = true` — filet de securite : le
+plan reste visible meme si le calcul d'orientation n'est pas parfaitement exact, jamais de
+face invisible), parametre "Texture" + scalaire "Brightness" (verrouille/actif).
+
+**Nouveau chargeur partage (`WOTOLBuildingArt.h/.cpp`)** : meme mecanisme que
+`AWOTOLDemoHUD::GetMenuBackground` (PNG charge directement depuis le disque, cache), mais
+centralise pour etre reutilisable par le HUD 2D ET les acteurs 3D.
+
+**`AWOTOLCityBuildingProp`** : le corps du batiment (`TierMesh`) est maintenant un PLAN texture
+avec l'illustration officielle si le fichier existe (`bUsingRealArt`), oriente pour faire face
+a la camera isometrique fixe (rotation calculee via `FRotationMatrix::MakeFromZX` a partir des
+angles fixes de la camera, avec le +Z du monde comme reference "haut" pour eviter que l'image
+tourne sur elle-meme). Le NIVEAU (1/2/3) fait maintenant grandir la TAILLE du plan (pas la
+hauteur, une image plate ne peut pas s'etirer sans se deformer) ; verrouille/actif = parametre
+"Brightness" du materiau. REPLI AUTOMATIQUE sur l'ancien kitbash (cylindre emissif, comportement
+identique a avant) si l'image officielle est absente pour une combinaison faction/categorie.
+
+**`AWOTOLCityEnvironment`** :
+- Fond de cite ajoute (meme technique d'orientation que les batiments), pose loin derriere le
+  reste du decor.
+- Bulles ambiantes ajoutees (`BuildAmbientBubbles`/`TickAmbientBubbles`) : 18 petites spheres
+  emissives qui montent en boucle autour de l'anneau, teintees par la faction — demande
+  explicite de Liamor de garder la vue "vivante" (mouvement/fremissement) maintenant que les
+  batiments sont des illustrations 2D plutot qu'un kitbash anime par nature. Rafraichies
+  uniquement pendant EDemoScreen::City (meme garde que le rafraichissement des batiments).
+
+**Fiche technique du HUD (`DrawCityView`)** : affiche maintenant la MEME illustration que le
+plan 3D (via `WOTOLBuildingArt::GetBuildingIcon`) en haut du panneau, avant le texte —
+cohérence demandée par Liamor (pas d'écran qui contredit ce qui est affiché en 3D). Repli
+silencieux (pas d'image) si le fichier est absent, le texte existant reste inchangé.
+
+**Point d'attention explicite pour le prochain retour PC (non verifiable ici) :**
+l'orientation du plan billboard (calcul `FRotationMatrix::MakeFromZX`) n'a jamais pu etre
+visualisee (pas d'editeur Unreal disponible cote Claude Code) — a verifier en priorite a
+l'ouverture de la vue Cite : si l'image parait tournee dans son propre plan (a l'envers, de
+travers), ajuster le vecteur de reference "haut" passe a MakeFromZX plutot que de recalculer
+completement l'orientation.

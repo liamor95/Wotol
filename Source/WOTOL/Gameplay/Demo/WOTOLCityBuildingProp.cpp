@@ -1,8 +1,10 @@
 #include "WOTOLCityBuildingProp.h"
 #include "WOTOLGlow.h"
+#include "WOTOLBuildingArt.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Texture2D.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 namespace
@@ -72,9 +74,37 @@ void AWOTOLCityBuildingProp::BuildVisual()
 			BaseMesh->SetMaterial(0, MID);
 	}
 
-	TierMesh = AddCityPiece(this, SceneRoot, M_CYL, FVector(0.f, 0.f, 60.f), FVector(1.1f, 1.1f, 1.5f));
-	TierMID = TierMesh ? WOTOLGlow::MakeGlow(this, CategoryTint(Category)) : nullptr;
-	if (TierMesh && TierMID) TierMesh->SetMaterial(0, TierMID);
+	// Illustration officielle réelle (planche détourée, WOTOLBuildingArt) si disponible,
+	// affichée sur un plan orienté face à la caméra isométrique FIXE de la vue Cité (jamais
+	// de rotation possible -> l'illusion tient à tout niveau de zoom, demande de Liamor du
+	// 25/07/2026). Repli automatique sur l'ancien kitbash (cylindre émissif) si l'image
+	// officielle est absente (fichier Content/UI/Buildings/ manquant).
+	if (UTexture2D* Art = WOTOLBuildingArt::GetBuildingIcon(OwnerFaction, Category))
+	{
+		const TCHAR* M_PLANE = TEXT("/Engine/BasicShapes/Plane.Plane");
+		TierMesh = AddCityPiece(this, SceneRoot, M_PLANE, FVector(0.f, 0.f, 90.f), FVector(3.2f, 3.2f, 1.f));
+		if (TierMesh)
+		{
+			// Le plan par défaut a sa normale locale +Z. On calcule la direction "vers la
+			// caméra" (opposé du regard) à partir des angles FIXES de AWOTOLCityCamera
+			// (FixedYaw=45/FixedPitch=-55, jamais modifiables) et on construit une rotation
+			// dont l'axe Z pointe vers cette direction, avec le +Z du monde comme référence
+			// "haut" pour ne pas voir l'image tourner sur elle-même dans son propre plan.
+			const FRotator CamLookRot(-55.f, 45.f, 0.f);
+			const FVector CamForward = FRotationMatrix(CamLookRot).GetScaledAxis(EAxis::X);
+			const FVector ToCamera = -CamForward;
+			TierMesh->SetRelativeRotation(FRotationMatrix::MakeFromZX(ToCamera, FVector::UpVector).Rotator());
+			bUsingRealArt = true;
+			TierMID = WOTOLGlow::MakeSprite(this, Art);
+			if (TierMID) TierMesh->SetMaterial(0, TierMID);
+		}
+	}
+	if (!bUsingRealArt)
+	{
+		TierMesh = AddCityPiece(this, SceneRoot, M_CYL, FVector(0.f, 0.f, 60.f), FVector(1.1f, 1.1f, 1.5f));
+		TierMID = TierMesh ? WOTOLGlow::MakeGlow(this, CategoryTint(Category)) : nullptr;
+		if (TierMesh && TierMID) TierMesh->SetMaterial(0, TierMID);
+	}
 
 	SelectionRing = AddCityPiece(this, SceneRoot, M_CYL, FVector(0.f, 0.f, 4.f), FVector(3.4f, 3.4f, 0.05f));
 	if (SelectionRing)
@@ -102,18 +132,33 @@ void AWOTOLCityBuildingProp::Refresh(const UDemoFlowSubsystem* Demo)
 		LastState = State;
 		LastLevel = Level;
 
-		// Hauteur = niveau (1/2/3) ; un bâtiment "à construire" (Distance non posé) reste
-		// bas et discret plutôt que d'afficher un bâtiment qui n'existe pas encore.
-		const float HeightScale = (State == 1) ? 0.35f : (0.7f + 0.5f * static_cast<float>(Level - 1));
-		TierMesh->SetRelativeScale3D(FVector(1.1f, 1.1f, HeightScale * 2.2f));
-		TierMesh->SetRelativeLocation(FVector(0.f, 0.f, 40.f + HeightScale * 100.f));
+		// "À construire" (Distance non posé) reste discret ; niveau 1-3 fait grandir le
+		// bâtiment. Un bâtiment "à construire" (Distance non posé) reste bas et discret
+		// plutôt que d'afficher un bâtiment qui n'existe pas encore.
+		const float SizeScale = (State == 1) ? 0.55f : (0.7f + 0.5f * static_cast<float>(Level - 1));
 
-		if (TierMID)
+		if (bUsingRealArt)
 		{
-			// Verrouillé/à construire = terne ; actif = couleur vive émissive (bloom).
-			const FLinearColor Base = CategoryTint(Category);
-			const FLinearColor Emissive = (State == 2) ? Base * 2.0f : Base * 0.35f;
-			TierMID->SetVectorParameterValue(TEXT("Color"), Emissive);
+			// Plan texturé : la TAILLE (échelle uniforme du plan) reflète le niveau, pas la
+			// hauteur (une illustration plate ne peut pas "s'étirer" sans se déformer).
+			TierMesh->SetRelativeScale3D(FVector(3.2f * SizeScale, 3.2f * SizeScale, 1.f));
+			if (TierMID)
+			{
+				// Verrouillé/à construire = terne ; actif = couleurs pleines de la planche.
+				TierMID->SetScalarParameterValue(TEXT("Brightness"), (State == 2) ? 1.0f : 0.4f);
+			}
+		}
+		else
+		{
+			// Repli kitbash : hauteur = niveau (comportement d'origine, inchangé).
+			TierMesh->SetRelativeScale3D(FVector(1.1f, 1.1f, SizeScale * 2.2f));
+			TierMesh->SetRelativeLocation(FVector(0.f, 0.f, 40.f + SizeScale * 100.f));
+			if (TierMID)
+			{
+				const FLinearColor Base = CategoryTint(Category);
+				const FLinearColor Emissive = (State == 2) ? Base * 2.0f : Base * 0.35f;
+				TierMID->SetVectorParameterValue(TEXT("Color"), Emissive);
+			}
 		}
 	}
 

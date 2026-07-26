@@ -41,10 +41,27 @@ protected:
 
 private:
 	void BuildEnvironment();
+	void BuildAmbientBubbles();
+	void TickAmbientBubbles(float DeltaSeconds);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<USceneComponent> SceneRoot;
 
 	UPROPERTY()
 	TArray<TObjectPtr<AWOTOLCityBuildingProp>> Props;
+
+	// Grand fond de cité (illustration officielle, WOTOLBuildingArt::GetCityBackdrop) posé
+	// loin derrière la scène, orienté face à la caméra isométrique fixe. Absent (nullptr) si
+	// le fichier officiel n'existe pas : le décor kitbash existant reste seul visible.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TObjectPtr<UStaticMeshComponent> BackdropMesh;
+
+	// Petites bulles animées qui montent en boucle — demande de Liamor du 25/07/2026 : garder
+	// la vue Cité "vivante" malgré des bâtiments désormais en illustrations 2D (plates) plutôt
+	// qu'en kitbash 3D. Purement décoratif, aucune collision.
+	UPROPERTY()
+	TArray<TObjectPtr<UStaticMeshComponent>> AmbientBubbles;
+	TArray<float> BubblePhase;
+	TArray<float> BubbleSpeed;
+	TArray<FVector> BubbleOrigin;
 };
