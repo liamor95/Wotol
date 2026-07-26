@@ -1122,7 +1122,7 @@ void AWOTOLDemoHUD::DrawExplorationHUD(float W, float H, UDemoFlowSubsystem* Dem
 		DrawButton(ExplorationCrystalliserButtonRect(W, H),
 			bNox ? TEXT("BATIMENT : ABYSSALYSEUR") : TEXT("BATIMENT : CRISTALLISEUR"),
 			FFactionColors::Get(Demo->GetPlayerFaction()), 1.05f);
-		DrawText(FString::Printf(TEXT("Cristaux %d   |   Materiaux %d"),
+		DrawText(FString::Printf(TEXT("Cristaux %d   |   Mineraux %d"),
 			Demo->GetCrystals(), Demo->PlayerAbyssalMaterials),
 			FLinearColor(1.f, 0.94f, 0.58f, 1.f), 38.f, H - 87.f,
 			GEngine ? GEngine->GetMediumFont() : nullptr, 0.9f);
@@ -1309,9 +1309,9 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 
 	// Ressources persistantes gagnées en mission (haut-gauche). 4 ressources conformes aux
 	// visuels Content/UI/Reference/Ressources : Cristaux/Biolumens (propre a la faction),
-	// Materiaux abyssaux, Biomasse, Energie Oceanique (SEULE a capacite de stockage limitee).
+	// Mineraux Abyssaux, Biomasse, Energie Oceanique (SEULE a capacite de stockage limitee).
 	const FString Res = bAq ? TEXT("Cristaux") : TEXT("Biolumens");
-	DrawText(FString::Printf(TEXT("%s %d   |   Materiaux abyssaux %d   |   Biomasse %d   |   Energie Oceanique %d/%d"),
+	DrawText(FString::Printf(TEXT("%s %d   |   Mineraux Abyssaux %d   |   Biomasse %d   |   Energie Oceanique %d/%d"),
 		*Res, Demo->GetCrystals(), Demo->PlayerAbyssalMaterials, Demo->PlayerBiomass,
 		Demo->PlayerOceanicEnergy, Demo->MaxOceanicEnergy),
 		FLinearColor(1.f, 0.95f, 0.6f, 1.f), 44.f, 44.f, GEngine ? GEngine->GetLargeFont() : nullptr, 1.5f);
@@ -1623,7 +1623,7 @@ void AWOTOLDemoHUD::DrawTerritoryView(float W, float H, UDemoFlowSubsystem* Demo
 	DrawText(FString::Printf(TEXT("Integrite : %d %%   —   %s"),
 		FMath::RoundToInt(Demo->GetTerritoryHealthPercent() * 100.f), *RampartName),
 		FLinearColor::White, 48.f, 205.f, nullptr, 1.0f);
-	DrawText(FString::Printf(TEXT("Cristaux %d   |   Materiaux %d"), Demo->GetCrystals(),
+	DrawText(FString::Printf(TEXT("Cristaux %d   |   Mineraux %d"), Demo->GetCrystals(),
 		Demo->PlayerAbyssalMaterials), FLinearColor(1.f, 0.90f, 0.42f, 1.f),
 		48.f, 235.f, nullptr, 0.9f);
 
@@ -1899,7 +1899,7 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 	if (bHasRewards)
 	{
 		DrawCenteredText(FString::Printf(TEXT(
-			"RECOMPENSES : Cristaux +%d   |   Materiaux abyssaux +%d   |   Biomasse +%d   |   Energie Oceanique +%d"),
+			"RECOMPENSES : Cristaux +%d   |   Mineraux Abyssaux +%d   |   Biomasse +%d   |   Energie Oceanique +%d"),
 			Demo->LastRewardCrystals, Demo->LastRewardAbyssalMaterials,
 			Demo->LastRewardBiomass, Demo->LastRewardOceanicEnergy),
 			H * 0.205f, FLinearColor(1.f, 0.88f, 0.35f, 1.f), 1.0f);

@@ -31,6 +31,15 @@ Fait cette session (26/07/2026, retours de Liamor sur l'illustration 3D de la ci
   22 batiments) deja present dans ce fichier : "batiment-siege (Noyau Cristalin/Trone des
   profondeurs)" - le pendant Aquiloris (Noyau Cristallin) avait deja ete corrige, celui-ci
   avait ete manque a l'epoque.
+- Faction Thalassidra (hors scope demo) : EFactionID::Thalassidras -> Thalassidra (singulier,
+  confirme par Liamor - le "s" ne s'ajoute qu'au pluriel).
+- Ressource "Materiaux abyssaux" corrigee en **Mineraux Abyssaux** (c'est de la roche, pas des
+  materiaux manufactures - confirme par Liamor) : HUD (DrawCityView, DrawTerritoryView, recap
+  des recompenses). Coherent avec EResourceType::MinerauxAbyssaux qui utilisait deja ce nom.
+- Noms Muréniens **Korvass** (chef) et **Reine Nuxim** (mythique) retires de
+  Docs/DOCUMENT_MAITRE_WOTOL.md : invalides selon Liamor (deja retires cote conception, ne
+  jamais les reutiliser). Remplaces par "nom a redefinir" en attendant validation depuis les
+  images officielles (faction entierement hors scope demo, jamais dans le code).
 - Controle de vitesse de jeu (x1/x1.5/x2) dans l'ecran Reglages, sous le bouton plein ecran :
   AWOTOLPlayerController_Battle::SetGameSpeed + UGameplayStatics::SetGlobalTimeDilation.
 - Materialisation VISUELLE de la croissance de la cite avant la phase 3 : jusqu'ici la

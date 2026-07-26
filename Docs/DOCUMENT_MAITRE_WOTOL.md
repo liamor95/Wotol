@@ -66,7 +66,8 @@ Mythique : **Noxedrake** (6,5–7 m).
 monture tortue. Chef ~1,70 m. Mythique : **méduse géante** (nom à fixer).
 
 ### 3.4 Muréniens *(hors démo)* — **violet/pourpre**, grottes toxiques. Torse humanoïde + **queue de murène**
-(pas de jambes). Chef : **Korvass** (griffes/poison violet). Mythique : **Reine Nuxim** (toujours montrée entière).
+(pas de jambes). Chef : *nom retiré, à redéfinir* (plus "Korvass"). Mythique : *nom retiré, à redéfinir*
+(plus "Reine Nuxim") — noms invalidés par Liamor le 26/07/2026, à revalider depuis les images officielles.
 
 ### 3.5 Pirates Abyssaux *(hors démo)* — **énergie rouge**, récupération, exilés multi-origines.
 1 membre mécanique max par perso. Cité = **vaisseau-fief mobile** (= élément mythique). **Jamais** un bateau de surface.
@@ -236,7 +237,7 @@ Windows 10 Home, **NVIDIA GTX** (pilote 472.84). Erreur **« Video memory exhaus
 5. **Noxar a des jambes**.
 6. Aquiloris = blanc/bleu/énergie bleue.
 7. **Aquilombres translucide**.
-8. **Nuxim** montrée entièrement.
+8. Mythique Muréniens montrée entièrement (nom "Nuxim" retiré, invalide - à redéfinir).
 9. Vaisseau pirate = cité mobile + fief mythique.
 10. Une unité demandée séparément = **image séparée**.
 11. Une correction locale **ne modifie pas** les éléments déjà validés.
