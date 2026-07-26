@@ -1254,6 +1254,28 @@ static FString CityUnitLabel(EFactionID Fac, EDemoUnitCategory Cat)
 	}
 }
 
+// Déplacée plus haut (utilisée à la fois par l'onglet Compétences et par la fiche technique
+// de la cité, qui affiche désormais l'axe choisi — demande de Liamor du 26/07/2026).
+static FString SkillAxisLabel(EFactionID Fac, EDemoUnitCategory Cat, int32 Axis)
+{
+	if (Axis == 0) return TEXT("Base");
+	const bool bAq = (Fac != EFactionID::Noxeens);
+	switch (Cat)
+	{
+		case EDemoUnitCategory::Infanterie: return bAq ? (Axis==1?TEXT("Mur amplifie"):TEXT("Double Lames"))
+		                                               : (Axis==1?TEXT("Voile Profond"):TEXT("Frappe Aveugle"));
+		case EDemoUnitCategory::Distance:   return bAq ? (Axis==1?TEXT("Hydrosniper"):TEXT("Hydropompe"))
+		                                               : (Axis==1?TEXT("Rayon Perforant"):TEXT("Explosion Biolum."));
+		case EDemoUnitCategory::Montee:     return bAq ? (Axis==1?TEXT("Percee amplifiee"):TEXT("Rempart Synth."))
+		                                               : (Axis==1?TEXT("Bastion Brutal"):TEXT("Defoncement"));
+		case EDemoUnitCategory::Speciale:   return bAq ? (Axis==1?TEXT("Critiques +"):TEXT("Ombres Projetees"))
+		                                               : (Axis==1?TEXT("Reacteur de Guerre"):TEXT("Ancrage Abyssal"));
+		case EDemoUnitCategory::Mythique:   return bAq ? (Axis==1?TEXT("Rayon. Stabilisateur"):TEXT("Rayon. Vital"))
+		                                               : (Axis==1?TEXT("Devastation Totale"):TEXT("Dominion Radieux"));
+		default: return (Axis==1?TEXT("Axe 1"):TEXT("Axe 2"));
+	}
+}
+
 UTexture2D* AWOTOLDemoHUD::GetTransitionBackground()
 {
 	if (TransitionBgTexture || bTransitionBgTried) return TransitionBgTexture;
@@ -1526,9 +1548,23 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		}
 		else
 		{
-			DrawCenteredText(FString::Printf(TEXT("NIVEAU %d / %d"),
-				Demo->GetBuildingLevel(SelCat), UDemoFlowSubsystem::MaxBuildingLevel),
+			// Niveau UNIQUE (1-3) : améliore à la fois attaque ET défense des unités de cette
+			// catégorie (×1.0/1.15/1.30, cf. WOTOLDemoDirector::SpawnUnit) — pas deux jauges
+			// séparées dans ce système, on l'affiche donc explicitement pour lever l'ambiguïté
+			// (demande de detail par batiment de Liamor du 26/07/2026).
+			const int32 BLvl = Demo->GetBuildingLevel(SelCat);
+			DrawCenteredText(FString::Printf(TEXT("NIVEAU %d / %d  (attaque + defense)"),
+				BLvl, UDemoFlowSubsystem::MaxBuildingLevel),
 				Y, FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.0f); Y += 30.f;
+
+			// Voie tactique choisie (axe de compétence, réglable dans l'onglet COMPETENCES).
+			if (SelCat != EDemoUnitCategory::Chef)
+			{
+				const int32 Axis = Demo->GetUnitAxis(SelCat);
+				DrawCenteredText(FString::Printf(TEXT("Voie tactique : %s"),
+					*SkillAxisLabel(Fac, SelCat, Axis)),
+					Y, FLinearColor(0.65f, 0.9f, 1.f, 0.95f), 0.9f); Y += 28.f;
+			}
 
 			const int32 UpCost = Demo->GetBuildingUpgradeCost(SelCat);
 			if (UpCost > 0)
@@ -1671,26 +1707,6 @@ FBox2D AWOTOLDemoHUD::SkillsBackButtonRect(float W, float H)
 }
 
 // Nom de la VOIE (axe) par faction/catégorie (0=Base, 1=Axe1, 2=Axe2) — d'après le GDD §7.
-static FString SkillAxisLabel(EFactionID Fac, EDemoUnitCategory Cat, int32 Axis)
-{
-	if (Axis == 0) return TEXT("Base");
-	const bool bAq = (Fac != EFactionID::Noxeens);
-	switch (Cat)
-	{
-		case EDemoUnitCategory::Infanterie: return bAq ? (Axis==1?TEXT("Mur amplifie"):TEXT("Double Lames"))
-		                                               : (Axis==1?TEXT("Voile Profond"):TEXT("Frappe Aveugle"));
-		case EDemoUnitCategory::Distance:   return bAq ? (Axis==1?TEXT("Hydrosniper"):TEXT("Hydropompe"))
-		                                               : (Axis==1?TEXT("Rayon Perforant"):TEXT("Explosion Biolum."));
-		case EDemoUnitCategory::Montee:     return bAq ? (Axis==1?TEXT("Percee amplifiee"):TEXT("Rempart Synth."))
-		                                               : (Axis==1?TEXT("Bastion Brutal"):TEXT("Defoncement"));
-		case EDemoUnitCategory::Speciale:   return bAq ? (Axis==1?TEXT("Critiques +"):TEXT("Ombres Projetees"))
-		                                               : (Axis==1?TEXT("Reacteur de Guerre"):TEXT("Ancrage Abyssal"));
-		case EDemoUnitCategory::Mythique:   return bAq ? (Axis==1?TEXT("Rayon. Stabilisateur"):TEXT("Rayon. Vital"))
-		                                               : (Axis==1?TEXT("Devastation Totale"):TEXT("Dominion Radieux"));
-		default: return (Axis==1?TEXT("Axe 1"):TEXT("Axe 2"));
-	}
-}
-
 void AWOTOLDemoHUD::DrawVerticalLayerGauge(float W, float H, UWorld* World)
 {
 	if (!World || !Canvas) return;
