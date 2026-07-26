@@ -36,6 +36,17 @@ Fait cette session (26/07/2026, retours de Liamor sur l'illustration 3D de la ci
   (voir entree du 19/07/2026 plus bas) - seulement des champs de donnees INERTES
   (bIronmanMode/bRandomMode) herites de la structure de sauvegarde, jamais lus par le jeu,
   aucune UI ne les expose. Confirmation demandee par Liamor, aucune correction necessaire.
+- GRADES INDIVIDUELS par unite (meme categorie = plusieurs stades melanges, pas tous au meme
+  niveau) : demande de Liamor pour eviter qu'un bloc entier d'infanterie ne tombe d'un coup
+  lors d'un echange de tirs. `AWOTOLDemoDirector::RollUnitGradeFactor(CenterLevel)` tire un
+  grade (1/2/3, +15%/grade) autour d'un centre, cote JOUEUR (centre = niveau reel du batiment)
+  ET cote RIVAL (centre = niveau de base 1, la rivale n'ayant pas de batiments a ameliorer dans
+  cette demo) - sans deplacer la moyenne du groupe, donc sans casser l'equilibrage adaptatif.
+  `GrandBattleCasualtyPacingSeconds` ajuste 600s -> 480s (8 min, duree cible demandee pour la
+  grande bataille). Le reste de la demande (equilibrage adaptatif reel-temps selon pertes/
+  composition, difficulte differenciee y compris au Kraken, pertes minimum garanties meme en
+  Facile) etait deja en place (`ConfigureAdaptiveCasualtyTargets`, `EnemyDiffKHP`/`DMG`,
+  documente avec les ratios de force R≈1.93/1.40/1.11) - verifie mais pas retouche.
 
 Fait cette session (19/07/2026, en plus de la fusion agent/connect-exploration-flow) :
 - Minimap schematique (coin haut-droit, sous pause/reglages) : AWOTOLDemoHUD::DrawMinimap.
