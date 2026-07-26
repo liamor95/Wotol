@@ -1164,6 +1164,19 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 	}
 }
 
+float AWOTOLDemoDirector::RollUnitGradeFactor(int32 CenterLevel) const
+{
+	// Meme echelle que GetBuildingLevel (+15% PV/degats par grade au-dessus de 1). Tirage
+	// biaise AUTOUR du centre (60% le grade central, 25% un cran en-dessous si possible, 15%
+	// un cran au-dessus si possible) -> variete individuelle sans deplacer la moyenne du groupe.
+	const int32 MaxLvl = UDemoFlowSubsystem::MaxBuildingLevel;
+	const float R = EncounterRandom.FRand();
+	int32 Lvl = CenterLevel;
+	if (R < 0.25f && CenterLevel > 1) Lvl = CenterLevel - 1;
+	else if (R > 0.85f && CenterLevel < MaxLvl) Lvl = CenterLevel + 1;
+	return 1.f + 0.15f * static_cast<float>(Lvl - 1);
+}
+
 AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, const FRotator& Facing,
 	float ScaleBoost, float HealthScale, bool bAsBoss)
 {
@@ -1190,14 +1203,27 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 
 	// ── PROGRESSION (niveau de bâtiment / grade) : PRISE EN COMPTE dans les stats (décision
 	// Liamor). Le niveau du bâtiment de la catégorie multiplie PV + dégâts des unités du JOUEUR
-	// (Niv 1 = ×1.0, Niv 2 = ×1.15, Niv 3 = ×1.30). Voir Docs/SYSTEME_CITE_ET_DEFENSE.md. ──
+	// (Niv 1 = ×1.0, Niv 2 = ×1.15, Niv 3 = ×1.30). Voir Docs/SYSTEME_CITE_ET_DEFENSE.md.
+	// GRADE INDIVIDUEL (demande de Liamor du 26/07/2026) : le niveau de bâtiment sert de CENTRE,
+	// pas de valeur unique imposée à tout le groupe -> chaque unité tire son propre grade autour
+	// de ce centre (RollUnitGradeFactor), côté JOUEUR et côté RIVAL (qui n'a pas de bâtiment à
+	// améliorer dans cette démo, donc centré sur le grade de base 1). Un même type d'unité n'est
+	// plus détruit d'un seul coup en bloc : certaines sont encore au stade de base, d'autres déjà
+	// améliorées, des deux côtés du champ de bataille. ──
 	float ProgFactor = 1.f;
-	if (!bAsBoss && Data->Faction == CachedPlayerFaction)
+	if (!bAsBoss)
 	{
-		if (UDemoFlowSubsystem* Flow = GI->GetSubsystem<UDemoFlowSubsystem>())
+		if (Data->Faction == CachedPlayerFaction)
 		{
-			const int32 Lvl = Flow->GetBuildingLevel(UDemoFlowSubsystem::GetCategoryForUnit(UnitID));
-			ProgFactor = 1.f + 0.15f * (float)(Lvl - 1);
+			if (UDemoFlowSubsystem* Flow = GI->GetSubsystem<UDemoFlowSubsystem>())
+			{
+				const int32 Lvl = Flow->GetBuildingLevel(UDemoFlowSubsystem::GetCategoryForUnit(UnitID));
+				ProgFactor = RollUnitGradeFactor(Lvl);
+			}
+		}
+		else
+		{
+			ProgFactor = RollUnitGradeFactor(1);
 		}
 	}
 

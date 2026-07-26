@@ -169,8 +169,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Balance", meta = (ClampMin = "120.0"))
 	float DefenseCasualtyPacingSeconds = 300.f;
 
+	// ~8 min (480 s) : duree cible demandee par Liamor le 26/07/2026 pour la grande bataille
+	// (etait 600 s / 10 min). Reste un horizon de RYTHME, pas une duree forcee : le plafond dur
+	// (securite) est fixe separement a 900 s dans AWOTOLDemoDirector::LaunchBattle.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Balance", meta = (ClampMin = "180.0"))
-	float GrandBattleCasualtyPacingSeconds = 600.f;
+	float GrandBattleCasualtyPacingSeconds = 480.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Balance", meta = (ClampMin = "1.0", ClampMax = "4.0"))
 	float AdaptiveMaxEnemyPressure = 2.4f;
@@ -489,6 +492,13 @@ private:
 	UFUNCTION()
 	void HandleAdaptivePlayerUnitDied(AUnitBase* Unit);
 	FTimerHandle AdaptiveBalanceHandle;
+
+	// Tire un GRADE individuel (1/2/3, +15% PV+degats par grade, meme echelle que le niveau de
+	// batiment) autour d'un centre donne : une meme categorie d'unites n'est plus TOUTE au
+	// meme niveau (elle mourrait alors toute d'un coup) — certaines restent au stade de base,
+	// d'autres sont deja ameliorees, cote joueur COMME cote rival (demande de Liamor du
+	// 26/07/2026). Ne deplace pas la moyenne du groupe -> l'equilibrage adaptatif reste valide.
+	float RollUnitGradeFactor(int32 CenterLevel) const;
 
 	void SpawnPlayerArmy(EFactionID Faction, const FVector& Origin, const FRotator& Facing);
 	void SpawnEnemyForCreature(EFactionID RivalFaction, const FVector& Origin, const FRotator& Facing);
