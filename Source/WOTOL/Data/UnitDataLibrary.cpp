@@ -36,7 +36,7 @@ static void FillAquis(UUnitDataAsset* A)
 	A->AxisTwoName        = FText::FromString(TEXT("Onde de Repoussement"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Onde circulaire projette ennemis proches"));
 	A->PassiveDescription = FText::FromString(TEXT("Bonus coordination + réduction recharge alliés proches. Synergie : Aquilombres"));
-	A->RequiredBuilding   = FText::FromString(TEXT("Aquilore"));
+	A->RequiredBuilding   = FText::FromString(TEXT("Noyau Cristallin"));
 }
 
 static void FillLeviaphenix(UUnitDataAsset* A)

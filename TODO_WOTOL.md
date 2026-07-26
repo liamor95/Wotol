@@ -14,6 +14,12 @@ Rien de tout cela n'a ete compile/vu tourner cote assistant (pas d'editeur Unrea
 Fait cette session (26/07/2026, retours de Liamor sur l'illustration 3D de la cite) :
 - Correction de nom : le chef Aquiloris s'appelle **Aquis** (pas "Akis") ; renomme partout
   (code, batiment Aquisferes/unite distance, commentaires, doc install).
+- Audit complet des noms d'unites (suite a la correction Aquiloryons) : "Nox Flare/Blast/Beast/
+  Noxeon(s)" corriges en Noxeflare/Noxeblast/Noxebeast/Noxeons ; revert d'une fausse piste sur
+  Aquilans/Aquilombre/Aquisferes (les vrais noms sont bien AU PLURIEL : Aquilances, Aquilombres,
+  Aquisphères, confirme par Liamor). Batiment requis du Chef Aquis corrige : **Noyau Cristallin**
+  (pas "Aquilore" - confusion avec "Aquilor", qui est le nom de la CITE globale, pas d'un
+  batiment ; chaque batiment a son propre nom specifique, y compris celui du chef).
 - Controle de vitesse de jeu (x1/x1.5/x2) dans l'ecran Reglages, sous le bouton plein ecran :
   AWOTOLPlayerController_Battle::SetGameSpeed + UGameplayStatics::SetGlobalTimeDilation.
 - Materialisation VISUELLE de la croissance de la cite avant la phase 3 : jusqu'ici la
