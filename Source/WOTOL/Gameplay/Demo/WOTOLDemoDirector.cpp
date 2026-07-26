@@ -1213,17 +1213,24 @@ AWOTOLDemoUnit* AWOTOLDemoDirector::SpawnUnit(FName UnitID, const FVector& Loc, 
 	int32 GradeLvl = 1;
 	if (!bAsBoss)
 	{
+		// Chef et Mythique sont des unités SOLO (MaxCountInSquad=1, un seul exemplaire en jeu) :
+		// la variété de grade n'a aucun sens pour un exemplaire unique (rien à diversifier) et
+		// ajouterait un bruit non voulu à l'équilibrage soigneusement calibré (ratios de force
+		// documentés plus haut) -> pas de tirage pour elles, seulement pour les catégories en
+		// escouade (Infanterie/Montée/Distance/Spéciale).
+		const EDemoUnitCategory Cat = UDemoFlowSubsystem::GetCategoryForUnit(UnitID);
+		const bool bSoloUnit = (Cat == EDemoUnitCategory::Chef || Cat == EDemoUnitCategory::Mythique);
 		if (Data->Faction == CachedPlayerFaction)
 		{
 			if (UDemoFlowSubsystem* Flow = GI->GetSubsystem<UDemoFlowSubsystem>())
 			{
-				const int32 Lvl = Flow->GetBuildingLevel(UDemoFlowSubsystem::GetCategoryForUnit(UnitID));
-				GradeLvl = RollUnitGrade(Lvl);
+				const int32 Lvl = Flow->GetBuildingLevel(Cat);
+				GradeLvl = bSoloUnit ? Lvl : RollUnitGrade(Lvl);
 			}
 		}
 		else
 		{
-			GradeLvl = RollUnitGrade(1);
+			GradeLvl = bSoloUnit ? 1 : RollUnitGrade(1);
 		}
 	}
 	const float ProgFactor = GradeLevelToFactor(GradeLvl);
