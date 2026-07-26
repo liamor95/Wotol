@@ -220,7 +220,7 @@ public:
 	EFactionID SelectedFaction = EFactionID::None;
 
 	UFUNCTION(BlueprintCallable, Category = "Demo")
-	void SetSelectedFaction(EFactionID F) { SelectedFaction = F; }
+	void SetSelectedFaction(EFactionID F) { SelectedFaction = F; RefreshHeroName(); }
 
 	// ─── Personnalisation du héros (écran avant le lancement, après choix de faction) ──
 	UPROPERTY(BlueprintReadOnly, Category = "Demo|Hero")
@@ -237,6 +237,24 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Demo|Hero")
 	void CycleHeroPortrait(int32 Delta) { HeroLoadout.PortraitIndex = (HeroLoadout.PortraitIndex + Delta + 5) % 5; }
+
+	// Aquiloris uniquement : bascule le heros joue entre Akis et Aquira (stats identiques,
+	// Role Chef — voir FHeroLoadout::bPlayAsAquira). Sans effet pour les Noxeens.
+	UFUNCTION(BlueprintCallable, Category = "Demo|Hero")
+	void SetHeroPlayAsAquira(bool bAquira) { HeroLoadout.bPlayAsAquira = bAquira; RefreshHeroName(); }
+
+private:
+	// Nom du heros affiche (recap avant lancement) derive de la faction + du choix Akis/
+	// Aquira. Remplace le placeholder generique "Aquilian" qui ne correspondait a aucun nom
+	// etabli du GDD.
+	void RefreshHeroName()
+	{
+		if (SelectedFaction == EFactionID::Noxeens) HeroLoadout.HeroName = TEXT("Noxar");
+		else if (SelectedFaction == EFactionID::Aquiloris)
+			HeroLoadout.HeroName = HeroLoadout.bPlayAsAquira ? TEXT("Aquira") : TEXT("Akis");
+	}
+
+public:
 
 	// ─── Résumé de bataille (fin de phase) ─────────────────────────────────────
 	// Pertes détaillées, remplies par le Director à la fin de chaque bataille.

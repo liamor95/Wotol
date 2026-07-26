@@ -496,6 +496,19 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 	if (Screen == EDemoScreen::HeroCustomization)
 	{
 		if (!Demo) return true;
+		if (Demo->SelectedFaction == EFactionID::Aquiloris)
+		{
+			if (AWOTOLDemoHUD::HeroAquilorisVariantButtonRect(0, VpSize.X, VpSize.Y).IsInside(M))
+			{
+				Demo->SetHeroPlayAsAquira(false); // AKIS
+				return true;
+			}
+			if (AWOTOLDemoHUD::HeroAquilorisVariantButtonRect(1, VpSize.X, VpSize.Y).IsInside(M))
+			{
+				Demo->SetHeroPlayAsAquira(true); // AQUIRA
+				return true;
+			}
+		}
 		const EHeroHeritage HeritageVals[4] = { EHeroHeritage::Thalassi, EHeroHeritage::Givrelier, EHeroHeritage::Abysseen, EHeroHeritage::Gardien };
 		for (int32 i = 0; i < 4; ++i)
 		{

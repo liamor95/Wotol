@@ -76,6 +76,15 @@ FBox2D AWOTOLDemoHUD::FactionLaunchButtonRect(float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
+FBox2D AWOTOLDemoHUD::HeroAquilorisVariantButtonRect(int32 Index, float W, float H)
+{
+	const float BW = W * 0.20f, BH = H * 0.06f, Gap = W * 0.02f;
+	const float TotalW = BW * 2.f + Gap;
+	const float X = (W - TotalW) * 0.5f + Index * (BW + Gap);
+	const float Y = H * 0.185f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+}
+
 FBox2D AWOTOLDemoHUD::HeroHeritageButtonRect(int32 Index, float W, float H)
 {
 	const float BW = W * 0.20f, BH = H * 0.10f, Gap = W * 0.02f;
@@ -788,6 +797,27 @@ void AWOTOLDemoHUD::DrawHeroCustomization(float W, float H, UDemoFlowSubsystem* 
 	DrawGlowTitle(TEXT("PERSONNALISATION DU HEROS"), H * 0.10f, 2.0f, FLinearColor(0.7f, 0.9f, 1.f, 1.f));
 	if (!Demo) return;
 	const FHeroLoadout& Loadout = Demo->GetHeroLoadout();
+
+	// Choix Akis / Aquira — Aquiloris uniquement (demande de Liamor, 25/07/2026). Stats et
+	// capacites strictement identiques (Role Chef) ; celui non choisi devient le chef de
+	// faction en narration/PNJ. Les Noxeens n'ont pas ce choix (Noxar reste seul chef jouable).
+	if (Demo->SelectedFaction == EFactionID::Aquiloris)
+	{
+		DrawCenteredText(TEXT("INCARNATION"), HeroAquilorisVariantButtonRect(0, W, H).Min.Y - H * 0.04f,
+			FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.1f);
+		const TCHAR* VariantLabels[2] = { TEXT("AKIS"), TEXT("AQUIRA") };
+		for (int32 i = 0; i < 2; ++i)
+		{
+			const bool bSel = (Loadout.bPlayAsAquira == (i == 1));
+			const FLinearColor Col = bSel ? FLinearColor(0.4f, 0.85f, 1.f, 1.f) : FLinearColor(0.4f, 0.45f, 0.52f, 1.f);
+			DrawButton(HeroAquilorisVariantButtonRect(i, W, H), VariantLabels[i], Col, bSel ? 1.1f : 1.0f);
+		}
+		DrawCenteredText(Loadout.bPlayAsAquira
+				? TEXT("Aquira, reine des Aquiloris. Akis dirige la faction en votre absence.")
+				: TEXT("Akis, chef des Aquiloris. Aquira dirige la faction en votre absence."),
+			HeroAquilorisVariantButtonRect(0, W, H).Max.Y + H * 0.02f,
+			FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 0.85f);
+	}
 
 	DrawCenteredText(TEXT("HERITAGE"), HeroHeritageButtonRect(0, W, H).Min.Y - H * 0.045f,
 		FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.2f);

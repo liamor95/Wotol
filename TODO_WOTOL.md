@@ -461,3 +461,36 @@ HUD pour changer) serait un ajout, pas une modification de logique existante.
 2. Ne rien changer au Kraken/a la defense mono-axe/aux territoires avant le premier playtest
    UE5.8 — les cibles de pertes documentees sont calibrees sur l'architecture actuelle, un
    changement non mesure serait un double changement.
+
+## Choix Akis / Aquira a la personnalisation du heros (25/07/2026, demande de Liamor)
+
+Demande explicite : les joueuses/joueurs Aquiloris peuvent choisir d'incarner soit **Akis**
+(chef historique) soit **Aquira** (nouvelle reine, nom trouve avec Liamor via AskUserQuestion),
+avec des statistiques/capacites strictement identiques. Celui des deux qui n'est PAS choisi
+devient le chef de la faction en narration/PNJ (a qui Akis devient chef si Aquira est choisie,
+et inversement). Les Noxeens ne sont pas concernes : Noxar reste le seul chef jouable.
+
+**Implemente :**
+- `FHeroLoadout::bPlayAsAquira` (WOTOLTypes.h) : nouveau champ, Aquiloris uniquement.
+- `UDemoFlowSubsystem::SetHeroPlayAsAquira()` + `RefreshHeroName()` (prive) : le nom du heros
+  affiche (`HeroLoadout.HeroName`, jusque-la toujours le placeholder generique "Aquilian" qui
+  ne correspondait a aucun nom etabli du GDD) se calcule desormais automatiquement : "Noxar"
+  pour les Noxeens, "Akis" ou "Aquira" pour les Aquiloris selon le choix. Rafraichi a la fois
+  au choix de faction (`SetSelectedFaction`) et au choix Akis/Aquira.
+- `AWOTOLDemoHUD::DrawHeroCustomization` : nouveau bloc "INCARNATION" (2 boutons AKIS/AQUIRA)
+  au-dessus de HERITAGE, visible uniquement quand `SelectedFaction == Aquiloris`. Texte
+  descriptif rappelant qui devient chef de faction en PNJ selon le choix.
+- `AWOTOLPlayerController_Battle::HandleUIClick` : gestion du clic sur les 2 nouveaux boutons.
+- Le recapitulatif avant lancement (deja existant, `Row(ColL, "HEROS", Loadout.HeroName)`)
+  affiche donc maintenant automatiquement "Akis"/"Aquira"/"Noxar" au lieu du placeholder.
+
+**PAS FAIT (deliberement, pour rester dans le perimetre demande) :**
+- Le nom affiche pour l'unite "Chef" recrutable en bataille (UnitDataLibrary.cpp,
+  `DisplayName = "Akis"`) reste fixe a "Akis" quel que soit le choix — ce DataAsset represente
+  l'unite RTS recrutable (stats identiques dans les deux cas), pas le heros d'exploration.
+  Si Liamor veut que ce nom suive aussi le choix Aquira, il faudra rendre son affichage
+  dynamique partout ou il apparait en jeu (tooltips, fiche technique...) — pas fait ici, hors
+  du perimetre explicitement demande (ecran de personnalisation uniquement).
+- Aucun changement visuel/mesh : Aquira reutilise le meme portrait cyclable generique
+  (halo teinte par la faction) que le reste du systeme de personnalisation, en attendant de
+  vrais portraits illustres.
