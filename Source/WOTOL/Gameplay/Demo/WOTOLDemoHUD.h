@@ -41,7 +41,7 @@ public:
 	static FBox2D LaunchBattleButtonRect(float W, float H);   // préparation
 
 	// ─── Personnalisation du héros (entre le choix de faction et le lancement) ──
-	// Aquiloris uniquement : choix Akis (0) / Aquira (1), stats identiques (Role Chef).
+	// Aquiloris uniquement : choix Aquis (0) / Aquira (1), stats identiques (Role Chef).
 	static FBox2D HeroAquilorisVariantButtonRect(int32 Index, float W, float H);
 	static FBox2D HeroHeritageButtonRect(int32 Index, float W, float H);  // 4 héritages
 	static FBox2D HeroSpecialtyButtonRect(int32 Index, float W, float H); // 4 spécialités

@@ -319,7 +319,7 @@ vrais systemes de conception qui meritent une vraie session de design, pas un aj
 
 - **Formations de combat entre unites** (image donnee : tactiques foot 4-4-2 / 5-3-1...) :
   des formations/dispositions debloquees progressivement, dependantes des types d'unites
-  deja debloquees (une formation utilisant les Akisferes n'est possible qu'une fois le
+  deja debloquees (une formation utilisant les Aquisferes n'est possible qu'une fois le
   batiment distance construit, etc.).
 - **Progression/niveau des unites** avec choix de competences a debloquer par unite au fil
   de la partie (au-dela du simple Axe 1/Axe 2 deja prevu pour les competences de base).
@@ -462,12 +462,12 @@ HUD pour changer) serait un ajout, pas une modification de logique existante.
    UE5.8 — les cibles de pertes documentees sont calibrees sur l'architecture actuelle, un
    changement non mesure serait un double changement.
 
-## Choix Akis / Aquira a la personnalisation du heros (25/07/2026, demande de Liamor)
+## Choix Aquis / Aquira a la personnalisation du heros (25/07/2026, demande de Liamor)
 
-Demande explicite : les joueuses/joueurs Aquiloris peuvent choisir d'incarner soit **Akis**
+Demande explicite : les joueuses/joueurs Aquiloris peuvent choisir d'incarner soit **Aquis**
 (chef historique) soit **Aquira** (nouvelle reine, nom trouve avec Liamor via AskUserQuestion),
 avec des statistiques/capacites strictement identiques. Celui des deux qui n'est PAS choisi
-devient le chef de la faction en narration/PNJ (a qui Akis devient chef si Aquira est choisie,
+devient le chef de la faction en narration/PNJ (a qui Aquis devient chef si Aquira est choisie,
 et inversement). Les Noxeens ne sont pas concernes : Noxar reste le seul chef jouable.
 
 **Implemente :**
@@ -475,18 +475,18 @@ et inversement). Les Noxeens ne sont pas concernes : Noxar reste le seul chef jo
 - `UDemoFlowSubsystem::SetHeroPlayAsAquira()` + `RefreshHeroName()` (prive) : le nom du heros
   affiche (`HeroLoadout.HeroName`, jusque-la toujours le placeholder generique "Aquilian" qui
   ne correspondait a aucun nom etabli du GDD) se calcule desormais automatiquement : "Noxar"
-  pour les Noxeens, "Akis" ou "Aquira" pour les Aquiloris selon le choix. Rafraichi a la fois
-  au choix de faction (`SetSelectedFaction`) et au choix Akis/Aquira.
-- `AWOTOLDemoHUD::DrawHeroCustomization` : nouveau bloc "INCARNATION" (2 boutons AKIS/AQUIRA)
+  pour les Noxeens, "Aquis" ou "Aquira" pour les Aquiloris selon le choix. Rafraichi a la fois
+  au choix de faction (`SetSelectedFaction`) et au choix Aquis/Aquira.
+- `AWOTOLDemoHUD::DrawHeroCustomization` : nouveau bloc "INCARNATION" (2 boutons AQUIS/AQUIRA)
   au-dessus de HERITAGE, visible uniquement quand `SelectedFaction == Aquiloris`. Texte
   descriptif rappelant qui devient chef de faction en PNJ selon le choix.
 - `AWOTOLPlayerController_Battle::HandleUIClick` : gestion du clic sur les 2 nouveaux boutons.
 - Le recapitulatif avant lancement (deja existant, `Row(ColL, "HEROS", Loadout.HeroName)`)
-  affiche donc maintenant automatiquement "Akis"/"Aquira"/"Noxar" au lieu du placeholder.
+  affiche donc maintenant automatiquement "Aquis"/"Aquira"/"Noxar" au lieu du placeholder.
 
 **PAS FAIT (deliberement, pour rester dans le perimetre demande) :**
 - Le nom affiche pour l'unite "Chef" recrutable en bataille (UnitDataLibrary.cpp,
-  `DisplayName = "Akis"`) reste fixe a "Akis" quel que soit le choix — ce DataAsset represente
+  `DisplayName = "Aquis"`) reste fixe a "Aquis" quel que soit le choix — ce DataAsset represente
   l'unite RTS recrutable (stats identiques dans les deux cas), pas le heros d'exploration.
   Si Liamor veut que ce nom suive aussi le choix Aquira, il faudra rendre son affichage
   dynamique partout ou il apparait en jeu (tooltips, fiche technique...) — pas fait ici, hors
@@ -570,7 +570,7 @@ Noxeens (lettre "N" bioluminescente).
 ## Embleme Aquiloris recu, equilibre resolu (25/07/2026)
 
 Liamor a envoye le lot complet des visuels officiels Aquiloris (batiments confirmant a
-nouveau les 11 noms canoniques deja en code, armes, personnages Aquiloryon/Akis, fonds de
+nouveau les 11 noms canoniques deja en code, armes, personnages Aquiloryon/Aquis, fonds de
 biome) — dont l'embleme officiel Aquiloris (bouclier bleu "A"), symetrique a l'embleme
 Noxeens ("N") recu precedemment. Le point laisse ouvert dans l'entree precedente
 ("remplacer un seul bouton par une vraie image creerait une incoherence") est resolu :

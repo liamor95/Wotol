@@ -238,20 +238,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Demo|Hero")
 	void CycleHeroPortrait(int32 Delta) { HeroLoadout.PortraitIndex = (HeroLoadout.PortraitIndex + Delta + 5) % 5; }
 
-	// Aquiloris uniquement : bascule le heros joue entre Akis et Aquira (stats identiques,
+	// Aquiloris uniquement : bascule le heros joue entre Aquis et Aquira (stats identiques,
 	// Role Chef — voir FHeroLoadout::bPlayAsAquira). Sans effet pour les Noxeens.
 	UFUNCTION(BlueprintCallable, Category = "Demo|Hero")
 	void SetHeroPlayAsAquira(bool bAquira) { HeroLoadout.bPlayAsAquira = bAquira; RefreshHeroName(); }
 
 private:
-	// Nom du heros affiche (recap avant lancement) derive de la faction + du choix Akis/
+	// Nom du heros affiche (recap avant lancement) derive de la faction + du choix Aquis/
 	// Aquira. Remplace le placeholder generique "Aquilian" qui ne correspondait a aucun nom
 	// etabli du GDD.
 	void RefreshHeroName()
 	{
 		if (SelectedFaction == EFactionID::Noxeens) HeroLoadout.HeroName = TEXT("Noxar");
 		else if (SelectedFaction == EFactionID::Aquiloris)
-			HeroLoadout.HeroName = HeroLoadout.bPlayAsAquira ? TEXT("Aquira") : TEXT("Akis");
+			HeroLoadout.HeroName = HeroLoadout.bPlayAsAquira ? TEXT("Aquira") : TEXT("Aquis");
 	}
 
 public:
@@ -455,7 +455,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|City", meta = (ClampMin = "1"))
 	int32 RangedProductionTarget = 10;
 
-	// Coûts PROVISOIRES et éditables du bâtiment Akisfères / Noxeblast.
+	// Coûts PROVISOIRES et éditables du bâtiment Aquisfères / Noxeblast.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|City", meta = (ClampMin = "0"))
 	int32 RangedBuildingCrystalCost = 300;
 

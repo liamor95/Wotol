@@ -223,7 +223,7 @@ struct FHeroLoadout
 	int32 PortraitIndex = 0;
 
 	// Aquiloris uniquement (choix demandé par Liamor le 25/07/2026) : le joueur incarne soit
-	// Akis (chef historique) soit Aquira (reine, stats/capacites strictement identiques —
+	// Aquis (chef historique) soit Aquira (reine, stats/capacites strictement identiques —
 	// Role Chef). Celui des deux qui N'EST PAS choisi devient le chef de faction en
 	// narration/PNJ. Sans effet pour les Noxeens (Noxar reste le seul chef jouable).
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

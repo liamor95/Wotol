@@ -6,7 +6,7 @@
 
 static void FillAquis(UUnitDataAsset* A)
 {
-	A->DisplayName   = FText::FromString(TEXT("Akis"));
+	A->DisplayName   = FText::FromString(TEXT("Aquis"));
 	A->Description   = FText::FromString(TEXT("Chef des Aquiloris — Lame Photonique (Cône)"));
 	A->Faction       = EFactionID::Aquiloris;
 	A->Role          = EUnitRole::Chef;
@@ -146,7 +146,7 @@ static void FillAquilances(UUnitDataAsset* A)
 
 static void FillAquipheres(UUnitDataAsset* A)
 {
-	A->DisplayName   = FText::FromString(TEXT("Akisfères"));
+	A->DisplayName   = FText::FromString(TEXT("Aquisfères"));
 	A->Description   = FText::FromString(TEXT("Distance Aquiloris — Hydrolaser (Petite zone)"));
 	A->Faction       = EFactionID::Aquiloris;
 	A->Role          = EUnitRole::Distance;

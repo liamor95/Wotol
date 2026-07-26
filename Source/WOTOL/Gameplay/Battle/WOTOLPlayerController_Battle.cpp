@@ -500,7 +500,7 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		{
 			if (AWOTOLDemoHUD::HeroAquilorisVariantButtonRect(0, VpSize.X, VpSize.Y).IsInside(M))
 			{
-				Demo->SetHeroPlayAsAquira(false); // AKIS
+				Demo->SetHeroPlayAsAquira(false); // AQUIS
 				return true;
 			}
 			if (AWOTOLDemoHUD::HeroAquilorisVariantButtonRect(1, VpSize.X, VpSize.Y).IsInside(M))

@@ -52,7 +52,7 @@ Le projet est en C++ pur (aucun Blueprint) : il faut un compilateur.
      **« Would you like to rebuild them now? »** → **Oui**.
    - Première compilation : peut prendre **10 à 30 minutes** selon la machine (tout le
      module `WOTOL` compile pour la première fois, y compris tout ce qui a été ajouté cette
-     session — thème d'interface par faction, choix Akis/Aquira, illustrations 3D de la Cité,
+     session — thème d'interface par faction, choix Aquis/Aquira, illustrations 3D de la Cité,
      etc.).
 3. **C'est le moment de vérité** : si des erreurs de compilation apparaissent, c'est la
    toute première fois que ce code est réellement testé (aucun compilateur disponible côté
@@ -85,7 +85,7 @@ Le **GameMode** (`WOTOLGameMode_Demo`) est déjà réglé par défaut pour tout 
 - Pour un test plus fidèle à ce que joueront les gens : petite flèche à côté de Play →
   **Standalone Game** (lance une vraie fenêtre séparée, sans les à-côtés de l'éditeur).
 - La démo doit s'assembler seule : écran-titre → choix de faction → personnalisation du héros
-  (Akis/Aquira pour Aquiloris) → récapitulatif → nage/exploration → Kraken → cité → etc.
+  (Aquis/Aquira pour Aquiloris) → récapitulatif → nage/exploration → Kraken → cité → etc.
 
 ## 7. Points à vérifier en priorité (jamais testés faute de compilateur)
 

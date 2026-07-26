@@ -965,14 +965,14 @@ void AWOTOLDemoHUD::DrawHeroCustomization(float W, float H, UDemoFlowSubsystem* 
 	if (!Demo) return;
 	const FHeroLoadout& Loadout = Demo->GetHeroLoadout();
 
-	// Choix Akis / Aquira — Aquiloris uniquement (demande de Liamor, 25/07/2026). Stats et
+	// Choix Aquis / Aquira — Aquiloris uniquement (demande de Liamor, 25/07/2026). Stats et
 	// capacites strictement identiques (Role Chef) ; celui non choisi devient le chef de
 	// faction en narration/PNJ. Les Noxeens n'ont pas ce choix (Noxar reste seul chef jouable).
 	if (Demo->SelectedFaction == EFactionID::Aquiloris)
 	{
 		DrawCenteredText(TEXT("INCARNATION"), HeroAquilorisVariantButtonRect(0, W, H).Min.Y - H * 0.04f,
 			FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.1f);
-		const TCHAR* VariantLabels[2] = { TEXT("AKIS"), TEXT("AQUIRA") };
+		const TCHAR* VariantLabels[2] = { TEXT("AQUIS"), TEXT("AQUIRA") };
 		for (int32 i = 0; i < 2; ++i)
 		{
 			const bool bSel = (Loadout.bPlayAsAquira == (i == 1));
@@ -980,8 +980,8 @@ void AWOTOLDemoHUD::DrawHeroCustomization(float W, float H, UDemoFlowSubsystem* 
 			DrawButton(HeroAquilorisVariantButtonRect(i, W, H), VariantLabels[i], Col, bSel ? 1.1f : 1.0f);
 		}
 		DrawCenteredText(Loadout.bPlayAsAquira
-				? TEXT("Aquira, reine des Aquiloris. Akis dirige la faction en votre absence.")
-				: TEXT("Akis, chef des Aquiloris. Aquira dirige la faction en votre absence."),
+				? TEXT("Aquira, reine des Aquiloris. Aquis dirige la faction en votre absence.")
+				: TEXT("Aquis, chef des Aquiloris. Aquira dirige la faction en votre absence."),
 			HeroAquilorisVariantButtonRect(0, W, H).Max.Y + H * 0.02f,
 			FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 0.85f);
 	}
@@ -1246,7 +1246,7 @@ static FString CityUnitLabel(EFactionID Fac, EDemoUnitCategory Cat)
 	switch (Cat)
 	{
 		case EDemoUnitCategory::Infanterie: return bAq ? TEXT("Akilorions") : TEXT("Nox Flare");
-		case EDemoUnitCategory::Distance:   return bAq ? TEXT("Akisferes")  : TEXT("Nox Blast");
+		case EDemoUnitCategory::Distance:   return bAq ? TEXT("Aquisferes")  : TEXT("Nox Blast");
 		case EDemoUnitCategory::Montee:     return bAq ? TEXT("Aquilans")   : TEXT("Nox Beast");
 		case EDemoUnitCategory::Speciale:   return bAq ? TEXT("Aquilombre") : TEXT("Noxeon");
 		case EDemoUnitCategory::Mythique:   return bAq ? TEXT("Leviaphenix"): TEXT("Noxedrake");
@@ -1348,7 +1348,7 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		DrawRect(FLinearColor(0.02f, 0.10f, 0.16f, 0.86f), Plot.Min.X, Plot.Min.Y,
 			Plot.Max.X - Plot.Min.X, Plot.Max.Y - Plot.Min.Y);
 		DrawLine(Plot.Min.X, Plot.Min.Y, Plot.Max.X, Plot.Min.Y, Accent, 4.f);
-		DrawText(bAq ? TEXT("CENTRE AKISFERES") : TEXT("FOSSE NOX BLAST"), FLinearColor::White,
+		DrawText(bAq ? TEXT("CENTRE AQUISFERES") : TEXT("FOSSE NOX BLAST"), FLinearColor::White,
 			Plot.Min.X + 12.f, Plot.Min.Y + 22.f, GEngine ? GEngine->GetMediumFont() : nullptr, 1.0f);
 		DrawText(TEXT("BATIMENT ACTIF — NIV. 1"), Accent,
 			Plot.Min.X + 12.f, Plot.Min.Y + 56.f, nullptr, 0.9f);
