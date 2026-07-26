@@ -248,7 +248,7 @@ static void FillNoxar(UUnitDataAsset* A)
 	A->AxisTwoName        = FText::FromString(TEXT("Surcharge Bioluminescente"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Halo amplif vitesse attaque + dégâts énergétiques + résistance peur/contrôle alliés"));
 	A->PassiveDescription = FText::FromString(TEXT("Chaque élimination proche = charge de Surcharge. Catalyse recharge Noxedrake. Synergie : Noxedrake"));
-	A->RequiredBuilding   = FText::FromString(TEXT("Quartier Général Noxéen"));
+	A->RequiredBuilding   = FText::FromString(TEXT("Trône des Profondeurs"));
 }
 
 static void FillNoxedrake(UUnitDataAsset* A)

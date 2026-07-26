@@ -26,6 +26,11 @@ Fait cette session (26/07/2026, retours de Liamor sur l'illustration 3D de la ci
 - Nom de la cite Noxeens corrige : **Nox Cave** (pas "Faille Noxeenne", qui designait deja
   autre chose - la Faille est l'environnement/ambiance, pas le nom propre de la cite elle-meme).
   Equivalent Noxeens de "Cite d'Aquilor" cote Aquiloris. `AWOTOLDemoHUD::DrawCityView`.
+- Batiment requis du Chef Noxar corrige : **Trone des Profondeurs** (pas "Quartier General
+  Noxeen", jamais aligne). Retrouve en recroisant l'audit du 25/07/2026 (liste canonique des
+  22 batiments) deja present dans ce fichier : "batiment-siege (Noyau Cristalin/Trone des
+  profondeurs)" - le pendant Aquiloris (Noyau Cristallin) avait deja ete corrige, celui-ci
+  avait ete manque a l'epoque.
 - Controle de vitesse de jeu (x1/x1.5/x2) dans l'ecran Reglages, sous le bouton plein ecran :
   AWOTOLPlayerController_Battle::SetGameSpeed + UGameplayStatics::SetGlobalTimeDilation.
 - Materialisation VISUELLE de la croissance de la cite avant la phase 3 : jusqu'ici la
