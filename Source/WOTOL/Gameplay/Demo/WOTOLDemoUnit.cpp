@@ -2572,20 +2572,30 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		// Un œil sombre de chaque flanc (façon réf : gros œil rond).
 		AddPart(M_SPH, FVector(H * 0.70f, H * 0.30f, -H * 0.18f), FVector(0.09f, 0.09f, 0.10f), NoRot, DarkEye);
 		AddPart(M_SPH, FVector(H * 0.70f, -H * 0.30f, -H * 0.18f), FVector(0.09f, 0.09f, 0.10f), NoRot, DarkEye);
-		// Mouchetures dorées (peau piquetée d'or) réparties sur le dos/flancs.
-		for (int32 g = 0; g < 10; ++g)
+		// PASSE DE DÉTAIL (26/07/2026, planche officielle "Aquilances") : narines + ligne de
+		// mâchoire (le museau était une simple sphère lisse, sans repère de gueule).
+		AddPart(M_SPH, FVector(H * 0.86f, H * 0.10f, -H * 0.22f), FVector(0.02f, 0.02f, 0.02f), NoRot, DarkEye); // narine D
+		AddPart(M_SPH, FVector(H * 0.86f, -H * 0.10f, -H * 0.22f), FVector(0.02f, 0.02f, 0.02f), NoRot, DarkEye); // narine G
+		AddPart(M_CUBE, FVector(H * 0.78f, 0, -H * 0.34f), FVector(0.30f, 0.02f, 0.015f), NoRot, DarkEye); // ligne de mâchoire
+		// Mouchetures dorées (peau piquetée d'or) réparties sur le dos/flancs — densité doublée
+		// (10 -> 18) pour matcher le mouchetage dense de la planche officielle.
+		for (int32 g = 0; g < 18; ++g)
 		{
-			const float gx = H * (0.42f - g * 0.09f);
-			const float gy = FMath::Sin(g * 1.7f) * H * 0.28f;
-			AddPart(M_SPH, FVector(gx, gy, -H * 0.10f + FMath::Cos(g * 1.3f) * H * 0.06f), FVector(0.03f, 0.03f, 0.03f), NoRot, AqGold);
+			const float gx = H * (0.46f - g * 0.055f);
+			const float gy = FMath::Sin(g * 1.7f) * H * 0.30f;
+			const float sz = (g % 3 == 0) ? 0.035f : 0.02f; // taille variable, pas uniforme
+			AddPart(M_SPH, FVector(gx, gy, -H * 0.10f + FMath::Cos(g * 1.3f) * H * 0.08f), FVector(sz, sz, sz), NoRot, AqGold);
 		}
 		// Petite CRÊTE dorsale DOUCE (nageoires légères, subtiles, peu mobiles).
 		for (int32 d = 0; d < 5; ++d)
 			AddPart(M_CONE, FVector(H * (0.25f - d * 0.13f), 0, H * 0.05f), FVector(0.05f, 0.14f, h * 0.12f), FRotator(-8.f, 0, 0), MountBlue);
 		// GRANDES NAGEOIRES PECTORALES plates et larges (flippers), balayées vers l'arrière —
-		// ondulation TRÈS légère (elles ne battent pas fort).
+		// ondulation TRÈS légère (elles ne battent pas fort). Liseré doré sur le bord de fuite,
+		// fidèle au mouchetage doré visible sur les nageoires de la planche officielle.
 		RegisterWiggle(AddPart(M_CONE, FVector(H * 0.05f, H * 0.42f, -H * 0.34f), FVector(0.70f, 0.09f, h * 0.5f), FRotator(6.f, 22.f, 80.f), MountBlue), 0.5f);
 		RegisterWiggle(AddPart(M_CONE, FVector(H * 0.05f, -H * 0.42f, -H * 0.34f), FVector(0.70f, 0.09f, h * 0.5f), FRotator(6.f, -22.f, -80.f), MountBlue), 3.6f);
+		RegisterWiggle(AddPart(M_CONE, FVector(H * 0.02f, H * 0.62f, -H * 0.30f), FVector(0.28f, 0.03f, h * 0.5f), FRotator(6.f, 22.f, 80.f), AqGold), 0.5f);   // liseré D
+		RegisterWiggle(AddPart(M_CONE, FVector(H * 0.02f, -H * 0.62f, -H * 0.30f), FVector(0.28f, 0.03f, h * 0.5f), FRotator(6.f, -22.f, -80.f), AqGold), 3.6f); // liseré G
 		// QUEUE : le corps S'AFFINE vers l'arrière, la queue remonte et se termine par une
 		// NAGEOIRE CAUDALE (fluke à 2 lobes larges et plats) — fidèle à la réf.
 		RegisterWiggle(AddPart(M_CONE, FVector(-H * 0.55f, 0, -H * 0.16f), FVector(0.34f, 0.30f, h * 0.55f), FRotator(-108.f, 0, 0), MountBlue), 0.f);  // base épaisse
@@ -2594,26 +2604,48 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		RegisterWiggle(AddPart(M_CONE, FVector(-H * 1.12f, -H * 0.14f, H * 0.22f), FVector(0.42f, 0.08f, h * 0.30f), FRotator(-120.f, -30.f, -20.f), MountBlue), 0.7f); // lobe fluke G
 
 		// ── CAVALIER : chevalier bleu+or (peau bleue, crête, yeux bleus lumineux) assis sur le dos. ──
+		// PASSE DE DÉTAIL (26/07/2026, planche officielle "Aquilances") : pauldrons à pointe,
+		// bracelets/brassards, ceinturon, drapé de selle, crête plus fournie — même esprit que
+		// l'amélioration apportée à BuildAquiKnight (Aquis/Aquiloryons/Aquisphères).
 		const FVector Seat(H * 0.12f, 0, H * 0.02f);
 		AddPart(M_CYL, Seat + FVector(0, 0, H * 0.10f), FVector(0.16f, 0.14f, h * 0.10f), NoRot, AqArmor);              // bassin
+		AddPart(M_CYL, Seat + FVector(0, 0, H * 0.08f), FVector(0.17f, 0.15f, 0.02f), NoRot, AqGold);                   // ceinturon doré
 		AddPart(M_CYL, Seat + FVector(-2, 0, H * 0.28f), FVector(0.24f, 0.20f, h * 0.28f), FRotator(6.f, 0, 0), AqArmor); // torse cuirassé
 		AddPart(M_CONE, Seat + FVector(-H * 0.10f, 0, H * 0.30f), FVector(0.08f, 0.08f, h * 0.06f), FRotator(-90.f, 0, 0), AqGold); // gemme dorée torse
+		AddPart(M_SPH, Seat + FVector(-H * 0.11f, 0, H * 0.30f), FVector(0.035f, 0.035f, 0.04f), NoRot, AqEnergyHi);    // cœur lumineux de la gemme
 		AddPart(M_CUBE, Seat + FVector(-4, 0, H * 0.34f), FVector(0.05f, 0.30f, h * 0.16f), FRotator(4.f, 0, 0), AqGold); // pauldrons or
+		AddPart(M_CONE, Seat + FVector(-2, H * 0.19f, H * 0.38f), FVector(0.03f, 0.03f, h * 0.09f), FRotator(-60.f, 0, 0), AqGold); // pointe pauldron D
+		AddPart(M_CONE, Seat + FVector(-2, -H * 0.19f, H * 0.38f), FVector(0.03f, 0.03f, h * 0.09f), FRotator(-60.f, 0, 0), AqGold); // pointe pauldron G
 		AddPart(M_SPH, Seat + FVector(0, 0, H * 0.50f), FVector(0.17f, 0.17f, 0.19f), NoRot, FLinearColor(0.18f, 0.28f, 0.52f, 1.f)); // tête peau bleue
 		AddPart(M_SPH, Seat + FVector(-9, 4, H * 0.51f), FVector(0.04f, 0.04f, 0.045f), NoRot, AqEyeGlow); // yeux bleus lumineux
 		AddPart(M_SPH, Seat + FVector(-9, -4, H * 0.51f), FVector(0.04f, 0.04f, 0.045f), NoRot, AqEyeGlow);
-		// Crête de nageoires-cheveux rejetée en arrière (+X derrière la tête).
+		// Crête de nageoires-cheveux rejetée en arrière (+X derrière la tête) — passe plus
+		// fournie et irrégulière (5 pics centraux + 4 mèches latérales fines), même esprit que
+		// BuildAquiKnight, pour matcher l'abondance de mèches blanches-bleues de la planche.
 		for (int32 c = 0; c < 5; ++c)
 		{
 			const float t = (c - 2) / 2.f;
 			AddPart(M_CONE, Seat + FVector(6.f + FMath::Abs(t) * 3.f, t * 5.f, H * 0.60f), FVector(0.03f, 0.04f, h * 0.10f), FRotator(50.f, 0, t * 15.f), AqCrest);
 		}
+		for (int32 sc = 0; sc < 4; ++sc)
+		{
+			const float t = (sc - 1.5f) / 1.5f;
+			const float side = (sc % 2 == 0) ? 1.f : -1.f;
+			AddPart(M_CONE, Seat + FVector(4.f + FMath::Abs(t) * 4.f, side * (6.f + FMath::Abs(t) * 6.f), H * (0.56f - FMath::Abs(t) * 0.03f)),
+				FVector(0.02f, 0.03f, h * 0.07f), FRotator(60.f, 0, side * 35.f), AqCrest);
+		}
 		// Jambes qui enfourchent la monture.
 		AddPart(M_CYL, Seat + FVector(2, 20, -H * 0.06f), FVector(0.09f, 0.09f, h * 0.26f), FRotator(24.f, 0, 24.f), AqArmor);
 		AddPart(M_CYL, Seat + FVector(2, -20, -H * 0.06f), FVector(0.09f, 0.09f, h * 0.26f), FRotator(24.f, 0, -24.f), AqArmor);
-		// Bras qui tiennent la lance (avant/arrière).
+		// Drapé de selle doré (pan d'armure qui retombe sur le flanc de la monture, visible
+		// sur la planche sous la jambe du cavalier).
+		RegisterWiggle(AddPart(M_CUBE, Seat + FVector(4, 22, -H * 0.16f), FVector(0.03f, 0.10f, h * 0.20f), FRotator(20.f, 0, 24.f), AqArmor), 0.f);
+		RegisterWiggle(AddPart(M_CUBE, Seat + FVector(4, -22, -H * 0.16f), FVector(0.03f, 0.10f, h * 0.20f), FRotator(20.f, 0, -24.f), AqArmor), 0.35f);
+		// Bras qui tiennent la lance (avant/arrière) + brassards dorés aux poignets.
 		AddPart(M_CYL, Seat + FVector(12, 15, H * 0.26f), FVector(0.06f, 0.06f, h * 0.20f), FRotator(65.f, 0, 35.f), FLinearColor(0.18f, 0.28f, 0.52f, 1.f));
 		AddPart(M_CYL, Seat + FVector(-4, 13, H * 0.30f), FVector(0.06f, 0.06f, h * 0.18f), FRotator(80.f, 0, 20.f), FLinearColor(0.18f, 0.28f, 0.52f, 1.f));
+		AddPart(M_CYL, Seat + FVector(17, 16, H * 0.19f), FVector(0.065f, 0.065f, 0.02f), FRotator(65.f, 0, 35.f), AqGold); // brassard D
+		AddPart(M_CYL, Seat + FVector(-7, 12, H * 0.24f), FVector(0.065f, 0.065f, 0.02f), FRotator(80.f, 0, 20.f), AqGold); // brassard G
 
 		// ── LANCE sur une ARTICULATION (LanceJoint) pour l'animer (coup de lance = poussée
 		// vers l'avant). Longue hampe sombre, garde dorée, LAME D'ÉNERGIE CRISTALLINE bleue
