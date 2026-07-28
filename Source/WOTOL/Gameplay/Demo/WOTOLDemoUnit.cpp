@@ -3283,49 +3283,90 @@ UStaticMeshComponent* AWOTOLDemoUnit::MakeBone(USceneComponent* Joint, const TCH
 }
 
 // ─── Squelette humanoïde générique (coudes + genoux) — réutilisé par tous ──────
+// PASSE DE DÉTAIL (26/07/2026, demande explicite de Liamor) : le squelette humanoïde de base
+// ne comptait qu'~14 formes (bras = 2 tubes + 1 SPHÈRE en guise de main, jambe = 2 tubes + 1
+// pavé) — pas assez de volume/détail pour une présentation Pictanovo. Passe à ~30-35 formes
+// (torse en 2 niveaux, mâchoire, rotules coude/genou visibles, mains avec paume+doigts+pouce,
+// chevilles, orteils) SANS déplacer ni renommer aucune articulation existante (JRElbow,
+// JLElbow, JRHip/JLHip, etc.) : tout le code d'attache d'arme/griffes par unité (sabre, lance,
+// pics d'avant-bras...) qui vise ces joints continue de fonctionner sans modification.
+// Coût : plus de UStaticMeshComponent par unité (~x2) -> à surveiller en phase 3 (jusqu'à 100
+// unités/faction) si jamais le FPS chute sur machine modeste ; toutes les formes ajoutées ici
+// restent des primitives non-éclairées (WOTOLGlow::MakeMatte), donc peu coûteuses à l'unité.
 void AWOTOLDemoUnit::BuildArticulatedHumanoid(float H, const FLinearColor& Col, float BodyW)
 {
 	const float h = H / 100.f;
 	const FRotator NoRot = FRotator::ZeroRotator;
+	// Teinte assombrie pour les accents (ceinturon, poignets, chevilles) : casse la silhouette
+	// "bloc de couleur unique" sans ajouter de nouvelle couleur à gérer par unité appelante.
+	const FLinearColor Shade(Col.R * 0.72f, Col.G * 0.72f, Col.B * 0.72f, 1.f);
 
-	// Torse + cou + tête
-	SetupMainPart(M_CYL, FVector(0, 0, H * 0.04f), FVector(BodyW, BodyW * 0.85f, h * 0.36f), NoRot, Col);
+	// Torse EN DEUX NIVEAUX (buste plus large, taille plus étroite) + ceinturon, au lieu d'un
+	// seul cylindre uniforme -> silhouette qui se resserre, plus crédible qu'un bloc droit.
+	SetupMainPart(M_CYL, FVector(0, 0, H * 0.09f), FVector(BodyW, BodyW * 0.85f, h * 0.22f), NoRot, Col);       // buste
+	AddPart(M_CYL, FVector(0, 0, -H * 0.05f), FVector(BodyW * 0.80f, BodyW * 0.68f, h * 0.16f), NoRot, Col);    // taille/bassin
+	AddPart(M_CYL, FVector(0, 0, H * 0.005f), FVector(BodyW * 0.92f, BodyW * 0.78f, 0.03f), NoRot, Shade);      // ceinturon (fine tranche)
 	AddPart(M_CYL, FVector(0, 0, H * 0.25f), FVector(BodyW * 0.42f, BodyW * 0.42f, h * 0.06f), NoRot, Col); // cou
 	AddPart(M_SPH, FVector(0, 0, H * 0.33f), FVector(BodyW * 0.82f, BodyW * 0.82f, BodyW * 0.9f), NoRot, Col); // tête
+	AddPart(M_CUBE, FVector(H * 0.10f, 0, H * 0.29f), FVector(BodyW * 0.38f, BodyW * 0.5f, BodyW * 0.30f), NoRot, Col); // mâchoire (avance vers +X)
 	// Épaulières (rondeurs qui adoucissent la silhouette)
 	AddPart(M_SPH, FVector(4, H * 0.15f, H * 0.21f), FVector(BodyW * 0.55f, BodyW * 0.55f, BodyW * 0.5f), NoRot, Col);
 	AddPart(M_SPH, FVector(4, -H * 0.15f, H * 0.21f), FVector(BodyW * 0.55f, BodyW * 0.55f, BodyW * 0.5f), NoRot, Col);
 
 	const float ArmW = FMath::Max(0.07f, BodyW * 0.26f);
 
-	// Bras DROIT : épaule → bras → coude → avant-bras → main
+	// Construit une main détaillée (poignet + paume + 3 doigts en éventail + pouce) au lieu de
+	// la SPHÈRE unique d'avant, attachée au MÊME joint coude -> les points d'attache d'armes
+	// déjà utilisés ailleurs (JRElbow/JLElbow, ex. l'épée des Aquiloryons) ne bougent pas.
+	auto BuildHand = [&](USceneComponent* ElbowJoint, float Side)
+	{
+		MakeBone(ElbowJoint, M_CYL, FVector(0, 0, -H * 0.135f), FVector(ArmW * 0.7f, ArmW * 0.7f, h * 0.03f), NoRot, Shade); // poignet
+		MakeBone(ElbowJoint, M_CUBE, FVector(0, 0, -H * 0.155f), FVector(ArmW * 0.55f, ArmW * 0.85f, ArmW * 0.35f), NoRot, Col); // paume
+		for (int32 f = -1; f <= 1; ++f)
+		{
+			MakeBone(ElbowJoint, M_CYL, FVector(ArmW * 0.35f, f * ArmW * 0.35f, -H * 0.175f),
+				FVector(ArmW * 0.16f, ArmW * 0.16f, h * 0.05f), FRotator(70.f, 0, 0), Col); // doigts
+		}
+		MakeBone(ElbowJoint, M_CYL, FVector(ArmW * 0.15f, Side * ArmW * 0.55f, -H * 0.15f),
+			FVector(ArmW * 0.14f, ArmW * 0.14f, h * 0.045f), FRotator(55.f, 0, Side * 30.f), Col); // pouce
+	};
+
+	// Bras DROIT : épaule → bras → coude (rotule visible) → avant-bras → main détaillée
 	JRShoulder = MakeJoint(VisualRoot, FVector(4.f, H * 0.15f, H * 0.21f));
 	MakeBone(JRShoulder, M_CYL, FVector(0, 0, -H * 0.09f), FVector(ArmW, ArmW, h * 0.18f), NoRot, Col);
 	JRElbow = MakeJoint(JRShoulder, FVector(0, 0, -H * 0.18f));
+	MakeBone(JRElbow, M_SPH, FVector(0, 0, 0), FVector(ArmW * 0.55f, ArmW * 0.55f, ArmW * 0.55f), NoRot, Col); // rotule
 	MakeBone(JRElbow, M_CYL, FVector(0, 0, -H * 0.08f), FVector(ArmW * 0.9f, ArmW * 0.9f, h * 0.16f), NoRot, Col);
-	MakeBone(JRElbow, M_SPH, FVector(0, 0, -H * 0.15f), FVector(ArmW * 1.1f, ArmW * 1.1f, ArmW * 1.1f), NoRot, Col); // main
+	BuildHand(JRElbow, 1.f);
 
 	// Bras GAUCHE
 	JLShoulder = MakeJoint(VisualRoot, FVector(4.f, -H * 0.15f, H * 0.21f));
 	MakeBone(JLShoulder, M_CYL, FVector(0, 0, -H * 0.09f), FVector(ArmW, ArmW, h * 0.18f), NoRot, Col);
 	JLElbow = MakeJoint(JLShoulder, FVector(0, 0, -H * 0.18f));
+	MakeBone(JLElbow, M_SPH, FVector(0, 0, 0), FVector(ArmW * 0.55f, ArmW * 0.55f, ArmW * 0.55f), NoRot, Col);
 	MakeBone(JLElbow, M_CYL, FVector(0, 0, -H * 0.08f), FVector(ArmW * 0.9f, ArmW * 0.9f, h * 0.16f), NoRot, Col);
-	MakeBone(JLElbow, M_SPH, FVector(0, 0, -H * 0.15f), FVector(ArmW * 1.1f, ArmW * 1.1f, ArmW * 1.1f), NoRot, Col);
+	BuildHand(JLElbow, -1.f);
 
-	// Jambe DROITE : hanche → cuisse → genou → tibia → pied
+	// Jambe DROITE : hanche → cuisse → genou (rotule) → tibia → cheville → pied + orteils
 	const float LegW = FMath::Max(0.14f, BodyW * 0.44f); // pattes plus épaisses (fini les mini-pattes)
 	JRHip = MakeJoint(VisualRoot, FVector(0, H * 0.08f, -H * 0.05f));
 	MakeBone(JRHip, M_CYL, FVector(0, 0, -H * 0.10f), FVector(LegW, LegW, h * 0.20f), NoRot, Col);
 	JRKnee = MakeJoint(JRHip, FVector(0, 0, -H * 0.20f));
+	MakeBone(JRKnee, M_SPH, FVector(0, 0, 0), FVector(LegW * 0.6f, LegW * 0.6f, LegW * 0.6f), NoRot, Col);
 	MakeBone(JRKnee, M_CYL, FVector(0, 0, -H * 0.10f), FVector(LegW * 0.9f, LegW * 0.9f, h * 0.22f), NoRot, Col);
+	MakeBone(JRKnee, M_CYL, FVector(0, 0, -H * 0.205f), FVector(LegW * 0.75f, LegW * 0.75f, h * 0.02f), NoRot, Shade); // cheville
 	MakeBone(JRKnee, M_CUBE, FVector(-H * 0.07f, 0, -H * 0.21f), FVector(0.24f, LegW * 1.15f, 0.06f), NoRot, Col); // pied vers l'AVANT (compense le flip 180 deg)
+	MakeBone(JRKnee, M_CUBE, FVector(-H * 0.11f, 0, -H * 0.185f), FVector(0.10f, LegW * 0.9f, 0.05f), NoRot, Shade); // bout du pied
 
 	// Jambe GAUCHE
 	JLHip = MakeJoint(VisualRoot, FVector(0, -H * 0.08f, -H * 0.05f));
 	MakeBone(JLHip, M_CYL, FVector(0, 0, -H * 0.10f), FVector(LegW, LegW, h * 0.20f), NoRot, Col);
 	JLKnee = MakeJoint(JLHip, FVector(0, 0, -H * 0.20f));
+	MakeBone(JLKnee, M_SPH, FVector(0, 0, 0), FVector(LegW * 0.6f, LegW * 0.6f, LegW * 0.6f), NoRot, Col);
 	MakeBone(JLKnee, M_CYL, FVector(0, 0, -H * 0.10f), FVector(LegW * 0.9f, LegW * 0.9f, h * 0.22f), NoRot, Col);
+	MakeBone(JLKnee, M_CYL, FVector(0, 0, -H * 0.205f), FVector(LegW * 0.75f, LegW * 0.75f, h * 0.02f), NoRot, Shade);
 	MakeBone(JLKnee, M_CUBE, FVector(-H * 0.07f, 0, -H * 0.21f), FVector(0.24f, LegW * 1.15f, 0.06f), NoRot, Col); // pied vers l'AVANT
+	MakeBone(JLKnee, M_CUBE, FVector(-H * 0.11f, 0, -H * 0.185f), FVector(0.10f, LegW * 0.9f, 0.05f), NoRot, Shade);
 
 	bArticulated = true;
 	// Ces humanoïdes étaient construits dos-devant : on retourne tout le visuel de 180°.
