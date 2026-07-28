@@ -2740,11 +2740,13 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		RegisterWiggle(AddPart(M_CONE, FVector(16, -18, H * 0.32f), FVector(0.055f, 0.055f, h * 1.0f), FRotator(42.f, 0, -42.f), BlueGlow), 3.14f);
 		return;
 	}
-	if (Id == TEXT("Noxeflare")) // Infanterie (réf 4082) : humanoïde ABYSSAL SOMBRE, AMAS D'YEUX + couronne de cornes
-	{
-		// Canon v0.8 : identité Noxéenne = VERT bioluminescent, AUCUN violet (le violet = Muréniens).
-		const FLinearColor Violet(0.05f, 0.09f, 0.08f, 1.f);   // corps abyssal vert-noir sombre
-		const FLinearColor VioGlow(0.22f, 1.70f, 0.62f, 1.f);  // yeux/taches VERTES bioluminescentes
+	if (Id == TEXT("Noxeflare")) // Infanterie (réf planche officielle 26/07/2026) : humanoïde ABYSSAL
+	{                            // SOMBRE, AMAS D'YEUX + tentacules-mèches, bioluminescence VIOLETTE.
+		// Planche officielle du 26/07/2026 : Noxeflare est VIOLET (pas vert) — confirmé par Liamor,
+		// remplace la règle "Noxéens = vert uniquement" pour CETTE unité précisément (Noxeflare et
+		// Noxeblast sont violets sur leurs planches, Noxar/Noxeon/Noxedrake restent bleu/vert).
+		const FLinearColor Violet(0.06f, 0.05f, 0.09f, 1.f);   // corps abyssal noir-violet sombre
+		const FLinearColor VioGlow(0.75f, 0.35f, 1.85f, 1.f);  // yeux/taches VIOLETTES bioluminescentes
 		BuildArticulatedHumanoid(H, Violet, 0.34f);
 		// AMAS D'YEUX violets sur le VISAGE (-X = devant) : plusieurs petits yeux groupés
 		for (int32 e = 0; e < 8; ++e)
@@ -2780,12 +2782,13 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		}
 		return;
 	}
-	if (Id == TEXT("Noxeblast")) // Distance : humanoïde ABYSSAL SOMBRE à taches bioluminescentes + PLUSIEURS tentacules (réf 123)
-	{
-		// Canon v0.8 : bioluminescence VERTE Noxéenne, AUCUN violet (violet = Muréniens).
-		const FLinearColor Violet(0.05f, 0.09f, 0.08f, 1.f);   // corps abyssal vert-noir sombre
-		const FLinearColor VioGlow(0.20f, 1.65f, 0.58f, 1.f);  // taches/énergie VERTES bioluminescentes
-		const FLinearColor BlueEye(0.30f, 1.60f, 0.75f, 1.f);  // yeux VERTS lumineux
+	if (Id == TEXT("Noxeblast")) // Distance (réf planche officielle 26/07/2026) : humanoïde ABYSSAL
+	{                            // SOMBRE, yeux BLEUS lumineux + taches VIOLETTES + tentacules.
+		// Planche officielle du 26/07/2026 : yeux bleus, bioluminescence VIOLETTE (pas verte) —
+		// confirmé par Liamor pour Noxeblast comme pour Noxeflare (cf. commentaire plus haut).
+		const FLinearColor Violet(0.06f, 0.05f, 0.09f, 1.f);   // corps abyssal noir-violet sombre
+		const FLinearColor VioGlow(0.70f, 0.30f, 1.80f, 1.f);  // taches/énergie VIOLETTES bioluminescentes
+		const FLinearColor BlueEye(0.35f, 0.75f, 1.85f, 1.f);  // yeux BLEUS lumineux
 		BuildArticulatedHumanoid(H, Violet, 0.36f);
 		// AVANT = -X (après flip). Visage/taches DEVANT, tentacules DERRIÈRE (+X).
 		// Deux grands yeux bleus lumineux (sur le visage)
