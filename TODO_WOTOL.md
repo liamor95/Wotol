@@ -807,10 +807,21 @@ des armes a celui des unites. Contexte : test complet prevu sur PC dans ~2 jours
   planches (monture complete avec tete/yeux/nageoires/queue, cavalier arme, lance sur
   `LanceJoint`) — pas modifie cette passe, pourrait beneficier de la meme passe de densite de
   detail que `BuildAquiKnight`.
-- **Reste a faire** : passe "niveau de detail des armes = niveau de detail des unites"
-  (demande explicite, pas encore commencee) sur Dague de l'Ombre, Canon des Aquisphères,
-  Lance Cristalline des Aquilances, Epee+Bouclier des Aquiloryons, Dague Cristalline, Lame
-  Cristalline d'Akis. Egalement en attente : passe detail sur Noxbeast/Noxeon/Noxar (deja
-  proches des planches, pas retouches), Leviaphenix (juge "pas du tout ca" par Liamor, pas
-  encore retravaille), decor/environnement (juge "vraiment bateau", aucune image de reference
-  recue pour l'instant, `WOTOLGreyboxEnvironment.cpp` reste tres sommaire ~12 poses de mesh).
+- **FAIT (suite, meme session) : passe "niveau de detail des armes = niveau de detail des
+  unites"** (demande explicite de Liamor) :
+  - Lame Cristalline d'Akis (Aquis) : pommeau, ailes de garde, gemme de garde, fuller dore,
+    pointe lumineuse (3 -> 9 pieces).
+  - Epee des Aquiloryons : garde + pommeau ajoutes (n'avait AUCUNE garde avant, juste un
+    manche et une lame) + gemme de garde + fuller dore.
+  - Canon des Aquisphères : ailerons lateraux dores + crosse arriere.
+  - Dague de l'Ombre / Dague Cristalline (Aquilombres) : manche + garde ajoutes par dague
+    (avant : un simple cone nu par main, sans aucune poignee visible).
+  - Toutes les armes restent attachees aux memes joints existants (JRElbow/JLElbow ou
+    VisualRoot pour le canon) — aucune structure d'articulation modifiee.
+- **Reste a faire** : Lance Cristalline des Aquilances n'a PAS ete retouchee cette passe (deja
+  jugee suffisamment detaillee, 7 pieces sur `LanceJoint`). Egalement en attente : passe
+  detail sur Noxbeast/Noxeon/Noxar (deja proches des planches, pas retouches), Leviaphenix
+  (juge "pas du tout ca" par Liamor, pas encore retravaille), monture Aquilances (pas
+  retouchee, pourrait beneficier de la meme densite de detail que `BuildAquiKnight`),
+  decor/environnement (juge "vraiment bateau", aucune image de reference recue pour
+  l'instant, `WOTOLGreyboxEnvironment.cpp` reste tres sommaire ~12 poses de mesh).
