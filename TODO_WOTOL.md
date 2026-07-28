@@ -1,5 +1,54 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Formations tactiques branchees (26/07/2026, demande explicite de Liamor "sans casser les mecaniques deja en place")
+
+Suite a la reponse au benchmark RTS du 25/07 qui identifiait `UFormationComponent` comme code
+mort (systeme complet Line/Wedge/DefensiveSquare/Loose/Column jamais instancie), Liamor a
+demande de le brancher SANS toucher aux mecaniques deja validees (ordre de groupe, grille de
+regroupement, calage de couche Z, clamp de zone de preparation, distinction deplacement/
+attack-move, calcul des degats). Approche : additive uniquement, aucune ligne existante
+supprimee/modifiee dans sa logique.
+
+- **`UFormationComponent`** : 3 nouvelles methodes PURES (aucun etat de composant touche) :
+  `ComputeSlotsForType` (reutilise les Compute*Slots deja existants, juste sans l'orchestration
+  d'ordres AAIAdaptiveController), `GetFormationDefenseBonusForType`/
+  `GetFormationSpeedMultiplierForType` (statiques, memes valeurs que les methodes d'instance
+  existantes). Aucune des methodes d'origine (Compute*Slots, UpdateFormationPositions,
+  AddUnitToFormation...) n'a ete modifiee.
+- **`WOTOLPlayerController_Battle`** : nouveau `CurrentFormationType` (persiste comme
+  `CurrentGameSpeed`, meme convention) + `SetFormationType`/`GetFormationType`. Dans
+  `IssueCommandToSelection` (ordre de groupe), la grille compacte EXISTANTE est preservee a
+  l'identique quand `CurrentFormationType == None` (comportement par defaut inchange) ; les
+  5 autres types utilisent `FormationHelper->ComputeSlotsForType` a la place, SANS toucher au
+  reste du pipeline (assignation gloutonne aux slots, calage Z, clamp zone de preparation,
+  choix deplacement/attack-move — tous identiques, seul le calcul des emplacements change).
+  Ne touche PAS la branche "attaquer un ennemi precis" (offset-autour-de-cible, differente,
+  non concernee par les formations).
+- **`UnitBase`** : nouveaux champs `ActiveFormationType`/`FormationOrderDest`/
+  `FormationDefenseMult` (namespace different de `FormationGroupId`/`FormationSlot`, deja
+  existants et utilises par la cohesion PASSIVE hors combat `ApplyFormationCohesion` — systeme
+  distinct, non touche, verifie qu'il n'y a aucune collision). `FormationDefenseMult` suit
+  EXACTEMENT la meme convention que `AuraDefenseMult` (multiplicateur <1 = moins de degats
+  subis, se rafraichit en continu si l'unite est en position, decroit vers 1 sinon) — un seul
+  nouveau multiplicateur ajoute a la chaine existante dans `TakeDamageFromUnit`
+  (`EffDamage *= FormationDefenseMult;`, une seule ligne ajoutee, rien d'existant modifie).
+- **PAS TOUCHE (deliberement, evite le risque)** : le multiplicateur de VITESSE de formation
+  (`GetFormationSpeedMultiplierForType`) est calcule mais PAS applique au mouvement — l'unique
+  hook existant pour `MaxWalkSpeed` (le ralenti d'encre, `WOTOLDemoUnit::Tick`) fait un
+  ECRASEMENT DIRECT (pas une composition multiplicative comme les auras), donc y superposer un
+  multiplicateur de formation aurait risque de faire disparaitre l'un des deux effets selon
+  l'ordre d'execution — exactement le genre de collision que Liamor a demande d'eviter. A
+  refaire dans une prochaine passe SI le ralenti d'encre est refactorise en multiplicateur
+  composable.
+- **HUD** : nouveau `DrawFormationSelector` (6 puces Aucune/Ligne/Coin/Carre/Lache/Colonne,
+  bas-droite au-dessus du panneau de competence), visible uniquement si >=2 unites
+  selectionnees (Screen::Playing). Clic gere dans `HandleUIClick` (nouveau bloc, avant le menu
+  reglages, meme convention que les puces vitesse de jeu x1/x1.5/x2).
+- **Non verifie ici (pas de compilateur cote assistant)** : a tester en PRIORITE au prochain
+  retour PC — selectionner >=2 unites, choisir une formation, verifier que le clic droit
+  regroupe bien dans la forme choisie (pas juste la grille par defaut), et que revenir sur
+  "Aucune" redonne exactement l'ancien comportement (grille compacte).
+
 `claude/wotol-demo-finale` contient maintenant la fusion de mon travail (bug Cristalliseur
 duplique + tourelles) ET du travail fait en parallele sur `agent/connect-exploration-flow`
 (nage 3D connectee, cite complete, alerte noxeenne, equilibrage adaptatif des pertes). Mes

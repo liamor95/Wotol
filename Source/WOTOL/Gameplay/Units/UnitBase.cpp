@@ -202,6 +202,7 @@ float AUnitBase::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit)
 	EffDamage *= IncomingDamageMult;  // avantage de ZONE (défenseur qui possède le terrain)
 	EffDamage *= AdaptiveIncomingDamageMult; // adaptation de rencontre (sans toucher aux stats)
 	EffDamage *= AuraDefenseMult;     // aura de protection (Léviaphénix : boucliers renforcés)
+	EffDamage *= FormationDefenseMult; // bonus/malus de formation tactique (rangs tenus)
 	const float DamageBudget = FMath::Max(0.f,
 		CurrentHealth - FMath::Max(0.f, MinimumHealthFloor));
 	const float Applied      = FMath::Min(EffDamage, DamageBudget);

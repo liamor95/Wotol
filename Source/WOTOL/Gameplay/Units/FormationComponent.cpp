@@ -135,6 +135,58 @@ bool UFormationComponent::IsFormationIntact() const
 	return true;
 }
 
+// ─── Intégration contrôleur (26/07/2026) ─────────────────────────────────────
+// Wrappers purs : réutilisent les MÊMES fonctions Compute*Slots que UpdateFormationPositions
+// (aucune duplication de la géométrie), juste sans l'orchestration d'ordres/état de composant.
+
+TArray<FVector> UFormationComponent::ComputeSlotsForType(
+	EFormationType Type, FVector Origin, FRotator Facing, int32 Count) const
+{
+	if (Count <= 0) return TArray<FVector>();
+	switch (Type)
+	{
+		case EFormationType::Line:            return ComputeLineSlots(Origin, Facing, Count);
+		case EFormationType::Wedge:           return ComputeWedgeSlots(Origin, Facing, Count);
+		case EFormationType::DefensiveSquare: return ComputeSquareSlots(Origin, Facing, Count);
+		case EFormationType::Loose:           return ComputeLooseSlots(Origin, Facing, Count);
+		case EFormationType::Column:          return ComputeColumnSlots(Origin, Facing, Count);
+		default:
+		{
+			TArray<FVector> Slots; Slots.Init(Origin, Count);
+			return Slots;
+		}
+	}
+}
+
+float UFormationComponent::GetFormationDefenseBonusForType(EFormationType Type)
+{
+	// Mêmes valeurs que GetFormationDefenseBonus() (qui suppose IsFormationIntact()==true) —
+	// c'est à l'appelant de décider QUAND l'unité est "en formation" (cf. WOTOLDemoUnit,
+	// vérifie la distance à son slot assigné avant d'appliquer ce bonus).
+	switch (Type)
+	{
+		case EFormationType::Line:            return 5.f;
+		case EFormationType::DefensiveSquare: return 20.f;
+		case EFormationType::Wedge:           return 0.f;
+		case EFormationType::Loose:           return -5.f;
+		case EFormationType::Column:          return -10.f;
+		default:                              return 0.f;
+	}
+}
+
+float UFormationComponent::GetFormationSpeedMultiplierForType(EFormationType Type)
+{
+	switch (Type)
+	{
+		case EFormationType::Column:          return 1.3f;
+		case EFormationType::Loose:           return 1.1f;
+		case EFormationType::Line:            return 1.0f;
+		case EFormationType::Wedge:           return 0.9f;
+		case EFormationType::DefensiveSquare: return 0.7f;
+		default:                              return 1.0f;
+	}
+}
+
 // ─── Calcul des slots par formation ──────────────────────────────────────────
 
 TArray<FVector> UFormationComponent::ComputeLineSlots(

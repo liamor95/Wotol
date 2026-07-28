@@ -70,6 +70,29 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Formation")
 	bool IsFormationIntact() const;
 
+	// ─── Intégration contrôleur (26/07/2026) ─────────────────────────────────
+	// Wrappers PURS (aucun état de composant modifié, aucun ordre envoyé) pour brancher les
+	// formations dans le système d'ordre de groupe DÉJÀ VALIDÉ de WOTOLPlayerController_Battle
+	// SANS le remplacer : le contrôleur reste seul maître de la répartition (assignation
+	// gloutonne aux slots), du calage de couche Z, du clamp de zone de préparation et du choix
+	// déplacement/attack-move — cette classe ne fournit QUE la géométrie et les bonus.
+
+	// Calcule les slots pour un TYPE de formation donné, sans dépendre d'un état de composant
+	// peuplé (pas besoin d'AddUnitToFormation) — utilisable directement sur un groupe de
+	// sélection ad hoc.
+	UFUNCTION(BlueprintPure, Category = "Formation")
+	TArray<FVector> ComputeSlotsForType(EFormationType Type, FVector Origin, FRotator Facing, int32 Count) const;
+
+	// Bonus/malus DEF (points, mêmes valeurs que GetFormationDefenseBonus) pour un type donné,
+	// sans instancier de composant.
+	static float GetFormationDefenseBonusForType(EFormationType Type);
+
+	// Multiplicateur de vitesse (mêmes valeurs que GetFormationSpeedMultiplier) pour un type
+	// donné, sans instancier de composant. Exposé pour affichage HUD uniquement pour l'instant
+	// (PAS appliqué au mouvement — risquerait de rentrer en collision avec l'override direct
+	// de MaxWalkSpeed du ralenti d'encre, cf. WOTOLDemoUnit::Tick).
+	static float GetFormationSpeedMultiplierForType(EFormationType Type);
+
 	// ─── Lecture ─────────────────────────────────────────────────────────────
 
 	UFUNCTION(BlueprintPure, Category = "Formation")

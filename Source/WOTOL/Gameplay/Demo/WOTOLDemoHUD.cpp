@@ -331,6 +331,7 @@ void AWOTOLDemoHUD::DrawHUD()
 	if (Screen == EDemoScreen::Playing)
 	{
 		DrawAbilityStatus(W, H, World);
+		DrawFormationSelector(W, H, World);
 	}
 	if (Screen == EDemoScreen::Playing || Screen == EDemoScreen::Prepare)
 	{
@@ -2699,6 +2700,52 @@ void AWOTOLDemoHUD::DrawAbilityStatus(float W, float H, class UWorld* World)
 		const float Pct = FMath::Clamp(1.f - Remaining / FMath::Max(0.01f, Max), 0.f, 1.f);
 		DrawBar(PX + 12.f, PY + PH - 10.f, PW - 24.f, 5.f, Pct,
 			FLinearColor(0.5f, 0.75f, 1.f, 1.f), FLinearColor(0.12f, 0.12f, 0.12f, 0.9f));
+	}
+}
+
+// 6 puces compactes (Aucune/Ligne/Coin/Carré/Lâche/Colonne), au-dessus du panneau de
+// compétence (H-210) pour ne jamais le chevaucher, même position/largeur que lui (aligné à
+// droite, cf. DrawAbilityStatus) pour une colonne d'UI cohérente en bas-droite.
+FBox2D AWOTOLDemoHUD::FormationButtonRect(int32 Index, float W, float H)
+{
+	const float TotalW = 260.f, BtnH = 30.f, Gap = 4.f;
+	const float BtnW = (TotalW - Gap * 5.f) / 6.f;
+	const float PX = W - TotalW - 16.f, PY = H - 250.f;
+	const float X = PX + Index * (BtnW + Gap);
+	return FBox2D(FVector2D(X, PY), FVector2D(X + BtnW, PY + BtnH));
+}
+
+void AWOTOLDemoHUD::DrawFormationSelector(float W, float H, UWorld* World)
+{
+	AWOTOLPlayerController_Battle* PC = Cast<AWOTOLPlayerController_Battle>(GetOwningPlayerController());
+	if (!PC) return;
+	UUnitSelectionManager* SelMgr = PC->GetSelectionManager();
+	// Une formation n'a de sens qu'en groupe -> masqué en dessous de 2 unités sélectionnées
+	// (évite d'encombrer l'écran pendant les 9/10 du temps de micro sur une seule unité).
+	if (!SelMgr || SelMgr->GetSelectedUnits().Num() < 2) return;
+
+	static const EFormationType Types[6] = {
+		EFormationType::None, EFormationType::Line, EFormationType::Wedge,
+		EFormationType::DefensiveSquare, EFormationType::Loose, EFormationType::Column };
+	static const TCHAR* Labels[6] = { TEXT("Aucune"), TEXT("Ligne"), TEXT("Coin"),
+		TEXT("Carre"), TEXT("Lache"), TEXT("Colonne") };
+	const EFormationType Current = PC->GetFormationType();
+
+	// Étiquette au-dessus de la rangée.
+	const FBox2D First = FormationButtonRect(0, W, H);
+	DrawText(TEXT("Formation"), FLinearColor(0.85f, 0.9f, 1.f, 0.95f),
+		First.Min.X, First.Min.Y - 20.f, GEngine ? GEngine->GetSmallFont() : nullptr, 0.9f);
+
+	for (int32 i = 0; i < 6; ++i)
+	{
+		const FBox2D R = FormationButtonRect(i, W, H);
+		const FVector2D Sz = R.Max - R.Min;
+		const bool bSel = (Types[i] == Current);
+		DrawRect(bSel ? FLinearColor(0.25f, 0.55f, 0.95f, 0.95f) : FLinearColor(0.08f, 0.12f, 0.20f, 0.85f),
+			R.Min.X, R.Min.Y, Sz.X, Sz.Y);
+		float TW, TH; GetTextSize(Labels[i], TW, TH, GEngine ? GEngine->GetSmallFont() : nullptr, 0.72f);
+		DrawText(Labels[i], FLinearColor::White, R.Min.X + (Sz.X - TW) * 0.5f,
+			R.Min.Y + (Sz.Y - TH) * 0.5f, GEngine ? GEngine->GetSmallFont() : nullptr, 0.72f);
 	}
 }
 

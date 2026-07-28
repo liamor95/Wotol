@@ -45,6 +45,13 @@ void AWOTOLPlayerController_Battle::BeginPlay()
 
 	// La caméra est spawnée par le GameMode et placée dans le niveau.
 	// Le GameMode appellera SetBattleCamera() juste avant BeginPlay.
+
+	// Formation tactique : composant géométrie PUR (jamais peuplé via AddUnitToFormation,
+	// jamais tické) — sert uniquement à appeler ComputeSlotsForType. Même échelle d'espacement
+	// que la grille de regroupement existante (165, cf. IssueCommandToSelection) pour que
+	// passer d'un type de formation à l'autre ne change pas brutalement la densité visuelle.
+	FormationHelper = NewObject<UFormationComponent>(this);
+	FormationHelper->UnitSpacing = 165.f;
 }
 
 void AWOTOLPlayerController_Battle::SetupInputComponent()
@@ -179,6 +186,11 @@ void AWOTOLPlayerController_Battle::SetGameSpeed(float NewSpeed)
 	{
 		UGameplayStatics::SetGlobalTimeDilation(World, CurrentGameSpeed);
 	}
+}
+
+void AWOTOLPlayerController_Battle::SetFormationType(EFormationType NewType)
+{
+	CurrentFormationType = NewType;
 }
 
 AWOTOLDemoDirector* AWOTOLPlayerController_Battle::GetDemoDirector() const
@@ -692,6 +704,27 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		}
 	}
 
+	// Sélecteur de FORMATION tactique (26/07/2026) : n'affiche/n'accepte de clic que si le
+	// HUD a effectivement dessiné les puces (>=2 unités sélectionnées) — cf. DrawFormationSelector.
+	if (Screen == EDemoScreen::Playing)
+	{
+		UUnitSelectionManager* SelMgr = GetSelectionManager();
+		if (SelMgr && SelMgr->GetSelectedUnits().Num() >= 2)
+		{
+			static const EFormationType FormationVals[6] = {
+				EFormationType::None, EFormationType::Line, EFormationType::Wedge,
+				EFormationType::DefensiveSquare, EFormationType::Loose, EFormationType::Column };
+			for (int32 i = 0; i < 6; ++i)
+			{
+				if (AWOTOLDemoHUD::FormationButtonRect(i, VpSize.X, VpSize.Y).IsInside(M))
+				{
+					SetFormationType(FormationVals[i]);
+					return true;
+				}
+			}
+		}
+	}
+
 	// Menu RÉGLAGES ouvert : ses 3 boutons + les vrais réglages (volume, plein écran).
 	if (bSettingsOpen)
 	{
@@ -1197,16 +1230,27 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 	const float Spacing = 165.f;
 	const int32 Cols = FMath::Max(1, FMath::CeilToInt(FMath::Sqrt((float)Count)));
 
-	// Génère les emplacements (rangées derrière le point, centrées latéralement).
-	TArray<FVector> Slots; Slots.Reserve(Count);
-	for (int32 i = 0; i < Count; ++i)
+	// Génère les emplacements (rangées derrière le point, centrées latéralement) — formation
+	// tactique choisie par le joueur (26/07/2026) si != None, SINON la grille compacte
+	// EXISTANTE ci-dessous, EXACTEMENT inchangée (comportement par défaut préservé à
+	// l'identique pour quiconque ne touche jamais au sélecteur de formation).
+	TArray<FVector> Slots;
+	if (CurrentFormationType != EFormationType::None && FormationHelper)
 	{
-		const int32 Row = i / Cols;
-		const int32 ColIdx = i % Cols;
-		const int32 RowCount = FMath::Min(Cols, Count - Row * Cols);
-		const float LateralX = (ColIdx - (RowCount - 1) * 0.5f) * Spacing;
-		const float BackY = -(float)Row * Spacing; // rangées vers l'arrière
-		Slots.Add(TargetLocation + Right * LateralX + Fwd * BackY);
+		Slots = FormationHelper->ComputeSlotsForType(CurrentFormationType, TargetLocation, Fwd.Rotation(), Count);
+	}
+	else
+	{
+		Slots.Reserve(Count);
+		for (int32 i = 0; i < Count; ++i)
+		{
+			const int32 Row = i / Cols;
+			const int32 ColIdx = i % Cols;
+			const int32 RowCount = FMath::Min(Cols, Count - Row * Cols);
+			const float LateralX = (ColIdx - (RowCount - 1) * 0.5f) * Spacing;
+			const float BackY = -(float)Row * Spacing; // rangées vers l'arrière
+			Slots.Add(TargetLocation + Right * LateralX + Fwd * BackY);
+		}
 	}
 
 	// Affectation gloutonne : chaque emplacement prend l'unité NON assignée la plus proche
@@ -1257,6 +1301,13 @@ void AWOTOLPlayerController_Battle::IssueCommandToSelection(
 		const FVector Slot = (s >= 0) ? Slots[s] : TargetLocation;
 		FVector Dest(Slot.X, Slot.Y, Unit->GetActorLocation().Z);
 		if (bClamp) Dest.X = FMath::Min(Dest.X, BoundaryX); // pas au-delà de sa zone
+
+		// Formation tactique : mémorise le type + l'emplacement assigné pour que l'unité
+		// applique elle-même son bonus/malus de DEF une fois arrivée (cf. WOTOLDemoUnit::Tick,
+		// FormationDefenseMult). Écrit aussi EFormationType::None (nettoie une formation
+		// précédente) quand aucune n'est sélectionnée -> pas de bonus fantôme qui traînerait.
+		Unit->ActiveFormationType = CurrentFormationType;
+		Unit->FormationOrderDest  = Dest;
 
 		if (bAttackMoveToGround)
 		{

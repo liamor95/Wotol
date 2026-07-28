@@ -1,6 +1,7 @@
 #include "WOTOLDemoUnit.h"
 #include "Gameplay/Units/UnitDataAsset.h"
 #include "Gameplay/Units/UnitAIStateComponent.h"
+#include "Gameplay/Units/FormationComponent.h"
 #include "Gameplay/AI/AIAdaptiveController.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
@@ -217,6 +218,22 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 		AuraDamageMult    = FMath::FInterpTo(AuraDamageMult, 1.f, DeltaSeconds, 1.5f);
 		AuraDefenseMult   = FMath::FInterpTo(AuraDefenseMult, 1.f, DeltaSeconds, 1.5f);
 		AuraCooldownRate  = FMath::FInterpTo(AuraCooldownRate, 1.f, DeltaSeconds, 1.5f);
+		// FORMATION TACTIQUE : le bonus de DEF n'est REFRESH que si l'unité est bien arrivée à
+		// son emplacement assigné (mêmes rangs tenus) -> décroît vers 1 dès qu'elle s'en écarte
+		// (rompt le rang) ou n'a aucune formation active, exactement le même mécanisme de
+		// rafraîchissement/décroissance que les auras ci-dessus (aucun nouveau système de tick).
+		if (ActiveFormationType != EFormationType::None
+			&& FVector::Dist2D(GetActorLocation(), FormationOrderDest) < 150.f)
+		{
+			const float Bonus  = UFormationComponent::GetFormationDefenseBonusForType(ActiveFormationType);
+			const float Target = 1.f - Bonus / 100.f;
+			// Bonus (Target<1) -> Min tire vers PLUS de défense ; malus Loose/Column (Target>1)
+			// -> Max tire vers MOINS de défense (Min ne l'appliquerait jamais, puisque la
+			// décroissance ci-dessous ramène déjà vers 1, toujours <= une cible >1).
+			FormationDefenseMult = (Bonus >= 0.f) ? FMath::Min(FormationDefenseMult, Target)
+			                                       : FMath::Max(FormationDefenseMult, Target);
+		}
+		FormationDefenseMult = FMath::FInterpTo(FormationDefenseMult, 1.f, DeltaSeconds, 1.5f);
 	}
 
 	// Sur ORDRE d'attaque (cible imposée), l'unité se cale sur la couche de sa cible.

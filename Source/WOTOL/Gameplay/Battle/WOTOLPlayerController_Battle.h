@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "Data/WOTOLTypes.h"
+#include "Gameplay/Units/FormationComponent.h" // EFormationType
 #include "WOTOLPlayerController_Battle.generated.h"
 
 class UUnitSelectionManager;
@@ -117,8 +118,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Battle")
 	void SetGameSpeed(float NewSpeed);
 
+	// ── Formation tactique (26/07/2026, UFormationComponent branché) ──
+	// Type appliqué au PROCHAIN ordre de déplacement de groupe (>=2 unités sélectionnées).
+	// EFormationType::None = comportement EXISTANT inchangé (grille compacte orientée vers le
+	// point cliqué, déjà validée) ; les autres types utilisent la géométrie de
+	// UFormationComponent à la place, SANS toucher au reste du pipeline d'ordre (calage de
+	// couche Z, clamp de zone de préparation, distinction déplacement/attack-move, tout reste
+	// identique — seul le calcul des emplacements change).
+	UFUNCTION(BlueprintPure, Category = "Battle")
+	EFormationType GetFormationType() const { return CurrentFormationType; }
+
+	UFUNCTION(BlueprintCallable, Category = "Battle")
+	void SetFormationType(EFormationType NewType);
+
 private:
 	float CurrentGameSpeed = 1.f;
+	EFormationType CurrentFormationType = EFormationType::None;
+
+	UPROPERTY()
+	TObjectPtr<UFormationComponent> FormationHelper = nullptr; // géométrie pure, jamais peuplé
 
 private:
 	// Traite un clic gauche sur l'UI (bouton pause / menu / écrans). Vrai = consommé.

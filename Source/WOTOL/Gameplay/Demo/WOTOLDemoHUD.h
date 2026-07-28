@@ -210,6 +210,11 @@ private:
 	void DrawCommandBar(float W, float H, class UWorld* World);
 	// État de la compétence (R) de l'unité primaire sélectionnée : nom + prête/recharge.
 	void DrawAbilityStatus(float W, float H, class UWorld* World);
+	// Sélecteur de FORMATION tactique (26/07/2026, UFormationComponent branché) : n'apparaît
+	// que si >=2 unités sont sélectionnées (une formation n'a de sens qu'en groupe). 6 puces
+	// (Aucune/Ligne/Coin/Carré/Lâche/Colonne), surbrillance sur le type actif du contrôleur.
+	void DrawFormationSelector(float W, float H, class UWorld* World);
+	static FBox2D FormationButtonRect(int32 Index, float W, float H);
 	// Minimap schématique (coin haut-droit, sous les boutons pause/réglages) : positions
 	// de toutes les unités vivantes (couleur = faction) + bâtiment de capture + caméra.
 	void DrawMinimap(float W, float H, class UWorld* World);

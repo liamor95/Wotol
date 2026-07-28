@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Data/WOTOLTypes.h"
+#include "FormationComponent.h" // EFormationType (formations tactiques, ActiveFormationType)
 #include "UnitBase.generated.h"
 
 class UVerticalLayerComponent;
@@ -112,6 +113,21 @@ public:
 	float AuraDamageMult = 1.f;
 	UPROPERTY(BlueprintReadWrite, Category = "Combat")
 	float AuraDefenseMult = 1.f;
+
+	// FORMATION TACTIQUE (26/07/2026, UFormationComponent branché) : type de formation assigné
+	// au dernier ordre de groupe du joueur (Aucune par défaut -> aucun changement de
+	// comportement pour qui n'utilise jamais les formations). FormationOrderDest est
+	// l'emplacement assigné dans cette formation ; le bonus de DEF n'est appliqué QUE quand
+	// l'unité est arrivée à cet emplacement (voir WOTOLDemoUnit::Tick) — comme dans les jeux de
+	// référence, rompre les rangs fait perdre le bonus. Indépendant de FormationGroupId/
+	// FormationSlot (cohésion PASSIVE hors combat, système différent, non modifié).
+	UPROPERTY(BlueprintReadOnly, Category = "Formation")
+	EFormationType ActiveFormationType = EFormationType::None;
+	FVector FormationOrderDest = FVector::ZeroVector;
+	// Multiplicateur de DEF de formation (même convention qu'AuraDefenseMult : <1 réduit les
+	// dégâts subis, rafraîchi tant que l'unité est en position, décroît vers 1 sinon).
+	UPROPERTY(BlueprintReadWrite, Category = "Formation")
+	float FormationDefenseMult = 1.f;
 
 	// ── Rythme de bataille (demo) — batailles plus LONGUES et sous-marines ──
 	// Multiplicateur GLOBAL de dégâts (< 1 = combats plus longs, plus d'échanges).
