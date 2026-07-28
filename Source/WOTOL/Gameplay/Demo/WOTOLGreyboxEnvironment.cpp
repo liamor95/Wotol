@@ -168,7 +168,12 @@ void AWOTOLGreyboxEnvironment::SpawnRock(const FVector& Center, float Size, cons
 	}
 }
 
-// ─── Kitbash : chaîne de montagnes = cônes chevauchants ─────────────────────
+// ─── Kitbash : chaîne de montagnes = pics déchiquetés (pic principal + aiguilles
+// secondaires + éboulis à la base), PAS un cône isolé lisse. ────────────────────
+// PASSE DE DÉTAIL (26/07/2026, planches officielles "environnement/spires rocheuses") :
+// Liamor a explicitement pointé qu'un cône élargi seul "ça fait pas montagne, c'est moche" —
+// chaque pic est maintenant un petit CLUSTER (même esprit que SpawnRock : cœur + éclats),
+// pour une silhouette déchiquetée et ancrée au sol au lieu d'un solide géométrique isolé.
 void AWOTOLGreyboxEnvironment::SpawnRidge(const FVector& Start, const FVector& End, float Height,
 	float Width, const FLinearColor& Color, int32 Seed)
 {
@@ -181,10 +186,39 @@ void AWOTOLGreyboxEnvironment::SpawnRidge(const FVector& Start, const FVector& E
 		Pos += FVector(R.FRandRange(-Width, Width) * 0.4f, R.FRandRange(-Width, Width) * 0.4f, 0.f);
 		const float H = Height * R.FRandRange(0.6f, 1.2f);
 		const float Wd = Width * R.FRandRange(0.7f, 1.2f);
+		// Pic principal, légèrement penché (pas un cône parfaitement droit -> moins "primitif").
 		SpawnBlock(MESH_CONE, Pos + FVector(0, 0, H * 0.5f),
 			FVector(Wd / 50.f, Wd / 50.f, H / 100.f),
 			Vary(Color, R.FRandRange(-0.015f, 0.015f)),
-			FRotator(0.f, R.FRandRange(0.f, 360.f), 0.f), /*bBlocking=*/true); // montagnes = mur (unités/Kraken bloqués)
+			FRotator(R.FRandRange(-6.f, 6.f), R.FRandRange(0.f, 360.f), R.FRandRange(-6.f, 6.f)),
+			/*bBlocking=*/true); // montagnes = mur (unités/Kraken bloqués)
+		// Aiguilles secondaires : 2-4 pics plus petits et décalés autour du pic principal,
+		// hauteurs/inclinaisons variées -> silhouette déchiquetée au lieu d'un cône isolé.
+		const int32 Spurs = R.RandRange(2, 4);
+		for (int32 s = 0; s < Spurs; ++s)
+		{
+			const float SpurAng = R.FRandRange(0.f, 2.f * PI);
+			const float SpurDist = Wd * R.FRandRange(0.4f, 0.9f);
+			const FVector SpurOff(FMath::Cos(SpurAng) * SpurDist, FMath::Sin(SpurAng) * SpurDist, 0.f);
+			const float SpurH = H * R.FRandRange(0.35f, 0.75f);
+			const float SpurW = Wd * R.FRandRange(0.25f, 0.5f);
+			SpawnBlock(MESH_CONE, Pos + SpurOff + FVector(0, 0, SpurH * 0.5f),
+				FVector(SpurW / 50.f, SpurW / 50.f, SpurH / 100.f),
+				Vary(Color, R.FRandRange(-0.03f, 0.02f)),
+				FRotator(R.FRandRange(-18.f, 18.f), R.FRandRange(0.f, 360.f), R.FRandRange(-18.f, 18.f)), false);
+		}
+		// Éboulis à la base (blocs irréguliers) : ancre le pic au sol, évite l'effet
+		// "cône qui flotte sur le sable" pointé par Liamor.
+		const int32 Scree = R.RandRange(2, 3);
+		for (int32 sc = 0; sc < Scree; ++sc)
+		{
+			const float ScAng = R.FRandRange(0.f, 2.f * PI);
+			const float ScDist = Wd * R.FRandRange(0.6f, 1.1f);
+			const float ScS = Wd * R.FRandRange(0.15f, 0.3f);
+			SpawnBlock(MESH_CUBE, Pos + FVector(FMath::Cos(ScAng) * ScDist, FMath::Sin(ScAng) * ScDist, ScS * 0.3f),
+				FVector(ScS / 100.f), Vary(Color, R.FRandRange(-0.02f, 0.01f)),
+				FRotator(R.FRandRange(0.f, 360.f), R.FRandRange(0.f, 360.f), R.FRandRange(0.f, 360.f)), false);
+		}
 	}
 }
 
