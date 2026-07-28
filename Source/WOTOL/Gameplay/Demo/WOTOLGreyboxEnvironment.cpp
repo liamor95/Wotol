@@ -404,9 +404,14 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 	(void)SurfColor;
 
 	// ── CANYON DE SABLE CENTRAL (couloir de combat dégagé le long de X) ──
-	SpawnPlaza(Center, bAbyss ? 12500.f : 7500.f, bAbyss ? 2600.f : 1350.f, SandBright);
-	SpawnPlaza(Center + FVector(0.f, 0.f, 0.f), bAbyss ? 6200.f : 3200.f,
-		bAbyss ? 1800.f : 900.f, FLinearColor(0.44f, 0.44f, 0.38f, 1.f));
+	// PHASE 3 AGRANDIE (demande explicite de Liamor, "carte plus grande, plus d'espace pour
+	// la bataille") : couloir de combat élargi (X 12500->17000, Y 2600->4200) pour la grande
+	// bataille finale — toutes les distances de décor du flanc bAbyss (récifs, dispersion,
+	// horizon) sont augmentées en conséquence plus bas pour rester cohérentes avec ce nouvel
+	// espace ouvert.
+	SpawnPlaza(Center, bAbyss ? 17000.f : 7500.f, bAbyss ? 4200.f : 1350.f, SandBright);
+	SpawnPlaza(Center + FVector(0.f, 0.f, 0.f), bAbyss ? 8200.f : 3200.f,
+		bAbyss ? 2800.f : 900.f, FLinearColor(0.44f, 0.44f, 0.38f, 1.f));
 
 	// ── Palette de coraux VIFS ──
 	const FLinearColor Coral[6] = {
@@ -420,10 +425,14 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 
 	// Buisson de corail BIOLUMINESCENT = coraux-tubes/branches/cerveau qui RAYONNENT
 	// (émissif) + une lampe douce -> ils habillent le fond ET l'éclairent naturellement.
-	auto SpawnCoral = [&](const FVector& Pos, int32 InSeed)
+	// bWarmOnly (phase 3 uniquement, flanc "corail chaud" de la planche officielle de la
+	// carte de la phase 3, 26/07/2026) : restreint la palette à orange/rose/jaune, au lieu
+	// du mélange complet — le flanc opposé reçoit des cristaux teal (SpawnCrystalCluster).
+	auto SpawnCoral = [&](const FVector& Pos, int32 InSeed, bool bWarmOnly = false)
 	{
 		FRandomStream R(InSeed);
-		const FLinearColor Col = Coral[R.RandRange(0, 5)];
+		const int32 WarmIdx[3] = { 0, 2, 3 }; // orange / rose / jaune
+		const FLinearColor Col = bWarmOnly ? Coral[WarmIdx[R.RandRange(0, 2)]] : Coral[R.RandRange(0, 5)];
 		const int32 N = R.RandRange(4, 8);
 		for (int32 k = 0; k < N; ++k)
 		{
@@ -431,7 +440,8 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			const FVector Off(R.FRandRange(-70.f, 70.f), R.FRandRange(-70.f, 70.f), Hgt * 0.5f);
 			const int32 Kind = R.RandRange(0, 2);
 			const TCHAR* M = (Kind == 0) ? MESH_CYL : (Kind == 1) ? MESH_CONE : MESH_SPH;
-			const FLinearColor C = (R.FRand() < 0.4f) ? Coral[R.RandRange(0, 5)] : Col; // variété
+			const FLinearColor C = bWarmOnly ? Coral[WarmIdx[R.RandRange(0, 2)]]
+				: ((R.FRand() < 0.4f) ? Coral[R.RandRange(0, 5)] : Col); // variété
 			// Émissif HDR (×3, comme le cristal du Cristalliseur qui brille bien).
 			SpawnGlowBlock(M, Pos + Off, FVector(0.16f, 0.16f, Hgt / 100.f), C * 3.0f,
 				FRotator(R.FRandRange(-14.f, 14.f), R.FRandRange(0.f, 360.f), R.FRandRange(-14.f, 14.f)));
@@ -497,11 +507,36 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 		SpawnBioLight(Pos + FVector(0, 0, 130.f * Sc), Col, 1800.f, 560.f);
 	};
 
-	// ── DEUX RÉCIFS ROCHEUX bordant le canyon (côtés +Y et -Y), couverts de coraux ──
+	// GRAPPE DE CRISTAUX teal-cyan (phase 3 uniquement, flanc "tour en ruine" de la planche
+	// officielle de la carte de la phase 3, 26/07/2026) : pics fins qui jaillissent du sol,
+	// tailles variées, émissifs HDR — pendant du corail chaud sur le flanc opposé.
+	auto SpawnCrystalCluster = [&](const FVector& Pos, int32 InSeed)
+	{
+		FRandomStream R(InSeed);
+		const FLinearColor CrystalCol(0.25f, 0.95f, 0.85f, 1.f); // teal-cyan
+		const int32 N = R.RandRange(5, 9);
+		for (int32 k = 0; k < N; ++k)
+		{
+			const float Hgt = R.FRandRange(120.f, 420.f);
+			const float Ang = R.FRandRange(0.f, 2.f * PI);
+			const float Dist = R.FRandRange(0.f, 90.f);
+			const FVector Off(FMath::Cos(Ang) * Dist, FMath::Sin(Ang) * Dist, Hgt * 0.5f);
+			SpawnGlowBlock(MESH_CONE, Pos + Off, FVector(0.05f, 0.05f, Hgt / 100.f),
+				Vary(CrystalCol, R.FRandRange(-0.05f, 0.10f)) * 2.6f,
+				FRotator(R.FRandRange(-10.f, 10.f), R.FRandRange(0.f, 360.f), R.FRandRange(-10.f, 10.f)));
+		}
+		// Halo teal de la grappe (éclaire la roche/tour environnante).
+		SpawnBioLight(Pos + FVector(0, 0, 150.f), CrystalCol, 2400.f, 650.f);
+	};
+
+	// ── DEUX RÉCIFS ROCHEUX bordant le canyon (côtés +Y et -Y), couverts de coraux (phases
+	// 1/2) OU ASYMÉTRIQUES corail chaud / cristaux teal (phase 3, planche officielle de la
+	// carte de la phase 3 du 26/07/2026 : mur de corail chaud d'un côté, tour à cristaux
+	// teal de l'autre — au lieu d'un mélange identique des deux côtés). ──
 	FRandomStream Reef(4242 + VSeed);
-	const float ReefExtent = bAbyss ? 10500.f : 6500.f;
-	const float ReefMinY = bAbyss ? 5200.f : 2600.f;
-	const float ReefMaxY = bAbyss ? 6800.f : 3400.f;
+	const float ReefExtent = bAbyss ? 14000.f : 6500.f;
+	const float ReefMinY = bAbyss ? 6800.f : 2600.f;
+	const float ReefMaxY = bAbyss ? 8600.f : 3400.f;
 	for (float X = -ReefExtent; X <= ReefExtent; X += 1300.f)
 	{
 		for (int32 side = 0; side < 2; ++side)
@@ -510,23 +545,36 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			// masse rocheuse récifale (kitbash)
 			SpawnRock(Center + FVector(X + Reef.FRandRange(-200.f, 200.f), Y, -40.f),
 				Reef.FRandRange(360.f, 620.f), RockColor, Reef.RandRange(1, 9999));
-			// coraux accrochés sur le récif
-			SpawnCoral(Center + FVector(X + Reef.FRandRange(-300.f, 300.f), Y + Reef.FRandRange(-250.f, 250.f), -20.f),
-				Reef.RandRange(1, 9999));
+			const FVector CoralPos = Center + FVector(X + Reef.FRandRange(-300.f, 300.f), Y + Reef.FRandRange(-250.f, 250.f), -20.f);
+			if (bAbyss)
+			{
+				// side 0 (+Y) = corail chaud ; side 1 (-Y) = grappe de cristaux teal.
+				if (side == 0) SpawnCoral(CoralPos, Reef.RandRange(1, 9999), /*bWarmOnly=*/true);
+				else SpawnCrystalCluster(CoralPos, Reef.RandRange(1, 9999));
+			}
+			else
+			{
+				SpawnCoral(CoralPos, Reef.RandRange(1, 9999));
+			}
 		}
 	}
 
-	// ── Coraux + rochers plus loin (remplissent les flancs, hors du couloir) ──
+	// ── Coraux/cristaux + rochers plus loin (remplissent les flancs, hors du couloir) ──
 	FRandomStream Side(707 + VSeed);
 	for (int32 i = 0; i < 30; ++i)
 	{
-		const float YMin = bAbyss ? 7000.f : 3400.f;
-		const float YMax = bAbyss ? 11500.f : 6500.f;
-		const float XMax = bAbyss ? 11000.f : 6500.f;
-		const float Y = (Side.FRand() < 0.5f ? 1.f : -1.f) * Side.FRandRange(YMin, YMax);
+		const float YMin = bAbyss ? 9000.f : 3400.f;
+		const float YMax = bAbyss ? 14500.f : 6500.f;
+		const float XMax = bAbyss ? 14500.f : 6500.f;
+		const bool bPosY = Side.FRand() < 0.5f;
+		const float Y = (bPosY ? 1.f : -1.f) * Side.FRandRange(YMin, YMax);
 		const float X = Side.FRandRange(-XMax, XMax);
 		if (Side.FRand() < 0.6f)
-			SpawnCoral(Center + FVector(X, Y, -20.f), Side.RandRange(1, 9999));
+		{
+			if (bAbyss && bPosY) SpawnCoral(Center + FVector(X, Y, -20.f), Side.RandRange(1, 9999), /*bWarmOnly=*/true);
+			else if (bAbyss) SpawnCrystalCluster(Center + FVector(X, Y, -20.f), Side.RandRange(1, 9999));
+			else SpawnCoral(Center + FVector(X, Y, -20.f), Side.RandRange(1, 9999));
+		}
 		else
 			SpawnRock(Center + FVector(X, Y, -40.f), Side.FRandRange(160.f, 420.f), RockColor, Side.RandRange(1, 9999));
 	}
@@ -535,10 +583,11 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 	// carte (même principe que les rochers), un par un. Le CENTRE (emplacement du bâtiment,
 	// rayon 1600) est STRICTEMENT exclu -> jamais rien au milieu. ──
 	FRandomStream Shr(555 + VSeed);
+	const float ShrRange = bAbyss ? 9500.f : 6200.f; // phase 3 agrandie : dispersion plus large
 	for (int32 i = 0; i < 40; ++i)
 	{
-		const float x = Shr.FRandRange(-6200.f, 6200.f);
-		const float y = Shr.FRandRange(-6200.f, 6200.f);
+		const float x = Shr.FRandRange(-ShrRange, ShrRange);
+		const float y = Shr.FRandRange(-ShrRange, ShrRange);
 		if (FMath::Sqrt(x * x + y * y) < 1600.f) continue; // JAMAIS au centre / sur le bâtiment
 		SpawnMushroom(Center + FVector(x, y, -20.f), Shr.RandRange(1, 9999));
 	}
@@ -547,29 +596,32 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 	FRandomStream Kel(313 + VSeed);
 	for (int32 i = 0; i < 10; ++i)
 	{
-		const float X = Kel.FRandRange(1500.f, 6500.f);
-		const float Y = Kel.FRandRange(2200.f, 5200.f) * (Kel.FRand() < 0.7f ? 1.f : -1.f);
+		const float X = Kel.FRandRange(1500.f, bAbyss ? 9500.f : 6500.f);
+		const float Y = Kel.FRandRange(2200.f, bAbyss ? 7500.f : 5200.f) * (Kel.FRand() < 0.7f ? 1.f : -1.f);
 		SpawnKelp(Center + FVector(X, Y, -30.f), Kel.RandRange(1, 9999));
 	}
 
 	// ── Petits rochers BAS dans le couloir (galets). PAS de corail au centre : la zone
 	// de combat centrale (|X|<2500) reste dégagée -> plus de pâté bioluminescent au milieu.
+	// Couloir de la phase 3 élargi -> dispersion des galets étirée en conséquence.
 	FRandomStream Mid(151 + VSeed);
 	for (int32 i = 0; i < 16; ++i)
 	{
-		const float MX = Mid.FRandRange(-6500.f, 6500.f);
-		const FVector P = Center + FVector(MX, Mid.FRandRange(-1100.f, 1100.f), -30.f);
+		const float MX = Mid.FRandRange(bAbyss ? -10000.f : -6500.f, bAbyss ? 10000.f : 6500.f);
+		const FVector P = Center + FVector(MX, Mid.FRandRange(bAbyss ? -1700.f : -1100.f, bAbyss ? 1700.f : 1100.f), -30.f);
 		// Couloir de combat : UNIQUEMENT des galets (rochers), AUCUN corail bioluminescent.
 		SpawnRock(P, Mid.FRandRange(90.f, 200.f), RockColor, Mid.RandRange(1, 9999));
 	}
 
-	// ── HORIZON : chaînes de reliefs de TAILLES VARIÉES tout autour (pas un mur droit) ──
+	// ── HORIZON : chaînes de reliefs de TAILLES VARIÉES tout autour (pas un mur droit).
+	// Phase 3 agrandie -> horizon repoussé plus loin pour rester cohérent avec le nouvel
+	// espace ouvert (sinon les montagnes de fond se retrouveraient trop proches du combat). ──
 	FRandomStream Hor(2024 + VSeed);
 	const int32 Rings = 14;
 	for (int32 i = 0; i < Rings; ++i)
 	{
 		const float Ang = 2.f * PI * i / Rings + Hor.FRandRange(-0.15f, 0.15f);
-		const float Dist = bAbyss ? Hor.FRandRange(13500.f, 17500.f)
+		const float Dist = bAbyss ? Hor.FRandRange(17500.f, 22500.f)
 			: Hor.FRandRange(8500.f, 11500.f);
 		const FVector A = Center + FVector(FMath::Cos(Ang) * Dist, FMath::Sin(Ang) * Dist, 0.f);
 		const float Ang2 = Ang + (2.f * PI / Rings) * 0.7f;
@@ -586,7 +638,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 		for (int32 i = 0; i < 16; ++i)
 		{
 			const float Ang = 2.f * PI * i / 16 + (PI / 16.f) + Hor.FRandRange(-0.12f, 0.12f);
-			const float Dist = bAbyss ? Hor.FRandRange(10500.f, 12800.f)
+			const float Dist = bAbyss ? Hor.FRandRange(14000.f, 16500.f)
 				: Hor.FRandRange(5200.f, 6800.f);
 			const FVector A = Center + FVector(FMath::Cos(Ang) * Dist, FMath::Sin(Ang) * Dist, 0.f);
 			const float Ang2 = Ang + (2.f * PI / 16.f) * 0.6f;
@@ -596,7 +648,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 		for (int32 i = 0; i < 10; ++i)
 		{
 			const float Ang = Hor.FRandRange(0.f, 2.f * PI);
-			const float Dist = bAbyss ? Hor.FRandRange(9000.f, 11200.f)
+			const float Dist = bAbyss ? Hor.FRandRange(12000.f, 14500.f)
 				: Hor.FRandRange(3800.f, 5600.f);
 			SpawnRock(Center + FVector(FMath::Cos(Ang) * Dist, FMath::Sin(Ang) * Dist, -40.f), Hor.FRandRange(500.f, 1200.f), RockColor, 820 + i);
 		}
@@ -884,6 +936,27 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 		SpawnZiggurat(Center + FVector(950.f, -1550.f, -40.f), 420.f, 3, 130.f, 200.f, RockColor);
 		SpawnColonnade(Center + FVector(280.f, -1250.f, -30.f), FVector(260.f, -80.f, 0.f),
 			4, 360.f, FarColor, 901);
+	}
+
+	// ── GRANDE TOUR EN RUINE (phase 3 uniquement), fidèle à la planche officielle de la
+	// carte de la phase 3 (26/07/2026) : canyon ouvert flanqué d'un mur de corail chaud
+	// (+Y, cf. flanc SpawnCoral bWarmOnly ci-dessus) et d'une tour de ruines à cristaux teal
+	// (-Y, cf. flanc SpawnCrystalCluster) qui domine la scène. Repositionnée après
+	// l'agrandissement du couloir pour rester dans le nouveau flanc "cristal". ──
+	if (bAbyss)
+	{
+		const FVector TowerBase = Center + FVector(5200.f, -7800.f, -40.f);
+		SpawnZiggurat(TowerBase, 900.f, 7, 260.f, 35.f, RockColor);          // grande tour à gradins
+		SpawnArch(TowerBase + FVector(0.f, 0.f, 1500.f), 480.f, 35.f, RockColor); // arche évidée en hauteur
+		SpawnColonnade(TowerBase + FVector(-600.f, -900.f, 0.f), FVector(300.f, -60.f, 0.f),
+			5, 500.f, RockColor, 951);
+		FRandomStream Tow(960 + VSeed);
+		for (int32 i = 0; i < 6; ++i)
+		{
+			const float TAng = Tow.FRandRange(0.f, 2.f * PI);
+			const float TDist = Tow.FRandRange(200.f, 950.f);
+			SpawnCrystalCluster(TowerBase + FVector(FMath::Cos(TAng) * TDist, FMath::Sin(TAng) * TDist, 0.f), 961 + i);
+		}
 	}
 }
 
