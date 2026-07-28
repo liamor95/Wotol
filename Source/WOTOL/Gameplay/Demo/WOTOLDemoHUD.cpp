@@ -1270,7 +1270,7 @@ static FString SkillAxisLabel(EFactionID Fac, EDemoUnitCategory Cat, int32 Axis)
 		                                               : (Axis==1?TEXT("Bastion Brutal"):TEXT("Defoncement"));
 		case EDemoUnitCategory::Speciale:   return bAq ? (Axis==1?TEXT("Critique Amplifie"):TEXT("Ombres Projetees"))
 		                                               : (Axis==1?TEXT("Reacteur de Guerre"):TEXT("Ancrage Abyssal"));
-		case EDemoUnitCategory::Mythique:   return bAq ? (Axis==1?TEXT("Rayon. Stabilisateur"):TEXT("Rayon. Vital"))
+		case EDemoUnitCategory::Mythique:   return bAq ? (Axis==1?TEXT("Rayon Stabilisateur"):TEXT("Rayon Vital"))
 		                                               : (Axis==1?TEXT("Devastation Totale"):TEXT("Dominion Radieux"));
 		default: return (Axis==1?TEXT("Axe 1"):TEXT("Axe 2"));
 	}
