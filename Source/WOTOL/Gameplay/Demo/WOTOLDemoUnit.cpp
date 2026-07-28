@@ -2508,19 +2508,34 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 	if (Id == TEXT("Aquis")) // Chef (réf 4077) : chevalier bleu+or + GRANDE épée d'énergie
 	{
 		BuildAquiKnight(0.40f);
-		// Grande lame d'énergie photonique tenue main droite (garde dorée + longue lame bleue)
+		// Grande lame d'énergie photonique tenue main droite (garde dorée + longue lame bleue).
+		// PASSE DE DÉTAIL (26/07/2026, planches officielles "Lame Cristalline d'Akis") : pommeau,
+		// ailes de garde, gemme de garde, fuller doré le long de la lame, pointe lumineuse —
+		// niveau de detail aligne sur celui des unites (BuildAquiKnight).
 		MakeBone(JRElbow, M_CYL, FVector(0, H * 0.02f, -H * 0.18f), FVector(0.06f, 0.06f, h * 0.10f), NoRot, AqGold);        // poignée
+		MakeBone(JRElbow, M_SPH, FVector(0, H * 0.02f, -H * 0.07f), FVector(0.045f, 0.045f, 0.05f), NoRot, AqGold);          // pommeau
 		MakeBone(JRElbow, M_CUBE, FVector(0, H * 0.02f, -H * 0.24f), FVector(0.05f, 0.22f, 0.05f), NoRot, AqGold);           // garde
+		MakeBone(JRElbow, M_CONE, FVector(0, 11, -H * 0.24f), FVector(0.03f, 0.03f, h * 0.06f), FRotator(0, 0, 90.f), AqGold);  // aile garde D
+		MakeBone(JRElbow, M_CONE, FVector(0, -11, -H * 0.24f), FVector(0.03f, 0.03f, h * 0.06f), FRotator(0, 0, -90.f), AqGold); // aile garde G
+		MakeBone(JRElbow, M_SPH, FVector(0, H * 0.02f, -H * 0.24f), FVector(0.035f, 0.035f, 0.04f), NoRot, AqEnergyHi);      // gemme de garde
 		MakeBone(JRElbow, M_CONE, FVector(0, H * 0.02f, -H * 0.58f), FVector(0.10f, 0.10f, h * 0.62f), FRotator(180.f, 0, 0), AqEnergyHi); // longue lame
+		MakeBone(JRElbow, M_CONE, FVector(0, H * 0.05f, -H * 0.58f), FVector(0.03f, 0.03f, h * 0.60f), FRotator(180.f, 0, 0), AqGold);     // fuller doré
+		MakeBone(JRElbow, M_SPH, FVector(0, H * 0.02f, -H * 0.89f), FVector(0.045f, 0.045f, 0.05f), NoRot, AqEnergyHi);      // pointe lumineuse
 		return;
 	}
 	if (Id == TEXT("Aquiloryons")) // Infanterie (réf 4079) : chevalier bleu+or + épée + BOUCLIER d'énergie
 	{
 		bHasShield = true; // porte-bouclier : pose de garde + blocage renforcé (cerveau défensif)
 		BuildAquiKnight(0.34f);
-		// Épée d'énergie (main droite)
+		// Épée d'énergie (main droite). PASSE DE DÉTAIL (26/07/2026, planche "Épée et Bouclier
+		// des Aquiloryons") : garde+pommeau ajoutés (absents avant, l'épée n'était qu'un manche
+		// et une lame), gemme de garde + fuller doré, pour matcher le niveau de detail du bouclier.
 		MakeBone(JRElbow, M_CYL, FVector(0, 0, -H * 0.18f), FVector(0.05f, 0.05f, h * 0.09f), NoRot, AqGold);            // poignée
+		MakeBone(JRElbow, M_SPH, FVector(0, 0, -H * 0.11f), FVector(0.04f, 0.04f, 0.045f), NoRot, AqGold);               // pommeau
+		MakeBone(JRElbow, M_CUBE, FVector(0, 0, -H * 0.22f), FVector(0.04f, 0.16f, 0.04f), NoRot, AqGold);               // garde
+		MakeBone(JRElbow, M_SPH, FVector(0, 0, -H * 0.22f), FVector(0.03f, 0.03f, 0.035f), NoRot, AqEnergyHi);           // gemme de garde
 		MakeBone(JRElbow, M_CONE, FVector(0, 0, -H * 0.46f), FVector(0.08f, 0.08f, h * 0.46f), FRotator(180.f, 0, 0), AqEnergyHi); // lame
+		MakeBone(JRElbow, M_CONE, FVector(0, 3, -H * 0.46f), FVector(0.025f, 0.025f, h * 0.44f), FRotator(180.f, 0, 0), AqGold);   // fuller doré
 		// ── BOUCLIER ÉNERGÉTIQUE (bras gauche) fidèle à la réf : grand ÉCU bombé bleu-cyan
 		// lumineux (bloom), porté DEVANT l'avant-bras. Disque légèrement bombé + bord renforcé
 		// + croix d'énergie centrale + cadre doré. Face plate tournée vers l'AVANT (-X après flip).
@@ -2630,6 +2645,11 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		AddPart(M_CONE, FVector(-H * 0.46f, 0, H * 0.08f), FVector(0.23f, 0.23f, h * 0.16f), FRotator(-90.f, 0, 0), AqGold);    // bouche évasée (vers l'avant)
 		AddPart(M_SPH,  FVector(-H * 0.56f, 0, H * 0.08f), FVector(0.24f, 0.24f, 0.24f), NoRot, AqEnergyHi);                    // ORBE tourbillonnante (bloom) au bout
 		AddPart(M_CYL,  FVector(-H * 0.30f, 0, -H * 0.02f), FVector(0.05f, 0.05f, h * 0.10f), NoRot, AqArmor);                  // poignée sous le fût
+		// PASSE DE DÉTAIL (26/07/2026, planche "Canon des Aquisphères") : ailerons latéraux dorés
+		// + crosse arrière, pour matcher le niveau de detail des autres armes de la faction.
+		AddPart(M_CUBE, FVector(-H * 0.10f, H * 0.09f, H * 0.08f), FVector(0.02f, 0.03f, h * 0.30f), NoRot, AqGold);  // aileron D
+		AddPart(M_CUBE, FVector(-H * 0.10f, -H * 0.09f, H * 0.08f), FVector(0.02f, 0.03f, h * 0.30f), NoRot, AqGold); // aileron G
+		AddPart(M_CUBE, FVector(0, 0, H * 0.05f), FVector(0.10f, 0.16f, h * 0.10f), FRotator(90.f, 0, 0), CannonBody); // crosse arrière
 		return;
 	}
 	if (Id == TEXT("Aquilombres")) // Spéciale (réf) : duelliste Aquiloris élancée, peau bleue,
@@ -2664,9 +2684,17 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		RegisterWiggle(AddPart(M_CUBE, FVector(H * 0.06f, H * 0.10f, -H * 0.22f), FVector(0.03f, 0.10f, h * 0.44f), FRotator(6.f, 0, 10.f), Armor), 0.f);
 		RegisterWiggle(AddPart(M_CUBE, FVector(H * 0.06f, -H * 0.10f, -H * 0.22f), FVector(0.03f, 0.10f, h * 0.44f), FRotator(6.f, 0, -10.f), Armor), 3.14f);
 		RegisterWiggle(AddPart(M_CUBE, FVector(H * 0.12f, 0, -H * 0.20f), FVector(0.03f, 0.16f, h * 0.46f), FRotator(10.f, 0, 0), Armor), 1.2f);
-		// Lames d'énergie cyan dans chaque main (duelliste furtive)
-		MakeBone(JRElbow, M_CONE, FVector(0, 0, -H * 0.24f), FVector(0.04f, 0.04f, h * 0.22f), FRotator(180.f, 0, 0), GemGlow);
-		MakeBone(JLElbow, M_CONE, FVector(0, 0, -H * 0.24f), FVector(0.04f, 0.04f, h * 0.22f), FRotator(180.f, 0, 0), GemGlow);
+		// Lames d'énergie cyan dans chaque main (duelliste furtive). PASSE DE DÉTAIL (26/07/2026,
+		// planches "Dague de l'Ombre"/"Dague Cristalline") : manche + garde ajoutés par dague
+		// (avant : juste un cône nu), pour matcher le niveau de detail du reste de l'unité.
+		MakeBone(JRElbow, M_CYL, FVector(0, 0, -H * 0.10f), FVector(0.035f, 0.035f, h * 0.05f), NoRot, Armor);            // manche D
+		MakeBone(JRElbow, M_CUBE, FVector(0, 0, -H * 0.15f), FVector(0.03f, 0.10f, 0.03f), NoRot, EyeGold);               // garde D
+		MakeBone(JRElbow, M_CONE, FVector(0, 0, -H * 0.24f), FVector(0.04f, 0.04f, h * 0.22f), FRotator(180.f, 0, 0), GemGlow); // lame D
+		MakeBone(JRElbow, M_CONE, FVector(0, 2, -H * 0.24f), FVector(0.02f, 0.02f, h * 0.20f), FRotator(180.f, 0, 0), Skin);    // arête claire D
+		MakeBone(JLElbow, M_CYL, FVector(0, 0, -H * 0.10f), FVector(0.035f, 0.035f, h * 0.05f), NoRot, Armor);            // manche G
+		MakeBone(JLElbow, M_CUBE, FVector(0, 0, -H * 0.15f), FVector(0.03f, 0.10f, 0.03f), NoRot, EyeGold);               // garde G
+		MakeBone(JLElbow, M_CONE, FVector(0, 0, -H * 0.24f), FVector(0.04f, 0.04f, h * 0.22f), FRotator(180.f, 0, 0), GemGlow); // lame G
+		MakeBone(JLElbow, M_CONE, FVector(0, -2, -H * 0.24f), FVector(0.02f, 0.02f, h * 0.20f), FRotator(180.f, 0, 0), Skin);   // arête claire G
 		return;
 	}
 	if (Id == TEXT("Leviaphenix")) // Mythique Aquiloris (réf) : dragon-phénix marin élancé,
