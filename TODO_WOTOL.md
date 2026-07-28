@@ -774,3 +774,43 @@ visualisee (pas d'editeur Unreal disponible cote Claude Code) — a verifier en 
 l'ouverture de la vue Cite : si l'image parait tournee dans son propre plan (a l'envers, de
 travers), ajuster le vecteur de reference "haut" passe a MakeFromZX plutot que de recalculer
 completement l'orientation.
+
+## Passe qualite visuelle unites (26/07/2026, planches officielles envoyees par Liamor)
+
+Liamor a envoye ~20 planches officielles (Noxeens + Aquiloris : corps, montures, armes) avec
+demande explicite d'ameliorer le detail/volume des unites (10→20-30 formes acceptable), de
+respecter les proportions des membres par unite, et de faire correspondre le niveau de detail
+des armes a celui des unites. Contexte : test complet prevu sur PC dans ~2 jours (jeudi),
+~1 mois avant rendez-vous client Piktanovo — demo doit etre quasi-finale, jouable, propre.
+
+- **`BuildArticulatedHumanoid`** (base partagee Aquiloryons/Noxeflare/Noxar/Noxeons + via
+  `BuildAquiKnight` Aquis/Aquiloryons/Aquisphères) : passe de ~14 a ~30-35 formes. Torse en
+  2 etages + ceinturon, machoire, rotules coude/genou visibles, MAINS reconstruites (poignet +
+  paume + 3 doigts + pouce, via lambda `BuildHand` attachee au meme joint coude existant —
+  aucun joint deplace/renomme, compatibilite armes preservee), chevilles + bout de pied
+  ajoutes. Attention perf : ~2x plus de UStaticMeshComponent par humanoide, jusqu'a 100
+  unites en phase 3 bataille finale — a surveiller au premier test FPS.
+- **Noxeflare + Noxeblast** : couleur corrigee de vert vers VIOLET (bioluminescence) d'apres
+  les planches officielles — contredit la regle session anterieure "Noxeens = vert
+  uniquement" ; Noxar/Noxeon/Noxedrake restent bleu/vert. A confirmer/ajuster au retour PC si
+  ce n'etait pas voulu.
+- **Noxedrake** : PAS TOUCHE — reste quadrupede avec pattes avant de taille normale (pas de
+  bras miniatures), correction explicite et urgente de Liamor avant toute modification de
+  code ; peut se cabrer sur ses pattes arriere mais la structure de construction n'a pas
+  change.
+- **`BuildAquiKnight`** (Aquis/Aquiloryons/Aquisphères) : crete plus fournie et irreguliere
+  (5 pics centraux + 6 meches laterales), pauldrons avec liseres d'arete, gemme torse
+  remplacee par un vrai losange a facettes (2 cones pointe-a-pointe) + coeur lumineux, lisere
+  dores verticaux + ceinturon dore, cape en deux pans qui se chevauchent. Aucun joint
+  deplace — armes (`MakeBone(JRElbow, ...)`) inchangees.
+- **Aquilances** (monture + cavalier + lance articulee) : deja relativement fidele aux
+  planches (monture complete avec tete/yeux/nageoires/queue, cavalier arme, lance sur
+  `LanceJoint`) — pas modifie cette passe, pourrait beneficier de la meme passe de densite de
+  detail que `BuildAquiKnight`.
+- **Reste a faire** : passe "niveau de detail des armes = niveau de detail des unites"
+  (demande explicite, pas encore commencee) sur Dague de l'Ombre, Canon des Aquisphères,
+  Lance Cristalline des Aquilances, Epee+Bouclier des Aquiloryons, Dague Cristalline, Lame
+  Cristalline d'Akis. Egalement en attente : passe detail sur Noxbeast/Noxeon/Noxar (deja
+  proches des planches, pas retouches), Leviaphenix (juge "pas du tout ca" par Liamor, pas
+  encore retravaille), decor/environnement (juge "vraiment bateau", aucune image de reference
+  recue pour l'instant, `WOTOLGreyboxEnvironment.cpp` reste tres sommaire ~12 poses de mesh).
