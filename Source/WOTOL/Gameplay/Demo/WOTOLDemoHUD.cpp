@@ -1478,7 +1478,7 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		}
 		else if (bNeedsBuilding)
 		{
-			DrawText(FString::Printf(TEXT("Construction : %d cristaux + %d materiaux"),
+			DrawText(FString::Printf(TEXT("Construction : %d cristaux + %d mineraux abyssaux"),
 				Demo->RangedBuildingCrystalCost, Demo->RangedBuildingAbyssalMaterialCost),
 				bCanBuild ? FLinearColor(1.f, 0.95f, 0.6f, 1.f) : FLinearColor(1.f, 0.55f, 0.5f, 1.f),
 				CX, R.Min.Y + 96.f, nullptr, 0.82f);
@@ -1540,7 +1540,7 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		else if (SelCat == EDemoUnitCategory::Distance && !Demo->IsRangedBuildingConstructed())
 		{
 			DrawCenteredText(TEXT("PAS ENCORE CONSTRUIT"), Y, FLinearColor(1.f, 0.85f, 0.4f, 1.f), 1.0f); Y += 30.f;
-			DrawCenteredText(FString::Printf(TEXT("Cout : %d cristaux + %d materiaux"),
+			DrawCenteredText(FString::Printf(TEXT("Cout : %d cristaux + %d mineraux abyssaux"),
 				Demo->RangedBuildingCrystalCost, Demo->RangedBuildingAbyssalMaterialCost), Y,
 				FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 0.9f); Y += 26.f;
 			DrawCenteredText(TEXT("Choisissez un emplacement via sa carte en bas."), Y,

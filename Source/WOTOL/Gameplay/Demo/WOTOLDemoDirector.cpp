@@ -2847,7 +2847,7 @@ void AWOTOLDemoDirector::BeginPostCreatureSequence()
 		FString::Printf(TEXT(
 			"Le Kraken est vaincu. Vous possedez maintenant les ressources necessaires.\n"
 			"Placez le %s pour acquerir et terraformer ce territoire.\n"
-			"Cout provisoire : %d cristaux + %d materiaux abyssaux."),
+			"Cout provisoire : %d cristaux + %d mineraux abyssaux."),
 			*Building, CrystalliserCrystalCost, CrystalliserAbyssalMaterialCost),
 		FString::Printf(TEXT("PLACER LE %s"), *Building.ToUpper()));
 }

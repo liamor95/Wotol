@@ -2509,7 +2509,7 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 	{
 		BuildAquiKnight(0.40f);
 		// Grande lame d'énergie photonique tenue main droite (garde dorée + longue lame bleue).
-		// PASSE DE DÉTAIL (26/07/2026, planches officielles "Lame Cristalline d'Akis") : pommeau,
+		// PASSE DE DÉTAIL (26/07/2026, planches officielles "Lame Cristalline d'Aquis") : pommeau,
 		// ailes de garde, gemme de garde, fuller doré le long de la lame, pointe lumineuse —
 		// niveau de detail aligne sur celui des unites (BuildAquiKnight).
 		MakeBone(JRElbow, M_CYL, FVector(0, H * 0.02f, -H * 0.18f), FVector(0.06f, 0.06f, h * 0.10f), NoRot, AqGold);        // poignée
