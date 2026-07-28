@@ -2464,21 +2464,42 @@ void AWOTOLDemoUnit::AssembleSilhouette(FName UnitID, EUnitRole UnitRole, float 
 		// Yeux bleus lumineux DEVANT (-X)
 		AddPart(M_SPH, FVector(-11, 6, H * 0.34f), FVector(0.06f, 0.06f, 0.07f), NoRot, AqEyeGlow);
 		AddPart(M_SPH, FVector(-11, -6, H * 0.34f), FVector(0.06f, 0.06f, 0.07f), NoRot, AqEyeGlow);
-		// Crête de pics sur le crâne (du front -X vers l'arrière +X), la plus haute au milieu
+		// PASSE DE DÉTAIL (26/07/2026, planches officielles) : crête plus FOURNIE et IRRÉGULIÈRE
+		// (mèches fines qui débordent sur les côtés, pas juste une rangée centrale) pour se
+		// rapprocher de la silhouette "cheveux en pics hérissés" des planches Aquiloryon/
+		// Aquisphères/Aquis. 5 pics centraux + 6 mèches latérales plus fines qui balaient vers
+		// l'arrière et les côtés.
 		for (int32 cc = 0; cc < 5; ++cc)
 		{
 			const float cx = -H * 0.05f + cc * H * 0.045f;
 			const float mid = 1.f - FMath::Abs(cc - 2) * 0.28f;
 			AddPart(M_CONE, FVector(cx, 0, H * 0.44f), FVector(0.06f, 0.11f, h * 0.20f * mid), FRotator(-28.f, 0, 0), AqCrest);
 		}
-		// Pauldrons dorés (épaules) + gemme losange dorée sur le torse (devant)
+		for (int32 sc = 0; sc < 6; ++sc)
+		{
+			const float t = (sc - 2.5f) / 2.5f; // -1..1
+			const float side = (sc % 2 == 0) ? 1.f : -1.f;
+			AddPart(M_CONE, FVector(-H * 0.02f + FMath::Abs(t) * H * 0.03f, side * (6.f + FMath::Abs(t) * 8.f), H * (0.41f - FMath::Abs(t) * 0.03f)),
+				FVector(0.045f, 0.08f, h * (0.14f - FMath::Abs(t) * 0.04f)), FRotator(-22.f, 0, side * 30.f), AqCrest);
+		}
+		// Pauldrons dorés (épaules) + liseré d'arête sur chaque pauldron.
 		AddPart(M_SPH, FVector(0, H * 0.17f, H * 0.22f), FVector(BodyW * 0.5f, BodyW * 0.5f, BodyW * 0.42f), NoRot, AqGold);
 		AddPart(M_SPH, FVector(0, -H * 0.17f, H * 0.22f), FVector(BodyW * 0.5f, BodyW * 0.5f, BodyW * 0.42f), NoRot, AqGold);
-		AddPart(M_CONE, FVector(-H * 0.14f, 0, H * 0.16f), FVector(0.10f, 0.10f, h * 0.10f), FRotator(-90.f, 0, 0), AqGold);
-		// Lisérés dorés verticaux sur le torse (devant)
-		AddPart(M_CUBE, FVector(-H * 0.15f, 0, H * 0.02f), FVector(0.02f, 0.05f, h * 0.30f), NoRot, AqGold);
-		// Cape sombre flottante DERRIÈRE (+X)
-		RegisterWiggle(AddPart(M_CUBE, FVector(H * 0.13f, 0, -H * 0.06f), FVector(0.04f, BodyW * 1.7f, h * 0.55f), FRotator(10.f, 0, 0), AqCape), 0.f);
+		AddPart(M_CONE, FVector(2, H * 0.19f, H * 0.30f), FVector(0.03f, 0.03f, h * 0.10f), FRotator(-70.f, 0, 0), AqGold);
+		AddPart(M_CONE, FVector(2, -H * 0.19f, H * 0.30f), FVector(0.03f, 0.03f, h * 0.10f), FRotator(-70.f, 0, 0), AqGold);
+		// GEMME LOSANGE dorée à facettes sur le torse (2 cônes pointe-à-pointe = vrai losange,
+		// au lieu d'un simple cône) entourée d'un cadre doré — lit "bijou" plutôt que "pic".
+		AddPart(M_CONE, FVector(-H * 0.145f, 0, H * 0.19f), FVector(0.08f, 0.08f, h * 0.09f), FRotator(-90.f, 0, 0), AqGold);
+		AddPart(M_CONE, FVector(-H * 0.145f, 0, H * 0.13f), FVector(0.08f, 0.08f, h * 0.09f), FRotator(90.f, 0, 0), AqGold);
+		AddPart(M_SPH, FVector(-H * 0.16f, 0, H * 0.16f), FVector(0.045f, 0.045f, 0.05f), NoRot, AqEnergyHi); // cœur lumineux de la gemme
+		// Lisérés dorés verticaux sur le torse (devant) + ceinturon doré (taille).
+		AddPart(M_CUBE, FVector(-H * 0.15f, H * 0.06f, H * 0.02f), FVector(0.02f, 0.03f, h * 0.30f), NoRot, AqGold);
+		AddPart(M_CUBE, FVector(-H * 0.15f, -H * 0.06f, H * 0.02f), FVector(0.02f, 0.03f, h * 0.30f), NoRot, AqGold);
+		AddPart(M_CYL, FVector(0, 0, H * 0.005f), FVector(BodyW * 0.94f, BodyW * 0.80f, 0.025f), NoRot, AqGold);
+		// CAPE flottante DERRIÈRE (+X) en DEUX PANS qui se chevauchent (silhouette qui s'évase
+		// vers le bas, plus proche des planches "grande cape ample") au lieu d'un seul panneau plat.
+		RegisterWiggle(AddPart(M_CUBE, FVector(H * 0.12f, H * 0.10f, -H * 0.08f), FVector(0.04f, BodyW * 1.05f, h * 0.62f), FRotator(9.f, 0, 6.f), AqCape), 0.f);
+		RegisterWiggle(AddPart(M_CUBE, FVector(H * 0.12f, -H * 0.10f, -H * 0.08f), FVector(0.04f, BodyW * 1.05f, h * 0.62f), FRotator(9.f, 0, -6.f), AqCape), 0.35f);
 	};
 
 	const FString Id = UnitID.ToString();
