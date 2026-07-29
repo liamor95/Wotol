@@ -1,5 +1,28 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Vraies icones vectorielles + correction d'un bug de centrage (29/07/2026, suite)
+
+Suite a "fait les vraies icones" : les glyphes texte ASCII provisoires (X/#/^/+/*) sont
+remplaces par de VRAIS pictogrammes dessines au Canvas (traits/lignes, pas de texture importee —
+coherent avec le reste du HUD greybox, meme logique que `WOTOLGlow`/`WOTOLZoneTelegraph`) :
+- **`AWOTOLDemoHUD::DrawAxisGlyph`** (nouveau) : epee (Offensif), bouclier a 5 cotes (Defensif),
+  double chevron (Support), croix medicale (Soins), reticule/cercle+croix (Controle). Dessine en
+  haut a gauche de chaque noeud d'axe dans l'ecran COMPETENCES et l'arbre RECHERCHE.
+
+**Bug reel decouvert et corrige en cours de route** : `DrawCenteredText` centre sur
+`Canvas->SizeX` (LARGEUR TOTALE DE L'ECRAN), pas sur le panneau qui l'appelle. Le panneau de
+fenetre de batiment (large ~360px, colle a droite de l'ecran) utilisait pourtant cette fonction
+pour TOUT son contenu (Resume/Recrutement/Statistiques/Competences/Role) depuis sa creation ->
+ce texte s'affichait en realite au MILIEU de l'ecran, pas a l'interieur du panneau visible a
+droite. Corrige avec un nouveau `DrawCenteredTextInBox(Box, ...)` qui centre a l'interieur d'une
+zone donnee ; tous les appels du panneau de batiment (~15) sont passes dessus. Les autres ecrans
+plein-ecran (COMPETENCES, RECHERCHE, menus...) n'etaient PAS concernes (pas de panneau etroit).
+
+**Toujours pas fait (hors scope, pas invente) :** portee Aquispheres a plusieurs paliers ; mode
+de visee a la souris pour la telegraphie Noxeflare ; vraie recreation visuelle proche de la
+maquette BASTION CRISTALLIN (icones d'amelioration dediees par bouton, liste "recherches en
+cours" avec barres de progression).
+
 ## Vraie presentation visuelle des arbres de competences, basee sur recherche (29/07/2026, suite)
 
 Liamor a demande une recherche web sur les meilleurs arbres de competences/tech trees d'autres

@@ -496,6 +496,67 @@ void AWOTOLDemoHUD::DrawButton(const FBox2D& R, const FString& Label, const FLin
 	}
 }
 
+// Pictogramme vectoriel (traits Canvas uniquement, aucune texture) par thématique d'axe —
+// remplace le glyphe texte ASCII provisoire (X/#/^/+/*) par une vraie petite icône dessinée,
+// cohérent avec le reste du HUD greybox (dessin procédural, pas d'asset importé). L'ordre des
+// tests reste le même que SkillAxisCategoryColor/Icon : "Soin" avant "Support".
+void AWOTOLDemoHUD::DrawAxisGlyph(const FVector2D& Center, float Size, const FString& Category, const FLinearColor& Color)
+{
+	const float S = Size * 0.5f;
+	const float Th = FMath::Max(1.5f, Size * 0.12f);
+
+	if (Category.Contains(TEXT("Soin")))
+	{
+		// Croix médicale : deux barres perpendiculaires.
+		DrawRect(Color, Center.X - S * 0.18f, Center.Y - S, S * 0.36f, S * 2.f);
+		DrawRect(Color, Center.X - S, Center.Y - S * 0.18f, S * 2.f, S * 0.36f);
+	}
+	else if (Category.Contains(TEXT("Controle")))
+	{
+		// Réticule de contrôle : cercle (octogone) + croix centrale courte.
+		const int32 N = 8;
+		FVector2D Prev = Center + FVector2D(S, 0.f);
+		for (int32 k = 1; k <= N; ++k)
+		{
+			const float Ang = (2.f * PI) * (float)k / (float)N;
+			const FVector2D Pt = Center + FVector2D(FMath::Cos(Ang), FMath::Sin(Ang)) * S;
+			DrawLine(Prev.X, Prev.Y, Pt.X, Pt.Y, Color, Th);
+			Prev = Pt;
+		}
+		DrawLine(Center.X - S * 0.45f, Center.Y, Center.X + S * 0.45f, Center.Y, Color, Th);
+		DrawLine(Center.X, Center.Y - S * 0.45f, Center.X, Center.Y + S * 0.45f, Color, Th);
+	}
+	else if (Category.Contains(TEXT("Defensif")))
+	{
+		// Bouclier : silhouette à 5 côtés (haut plat, pointe en bas).
+		const FVector2D P0 = Center + FVector2D(-S, -S);
+		const FVector2D P1 = Center + FVector2D(S, -S);
+		const FVector2D P2 = Center + FVector2D(S, S * 0.15f);
+		const FVector2D P3 = Center + FVector2D(0.f, S);
+		const FVector2D P4 = Center + FVector2D(-S, S * 0.15f);
+		DrawLine(P0.X, P0.Y, P1.X, P1.Y, Color, Th);
+		DrawLine(P1.X, P1.Y, P2.X, P2.Y, Color, Th);
+		DrawLine(P2.X, P2.Y, P3.X, P3.Y, Color, Th);
+		DrawLine(P3.X, P3.Y, P4.X, P4.Y, Color, Th);
+		DrawLine(P4.X, P4.Y, P0.X, P0.Y, Color, Th);
+	}
+	else if (Category.Contains(TEXT("Support")))
+	{
+		// Double chevron vers le haut (flèche de "buff", langage visuel commun aux RPG/RTS).
+		DrawLine(Center.X - S, Center.Y + S * 0.15f, Center.X, Center.Y - S * 0.7f, Color, Th);
+		DrawLine(Center.X, Center.Y - S * 0.7f, Center.X + S, Center.Y + S * 0.15f, Color, Th);
+		DrawLine(Center.X - S * 0.7f, Center.Y + S, Center.X, Center.Y + S * 0.15f, Color, Th);
+		DrawLine(Center.X, Center.Y + S * 0.15f, Center.X + S * 0.7f, Center.Y + S, Color, Th);
+	}
+	else // Offensif (par défaut)
+	{
+		// Épée : lame verticale + garde horizontale + pommeau.
+		DrawLine(Center.X, Center.Y - S, Center.X, Center.Y + S * 0.6f, Color, Th);
+		DrawLine(Center.X - S * 0.55f, Center.Y - S * 0.15f, Center.X + S * 0.55f, Center.Y - S * 0.15f, Color, Th);
+		DrawLine(Center.X - S * 0.22f, Center.Y + S, Center.X + S * 0.22f, Center.Y + S, Color, Th * 1.3f);
+	}
+}
+
 // ─── Fond marin animé (dégradé + bulles + rais de lumière) ────────────────────
 void AWOTOLDemoHUD::DrawUnderwaterBackground(float W, float H)
 {
@@ -1765,17 +1826,17 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		const bool bSelUnlocked = Demo->IsCategoryUnlocked(SelCat);
 		if (!bSelUnlocked)
 		{
-			DrawCenteredText(TEXT("VERROUILLE"), Y, FLinearColor(0.85f, 0.4f, 0.35f, 1.f), 1.0f); Y += 30.f;
-			DrawCenteredText(TEXT("Se debloque plus tard dans la demo."), Y,
+			DrawCenteredTextInBox(Panel, TEXT("VERROUILLE"), Y, FLinearColor(0.85f, 0.4f, 0.35f, 1.f), 1.0f); Y += 30.f;
+			DrawCenteredTextInBox(Panel, TEXT("Se debloque plus tard dans la demo."), Y,
 				FLinearColor(0.75f, 0.78f, 0.85f, 0.9f), 0.85f);
 		}
 		else if (SelCat == EDemoUnitCategory::Distance && !Demo->IsRangedBuildingConstructed())
 		{
-			DrawCenteredText(TEXT("PAS ENCORE CONSTRUIT"), Y, FLinearColor(1.f, 0.85f, 0.4f, 1.f), 1.0f); Y += 30.f;
-			DrawCenteredText(FString::Printf(TEXT("Cout : %d cristaux + %d mineraux abyssaux"),
+			DrawCenteredTextInBox(Panel, TEXT("PAS ENCORE CONSTRUIT"), Y, FLinearColor(1.f, 0.85f, 0.4f, 1.f), 1.0f); Y += 30.f;
+			DrawCenteredTextInBox(Panel, FString::Printf(TEXT("Cout : %d cristaux + %d mineraux abyssaux"),
 				Demo->RangedBuildingCrystalCost, Demo->RangedBuildingAbyssalMaterialCost), Y,
 				FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 0.9f); Y += 26.f;
-			DrawCenteredText(TEXT("Choisissez un emplacement via sa carte en bas."), Y,
+			DrawCenteredTextInBox(Panel, TEXT("Choisissez un emplacement via sa carte en bas."), Y,
 				FLinearColor(0.7f, 0.75f, 0.85f, 0.85f), 0.8f);
 		}
 		else if (ActiveTab == 0) // ─── RÉSUMÉ ───
@@ -1793,31 +1854,31 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 				DrawTexture(Icon, ImgX, Y, ImgSize, ImgSize, 0.f, 0.f, 1.f, 1.f);
 				Y += ImgSize + 6.f;
 			}
-			DrawCenteredText(CityBuildingLabel(Fac, SelCat).ToUpper(), Y, Accent, 1.1f); Y += 28.f;
-			DrawCenteredText(CityUnitLabel(Fac, SelCat), Y, FLinearColor::White, 1.0f); Y += 30.f;
-			DrawCenteredText(CityBuildingSummary(Fac, SelCat), Y, FLinearColor(0.8f, 0.86f, 0.95f, 0.9f), 0.78f);
+			DrawCenteredTextInBox(Panel, CityBuildingLabel(Fac, SelCat).ToUpper(), Y, Accent, 1.1f); Y += 28.f;
+			DrawCenteredTextInBox(Panel, CityUnitLabel(Fac, SelCat), Y, FLinearColor::White, 1.0f); Y += 30.f;
+			DrawCenteredTextInBox(Panel, CityBuildingSummary(Fac, SelCat), Y, FLinearColor(0.8f, 0.86f, 0.95f, 0.9f), 0.78f);
 		}
 		else if (ActiveTab == 1) // ─── RECRUTEMENT ───
 		{
-			DrawCenteredText(CityUnitLabel(Fac, SelCat), Y, FLinearColor::White, 1.0f); Y += 32.f;
+			DrawCenteredTextInBox(Panel, CityUnitLabel(Fac, SelCat), Y, FLinearColor::White, 1.0f); Y += 32.f;
 			if (SelCat == EDemoUnitCategory::Mythique)
 			{
-				DrawCenteredText(TEXT("Deja dans votre armee (creature unique, non recrutee en serie)."),
+				DrawCenteredTextInBox(Panel, TEXT("Deja dans votre armee (creature unique, non recrutee en serie)."),
 					Y, FLinearColor(0.7f, 0.85f, 0.75f, 1.f), 0.8f);
 			}
 			else if (SelCat == EDemoUnitCategory::Chef)
 			{
-				DrawCenteredText(TEXT("Le chef est le personnage joue : jamais recrute en serie."),
+				DrawCenteredTextInBox(Panel, TEXT("Le chef est le personnage joue : jamais recrute en serie."),
 					Y, FLinearColor(0.7f, 0.85f, 0.75f, 1.f), 0.8f);
 			}
 			else
 			{
 				const FName SelUnitID = Demo->GetUnitID(Fac, SelCat);
-				DrawCenteredText(FString::Printf(TEXT("Cout de production : %d"), Demo->GetProductionCost(SelCat)),
+				DrawCenteredTextInBox(Panel, FString::Printf(TEXT("Cout de production : %d"), Demo->GetProductionCost(SelCat)),
 					Y, FLinearColor(1.f, 0.95f, 0.6f, 1.f), 0.9f); Y += 26.f;
-				DrawCenteredText(FString::Printf(TEXT("En reserve : %d"), Demo->GetReserveCount(SelUnitID)),
+				DrawCenteredTextInBox(Panel, FString::Printf(TEXT("En reserve : %d"), Demo->GetReserveCount(SelUnitID)),
 					Y, FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 0.85f); Y += 30.f;
-				DrawCenteredText(TEXT("Utilisez la carte de production en bas de l'ecran pour produire."),
+				DrawCenteredTextInBox(Panel, TEXT("Utilisez la carte de production en bas de l'ecran pour produire."),
 					Y, FLinearColor(0.7f, 0.75f, 0.85f, 0.85f), 0.72f);
 			}
 		}
@@ -1828,23 +1889,23 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 			// séparées dans ce système, on l'affiche donc explicitement pour lever l'ambiguïté
 			// (demande de detail par batiment de Liamor du 26/07/2026).
 			const int32 BLvl = Demo->GetBuildingLevel(SelCat);
-			DrawCenteredText(FString::Printf(TEXT("NIVEAU %d / %d  (attaque + defense)"),
+			DrawCenteredTextInBox(Panel, FString::Printf(TEXT("NIVEAU %d / %d  (attaque + defense)"),
 				BLvl, UDemoFlowSubsystem::MaxBuildingLevel),
 				Y, FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 0.95f); Y += 30.f;
 
 			const int32 UpCost = Demo->GetBuildingUpgradeCost(SelCat);
 			if (UpCost > 0)
 			{
-				DrawCenteredText(FString::Printf(TEXT("Amelioration : %d cristaux"), UpCost), Y,
+				DrawCenteredTextInBox(Panel, FString::Printf(TEXT("Amelioration : %d cristaux"), UpCost), Y,
 					Demo->CanUpgradeBuilding(SelCat) ? FLinearColor(0.6f, 1.f, 0.65f, 1.f)
 						: FLinearColor(1.f, 0.6f, 0.55f, 1.f), 0.85f);
 			}
 			else
 			{
-				DrawCenteredText(TEXT("Niveau maximum atteint"), Y, FLinearColor(0.7f, 0.85f, 1.f, 0.9f), 0.85f);
+				DrawCenteredTextInBox(Panel, TEXT("Niveau maximum atteint"), Y, FLinearColor(0.7f, 0.85f, 1.f, 0.9f), 0.85f);
 			}
 			Y += 30.f;
-			DrawCenteredText(FString::Printf(TEXT("Armee active : %d / %d"),
+			DrawCenteredTextInBox(Panel, FString::Printf(TEXT("Armee active : %d / %d"),
 				Demo->GetArmyUnitCount(), Demo->GetArmyUnitCap()), Y,
 				FLinearColor(0.8f, 0.86f, 0.95f, 0.85f), 0.8f);
 		}
@@ -1852,31 +1913,32 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		{
 			const int32 Grade = Demo->GetUnitGrade(SelCat);
 			const int32 MaxGrade = Demo->GetMaxUnitGrade(SelCat);
-			DrawCenteredText(FString::Printf(TEXT("GRADE %d / %d"), Grade, MaxGrade), Y, Accent, 1.0f); Y += 28.f;
+			DrawCenteredTextInBox(Panel, FString::Printf(TEXT("GRADE %d / %d"), Grade, MaxGrade), Y, Accent, 1.0f); Y += 28.f;
 
 			const int32 Axis = Demo->GetUnitAxis(SelCat);
-			DrawCenteredText(FString::Printf(TEXT("Voie : %s"), *SkillAxisLabel(Fac, SelCat, Axis)),
+			DrawCenteredTextInBox(Panel, FString::Printf(TEXT("Voie : %s"), *SkillAxisLabel(Fac, SelCat, Axis)),
 				Y, FLinearColor(0.9f, 0.95f, 1.f, 0.95f), 0.88f); Y += 24.f;
 			if (Axis != 0)
 			{
 				const FString AxCat = SkillAxisCategory(Fac, SelCat, Axis);
-				DrawCenteredText(FString::Printf(TEXT("[%s] %s - choix permanent"), *SkillAxisCategoryIcon(AxCat), *AxCat),
+				DrawCenteredTextInBox(Panel, FString::Printf(TEXT("%s - choix permanent"), *AxCat),
 					Y, SkillAxisCategoryColor(AxCat), 0.75f);
+				DrawAxisGlyph(FVector2D(Panel.Min.X + 24.f, Y + 6.f), 16.f, AxCat, SkillAxisCategoryColor(AxCat));
 				Y += 24.f;
 			}
 			else
 			{
 				Y += 24.f;
 			}
-			DrawCenteredText(SelCat == EDemoUnitCategory::Chef
+			DrawCenteredTextInBox(Panel, SelCat == EDemoUnitCategory::Chef
 				? TEXT("Bouton RECHERCHE (bas de la fenetre) : ameliorer le Grade / choisir la voie.")
 				: TEXT("Ecran COMPETENCES : ameliorer le Grade / choisir la voie."), Y,
 				FLinearColor(0.7f, 0.75f, 0.85f, 0.85f), 0.68f);
 		}
 		else // ─── RÔLE (ActiveTab == 4) ───
 		{
-			DrawCenteredText(CityUnitLabel(Fac, SelCat), Y, FLinearColor::White, 1.0f); Y += 32.f;
-			DrawCenteredText(CityRoleFlavor(SelCat), Y, FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 0.78f);
+			DrawCenteredTextInBox(Panel, CityUnitLabel(Fac, SelCat), Y, FLinearColor::White, 1.0f); Y += 32.f;
+			DrawCenteredTextInBox(Panel, CityRoleFlavor(SelCat), Y, FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 0.78f);
 		}
 
 		// Raccourci vers la fenêtre RECHERCHE (bâtiments de cité + arbre Grade/Axe du Chef en un
@@ -2184,11 +2246,13 @@ void AWOTOLDemoHUD::DrawSkillsView(float W, float H, UDemoFlowSubsystem* Demo)
 				: (a > 0 && !bCanPickAxis) ? FLinearColor(0.3f, 0.32f, 0.36f, 1.f)
 				: CatColor * 0.6f;
 			const FString Label = (a == 0) ? SkillAxisLabel(Fac, Cat, a)
-				: FString::Printf(TEXT("[%s] %s\n(%s)"), *SkillAxisCategoryIcon(AxCat),
-					*SkillAxisLabel(Fac, Cat, a), *AxCat);
+				: FString::Printf(TEXT("%s\n(%s)"), *SkillAxisLabel(Fac, Cat, a), *AxCat);
 			DrawButton(R, Label, Tint, bSel ? 1.05f : 0.85f);
 			if (a > 0)
 			{
+				// Vraie icône vectorielle (pas de texte "[X]") en haut à gauche du noeud, en blanc
+				// pour rester lisible sur n'importe quelle teinte de fond de bouton.
+				DrawAxisGlyph(FVector2D(R.Min.X + 20.f, R.Min.Y + 16.f), 18.f, AxCat, FLinearColor::White);
 				// État explicite sous le noeud : CHOISI (étoile) / verrouillé (cadenas) / prêt à
 				// prendre — ne PAS se reposer sur la couleur seule pour signaler l'état.
 				if (bSel)
@@ -2315,8 +2379,9 @@ void AWOTOLDemoHUD::DrawResearchView(float W, float H, UDemoFlowSubsystem* Demo)
 		const FLinearColor CatColor = SkillAxisCategoryColor(AxCat);
 		const FLinearColor Tint = bSel ? CatColor
 			: bCanPick ? CatColor * 0.6f : FLinearColor(0.3f, 0.32f, 0.36f, 1.f);
-		DrawButton(AxR, FString::Printf(TEXT("[%s] %s\n(%s)"), *SkillAxisCategoryIcon(AxCat),
-			*SkillAxisLabel(Fac, ChefCat, a), *AxCat), Tint, 0.72f);
+		DrawButton(AxR, FString::Printf(TEXT("%s\n(%s)"), *SkillAxisLabel(Fac, ChefCat, a), *AxCat), Tint, 0.72f);
+		// Vraie icône vectorielle en haut à gauche du noeud (au lieu du texte "[X]").
+		DrawAxisGlyph(FVector2D(AxR.Min.X + 22.f, AxR.Min.Y + 18.f), 20.f, AxCat, FLinearColor::White);
 		if (bSel)
 			DrawText(TEXT("* CHOISI (permanent)"), CatColor, AxR.Min.X, AxR.Max.Y + 4.f, nullptr, 0.68f);
 		else if (Grade < 1)
@@ -3538,6 +3603,21 @@ void AWOTOLDemoHUD::DrawCenteredText(const FString& Text, float Y,
 	float TW = 0.f, TH = 0.f;
 	GetTextSize(Text, TW, TH, Font, Scale);
 	const float X = (Canvas->SizeX - TW) * 0.5f;
+
+	DrawText(Text, FLinearColor(0.f, 0.f, 0.f, 0.7f), X + 2.f, Y + 2.f, Font, Scale);
+	DrawText(Text, Color, X, Y, Font, Scale);
+}
+
+void AWOTOLDemoHUD::DrawCenteredTextInBox(const FBox2D& Box, const FString& Text, float Y,
+	const FLinearColor& Color, float Scale)
+{
+	if (!Canvas) return;
+	UFont* Font = GEngine ? GEngine->GetLargeFont() : nullptr;
+
+	float TW = 0.f, TH = 0.f;
+	GetTextSize(Text, TW, TH, Font, Scale);
+	const float BoxW = Box.Max.X - Box.Min.X;
+	const float X = Box.Min.X + (BoxW - TW) * 0.5f;
 
 	DrawText(Text, FLinearColor(0.f, 0.f, 0.f, 0.7f), X + 2.f, Y + 2.f, Font, Scale);
 	DrawText(Text, Color, X, Y, Font, Scale);

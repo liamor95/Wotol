@@ -137,6 +137,12 @@ public:
 
 private:
 	void DrawCenteredText(const FString& Text, float Y, const FLinearColor& Color, float Scale);
+	// Comme DrawCenteredText, mais centré HORIZONTALEMENT DANS Box (pas sur tout l'écran) —
+	// pour du texte à l'intérieur d'un panneau étroit (ex. fenêtre de bâtiment, décalée sur le
+	// côté). Corrige un bug pré-existant : DrawCenteredText centrait sur Canvas->SizeX entier,
+	// donc le texte du panneau de bâtiment (large ~360px, collé à droite) s'affichait en réalité
+	// au milieu de l'écran, hors du panneau (découvert le 29/07/2026 en ajoutant les icônes).
+	void DrawCenteredTextInBox(const FBox2D& Box, const FString& Text, float Y, const FLinearColor& Color, float Scale);
 	void DrawPauseButton(float W, float H);
 	void DrawSettingsButton(float W, float H);
 	void DrawPauseOverlay(float W, float H);
@@ -186,6 +192,10 @@ private:
 	// Boussole de courant océanique (sens relatif caméra + intensité).
 	void DrawCurrentIndicator(float W, float H, class UWorld* World);
 	void DrawButton(const FBox2D& R, const FString& Label, const FLinearColor& Tint, float TextScale = 1.3f);
+	// Pictogramme vectoriel (traits Canvas, pas de texture) pour la thématique d'un axe de
+	// compétence — épée (Offensif), bouclier (Défensif), chevron (Support), croix (Soins),
+	// réticule (Contrôle). Remplace le glyphe texte ASCII provisoire (demande Liamor 29/07/2026).
+	void DrawAxisGlyph(const FVector2D& Center, float Size, const FString& Category, const FLinearColor& Color);
 
 	// Fond marin ANIMÉ (dégradé de profondeur + bulles qui montent + rais de lumière),
 	// partagé par tous les écrans plein-écran pour un rendu vivant (pas une couleur plate).
