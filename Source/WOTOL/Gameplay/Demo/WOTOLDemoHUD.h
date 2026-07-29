@@ -106,14 +106,15 @@ public:
 	static FBox2D SkillsBackButtonRect(float W, float H);
 	// Bouton "AMÉLIORER LE GRADE" de la ligne (catégorie d'unité).
 	static FBox2D SkillsGradeButtonRect(int32 CatIndex, float W, float H);
-	// Bouton "PALIER" (investissement complémentaire dans l'axe déjà choisi — ex. portée
-	// Hydrosniper/Hydropompe d'Aquisphères), affiché seulement pour les catégories concernées.
+	// Bouton "PALIER" (investissement complémentaire dans l'axe déjà choisi, une fois pris —
+	// portée qui grandit progressivement pour les unités à distance), affiché seulement pour
+	// les catégories concernées (cf. UDemoFlowSubsystem::DoesCategoryAxisScaleByTier).
 	static FBox2D SkillsTierButtonRect(int32 CatIndex, float W, float H);
 	// Catégories productibles en cité, dans l'ordre des cartes (hors Chef).
 	static int32 CityCardCount();
 	static EDemoUnitCategory CityCardCategory(int32 Index);
-	// Comme CityCardCount/CityCardCategory + le Chef en 6e ligne (pas de carte de
-	// production, mais peut lui aussi monter en Grade/Axe — seul à atteindre le Grade 2).
+	// Alias de CityCardCount/CityCardCategory pour l'écran Compétences (hors Chef — il se gère
+	// via son propre bâtiment cliquable dans la cité, cf. fenêtre RECHERCHE).
 	static int32 SkillsCategoryCount();
 	static EDemoUnitCategory SkillsCategoryAt(int32 Index);
 

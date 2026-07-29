@@ -1549,19 +1549,6 @@ static FLinearColor SkillAxisCategoryColor(const FString& Category)
 	return FLinearColor(0.55f, 0.6f, 0.7f, 1.f); // neutre (pas de categorie / "?")
 }
 
-// Glyphe associé à la thématique — la couleur seule n'est pas assez claire pour un daltonien
-// et n'aide pas à mémoriser la thématique d'un coup d'œil (retour de recherche : les bons
-// arbres de compétences combinent TOUJOURS icône + couleur, jamais la couleur seule).
-static FString SkillAxisCategoryIcon(const FString& Category)
-{
-	if (Category.Contains(TEXT("Soin")))     return TEXT("+");
-	if (Category.Contains(TEXT("Controle"))) return TEXT("*");
-	if (Category.Contains(TEXT("Defensif"))) return TEXT("#");
-	if (Category.Contains(TEXT("Support")))  return TEXT("^");
-	if (Category.Contains(TEXT("Offensif"))) return TEXT("X");
-	return TEXT("?");
-}
-
 UTexture2D* AWOTOLDemoHUD::GetTransitionBackground()
 {
 	if (TransitionBgTexture || bTransitionBgTried) return TransitionBgTexture;
@@ -2227,8 +2214,9 @@ void AWOTOLDemoHUD::DrawSkillsView(float W, float H, UDemoFlowSubsystem* Demo)
 		const bool bUnlocked = Demo->IsCategoryUnlocked(Cat);
 		const int32 Grade = Demo->GetUnitGrade(Cat);
 		const int32 MaxGrade = Demo->GetMaxUnitGrade(Cat);
-		// Nom de l'unité + Grade courant à gauche de la ligne (le Chef, seul à pouvoir
-		// atteindre le Grade 2, est ajouté en 6e ligne — cf. SkillsCategoryAt).
+		// Nom de l'unité + Grade courant à gauche de la ligne. Le Chef n'apparaît PAS ici (il se
+		// gère via son propre bâtiment cliquable dans la cité -> fenêtre RECHERCHE, cf.
+		// TODO_WOTOL.md "Correction : le Chef se gère via SON bâtiment").
 		DrawText(FString::Printf(TEXT("%s (Grade %d/%d)"), *CityUnitLabel(Fac, Cat), Grade, MaxGrade),
 			FLinearColor::White, W * 0.08f, R0.Min.Y - 22.f,
 			GEngine ? GEngine->GetLargeFont() : nullptr, 1.05f);
