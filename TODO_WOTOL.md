@@ -1,5 +1,62 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Mode ACTION de l'exploration (26/07/2026, demande explicite de Liamor)
+
+Audit + implementation suite a la question de Liamor : "est-ce que je vais pouvoir jouer
+vraiment comme un jeu d'action en troisieme personne ?" (camera 3e personne + zoom, nage libre
+en volume, bouton d'attaque + competence, modele 3D du Chef pousse au maximum du detail).
+
+**Deja en place avant cette passe (confirme, pas retouche) :** camera 3e personne complete
+(SpringArm + Camera, camera lag, bUsePawnControlRotation) ; nage libre en volume 3D (mode
+Flying, 6 degres de liberte, sans gravite) ; ruee (Dash, touche C) + sprint (Alt) avec
+sensation "action" (banking, FOV dynamique) ; un seul heros controlable (pas d'armee visible
+en exploration, conforme a la demande).
+
+**Manquant, ajoute cette passe :**
+- **Zoom camera** (molette souris) : `AWOTOLHeroCharacter::InputZoom`/`TickZoom`, MEME formule
+  que `AWOTOLBattleCamera::TickZoom` (zoom par cran, accelere de loin), borne
+  [MinArmLength=180, MaxArmLength=900].
+- **Bouton d'attaque + competence** ("se battre entre guillemets" — citation de Liamor lui-meme,
+  donc feedback/sensation plutot que degats reels) : attaque sur l'action "Interact" (F/Entree,
+  deja declaree dans DefaultInput.ini mais jamais branchee jusqu'ici) ; competence sur R (MEME
+  touche qu'en bataille RTS, `AWOTOLPlayerController_Battle::ActivateSelectionAbility` —
+  coherence d'entree entre les deux modes). Chacune a un cooldown + un texte flottant "Touche !"
+  / "Competence !" (meme systeme que "Pare"/"Esquive" en bataille, `AWOTOLDamageNumber::
+  SpawnText`) si une cible (`AWOTOLDemoUnit`, en pratique le Kraken pre-bataille) est devant
+  le heros a portee. **NE MODIFIE PAS les PV reels du Kraken** : ils sont calibres pour la
+  bataille RTS qui suit la decouverte, un geste d'exploration n'a pas a fausser ce calibrage.
+  L'attaque ajoute aussi une petite impulsion vers l'avant (le coup se sent physiquement).
+- **Corps du heros entierement reconstruit** (`AWOTOLHeroCharacter::BuildHeroBody`,
+  ~35-40 pieces) : remplace l'ancienne silhouette a une seule sphere etiree. Un seul heros
+  affiche pendant l'exploration -> aucune contrainte de perf comme les 100 unites de la grande
+  bataille, detail pousse au maximum. Palette et traits IDENTIQUES a `BuildAquiKnight`
+  (Aquiloris : crete, pauldrons, gemme losange, cape) et au bloc Noxar de WOTOLDemoUnit.cpp
+  (Noxeens : veines d'energie bleues, tentacules dans le dos) — coherence visuelle totale avec
+  les unites RTS deja validees. Helpers AddPart/MakeJoint/MakeBone DUPLIQUES (pas partages)
+  depuis WOTOLDemoUnit.cpp : WOTOLHeroCharacter derive de ACharacter, pas de AUnitBase, donc
+  aucun risque de toucher au systeme d'animation/degats des unites RTS.
+- **Animation de nage procedurale** (`AnimateSwim`) : bras/jambes articules (JRShoulder/JRElbow/
+  JRHip/JRKnee + symetrique gauche) pivotent en cycle sinusoidal cadence sur la VITESSE reelle
+  (immobile = flotte doucement, sprint = brasse plus vite). PAS un vrai maillage squelettique/
+  Animation Blueprint (aucun asset importe en greybox) — c'est le meme principe de rotation de
+  joints par script que `AnimateArticulated` pour les unites RTS, applique ici a un seul
+  personnage.
+
+**Deliberement pas fait (perimetre/risque) :**
+- Pas de vrai skeletal mesh/animation importee (hors de portee sans asset 3D/DCC, deja etabli
+  a plusieurs reprises cette session — meme limite que pour les Meshy AI de Liamor).
+- Pas de degats reels sur le Kraken pendant l'exploration (cf. plus haut, calibrage de bataille
+  a proteger).
+- Pas de limite de zone explicite (mur invisible) : le joueur est deja borne DE FAIT par les
+  rochers bloquants de l'horizon (SpawnRidge/SpawnRock, bBlocking=true, ~8500-11500 unites du
+  centre) — juste pas un garde-fou "vous quittez la zone" explicite. A ajouter si Liamor le
+  demande specifiquement.
+- **Non verifie ici (pas de compilateur cote assistant)** : a tester en PRIORITE au prochain
+  retour PC — orientation du corps (face bien vers l'avant du mouvement), lean de la crete/cape
+  Aquiloris (valeurs choisies sans retour visuel, risque de pencher dans le mauvais sens),
+  zoom molette, touches F/Entree (attaque) et R (competence), animation de nage a differentes
+  vitesses (immobile/nage/sprint).
+
 ## Variante PORTRAIT "circuit tech" recue (26/07/2026, suite) — les 4 cadres sont a jour
 
 Liamor a fait generer la variante PORTRAIT manquante via ChatGPT (meme style "circuit tech"
