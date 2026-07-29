@@ -468,11 +468,32 @@ void AWOTOLDemoHUD::DrawButton(const FBox2D& R, const FString& Label, const FLin
 	const float SheenX = R.Min.X + (0.5f + 0.5f * FMath::Sin(T * 1.6f)) * (Sz.X - 40.f);
 	DrawRect(FLinearColor(Tint.R, Tint.G, Tint.B, 0.14f), SheenX, R.Min.Y + 4.f, 40.f, Sz.Y - 8.f);
 
-	// Libellé + ombre pour le contraste
-	float TW, TH; GetTextSize(Label, TW, TH, GEngine->GetLargeFont(), TextScale);
-	const float LX = R.Min.X + (Sz.X - TW) * 0.5f, LY = R.Min.Y + (Sz.Y - TH) * 0.5f;
-	DrawText(Label, FLinearColor(0.f, 0.f, 0.f, 0.7f), LX + 2.f, LY + 2.f, GEngine->GetLargeFont(), TextScale);
-	DrawText(Label, FLinearColor::White, LX, LY, GEngine->GetLargeFont(), TextScale);
+	// Libellé + ombre pour le contraste. Support MULTI-LIGNE ("\n", utilisé par les boutons
+	// Grade/Axe/Recherche) : chaque ligne centrée INDIVIDUELLEMENT plutôt qu'un seul bloc centré
+	// sur la largeur max (qui décalait les lignes courtes vers la gauche) — corrigé 29/07/2026.
+	UFont* Font = GEngine->GetLargeFont();
+	TArray<FString> Lines;
+	Label.ParseIntoArray(Lines, TEXT("\n"), false);
+	if (Lines.Num() == 0) Lines.Add(Label);
+
+	TArray<float> LineW, LineH;
+	float TotalH = 0.f;
+	for (const FString& Line : Lines)
+	{
+		float LW = 0.f, LH = 0.f;
+		GetTextSize(Line, LW, LH, Font, TextScale);
+		LineW.Add(LW);
+		LineH.Add(LH);
+		TotalH += LH;
+	}
+	float LY = R.Min.Y + (Sz.Y - TotalH) * 0.5f;
+	for (int32 i = 0; i < Lines.Num(); ++i)
+	{
+		const float LX = R.Min.X + (Sz.X - LineW[i]) * 0.5f;
+		DrawText(Lines[i], FLinearColor(0.f, 0.f, 0.f, 0.7f), LX + 2.f, LY + 2.f, Font, TextScale);
+		DrawText(Lines[i], FLinearColor::White, LX, LY, Font, TextScale);
+		LY += LineH[i];
+	}
 }
 
 // ─── Fond marin animé (dégradé + bulles + rais de lumière) ────────────────────
@@ -1453,6 +1474,20 @@ static FString SkillAxisCategory(EFactionID Fac, EDemoUnitCategory Cat, int32 Ax
 	}
 }
 
+// Teinte associée à la thématique de l'axe (Offensif=rouge, Defensif=bleu, Support=cyan,
+// Soins/Support Soin=vert, Controle=violet) — repère visuel rapide dans l'onglet Compétences,
+// l'écran COMPETENCES et l'arbre RECHERCHE (polish demandé par Liamor, 29/07/2026). L'ordre des
+// tests compte : "Soin" avant "Support" pour que "Support Soin" ressorte vert, pas cyan.
+static FLinearColor SkillAxisCategoryColor(const FString& Category)
+{
+	if (Category.Contains(TEXT("Soin")))     return FLinearColor(0.35f, 0.85f, 0.45f, 1.f); // vert
+	if (Category.Contains(TEXT("Controle"))) return FLinearColor(0.65f, 0.4f, 0.85f, 1.f);   // violet
+	if (Category.Contains(TEXT("Defensif"))) return FLinearColor(0.3f, 0.55f, 0.85f, 1.f);   // bleu
+	if (Category.Contains(TEXT("Support")))  return FLinearColor(0.3f, 0.75f, 0.75f, 1.f);   // cyan
+	if (Category.Contains(TEXT("Offensif"))) return FLinearColor(0.85f, 0.35f, 0.3f, 1.f);   // rouge
+	return FLinearColor(0.55f, 0.6f, 0.7f, 1.f); // neutre (pas de categorie / "?")
+}
+
 UTexture2D* AWOTOLDemoHUD::GetTransitionBackground()
 {
 	if (TransitionBgTexture || bTransitionBgTried) return TransitionBgTexture;
@@ -1812,7 +1847,8 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 			if (Axis != 0)
 			{
 				DrawCenteredText(FString::Printf(TEXT("(%s) - choix permanent"),
-					*SkillAxisCategory(Fac, SelCat, Axis)), Y, FLinearColor(0.65f, 0.9f, 1.f, 0.9f), 0.7f);
+					*SkillAxisCategory(Fac, SelCat, Axis)),
+					Y, SkillAxisCategoryColor(SkillAxisCategory(Fac, SelCat, Axis)), 0.75f);
 				Y += 24.f;
 			}
 			else
@@ -2110,10 +2146,14 @@ void AWOTOLDemoHUD::DrawSkillsView(float W, float H, UDemoFlowSubsystem* Demo)
 		{
 			const FBox2D R = SkillsAxisRect(i, a, W, H);
 			const bool bSel = (Cur == a);
+			// Teinte par THEMATIQUE (Offensif/Defensif/Support/Soins/Controle) plutot que la
+			// couleur de faction generique -> repere visuel rapide (polish 29/07/2026). Assombrie
+			// si non selectionnable pour l'instant (verrouille/pas encore accessible).
+			const FLinearColor CatColor = (a > 0) ? SkillAxisCategoryColor(SkillAxisCategory(Fac, Cat, a)) : Accent;
 			FLinearColor Tint = !bUnlocked ? FLinearColor(0.4f, 0.4f, 0.45f, 1.f)
-				: bSel ? Accent
-				: (a > 0 && !bCanPickAxis) ? FLinearColor(0.35f, 0.38f, 0.42f, 1.f)
-				: FLinearColor(0.55f, 0.6f, 0.7f, 1.f);
+				: bSel ? CatColor
+				: (a > 0 && !bCanPickAxis) ? FLinearColor(0.3f, 0.32f, 0.36f, 1.f)
+				: CatColor * 0.6f;
 			const FString Label = (a == 0) ? SkillAxisLabel(Fac, Cat, a)
 				: FString::Printf(TEXT("%s\n(%s)"), *SkillAxisLabel(Fac, Cat, a), *SkillAxisCategory(Fac, Cat, a));
 			DrawButton(R, Label, Tint, bSel ? 1.05f : 0.85f);
@@ -2165,7 +2205,10 @@ void AWOTOLDemoHUD::DrawResearchView(float W, float H, UDemoFlowSubsystem* Demo)
 	DrawCenteredText(TEXT("Cite (gauche) et Chef (droite) — un seul arbre de recherche"),
 		H * 0.14f, FLinearColor(0.9f, 0.95f, 1.f, 0.95f), 1.0f);
 
-	// Trait vertical central.
+	// Deux panneaux translucides (gauche/droite) + trait vertical central, pour bien voir la
+	// fenêtre scindée en deux demandée par Liamor (au lieu d'un simple trait sur fond uniforme).
+	DrawRect(FLinearColor(0.01f, 0.04f, 0.08f, 0.55f), W * 0.04f, H * 0.20f, W * 0.44f, H * 0.66f);
+	DrawRect(FLinearColor(0.02f, 0.03f, 0.07f, 0.55f), W * 0.52f, H * 0.20f, W * 0.44f, H * 0.66f);
 	DrawLine(W * 0.5f, H * 0.20f, W * 0.5f, H * 0.86f, FLinearColor(1.f, 1.f, 1.f, 0.25f), 2.f);
 	{
 		UFont* HeaderFont = GEngine ? GEngine->GetLargeFont() : nullptr;
@@ -2224,8 +2267,9 @@ void AWOTOLDemoHUD::DrawResearchView(float W, float H, UDemoFlowSubsystem* Demo)
 			(AxR.Min.X + AxR.Max.X) * 0.5f, AxR.Min.Y, Accent, 2.f);
 		const bool bSel = (ChosenAxis == a);
 		const bool bCanPick = (Grade >= 1) && (ChosenAxis == 0);
-		const FLinearColor Tint = bSel ? Accent
-			: bCanPick ? FLinearColor(0.55f, 0.6f, 0.7f, 1.f) : FLinearColor(0.35f, 0.38f, 0.42f, 1.f);
+		const FLinearColor CatColor = SkillAxisCategoryColor(SkillAxisCategory(Fac, ChefCat, a));
+		const FLinearColor Tint = bSel ? CatColor
+			: bCanPick ? CatColor * 0.6f : FLinearColor(0.3f, 0.32f, 0.36f, 1.f);
 		DrawButton(AxR, FString::Printf(TEXT("%s\n(%s)%s"), *SkillAxisLabel(Fac, ChefCat, a),
 			*SkillAxisCategory(Fac, ChefCat, a), bSel ? TEXT("\nCHOISI (permanent)") : TEXT("")),
 			Tint, 0.72f);

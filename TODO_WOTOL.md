@@ -1,5 +1,24 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Polish demande par Liamor ("b" = on peaufine l'existant, 29/07/2026)
+
+- **`AWOTOLDemoHUD::DrawButton` corrige** : gerait mal le texte MULTI-LIGNE ("\n", utilise par
+  les boutons Grade/Axe/Recherche depuis le commit precedent) -> centrait tout le bloc sur la
+  ligne la PLUS LARGE, decalant les lignes courtes vers la gauche au lieu de les centrer chacune.
+  Corrige : chaque ligne est desormais mesuree et centree individuellement. Corrige l'affichage
+  de TOUS les boutons multi-ligne existants (pas seulement les nouveaux).
+- **Couleur par thematique d'axe** (nouveau `SkillAxisCategoryColor`) : Offensif=rouge,
+  Defensif=bleu, Support=cyan, Soins/Support Soin=vert, Controle=violet — repere visuel
+  immediat au lieu de la couleur de faction generique pour tous les boutons d'axe. Applique a
+  l'ecran COMPETENCES, l'onglet Competences de la fenetre de batiment, et l'arbre RECHERCHE.
+- **Fenetre RECHERCHE** : deux panneaux translucides gauche/droite (au lieu d'un simple trait sur
+  fond uniforme) pour mieux montrer la scission demandee.
+
+**Encore a faire si Liamor veut aller plus loin (pas fait, pas invente sans lui) :** vraie
+recreation visuelle proche de la maquette BASTION CRISTALLIN (icones d'amelioration dediees,
+liste "recherches en cours" avec barres de progression, illustrations par onglet) ; mode de
+visee a la souris pour la telegraphie de Noxeflare ; portee Aquispheres a plusieurs paliers.
+
 ## Correction : le Chef se gere via SON batiment, pas une ligne d'ecran (29/07/2026, suite)
 
 Liamor a corrige une incomprehension de ma part sur l'entree precedente : la "ligne Chef dans
