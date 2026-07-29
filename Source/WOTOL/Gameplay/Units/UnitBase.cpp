@@ -181,14 +181,14 @@ float AUnitBase::GetEffectiveAttackRange() const
 	if (Demo->GetUnitGrade(Cat) < 1) return Base;
 
 	const int32 Axis = Demo->GetUnitAxis(Cat);
-	// Axe 1 (longue portée, ex. Hydrosniper) : +2. Axe 2 (zone rapprochée, ex. Hydropompe) : -2.
-	// Portée volontairement LIMITÉE (pas toute la carte) : plafond relevé à 8 (au lieu de 5) pour
-	// que le bonus de l'Axe 1 ait un effet réel (Aquisphères est déjà à 5 de base -> sans ce
-	// relèvement le "+2" était neutralisé par l'ancien plafond, aucun changement visible). Rester
-	// PROVISOIRE, cf. TODO_WOTOL.md — Liamor a confirmé vouloir une portée bornée au Grade 0 qui
-	// grandit avec l'investissement dans l'axe, sans jamais couvrir toute la carte.
-	if (Axis == 1) return FMath::Clamp(Base + 2.f, 1.f, 8.f);
-	if (Axis == 2) return FMath::Clamp(Base - 2.f, 1.f, 8.f);
+	// Axe 1 (longue portée, Hydrosniper) : +2 dès le choix de l'axe, +1 supplémentaire par
+	// PALIER investi ensuite (jusqu'à MaxAxisTier) — demande Liamor 29/07/2026 : "plus ils
+	// montent dans cet axe, plus la portée augmente", mais BORNÉE (jamais toute la carte).
+	// Axe 2 (zone rapprochée, Hydropompe) : même logique en négatif. Grade 0 ou axe non choisi :
+	// AUCUN changement (bonus = 0, cf. retour anticipé ci-dessus). PROVISOIRE, cf. TODO_WOTOL.md.
+	const float Bonus = 2.f + static_cast<float>(Demo->GetAxisTier(Cat));
+	if (Axis == 1) return FMath::Clamp(Base + Bonus, 1.f, 10.f);
+	if (Axis == 2) return FMath::Clamp(Base - Bonus, 1.f, 10.f);
 	return Base;
 }
 

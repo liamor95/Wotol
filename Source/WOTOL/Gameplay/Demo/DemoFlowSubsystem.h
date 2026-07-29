@@ -791,6 +791,37 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Demo|Skills")
 	bool UpgradeUnitGrade(EDemoUnitCategory Category);
 
+	// ─── PALIER complémentaire DANS l'axe déjà choisi (demande Liamor 29/07/2026) ──────────
+	// Distinct du Grade (qui débloque le CHOIX d'axe) et du Grade/Axe binaire : une fois un axe
+	// pris, certains effets d'axe doivent continuer à grandir progressivement au lieu d'un bonus
+	// fixe unique (ex. la portée Hydrosniper/Hydropompe d'Aquisphères — "plus ils montent dans
+	// cet axe, plus la portée augmente, mais jamais toute la carte"). 0 par défaut = juste le
+	// bonus de base de l'axe. Monte jusqu'à MaxAxisTier, en Phase 3 prépa uniquement, contre
+	// ressources — mêmes règles de sécurité que le Grade (Grade 0 / axe non choisi -> jamais
+	// impacté, aucun changement pour qui n'investit pas).
+	static constexpr int32 MaxAxisTier = 3;
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Skills")
+	int32 GetAxisTier(EDemoUnitCategory Category) const;
+
+	// Vrai seulement pour les catégories dont l'axe choisi doit s'améliorer par palier au lieu
+	// d'un bonus fixe — toutes les unités à DISTANCE (étendu le 29/07/2026 : Aquisphères,
+	// Noxeblast, Noxar, Noxedrake). Évite d'afficher un bouton Palier inutile pour les autres.
+	UFUNCTION(BlueprintPure, Category = "Demo|Skills")
+	bool DoesCategoryAxisScaleByTier(EDemoUnitCategory Category) const;
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Skills")
+	void GetAxisTierUpgradeCost(EDemoUnitCategory Category, int32& OutCrystals,
+		int32& OutAbyssalMaterials, int32& OutOceanicEnergy) const;
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Skills")
+	bool CanUpgradeAxisTier(EDemoUnitCategory Category) const;
+
+	// Améliore le palier (dépense les ressources). Renvoie faux si refusé (axe non choisi, hors
+	// Phase 3, déjà au max, ressources insuffisantes, catégorie non concernée).
+	UFUNCTION(BlueprintCallable, Category = "Demo|Skills")
+	bool UpgradeAxisTier(EDemoUnitCategory Category);
+
 	// ─── Fenêtre d'objectif MODALE (validation manuelle — canon v0.8) ───────────
 	// Aucune phase ne s'enchaîne automatiquement : on ouvre une fenêtre (« Objectif
 	// rempli », « Placez le Cristalliseur »…) et le joueur clique « Continuer ». Quand
@@ -847,4 +878,6 @@ private:
 	// Grade de compétence par type d'unité (clé = catégorie). Absent = 0. DISTINCT du
 	// GradeLevel de variance de spawn (RollUnitGrade) — pas la même notion.
 	TMap<EDemoUnitCategory, int32> UnitGrades;
+	// Palier d'investissement complémentaire DANS l'axe déjà choisi (clé = catégorie). Absent = 0.
+	TMap<EDemoUnitCategory, int32> AxisTiers;
 };

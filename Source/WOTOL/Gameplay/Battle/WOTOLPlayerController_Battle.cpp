@@ -500,6 +500,11 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 					Demo->UpgradeUnitGrade(Cat); // no-op silencieux si refuse (cout/phase/max)
 					return true;
 				}
+				if (AWOTOLDemoHUD::SkillsTierButtonRect(i, VpSize.X, VpSize.Y).IsInside(M))
+				{
+					Demo->UpgradeAxisTier(Cat); // no-op silencieux si refuse (axe non choisi/cout/phase/max)
+					return true;
+				}
 			}
 			if (AWOTOLDemoHUD::SkillsBackButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 			{
@@ -536,6 +541,11 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 					Demo->SetUnitAxis(ChefCat, a); // no-op silencieux si hors Phase 3 / Grade 0 / deja choisi
 					return true;
 				}
+			}
+			if (AWOTOLDemoHUD::ResearchChefTierRect(VpSize.X, VpSize.Y).IsInside(M))
+			{
+				Demo->UpgradeAxisTier(ChefCat); // no-op silencieux si refuse (axe non choisi/cout/phase/max)
+				return true;
 			}
 			if (AWOTOLDemoHUD::ResearchBackButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 			{

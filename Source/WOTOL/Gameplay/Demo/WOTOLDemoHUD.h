@@ -106,6 +106,9 @@ public:
 	static FBox2D SkillsBackButtonRect(float W, float H);
 	// Bouton "AMÉLIORER LE GRADE" de la ligne (catégorie d'unité).
 	static FBox2D SkillsGradeButtonRect(int32 CatIndex, float W, float H);
+	// Bouton "PALIER" (investissement complémentaire dans l'axe déjà choisi — ex. portée
+	// Hydrosniper/Hydropompe d'Aquisphères), affiché seulement pour les catégories concernées.
+	static FBox2D SkillsTierButtonRect(int32 CatIndex, float W, float H);
 	// Catégories productibles en cité, dans l'ordre des cartes (hors Chef).
 	static int32 CityCardCount();
 	static EDemoUnitCategory CityCardCategory(int32 Index);
@@ -178,6 +181,8 @@ private:
 	// Boutons du Chef (côté droit) : Grade +1, puis Axe 1 / Axe 2.
 	static FBox2D ResearchChefGradeRect(float W, float H);
 	static FBox2D ResearchChefAxisRect(int32 AxisIndex, float W, float H);
+	// Palier complémentaire du Chef (Noxar : portée laser), sous les deux noeuds d'axe.
+	static FBox2D ResearchChefTierRect(float W, float H);
 	// Bouton "RECHERCHE" ouvert depuis la fenêtre de bâtiment (visible surtout sur le Chef).
 	static FBox2D BuildingResearchButtonRect(float W, float H);
 	// Écran de chargement (fond animé + logo + anneau + astuce).

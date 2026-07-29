@@ -140,8 +140,9 @@ public:
 
 	// Portée d'attaque EFFECTIVE : identique à UnitData->Stats.AttackRange pour toute unité au
 	// Grade 0 (comportement historique inchangé). Une fois le Grade 1+ atteint ET un axe choisi,
-	// certaines unités (cf. UUnitDataAsset::bAxisAffectsAttackRange — Aquisphères Hydrosniper/
-	// Hydropompe) ont une portée réellement différente selon l'axe (demande Liamor 29/07/2026).
+	// les unités à distance (cf. UUnitDataAsset::bAxisAffectsAttackRange — Aquisphères,
+	// Noxeblast, Noxar, Noxedrake) ont une portée réellement différente selon l'axe, qui grandit
+	// encore par PALIER si le joueur réinvestit dedans (demande Liamor 29/07/2026).
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	float GetEffectiveAttackRange() const;
 

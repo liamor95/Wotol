@@ -126,8 +126,10 @@ public:
 	bool bAxisTwoSpawnsShadowVeil = false;
 
 	// Vrai = une fois l'Axe choisi (Grade 1+), la PORTÉE D'ATTAQUE effective (pas l'ability)
-	// change réellement selon l'axe (voir AUnitBase::GetEffectiveAttackRange) — Aquisphères
-	// Hydrosniper (+portée) / Hydropompe (-portée) uniquement.
+	// change réellement selon l'axe (voir AUnitBase::GetEffectiveAttackRange), avec un bonus qui
+	// grandit par PALIER (DemoFlowSubsystem::AxisTiers) tant qu'on réinvestit dans cet axe.
+	// Réservé aux unités à DISTANCE (étendu le 29/07/2026 de "juste Aquisphères" à toutes les
+	// unités AttackType==Ranged : Aquisphères, Noxeblast, Noxar, Noxedrake).
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
 	bool bAxisAffectsAttackRange = false;
 

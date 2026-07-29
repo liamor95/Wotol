@@ -582,6 +582,70 @@ bool UDemoFlowSubsystem::UpgradeUnitGrade(EDemoUnitCategory Category)
 	return true;
 }
 
+// ─── PALIER complémentaire DANS l'axe déjà choisi ────────────────────────────
+int32 UDemoFlowSubsystem::GetAxisTier(EDemoUnitCategory Category) const
+{
+	const int32* Found = AxisTiers.Find(Category);
+	return Found ? *Found : 0;
+}
+
+bool UDemoFlowSubsystem::DoesCategoryAxisScaleByTier(EDemoUnitCategory Category) const
+{
+	// Étendu le 29/07/2026 (Liamor : "applique ça pour toutes les unités à distance ! et les
+	// unités qui frappent à distance aussi") à TOUTES les unités dont AttackType == Ranged, pas
+	// seulement Aquisphères — cf. UUnitDataAsset::bAxisAffectsAttackRange (même liste) dans
+	// UnitDataLibrary.cpp. Aquiloris : Aquisphères (Distance) uniquement, toutes ses autres
+	// unités sont Melee. Noxeens : Noxeblast (Distance), Noxar (Chef, tirs laser), Noxedrake
+	// (Mythique, laser continu) — les 3 seules unités Noxéennes à distance.
+	const bool bNox = (GetPlayerFaction() == EFactionID::Noxeens);
+	if (Category == EDemoUnitCategory::Distance) return true;               // Aquispheres / Noxeblast
+	if (bNox && Category == EDemoUnitCategory::Chef) return true;           // Noxar
+	if (bNox && Category == EDemoUnitCategory::Mythique) return true;       // Noxedrake
+	return false;
+}
+
+void UDemoFlowSubsystem::GetAxisTierUpgradeCost(EDemoUnitCategory Category, int32& OutCrystals,
+	int32& OutAbyssalMaterials, int32& OutOceanicEnergy) const
+{
+	const int32 CurTier = GetAxisTier(Category);
+	if (CurTier >= MaxAxisTier)
+	{
+		OutCrystals = OutAbyssalMaterials = OutOceanicEnergy = 0;
+		return;
+	}
+	const int32 NextTier = CurTier + 1;
+	// Coûts PROVISOIRES et éditables — plus légers qu'un Grade (raffinement d'un axe déjà pris,
+	// pas un nouveau palier de Grade). Cf. Docs/SYSTEME_CITE_ET_DEFENSE.md.
+	OutCrystals         = 200 * NextTier;
+	OutAbyssalMaterials = 20  * NextTier;
+	OutOceanicEnergy    = 30  * NextTier;
+}
+
+bool UDemoFlowSubsystem::CanUpgradeAxisTier(EDemoUnitCategory Category) const
+{
+	if (!DoesCategoryAxisScaleByTier(Category)) return false;
+	if (CurrentPhase != EDemoPhase::Territory_Management) return false;
+	if (!IsCategoryUnlocked(Category)) return false;
+	if (GetUnitAxis(Category) == 0) return false; // il faut d'abord avoir choisi un axe
+	if (GetAxisTier(Category) >= MaxAxisTier) return false;
+	int32 Crystals = 0, AbyssalMaterials = 0, OceanicEnergy = 0;
+	GetAxisTierUpgradeCost(Category, Crystals, AbyssalMaterials, OceanicEnergy);
+	return PlayerCrystals >= Crystals && PlayerAbyssalMaterials >= AbyssalMaterials
+		&& PlayerOceanicEnergy >= OceanicEnergy;
+}
+
+bool UDemoFlowSubsystem::UpgradeAxisTier(EDemoUnitCategory Category)
+{
+	if (!CanUpgradeAxisTier(Category)) return false;
+	int32 Crystals = 0, AbyssalMaterials = 0, OceanicEnergy = 0;
+	GetAxisTierUpgradeCost(Category, Crystals, AbyssalMaterials, OceanicEnergy);
+	PlayerCrystals -= Crystals;
+	PlayerAbyssalMaterials -= AbyssalMaterials;
+	PlayerOceanicEnergy -= OceanicEnergy;
+	AxisTiers.FindOrAdd(Category) = GetAxisTier(Category) + 1;
+	return true;
+}
+
 EDemoUnitCategory UDemoFlowSubsystem::GetCategoryForUnit(FName UnitID)
 {
 	if (UnitID == TEXT("Aquis")       || UnitID == TEXT("Noxar"))     return EDemoUnitCategory::Chef;

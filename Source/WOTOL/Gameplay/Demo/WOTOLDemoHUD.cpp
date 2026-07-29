@@ -2086,6 +2086,14 @@ FBox2D AWOTOLDemoHUD::SkillsGradeButtonRect(int32 CatIndex, float W, float H)
 	return FBox2D(FVector2D(Axis2.Max.X + 30.f, Axis2.Min.Y), FVector2D(Axis2.Max.X + 30.f + BW, Axis2.Max.Y));
 }
 
+FBox2D AWOTOLDemoHUD::SkillsTierButtonRect(int32 CatIndex, float W, float H)
+{
+	// À droite du bouton GRADE, sur la même ligne.
+	const FBox2D GR = SkillsGradeButtonRect(CatIndex, W, H);
+	const float BW = 180.f;
+	return FBox2D(FVector2D(GR.Max.X + 24.f, GR.Min.Y), FVector2D(GR.Max.X + 24.f + BW, GR.Max.Y));
+}
+
 // ─── Fenêtre RECHERCHE (scindée en deux : bâtiments de cité à gauche, Chef à droite) ──────
 FBox2D AWOTOLDemoHUD::ResearchBackButtonRect(float W, float H)
 {
@@ -2118,6 +2126,17 @@ FBox2D AWOTOLDemoHUD::ResearchChefAxisRect(int32 AxisIndex, float W, float H)
 	const float X = ColX + FMath::Clamp(AxisIndex, 0, 1) * (BW + Gap);
 	const float Y = H * 0.24f + 100.f;
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + 110.f));
+}
+
+FBox2D AWOTOLDemoHUD::ResearchChefTierRect(float W, float H)
+{
+	// Sous les deux noeuds d'axe, centré (suite de l'arbre : palier complémentaire).
+	const FBox2D Ax0 = ResearchChefAxisRect(0, W, H);
+	const FBox2D Ax1 = ResearchChefAxisRect(1, W, H);
+	const float BW = 300.f;
+	const float CenterX = (Ax0.Min.X + Ax1.Max.X) * 0.5f;
+	const float Y = Ax0.Max.Y + 46.f;
+	return FBox2D(FVector2D(CenterX - BW * 0.5f, Y), FVector2D(CenterX + BW * 0.5f, Y + 56.f));
 }
 
 FBox2D AWOTOLDemoHUD::BuildingResearchButtonRect(float W, float H)
@@ -2256,7 +2275,18 @@ void AWOTOLDemoHUD::DrawSkillsView(float W, float H, UDemoFlowSubsystem* Demo)
 				// État explicite sous le noeud : CHOISI (étoile) / verrouillé (cadenas) / prêt à
 				// prendre — ne PAS se reposer sur la couleur seule pour signaler l'état.
 				if (bSel)
+				{
 					DrawText(TEXT("* CHOISI (permanent)"), CatColor, R.Min.X, R.Max.Y + 4.f, nullptr, 0.7f);
+					// Retour concret de la portée actuelle si cette catégorie est concernée par le
+					// bonus par palier — le joueur voit tout de suite l'effet de son investissement.
+					if (Demo->DoesCategoryAxisScaleByTier(Cat))
+					{
+						const int32 Bonus = 2 + Demo->GetAxisTier(Cat);
+						DrawText(FString::Printf(TEXT("Portee %s%d (palier %d/%d)"),
+							(a == 1) ? TEXT("+") : TEXT("-"), Bonus, Demo->GetAxisTier(Cat), UDemoFlowSubsystem::MaxAxisTier),
+							CatColor, R.Min.X, R.Max.Y + 20.f, nullptr, 0.62f);
+					}
+				}
 				else if (!bUnlocked)
 					DrawText(TEXT("[verrouille]"), FLinearColor(0.55f, 0.55f, 0.6f, 0.9f), R.Min.X, R.Max.Y + 4.f, nullptr, 0.65f);
 				else if (bAxisChosen)
@@ -2289,9 +2319,39 @@ void AWOTOLDemoHUD::DrawSkillsView(float W, float H, UDemoFlowSubsystem* Demo)
 		{
 			DrawButton(GR0, TEXT("GRADE MAX"), FLinearColor(0.5f, 0.55f, 0.6f, 1.f), 0.8f);
 		}
+
+		// Noeud PALIER — investissement complémentaire DANS l'axe déjà choisi (ex. portée
+		// Hydrosniper/Hydropompe d'Aquisphères, demande Liamor 29/07/2026 : "plus ils montent
+		// dans cet axe, plus la portée augmente"). Affiché seulement si la catégorie est
+		// concernée (DoesCategoryAxisScaleByTier) ET qu'un axe est déjà choisi.
+		if (Demo->DoesCategoryAxisScaleByTier(Cat))
+		{
+			const FBox2D TierR = SkillsTierButtonRect(i, W, H);
+			if (!bAxisChosen)
+			{
+				DrawButton(TierR, TEXT("PALIER\n(choisir un axe)"), FLinearColor(0.3f, 0.32f, 0.36f, 1.f), 0.65f);
+			}
+			else
+			{
+				const int32 Tier = Demo->GetAxisTier(Cat);
+				if (Tier < UDemoFlowSubsystem::MaxAxisTier)
+				{
+					int32 TC = 0, TA = 0, TO = 0;
+					Demo->GetAxisTierUpgradeCost(Cat, TC, TA, TO);
+					const bool bCanTier = Demo->CanUpgradeAxisTier(Cat);
+					DrawButton(TierR, FString::Printf(TEXT("PALIER %d/%d +1\n%d / %d / %d"),
+						Tier, UDemoFlowSubsystem::MaxAxisTier, TC, TA, TO),
+						bCanTier ? Accent : FLinearColor(0.35f, 0.38f, 0.42f, 1.f), 0.65f);
+				}
+				else
+				{
+					DrawButton(TierR, TEXT("PALIER MAX"), FLinearColor(0.5f, 0.55f, 0.6f, 1.f), 0.65f);
+				}
+			}
+		}
 	}
 
-	DrawCenteredText(TEXT("X Offensif   # Defensif   ^ Support   + Soins   * Controle   -- Legende cout : Cristaux / Mineraux / Energie"),
+	DrawCenteredText(TEXT("Epee=Offensif  Bouclier=Defensif  Chevron=Support  Croix=Soins  Reticule=Controle   --   Legende cout : Cristaux / Mineraux / Energie"),
 		H * 0.90f, FLinearColor(0.7f, 0.78f, 0.88f, 0.8f), 0.8f);
 
 	DrawButton(SkillsBackButtonRect(W, H), TEXT("RETOUR"), FLinearColor(0.8f, 0.8f, 0.4f, 1.f), 1.2f);
@@ -2390,8 +2450,41 @@ void AWOTOLDemoHUD::DrawResearchView(float W, float H, UDemoFlowSubsystem* Demo)
 			DrawText(TEXT("[voie deja fixee ailleurs]"), FLinearColor(0.5f, 0.52f, 0.56f, 0.9f), AxR.Min.X, AxR.Max.Y + 4.f, nullptr, 0.62f);
 	}
 
-	DrawCenteredText(TEXT("X Offensif   # Defensif   ^ Support   + Soins   * Controle"),
-		H * 0.895f, FLinearColor(0.7f, 0.78f, 0.88f, 0.8f), 0.8f);
+	// Palier complémentaire du Chef (Noxar : portée laser qui grandit — étendu le 29/07/2026 à
+	// toutes les unités à distance). N'apparaît que si le Chef de la faction jouée est concerné
+	// (Aquis est Melee -> jamais affiché côté Aquiloris).
+	if (Demo->DoesCategoryAxisScaleByTier(ChefCat))
+	{
+		const FBox2D TierR = ResearchChefTierRect(W, H);
+		const FBox2D AxR1 = ResearchChefAxisRect(0, W, H);
+		const FBox2D AxR2 = ResearchChefAxisRect(1, W, H);
+		DrawLine((AxR1.Min.X + AxR1.Max.X) * 0.5f, AxR1.Max.Y, (TierR.Min.X + TierR.Max.X) * 0.5f, TierR.Min.Y, Accent, 2.f);
+		DrawLine((AxR2.Min.X + AxR2.Max.X) * 0.5f, AxR2.Max.Y, (TierR.Min.X + TierR.Max.X) * 0.5f, TierR.Min.Y, Accent, 2.f);
+		if (ChosenAxis == 0)
+		{
+			DrawButton(TierR, TEXT("PALIER (choisir un axe)"), FLinearColor(0.3f, 0.32f, 0.36f, 1.f), 0.65f);
+		}
+		else
+		{
+			const int32 Tier = Demo->GetAxisTier(ChefCat);
+			if (Tier < UDemoFlowSubsystem::MaxAxisTier)
+			{
+				int32 TC = 0, TA = 0, TO = 0;
+				Demo->GetAxisTierUpgradeCost(ChefCat, TC, TA, TO);
+				const bool bCanTier = Demo->CanUpgradeAxisTier(ChefCat);
+				DrawButton(TierR, FString::Printf(TEXT("PALIER %d/%d +1 (%d/%d/%d)"),
+					Tier, UDemoFlowSubsystem::MaxAxisTier, TC, TA, TO),
+					bCanTier ? Accent : FLinearColor(0.35f, 0.38f, 0.42f, 1.f), 0.65f);
+			}
+			else
+			{
+				DrawButton(TierR, TEXT("PALIER MAX"), FLinearColor(0.5f, 0.55f, 0.6f, 1.f), 0.65f);
+			}
+		}
+	}
+
+	DrawCenteredText(TEXT("Epee=Offensif  Bouclier=Defensif  Chevron=Support  Croix=Soins  Reticule=Controle"),
+		H * 0.895f, FLinearColor(0.7f, 0.78f, 0.88f, 0.8f), 0.75f);
 
 	DrawButton(ResearchBackButtonRect(W, H), TEXT("RETOUR"), FLinearColor(0.8f, 0.8f, 0.4f, 1.f), 1.2f);
 }

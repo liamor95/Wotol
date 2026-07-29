@@ -275,6 +275,10 @@ static void FillNoxar(UUnitDataAsset* A)
 	A->AxisTwoDescription = FText::FromString(TEXT("Halo amplif vitesse attaque + dégâts énergétiques + résistance peur/contrôle alliés"));
 	A->AxisOneCategory    = FText::FromString(TEXT("Offensif"));
 	A->AxisTwoCategory    = FText::FromString(TEXT("Support"));
+	// Unité à DISTANCE (tirs laser) : la portée grandit par palier avec l'Axe 1 choisi, comme
+	// toutes les unités à distance (étendu le 29/07/2026, Liamor : "toutes les unités à
+	// distance ! et les unités qui frappent à distance aussi" — pas seulement Aquisphères).
+	A->bAxisAffectsAttackRange = true;
 	A->PassiveDescription = FText::FromString(TEXT("Chaque élimination proche = charge de Surcharge. Catalyse recharge Noxedrake. Synergie : Noxedrake"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Trône des Profondeurs"));
 }
@@ -316,6 +320,9 @@ static void FillNoxedrake(UUnitDataAsset* A)
 	// uniquement pour le lanceur) : reste Offensif, mais distinct de l'Axe 1 (burst/explosion)
 	// par son caractère soutenu/DoT — même logique que Noxeblast (Offensif / Offensif Zone).
 	A->AxisTwoCategory    = FText::FromString(TEXT("Offensif Persistant"));
+	// Unité à DISTANCE (laser continu) : portée qui grandit par palier — étendu le 29/07/2026
+	// à toutes les unités à distance, voir FillNoxar ci-dessus pour le contexte.
+	A->bAxisAffectsAttackRange = true;
 	A->PassiveDescription = FText::FromString(TEXT("En infligeant dégâts continus : vitesse augmente, résistance contrôle s'améliore. Synergie : Noxar. ⚠️ Vulnérable pendant canalisation"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Antre du Noxedrake"));
 }
@@ -401,6 +408,9 @@ static void FillNoxeblast(UUnitDataAsset* A)
 	A->AxisTwoName        = FText::FromString(TEXT("Tir en Rafale"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Salve de petits projectiles qui se dispersent, touche plusieurs ennemis adjacents"));
 	A->AxisTwoCategory    = FText::FromString(TEXT("Offensif Zone"));
+	// Portée qui grandit par palier avec l'axe choisi (étendu le 29/07/2026 à toutes les unités
+	// à distance) : Tir Concentré = plus de portée, Tir en Rafale = moins de portée mais zone.
+	A->bAxisAffectsAttackRange = true;
 	A->PassiveDescription = FText::FromString(TEXT("Bonus dégâts significatif sur cible affectée par désorientation/aveuglement. Synergie clé : Noxeflare"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Foyer des Décharges"));
 }

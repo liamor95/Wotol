@@ -1,5 +1,39 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Portee par paliers pour TOUTES les unites a distance (29/07/2026, suite)
+
+Suite a "fait la portee par paliers pour Aquispheres" puis "et pour les noxeblast egalement !
+applique ca pour toutes les unites a distance ! et les unites qui frappe a distance aussi" :
+nouveau systeme de PALIER, distinct du Grade (qui debloque juste le CHOIX d'axe) et du choix
+d'axe lui-meme (binaire, permanent). Une fois un axe choisi, le joueur peut continuer a investir
+DANS cet axe pour un bonus qui grandit progressivement, au lieu d'un bonus fixe unique.
+
+**Backend (`DemoFlowSubsystem.h/.cpp`) :**
+- `TMap<EDemoUnitCategory,int32> AxisTiers` (nouveau) + `GetAxisTier`/`GetAxisTierUpgradeCost`/
+  `CanUpgradeAxisTier`/`UpgradeAxisTier` — memes regles de securite que le Grade (Phase 3 prepa
+  uniquement, categorie debloquee, axe deja choisi, ressources), couts PROVISOIRES 200/20/30 par
+  palier (plus legers qu'un Grade, c'est un raffinement pas un nouveau palier).
+- `DoesCategoryAxisScaleByTier(Category)` : vrai pour TOUTES les unites a DISTANCE (etendu du
+  scope initial "juste Aquispheres") — Aquiloris : Aquispheres (Distance) uniquement, toutes ses
+  autres unites sont Melee. Noxeens : Noxeblast (Distance), Noxar (Chef, tirs laser), Noxedrake
+  (Mythique, laser continu) — les 3 seules unites Noxeennes a distance.
+- `UUnitDataAsset::bAxisAffectsAttackRange` mis a `true` pour Noxeblast/Noxar/Noxedrake en plus
+  d'Aquispheres (`UnitDataLibrary.cpp`).
+- `AUnitBase::GetEffectiveAttackRange()` : le bonus est desormais `2 + GetAxisTier(Cat)` (au lieu
+  d'un simple +2/-2 fixe), plafond de portee releve de 8 a 10 pour laisser de la place aux
+  paliers superieurs — TOUJOURS borne (jamais "toute la carte"), et TOUJOURS 0 au Grade 0/axe non
+  choisi (aucun changement pour qui n'investit pas).
+
+**HUD :** nouveau noeud "PALIER X/3 +1" affiche uniquement pour les categories concernees
+(`DoesCategoryAxisScaleByTier`) ET seulement une fois un axe choisi — dans l'ecran COMPETENCES
+(`SkillsTierButtonRect`, a droite du bouton GRADE) pour Aquispheres/Noxeblast/Noxedrake, et dans
+l'arbre RECHERCHE (`ResearchChefTierRect`, sous les 2 noeuds d'axe, relie par des lignes) pour
+Noxar — n'apparait PAS pour Aquis (Chef Aquiloris, Melee). Retour visuel concret ajoute sous
+l'axe choisi : "Portee +N (palier X/3)".
+
+**Toujours pas fait (hors scope, pas invente) :** mode de visee a la souris pour la telegraphie
+Noxeflare ; vraie recreation visuelle proche de la maquette BASTION CRISTALLIN.
+
 ## Vraies icones vectorielles + correction d'un bug de centrage (29/07/2026, suite)
 
 Suite a "fait les vraies icones" : les glyphes texte ASCII provisoires (X/#/^/+/*) sont
