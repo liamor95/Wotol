@@ -1,5 +1,36 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Cadres de fenetres modales + fond ecran choix de faction (26/07/2026)
+
+Suite a l'audit des ecrans/fenetres (question de Liamor : "est-ce que chaque fenetre a une
+image de fond ou est-ce du vide") : deux trous identifies puis combles avec 3 images fournies
+par Liamor le jour meme.
+
+- **Nouveaux assets** : `Content/UI/PanelFrameAquiloris.png` (cadre cristal bleu ouvrage),
+  `Content/UI/PanelFrameNoxeens.png` (cadre organique vert bioluminescent), et
+  `Content/UI/BackgroundFactionSelect.png` (ruines sous-marines neutres, ecran de choix de
+  faction).
+- **`GetPanelFrame(Faction)`** (nouveau, meme mecanisme que GetFactionBackground/
+  GetMenuBackground) : cadre Aquiloris si la faction du joueur est Aquiloris, repli sur le
+  cadre Noxeen sinon (y compris quand aucune faction n'est encore choisie) — un cadre generique
+  vaut mieux qu'un panneau plat.
+- **Branche dans `DrawObjectiveWindow`** (fenetre d'objectif, ex. "NOUVEL OBJECTIF") et
+  `DrawConfirmDialog` (confirmation Recommencer/Quitter) : le panneau plat de couleur unie est
+  remplace par le cadre orne quand l'image est disponible, repli automatique sur l'ancien
+  panneau plat sinon. Liseré d'accent succes/echec de l'ObjectiveWindow conserve par-dessus.
+- **PAS branche (deliberement) dans `DrawPauseOverlay`/`DrawControlsScreen`** : leur contenu
+  est soit trop HAUT (menu reglages, aspect ratio tres different du cadre qui est en format
+  paysage ~1.5:1 -> aurait ete visiblement etire/deforme), soit trop LARGE (ecran Commandes,
+  texte de description qui deborderait du cadre). A refaire SI Liamor fournit un cadre au bon
+  format pour ces deux ecrans specifiquement.
+- **`GetFactionSelectBackground()`** + branche dans `DrawFactionSelect` : seul ecran qui restait
+  100% procedural jusqu'ici (impossible d'utiliser DrawFactionAmbientTint avant que la faction
+  soit choisie). Melange a 60% par-dessus le degrade existant, meme principe que
+  DrawFactionAmbientTint.
+- **Non verifie ici (pas de compilateur cote assistant)** : a verifier au prochain retour PC
+  que les cadres s'affichent bien sans etirement genant sur ObjectiveWindow/ConfirmDialog, et
+  que le fond de choix de faction ne rend pas les boutons AQUILORIS/NOXEENS moins lisibles.
+
 ## Formations tactiques branchees (26/07/2026, demande explicite de Liamor "sans casser les mecaniques deja en place")
 
 Suite a la reponse au benchmark RTS du 25/07 qui identifiait `UFormationComponent` comme code

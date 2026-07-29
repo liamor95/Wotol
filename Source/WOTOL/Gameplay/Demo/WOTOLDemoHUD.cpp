@@ -411,11 +411,19 @@ void AWOTOLDemoHUD::DrawObjectiveWindow(float W, float H, class UDemoFlowSubsyst
 	const FLinearColor Accent = bFail ? FLinearColor(1.f, 0.35f, 0.30f, 1.f)
 	                                  : FLinearColor(0.35f, 0.85f, 1.f, 1.f);
 
-	// Panneau central.
+	// Panneau central : cadre orné par faction (26/07/2026, planches "PanelFrame") si
+	// disponible, repli sur le panneau plat existant sinon.
 	const float PW = 760.f, PH = 300.f;
 	const float PX = W * 0.5f - PW * 0.5f;
 	const float PY = H * 0.5f - PH * 0.5f - 20.f;
-	DrawRect(FLinearColor(0.04f, 0.07f, 0.12f, 0.94f), PX, PY, PW, PH);
+	if (UTexture2D* Frame = GetPanelFrame(Demo->GetPlayerFaction()))
+	{
+		DrawTexture(Frame, PX, PY, PW, PH, 0.f, 0.f, 1.f, 1.f);
+	}
+	else
+	{
+		DrawRect(FLinearColor(0.04f, 0.07f, 0.12f, 0.94f), PX, PY, PW, PH);
+	}
 	// Liseré haut coloré (bleu = objectif, rouge = échec).
 	DrawRect(Accent.CopyWithNewOpacity(0.9f), PX, PY, PW, 6.f);
 
@@ -845,6 +853,36 @@ UTexture2D* AWOTOLDemoHUD::GetFactionEmblem(EFactionID Faction)
 	return nullptr;
 }
 
+UTexture2D* AWOTOLDemoHUD::GetPanelFrame(EFactionID Faction)
+{
+	if (Faction == EFactionID::Aquiloris)
+	{
+		if (bAquilorisFrameTried) return AquilorisFrameTexture;
+		bAquilorisFrameTried = true;
+		const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/PanelFrameAquiloris.png");
+		if (FPaths::FileExists(PngPath)) AquilorisFrameTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+		return AquilorisFrameTexture;
+	}
+	// Repli sur le cadre Noxéen pour toute faction sans cadre dédié (Noxéens, ou aucune
+	// faction choisie — ex. fenêtre de confirmation avant même le choix de faction) : un
+	// cadre générique vaut mieux qu'un panneau plat, même si la teinte ne correspond pas
+	// encore à un camp precis.
+	if (bNoxeensFrameTried) return NoxeensFrameTexture;
+	bNoxeensFrameTried = true;
+	const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/PanelFrameNoxeens.png");
+	if (FPaths::FileExists(PngPath)) NoxeensFrameTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+	return NoxeensFrameTexture;
+}
+
+UTexture2D* AWOTOLDemoHUD::GetFactionSelectBackground()
+{
+	if (bFactionSelectBgTried) return FactionSelectBgTexture;
+	bFactionSelectBgTried = true;
+	const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/BackgroundFactionSelect.png");
+	if (FPaths::FileExists(PngPath)) FactionSelectBgTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+	return FactionSelectBgTexture;
+}
+
 void AWOTOLDemoHUD::DrawMainMenu(float W, float H)
 {
 	// IMAGE d'accueil : asset importé OU PNG chargé depuis le disque (voir GetMenuBackground).
@@ -868,6 +906,14 @@ void AWOTOLDemoHUD::DrawMainMenu(float W, float H)
 void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 {
 	DrawUnderwaterBackground(W, H);
+	// Fond neutre réel (26/07/2026) : seul écran encore 100% procédural (pas de faction
+	// choisie -> DrawFactionAmbientTint ne peut rien teinter). Mélangé par-dessus le dégradé
+	// existant (même principe que DrawFactionAmbientTint, pas un remplacement) : les boutons/
+	// texte dessinés ensuite ont leur propre fond opaque, donc restent lisibles par-dessus.
+	if (UTexture2D* BG = GetFactionSelectBackground())
+	{
+		DrawTexture(BG, 0.f, 0.f, W, H, 0.f, 0.f, 1.f, 1.f, FLinearColor(1.f, 1.f, 1.f, 0.6f));
+	}
 	DrawGlowTitle(TEXT("CHOISISSEZ VOTRE FACTION"), H * 0.13f, 2.4f, FLinearColor(0.7f, 0.9f, 1.f, 1.f));
 
 	const float T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
@@ -2396,6 +2442,18 @@ void AWOTOLDemoHUD::DrawConfirmDialog(float W, float H, const FString& Message, 
 {
 	// Voile plus sombre que le menu réglages (attire l'oeil sur une décision destructive).
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.8f), 0.f, 0.f, W, H);
+	// Cadre orné par faction (26/07/2026) derrière le message + les boutons ; repli
+	// silencieux (rien de plus, le voile sombre suffit déjà) si l'image est absente.
+	{
+		UDemoFlowSubsystem* Demo = GetGameInstance()
+			? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+		const EFactionID Fac = Demo ? Demo->GetPlayerFaction() : EFactionID::None;
+		if (UTexture2D* Frame = GetPanelFrame(Fac))
+		{
+			const float PW = 640.f, PH = 320.f;
+			DrawTexture(Frame, (W - PW) * 0.5f, H * 0.36f, PW, PH, 0.f, 0.f, 1.f, 1.f);
+		}
+	}
 	DrawCenteredText(Message, H * 0.44f, FLinearColor(1.f, 0.85f, 0.35f, 1.f), 1.6f);
 	DrawButton(ConfirmYesButtonRect(W, H), ConfirmLabel, FLinearColor(1.f, 0.45f, 0.35f, 1.f), 1.15f);
 	DrawButton(ConfirmNoButtonRect(W, H), TEXT("ANNULER"), FLinearColor(0.5f, 0.55f, 0.62f, 1.f), 1.15f);

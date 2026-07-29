@@ -204,6 +204,22 @@ private:
 	UPROPERTY(Transient) TObjectPtr<class UTexture2D> NoxeensEmblemTexture = nullptr;
 	bool bNoxeensEmblemTried = false;
 
+	// Cadres ornés par faction (Content/UI/PanelFrameAquiloris.png / PanelFrameNoxeens.png,
+	// 26/07/2026) : habillage des fenêtres MODALES (objectif, confirmation, réglages) qui
+	// n'avaient jusqu'ici qu'un panneau de couleur unie. Même mécanisme de chargement.
+	class UTexture2D* GetPanelFrame(EFactionID Faction);
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> AquilorisFrameTexture = nullptr;
+	bool bAquilorisFrameTried = false;
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> NoxeensFrameTexture = nullptr;
+	bool bNoxeensFrameTried = false;
+
+	// Fond neutre de l'écran de choix de faction (Content/UI/BackgroundFactionSelect.png,
+	// 26/07/2026) : seul écran qui ne pouvait pas utiliser DrawFactionAmbientTint (pas encore
+	// de faction choisie à ce moment) — restait donc 100% procédural jusqu'ici.
+	class UTexture2D* GetFactionSelectBackground();
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> FactionSelectBgTexture = nullptr;
+	bool bFactionSelectBgTried = false;
+
 	// Éléments style Total War
 	void DrawTopBar(float W, float H, class UWorld* World, class UDemoFlowSubsystem* Demo);
 	void DrawBossBar(float W, float H, class AWOTOLDemoUnit* Boss);
