@@ -61,7 +61,11 @@ enum class EDemoScreen : uint8
 	// Récapitulatif final avant lancement (nom, faction, difficulté, héritage, spécialité) —
 	// conforme à Content/UI/Reference/Maquettes/UI_ResumePartie.png. À NE PAS confondre avec
 	// EDemoScreen::Summary (résumé de bataille, après une bataille — sens totalement différent).
-	PreGameSummary UMETA(DisplayName = "Recapitulatif avant lancement")
+	PreGameSummary UMETA(DisplayName = "Recapitulatif avant lancement"),
+	// Fenêtre "RECHERCHE" scindée en deux (demande Liamor 29/07/2026) : à GAUCHE les
+	// améliorations de bâtiments de la cité (les 5 catégories), à DROITE l'arbre Grade/Axe
+	// du Chef (combat/PV) — un seul arbre de recherche au lieu de deux écrans séparés.
+	Research UMETA(DisplayName = "Recherche (cite + chef)")
 };
 
 // Ligne de résumé : pertes d'un type d'unité (nom + perdus / total) pour une faction.

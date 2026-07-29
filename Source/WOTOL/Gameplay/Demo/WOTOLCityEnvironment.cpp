@@ -53,12 +53,31 @@ void AWOTOLCityEnvironment::BuildEnvironment()
 	AddCityDecor(this, SceneRoot, M_CYL, FVector(0.f, 0.f, -10.f), FVector(24.f, 24.f, 0.15f),
 		WOTOLGlow::MakeMatte(this, GroundColor));
 
-	// Hub central décoratif (palais/chef) : plus haut et plus large que les bâtiments de
-	// production, teinté par la faction. Purement visuel (pas de sélection/fiche technique).
+	// Hub central (palais/chef — Noyau Cristallin / Trône des Profondeurs) : plus haut et plus
+	// large que les bâtiments de production, teinté par la faction. La flèche décorative
+	// (cylindre + cône) reste du pur décor ; le SOCLE cliquable est un vrai
+	// AWOTOLCityBuildingProp (Category=Chef, ajouté le 29/07/2026 — demande Liamor : le Chef se
+	// gère via SON bâtiment, pas via une ligne dans un écran à part) qui ouvre la même fenêtre à
+	// onglets que les autres bâtiments -> le joueur gère les stats/le Grade/l'Axe du Chef ici.
 	AddCityDecor(this, SceneRoot, M_CYL, FVector(0.f, 0.f, 90.f), FVector(2.6f, 2.6f, 2.4f),
 		WOTOLGlow::MakeMatte(this, FLinearColor(0.20f, 0.22f, 0.26f, 1.f)));
 	AddCityDecor(this, SceneRoot, M_CONE, FVector(0.f, 0.f, 260.f), FVector(1.6f, 1.6f, 2.0f),
 		WOTOLGlow::MakeGlow(this, Accent * 1.8f));
+	{
+		UWorld* HubW = GetWorld();
+		if (HubW)
+		{
+			const FTransform HubTM(FRotator::ZeroRotator, GetActorLocation());
+			if (AWOTOLCityBuildingProp* ChefProp = HubW->SpawnActorDeferred<AWOTOLCityBuildingProp>(
+					AWOTOLCityBuildingProp::StaticClass(), HubTM, this))
+			{
+				ChefProp->Category = EDemoUnitCategory::Chef;
+				ChefProp->OwnerFaction = PlayerFaction;
+				UGameplayStatics::FinishSpawningActor(ChefProp, HubTM);
+				Props.Add(ChefProp);
+			}
+		}
+	}
 
 	// Grand fond de cité (illustration officielle réelle, demande de Liamor du 25/07/2026) —
 	// posé loin derrière/en dessous de la scène, orienté face à la caméra isométrique FIXE

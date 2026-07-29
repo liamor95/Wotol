@@ -1,5 +1,69 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Correction : le Chef se gere via SON batiment, pas une ligne d'ecran (29/07/2026, suite)
+
+Liamor a corrige une incomprehension de ma part sur l'entree precedente : la "ligne Chef dans
+l'ecran COMPETENCES" ne correspondait pas a sa demande. Le Chef (Aquis/Noxar) se gere via SON
+PROPRE batiment dans la cite — Noyau Cristallin (Aquiloris) / Trone des Profondeurs (Noxeens) —
+qui existait deja visuellement (le "hub central" au milieu de l'anneau de batiments) mais etait
+explicitement marque non-cliquable dans le code ("Purement visuel (pas de selection/fiche
+technique)"). Corrige :
+
+- **`WOTOLCityEnvironment.cpp`** : le hub central spawne desormais AUSSI un vrai
+  `AWOTOLCityBuildingProp` (`Category = Chef`), en plus de la fleche decorative (cylindre+cone,
+  conservee telle quelle). Cliquable comme n'importe quel autre batiment -> ouvre la meme
+  fenetre a onglets.
+- **`SkillsCategoryCount`/`SkillsCategoryAt`** : revert au comportement d'origine (alias de
+  `CityCardCount`/`CityCardCategory`, SANS le Chef) — la ligne Chef ajoutee dans l'entree
+  precedente est retiree de l'ecran COMPETENCES a plat, devenue inutile.
+- **`CityBuildingLabel`** : cas Chef ajoute ("Noyau Cristallin"/"Trone des Profondeurs").
+- Onglet RECRUTEMENT de la fenetre de batiment : cas Chef ajoute ("personnage joue, jamais
+  recrute en serie", meme esprit que le Mythique).
+- Icone du Resume : le Chef utilise desormais `WOTOLBuildingArt::GetCentralBuildingIcon` (deja
+  present dans le code mais jamais branche) au lieu de `GetBuildingIcon` (qui n'a pas d'image
+  dediee au Chef -> repli silencieux, comportement inchange pour les 5 autres categories).
+
+**Nouvelle fenetre RECHERCHE (`EDemoScreen::Research`, `DrawResearchView`)** — demande explicite
+de Liamor : "pas deux onglets recherche separes (cite / chef), UNE fenetre scindee en deux par un
+trait, cite a gauche, combat/PV du chef a droite, comme un arbre de recherche de jeu de
+strategie." Implemente :
+- Accessible via un bouton "RECHERCHE" dans la fenetre de n'importe quel batiment debloque/
+  construit (pas seulement le Chef — les ameliorations de batiments de cite y sont aussi).
+- GAUCHE : les 5 categories productibles, niveau + cout + bouton d'amelioration
+  (`UpgradeBuilding`, systeme deja existant, juste consolide ici en plus des cartes de
+  production existantes — pas retire de leur emplacement d'origine).
+- DROITE : arbre du Chef — noeud "GRADE +1" qui se scinde visuellement en deux branches
+  (Axe 1 / Axe 2, avec nom + categorie thematique + marqueur "CHOISI (permanent)"), reutilise
+  entierement le systeme Grade/Axe deja construit (`GetUnitGrade`/`UpgradeUnitGrade`/
+  `GetUnitAxis`/`SetUnitAxis`).
+- Assume comme UN EXEMPLE (comme la fenetre a onglets elle-meme) : arbre a 2 niveaux seulement
+  (Grade -> Axe), pas de vrai arbre a embranchements multiples/prerequis comme dans un vrai jeu
+  de strategie — a enrichir si Liamor veut aller plus loin.
+
+## Point 4 (telegraphie/portee) : ajustements suite au retour de Liamor (29/07/2026)
+
+Liamor a precise, sans vouloir revalider chiffre par chiffre (aucune valeur n'existe dans le GDD
+de Clement, donc rien a inventer de plus finement pour l'instant) :
+- Rayons/angles de zone (Cone/PetiteZone/Zone/GrandeZone/ChargeLigne/Souffle) : valeurs
+  provisoires jugees "a peu pres" correctes, gardees telles quelles.
+- **Duree de la telegraphie Noxeflare** : allongee de 0.6s a 1.4s ("un peu plus long"). Liamor a
+  aussi decrit un vrai MODE DE VISEE (le joueur deplace la souris sur le champ de bataille, voit
+  la zone/les ennemis touches suivre le curseur, et ne declenche qu'en cliquant) — PAS IMPLEMENTE
+  cette passe : ca demande un nouvel etat d'input (suivi souris + clic de confirmation) qui
+  risquerait de perturber le clic RTS existant (deplacement/selection) sans plus de temps pour
+  le securiser correctement. Le delai fixe (1.4s) est un pis-aller en attendant cette passe
+  dediee.
+- **Portee Hydrosniper/Hydropompe (Aquispheres)** : bug reel corrige — le plafond de portee
+  effective etait a 5 (`AUnitBase::GetEffectiveAttackRange`), or Aquispheres est DEJA a 5 de
+  base -> le bonus "+2" de l'axe Hydrosniper etait totalement neutralise (aucun effet). Plafond
+  releve a 8. Reste PROVISOIRE : Liamor veut une portee bornee (pas illimitee/toute la carte) au
+  Grade 0, qui grandit avec l'investissement dans l'axe — mais le systeme actuel n'a qu'UN SEUL
+  palier d'axe (choisi ou pas, binaire), pas plusieurs niveaux d'investissement progressif comme
+  sa description le suggere ("plus ils montent de grade dans cet axe, plus la portee augmente").
+  Si Liamor veut vraiment une portee qui grandit sur plusieurs paliers, ca demande d'ajouter des
+  niveaux DANS un axe choisi (au-dela du simple Grade 0/1 actuel) — pas fait, a clarifier avant
+  d'implementer pour ne pas se tromper de systeme.
+
 ## Suite du systeme Grade/Axe : Chef, formes reelles, telegraphie, fenetre a onglets (29/07/2026)
 
 Suite directe de l'entree "Systeme Grade/Axe/Voie de competence" ci-dessous : Liamor a valide
@@ -13,6 +77,10 @@ Tourelles/Recherches/Ameliorations/Defense + panneaux ameliorations/recherches/c
    dans `DrawSkillsView` ET dans le handler de clic (`WOTOLPlayerController_Battle.cpp`). Ajout du
    cas `Chef` dans `CityUnitLabel` (Aquis/Noxar). Le Chef peut donc desormais choisir son axe et
    monter jusqu'au Grade 2 comme les autres categories.
+   **[REVERT — voir l'entree "Correction : le Chef se gere via SON batiment" tout en haut de ce
+   fichier]** Ce n'etait pas la bonne approche : le Chef se gere via SON batiment (hub cliquable
+   + fenetre RECHERCHE), pas via une ligne dans cet ecran a plat. `SkillsCategoryCount/
+   SkillsCategoryAt` sont revenus a leur comportement d'origine (sans le Chef).
 2. **Categorie de Noxedrake Axe 2 ("Dominion Radieux")** : "Offensif Persistant" (au lieu du "?"
    precedent) — reste Offensif (marquage cumulatif = degats, pas un buff/soin d'allies), mais
    distingue de l'Axe 1 (burst/explosion) par son cote soutenu/DoT, meme logique que Noxeblast

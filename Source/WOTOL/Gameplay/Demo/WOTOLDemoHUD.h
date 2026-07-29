@@ -163,6 +163,17 @@ private:
 	void DrawTerritoryView(float W, float H, class UDemoFlowSubsystem* Demo);
 	// Onglet compétences : choix de l'axe (voie) de chaque type d'unité.
 	void DrawSkillsView(float W, float H, class UDemoFlowSubsystem* Demo);
+	// Fenêtre RECHERCHE scindée en deux (demande Liamor 29/07/2026) : bâtiments de la cité à
+	// gauche, arbre Grade/Axe du Chef à droite (un seul écran au lieu de deux séparés).
+	void DrawResearchView(float W, float H, class UDemoFlowSubsystem* Demo);
+	static FBox2D ResearchBackButtonRect(float W, float H);
+	// Bouton d'amélioration de bâtiment (côté gauche, une ligne par catégorie).
+	static FBox2D ResearchCityUpgradeRect(int32 CatIndex, float W, float H);
+	// Boutons du Chef (côté droit) : Grade +1, puis Axe 1 / Axe 2.
+	static FBox2D ResearchChefGradeRect(float W, float H);
+	static FBox2D ResearchChefAxisRect(int32 AxisIndex, float W, float H);
+	// Bouton "RECHERCHE" ouvert depuis la fenêtre de bâtiment (visible surtout sur le Chef).
+	static FBox2D BuildingResearchButtonRect(float W, float H);
 	// Écran de chargement (fond animé + logo + anneau + astuce).
 	void DrawLoadingScreen(float W, float H, class UDemoFlowSubsystem* Demo);
 	class UTexture2D* GetTransitionBackground();

@@ -424,6 +424,13 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 					}
 				}
 			}
+			// Bouton RECHERCHE de la fenêtre de bâtiment (cité + Chef en un seul écran).
+			if (Demo->HasCitySelection()
+				&& AWOTOLDemoHUD::BuildingResearchButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+			{
+				Demo->SetScreen(EDemoScreen::Research);
+				return true;
+			}
 			if (AWOTOLDemoHUD::CitySkillsButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 			{
 				Demo->SetScreen(EDemoScreen::Skills); // ouvre l'onglet compétences
@@ -495,6 +502,42 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 				}
 			}
 			if (AWOTOLDemoHUD::SkillsBackButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+			{
+				Demo->SetScreen(EDemoScreen::City);
+			}
+		}
+		return true;
+	}
+
+	// ── Fenêtre RECHERCHE (cité à gauche + Chef à droite, demande Liamor 29/07/2026) ──
+	if (Screen == EDemoScreen::Research)
+	{
+		if (Demo)
+		{
+			for (int32 i = 0; i < AWOTOLDemoHUD::CityCardCount(); ++i)
+			{
+				const EDemoUnitCategory Cat = AWOTOLDemoHUD::CityCardCategory(i);
+				if (AWOTOLDemoHUD::ResearchCityUpgradeRect(i, VpSize.X, VpSize.Y).IsInside(M))
+				{
+					Demo->UpgradeBuilding(Cat); // no-op silencieux si refuse (cout/deja max)
+					return true;
+				}
+			}
+			const EDemoUnitCategory ChefCat = EDemoUnitCategory::Chef;
+			if (AWOTOLDemoHUD::ResearchChefGradeRect(VpSize.X, VpSize.Y).IsInside(M))
+			{
+				Demo->UpgradeUnitGrade(ChefCat); // no-op silencieux si refuse (cout/phase/max)
+				return true;
+			}
+			for (int32 a = 1; a <= 2; ++a)
+			{
+				if (AWOTOLDemoHUD::ResearchChefAxisRect(a - 1, VpSize.X, VpSize.Y).IsInside(M))
+				{
+					Demo->SetUnitAxis(ChefCat, a); // no-op silencieux si hors Phase 3 / Grade 0 / deja choisi
+					return true;
+				}
+			}
+			if (AWOTOLDemoHUD::ResearchBackButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 			{
 				Demo->SetScreen(EDemoScreen::City);
 			}

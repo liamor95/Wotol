@@ -223,6 +223,7 @@ void AWOTOLDemoHUD::DrawHUD()
 	if (Screen == EDemoScreen::City)          { DrawCityView(W, H, DemoFlow); DrawModalIfNeeded(); return; }
 	if (Screen == EDemoScreen::Territory)     { DrawTerritoryView(W, H, DemoFlow); DrawModalIfNeeded(); return; }
 	if (Screen == EDemoScreen::Skills)        { DrawSkillsView(W, H, DemoFlow); DrawModalIfNeeded(); return; }
+	if (Screen == EDemoScreen::Research)      { DrawResearchView(W, H, DemoFlow); DrawModalIfNeeded(); return; }
 	if (Screen == EDemoScreen::Loading)       { DrawLoadingScreen(W, H, DemoFlow); DrawModalIfNeeded(); return; }
 	if (Screen == EDemoScreen::Exploration)   { DrawExplorationHUD(W, H, DemoFlow); DrawModalIfNeeded(); return; }
 
@@ -1222,11 +1223,13 @@ EDemoUnitCategory AWOTOLDemoHUD::CityCardCategory(int32 Index)
 	return Cats[FMath::Clamp(Index, 0, 4)];
 }
 
-int32 AWOTOLDemoHUD::SkillsCategoryCount() { return 6; }
+// Le Chef n'est PLUS listé ici (retiré le 29/07/2026, cf. TODO_WOTOL.md) : sa gestion Grade/Axe
+// passe désormais par le bâtiment central de la cité (Noyau Cristallin / Trône des Profondeurs,
+// désormais sélectionnable) -> fenêtre RECHERCHE, pas par cet écran Compétences à plat.
+int32 AWOTOLDemoHUD::SkillsCategoryCount() { return CityCardCount(); }
 
 EDemoUnitCategory AWOTOLDemoHUD::SkillsCategoryAt(int32 Index)
 {
-	if (Index == 5) return EDemoUnitCategory::Chef;
 	return CityCardCategory(Index);
 }
 
@@ -1335,6 +1338,7 @@ static FString CityBuildingLabel(EFactionID Fac, EDemoUnitCategory Cat)
 		case EDemoUnitCategory::Montee:     return bAq ? TEXT("Dome des Aquilances") : TEXT("Cavite des Mastodontes");
 		case EDemoUnitCategory::Speciale:   return bAq ? TEXT("Nexus des Ombres") : TEXT("Faille Abyssale");
 		case EDemoUnitCategory::Mythique:   return bAq ? TEXT("Coeur-Eclat") : TEXT("Antre du Noxedrake");
+		case EDemoUnitCategory::Chef:       return bAq ? TEXT("Noyau Cristallin") : TEXT("Trone des Profondeurs");
 		default: return TEXT("");
 	}
 }
@@ -1730,7 +1734,11 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		{
 			// Illustration officielle réelle (même image que le plan 3D affiché dans la scène —
 			// cohérence demandée par Liamor le 25/07/2026 : pas d'écran qui contredit la vue 3D).
-			if (UTexture2D* Icon = WOTOLBuildingArt::GetBuildingIcon(Fac, SelCat))
+			// Le Chef utilise l'illustration CENTRALE dédiée (pas d'icône par catégorie pour lui).
+			UTexture2D* SummaryIcon = (SelCat == EDemoUnitCategory::Chef)
+				? WOTOLBuildingArt::GetCentralBuildingIcon(Fac)
+				: WOTOLBuildingArt::GetBuildingIcon(Fac, SelCat);
+			if (UTexture2D* Icon = SummaryIcon)
 			{
 				const float ImgSize = 84.f;
 				const float ImgX = (Panel.Min.X + Panel.Max.X) * 0.5f - ImgSize * 0.5f;
@@ -1747,6 +1755,11 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 			if (SelCat == EDemoUnitCategory::Mythique)
 			{
 				DrawCenteredText(TEXT("Deja dans votre armee (creature unique, non recrutee en serie)."),
+					Y, FLinearColor(0.7f, 0.85f, 0.75f, 1.f), 0.8f);
+			}
+			else if (SelCat == EDemoUnitCategory::Chef)
+			{
+				DrawCenteredText(TEXT("Le chef est le personnage joue : jamais recrute en serie."),
 					Y, FLinearColor(0.7f, 0.85f, 0.75f, 1.f), 0.8f);
 			}
 			else
@@ -1806,13 +1819,24 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 			{
 				Y += 24.f;
 			}
-			DrawCenteredText(TEXT("Ecran COMPETENCES : ameliorer le Grade / choisir la voie."), Y,
+			DrawCenteredText(SelCat == EDemoUnitCategory::Chef
+				? TEXT("Bouton RECHERCHE (bas de la fenetre) : ameliorer le Grade / choisir la voie.")
+				: TEXT("Ecran COMPETENCES : ameliorer le Grade / choisir la voie."), Y,
 				FLinearColor(0.7f, 0.75f, 0.85f, 0.85f), 0.68f);
 		}
 		else // ─── RÔLE (ActiveTab == 4) ───
 		{
 			DrawCenteredText(CityUnitLabel(Fac, SelCat), Y, FLinearColor::White, 1.0f); Y += 32.f;
 			DrawCenteredText(CityRoleFlavor(SelCat), Y, FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 0.78f);
+		}
+
+		// Raccourci vers la fenêtre RECHERCHE (bâtiments de cité + arbre Grade/Axe du Chef en un
+		// seul écran) — visible dès qu'un bâtiment débloqué/construit est sélectionné.
+		if (Demo->IsCategoryUnlocked(SelCat)
+			&& !(SelCat == EDemoUnitCategory::Distance && !Demo->IsRangedBuildingConstructed()))
+		{
+			DrawButton(BuildingResearchButtonRect(W, H), TEXT("RECHERCHE"),
+				FLinearColor(0.6f, 0.8f, 1.f, 1.f), 0.85f);
 		}
 	}
 
@@ -1951,6 +1975,48 @@ FBox2D AWOTOLDemoHUD::SkillsGradeButtonRect(int32 CatIndex, float W, float H)
 	return FBox2D(FVector2D(Axis2.Max.X + 30.f, Axis2.Min.Y), FVector2D(Axis2.Max.X + 30.f + BW, Axis2.Max.Y));
 }
 
+// ─── Fenêtre RECHERCHE (scindée en deux : bâtiments de cité à gauche, Chef à droite) ──────
+FBox2D AWOTOLDemoHUD::ResearchBackButtonRect(float W, float H)
+{
+	const float BW = 220.f, BH = 60.f;
+	return FBox2D(FVector2D(40.f, H - BH - 40.f), FVector2D(40.f + BW, H - 40.f));
+}
+
+FBox2D AWOTOLDemoHUD::ResearchCityUpgradeRect(int32 CatIndex, float W, float H)
+{
+	// Colonne GAUCHE (jusqu'au trait central) : une ligne par catégorie productible.
+	const float ColX = W * 0.08f, ColW = W * 0.5f - ColX - 40.f;
+	const float RowTop = H * 0.22f, RowH = 74.f;
+	const float Y = RowTop + FMath::Clamp(CatIndex, 0, 4) * RowH;
+	return FBox2D(FVector2D(ColX, Y), FVector2D(ColX + ColW, Y + 54.f));
+}
+
+FBox2D AWOTOLDemoHUD::ResearchChefGradeRect(float W, float H)
+{
+	// Colonne DROITE (après le trait central) : Grade +1 en haut de l'arbre.
+	const float ColX = W * 0.5f + 40.f, ColW = 320.f;
+	const float Y = H * 0.24f;
+	return FBox2D(FVector2D(ColX, Y), FVector2D(ColX + ColW, Y + 60.f));
+}
+
+FBox2D AWOTOLDemoHUD::ResearchChefAxisRect(int32 AxisIndex, float W, float H)
+{
+	// Deux branches sous le Grade +1 (façon arbre de recherche : un noeud qui se divise en deux).
+	const float ColX = W * 0.5f + 40.f;
+	const float BW = 340.f, Gap = 40.f;
+	const float X = ColX + FMath::Clamp(AxisIndex, 0, 1) * (BW + Gap);
+	const float Y = H * 0.24f + 100.f;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + 110.f));
+}
+
+FBox2D AWOTOLDemoHUD::BuildingResearchButtonRect(float W, float H)
+{
+	const FBox2D Panel(FVector2D(W - 380.f, H * 0.22f), FVector2D(W - 20.f, H * 0.58f));
+	const float BW = 200.f, BH = 40.f;
+	return FBox2D(FVector2D(Panel.Max.X - BW - 12.f, Panel.Max.Y - BH - 10.f),
+		FVector2D(Panel.Max.X - 12.f, Panel.Max.Y - 10.f));
+}
+
 // Nom de la VOIE (axe) par faction/catégorie (0=Base, 1=Axe1, 2=Axe2) — d'après le GDD §7.
 void AWOTOLDemoHUD::DrawVerticalLayerGauge(float W, float H, UWorld* World)
 {
@@ -2081,6 +2147,91 @@ void AWOTOLDemoHUD::DrawSkillsView(float W, float H, UDemoFlowSubsystem* Demo)
 	}
 
 	DrawButton(SkillsBackButtonRect(W, H), TEXT("RETOUR"), FLinearColor(0.8f, 0.8f, 0.4f, 1.f), 1.2f);
+}
+
+// Fenêtre RECHERCHE scindée en deux par un trait vertical (demande Liamor 29/07/2026) : à
+// GAUCHE les améliorations de bâtiments de la cité (les 5 catégories, système déjà existant
+// GetBuildingLevel/UpgradeBuilding) ; à DROITE l'arbre Grade/Axe du Chef (combat/PV, système
+// Grade/Axe déjà existant) — UN SEUL écran de recherche, pas deux séparés.
+void AWOTOLDemoHUD::DrawResearchView(float W, float H, UDemoFlowSubsystem* Demo)
+{
+	DrawUnderwaterBackground(W, H);
+	if (!Demo) return;
+	const EFactionID Fac = Demo->GetPlayerFaction();
+	const FLinearColor Accent = FFactionColors::Get(Fac);
+	DrawFactionAmbientTint(W, H, Fac);
+
+	DrawGlowTitle(TEXT("RECHERCHE"), H * 0.06f, 2.2f, Accent);
+	DrawCenteredText(TEXT("Cite (gauche) et Chef (droite) — un seul arbre de recherche"),
+		H * 0.14f, FLinearColor(0.9f, 0.95f, 1.f, 0.95f), 1.0f);
+
+	// Trait vertical central.
+	DrawLine(W * 0.5f, H * 0.20f, W * 0.5f, H * 0.86f, FLinearColor(1.f, 1.f, 1.f, 0.25f), 2.f);
+	{
+		UFont* HeaderFont = GEngine ? GEngine->GetLargeFont() : nullptr;
+		float THw = 0.f, THh = 0.f;
+		GetTextSize(TEXT("CITE"), THw, THh, HeaderFont, 1.15f);
+		DrawText(TEXT("CITE"), Accent, W * 0.25f - THw * 0.5f, H * 0.19f, HeaderFont, 1.15f);
+		GetTextSize(TEXT("CHEF"), THw, THh, HeaderFont, 1.15f);
+		DrawText(TEXT("CHEF"), Accent, W * 0.75f - THw * 0.5f, H * 0.19f, HeaderFont, 1.15f);
+	}
+
+	// ─── GAUCHE : bâtiments de la cité ───
+	for (int32 i = 0; i < CityCardCount(); ++i)
+	{
+		const EDemoUnitCategory Cat = CityCardCategory(i);
+		const FBox2D R = ResearchCityUpgradeRect(i, W, H);
+		const bool bUnlocked = Demo->IsCategoryUnlocked(Cat);
+		const int32 Lvl = Demo->GetBuildingLevel(Cat);
+		const int32 Cost = Demo->GetBuildingUpgradeCost(Cat);
+		const bool bCanUp = Demo->CanUpgradeBuilding(Cat);
+		const FString Label = (Cost > 0)
+			? FString::Printf(TEXT("%s - Niveau %d/%d - %d cristaux"),
+				*CityUnitLabel(Fac, Cat), Lvl, UDemoFlowSubsystem::MaxBuildingLevel, Cost)
+			: FString::Printf(TEXT("%s - Niveau MAX"), *CityUnitLabel(Fac, Cat));
+		DrawButton(R, Label,
+			!bUnlocked ? FLinearColor(0.35f, 0.38f, 0.42f, 1.f)
+				: bCanUp ? Accent : FLinearColor(0.45f, 0.5f, 0.56f, 1.f), 0.75f);
+	}
+
+	// ─── DROITE : arbre Grade/Axe du Chef ───
+	const EDemoUnitCategory ChefCat = EDemoUnitCategory::Chef;
+	const int32 Grade = Demo->GetUnitGrade(ChefCat);
+	const int32 MaxGrade = Demo->GetMaxUnitGrade(ChefCat);
+	const FBox2D GradeR = ResearchChefGradeRect(W, H);
+	if (Grade < MaxGrade)
+	{
+		int32 CCost = 0, ACost = 0, OCost = 0;
+		Demo->GetUnitGradeUpgradeCost(ChefCat, CCost, ACost, OCost);
+		const bool bCanUp = Demo->CanUpgradeUnitGrade(ChefCat);
+		DrawButton(GradeR, FString::Printf(TEXT("%s - GRADE %d/%d -> +1\n%d / %d / %d"),
+			*CityUnitLabel(Fac, ChefCat), Grade, MaxGrade, CCost, ACost, OCost),
+			bCanUp ? Accent : FLinearColor(0.35f, 0.38f, 0.42f, 1.f), 0.72f);
+	}
+	else
+	{
+		DrawButton(GradeR, FString::Printf(TEXT("%s - GRADE %d/%d (MAX)"),
+			*CityUnitLabel(Fac, ChefCat), Grade, MaxGrade), Accent, 0.8f);
+	}
+	// Deux branches (Axe 1 / Axe 2), sous le Grade -> visuel d'arbre qui se divise en deux.
+	DrawLine((GradeR.Min.X + GradeR.Max.X) * 0.5f, GradeR.Max.Y,
+		(GradeR.Min.X + GradeR.Max.X) * 0.5f, GradeR.Max.Y + 20.f, Accent, 2.f);
+	const int32 ChosenAxis = Demo->GetUnitAxis(ChefCat);
+	for (int32 a = 1; a <= 2; ++a)
+	{
+		const FBox2D AxR = ResearchChefAxisRect(a - 1, W, H);
+		DrawLine((AxR.Min.X + AxR.Max.X) * 0.5f, GradeR.Max.Y + 20.f,
+			(AxR.Min.X + AxR.Max.X) * 0.5f, AxR.Min.Y, Accent, 2.f);
+		const bool bSel = (ChosenAxis == a);
+		const bool bCanPick = (Grade >= 1) && (ChosenAxis == 0);
+		const FLinearColor Tint = bSel ? Accent
+			: bCanPick ? FLinearColor(0.55f, 0.6f, 0.7f, 1.f) : FLinearColor(0.35f, 0.38f, 0.42f, 1.f);
+		DrawButton(AxR, FString::Printf(TEXT("%s\n(%s)%s"), *SkillAxisLabel(Fac, ChefCat, a),
+			*SkillAxisCategory(Fac, ChefCat, a), bSel ? TEXT("\nCHOISI (permanent)") : TEXT("")),
+			Tint, 0.72f);
+	}
+
+	DrawButton(ResearchBackButtonRect(W, H), TEXT("RETOUR"), FLinearColor(0.8f, 0.8f, 0.4f, 1.f), 1.2f);
 }
 
 void AWOTOLDemoHUD::DrawLoadingScreen(float W, float H, UDemoFlowSubsystem* Demo)

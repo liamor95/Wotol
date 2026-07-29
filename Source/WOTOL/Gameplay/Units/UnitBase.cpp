@@ -144,9 +144,13 @@ void AUnitBase::InitFromDataAsset()
 				Generic->Damage       = UnitData->Stats.AttackDPS * 2.5f;
 				Generic->TargetType   = EAbilityTargetType::SingleUnit;
 				// Aperçu holographique avant activation (Noxeflare uniquement, demande Liamor
-				// 29/07/2026) — durée PROVISOIRE, tunable. 0 pour toutes les autres unités
+				// 29/07/2026). Allongé (0.6s -> 1.4s, retour Liamor du 29/07/2026 : "un peu plus
+				// long") pour laisser le temps de voir la zone. Reste un DÉLAI FIXE (pas encore un
+				// vrai mode de visée qui suit la souris jusqu'au clic de confirmation, comme
+				// demandé) — nécessite un état d'input dédié, laissé en TODO_WOTOL.md pour une
+				// passe séparée (risque sur le clic RTS existant). 0 pour toutes les autres unités
 				// -> comportement instantané inchangé.
-				Generic->TelegraphDuration = UnitData->bAbilityHasTelegraph ? 0.6f : 0.f;
+				Generic->TelegraphDuration = UnitData->bAbilityHasTelegraph ? 1.4f : 0.f;
 			}
 		}
 	}
@@ -178,9 +182,13 @@ float AUnitBase::GetEffectiveAttackRange() const
 
 	const int32 Axis = Demo->GetUnitAxis(Cat);
 	// Axe 1 (longue portée, ex. Hydrosniper) : +2. Axe 2 (zone rapprochée, ex. Hydropompe) : -2.
-	// Valeurs PROVISOIRES, cf. TODO_WOTOL.md — bornées à la plage existante [1,5].
-	if (Axis == 1) return FMath::Clamp(Base + 2.f, 1.f, 5.f);
-	if (Axis == 2) return FMath::Clamp(Base - 2.f, 1.f, 5.f);
+	// Portée volontairement LIMITÉE (pas toute la carte) : plafond relevé à 8 (au lieu de 5) pour
+	// que le bonus de l'Axe 1 ait un effet réel (Aquisphères est déjà à 5 de base -> sans ce
+	// relèvement le "+2" était neutralisé par l'ancien plafond, aucun changement visible). Rester
+	// PROVISOIRE, cf. TODO_WOTOL.md — Liamor a confirmé vouloir une portée bornée au Grade 0 qui
+	// grandit avec l'investissement dans l'axe, sans jamais couvrir toute la carte.
+	if (Axis == 1) return FMath::Clamp(Base + 2.f, 1.f, 8.f);
+	if (Axis == 2) return FMath::Clamp(Base - 2.f, 1.f, 8.f);
 	return Base;
 }
 
