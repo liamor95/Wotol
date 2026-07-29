@@ -874,6 +874,40 @@ UTexture2D* AWOTOLDemoHUD::GetPanelFrame(EFactionID Faction)
 	return NoxeensFrameTexture;
 }
 
+UTexture2D* AWOTOLDemoHUD::GetPanelFramePortrait(EFactionID Faction)
+{
+	if (Faction == EFactionID::Aquiloris)
+	{
+		if (bAquilorisFramePortraitTried) return AquilorisFramePortraitTexture;
+		bAquilorisFramePortraitTried = true;
+		const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/PanelFramePortraitAquiloris.png");
+		if (FPaths::FileExists(PngPath)) AquilorisFramePortraitTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+		return AquilorisFramePortraitTexture;
+	}
+	if (bNoxeensFramePortraitTried) return NoxeensFramePortraitTexture;
+	bNoxeensFramePortraitTried = true;
+	const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/PanelFramePortraitNoxeens.png");
+	if (FPaths::FileExists(PngPath)) NoxeensFramePortraitTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+	return NoxeensFramePortraitTexture;
+}
+
+UTexture2D* AWOTOLDemoHUD::GetPanelFrameWide(EFactionID Faction)
+{
+	if (Faction == EFactionID::Aquiloris)
+	{
+		if (bAquilorisFrameWideTried) return AquilorisFrameWideTexture;
+		bAquilorisFrameWideTried = true;
+		const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/PanelFrameWideAquiloris.png");
+		if (FPaths::FileExists(PngPath)) AquilorisFrameWideTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+		return AquilorisFrameWideTexture;
+	}
+	if (bNoxeensFrameWideTried) return NoxeensFrameWideTexture;
+	bNoxeensFrameWideTried = true;
+	const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/PanelFrameWideNoxeens.png");
+	if (FPaths::FileExists(PngPath)) NoxeensFrameWideTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+	return NoxeensFrameWideTexture;
+}
+
 UTexture2D* AWOTOLDemoHUD::GetFactionSelectBackground()
 {
 	if (bFactionSelectBgTried) return FactionSelectBgTexture;
@@ -2313,6 +2347,19 @@ void AWOTOLDemoHUD::DrawPauseOverlay(float W, float H)
 {
 	// Voile sombre plein écran
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), 0.f, 0.f, W, H);
+	// Cadre orné PORTRAIT par faction (26/07/2026) derrière tout le contenu (titre, volume,
+	// plein écran, vitesse de jeu, 4 boutons) — le cadre standard (paysage) aurait été
+	// visiblement étiré sur cette colonne haute et étroite, d'où cette variante dédiée.
+	{
+		UDemoFlowSubsystem* Demo = GetGameInstance()
+			? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+		const EFactionID Fac = Demo ? Demo->GetPlayerFaction() : EFactionID::None;
+		if (UTexture2D* Frame = GetPanelFramePortrait(Fac))
+		{
+			const float PW = 500.f, PH = 760.f;
+			DrawTexture(Frame, (W - PW) * 0.5f, H * 0.13f, PW, PH, 0.f, 0.f, 1.f, 1.f);
+		}
+	}
 	DrawCenteredText(TEXT("REGLAGES"), H * 0.20f, FLinearColor::White, 2.6f);
 
 	// ── Réglages RÉELS (absents jusqu'ici : l'écran ne contenait que Reprendre/Recommencer/
@@ -2388,6 +2435,19 @@ void AWOTOLDemoHUD::DrawControlsScreen(float W, float H)
 {
 	// Voile sombre plein écran, même habillage que le menu réglages.
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.75f), 0.f, 0.f, W, H);
+	// Cadre orné LARGE par faction (26/07/2026) derrière le titre + les 3 sections de
+	// commandes — variante dédiée (même aspect ~1.5:1 que le cadre standard, mais assez large
+	// pour ne pas rogner le texte de description qui s'étend loin de part et d'autre).
+	{
+		UDemoFlowSubsystem* Demo = GetGameInstance()
+			? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+		const EFactionID Fac = Demo ? Demo->GetPlayerFaction() : EFactionID::None;
+		if (UTexture2D* Frame = GetPanelFrameWide(Fac))
+		{
+			const float PW = 1400.f, PH = 933.f;
+			DrawTexture(Frame, (W - PW) * 0.5f, H * 0.05f, PW, PH, 0.f, 0.f, 1.f, 1.f);
+		}
+	}
 	DrawCenteredText(TEXT("COMMANDES"), H * 0.08f, FLinearColor::White, 2.4f);
 
 	struct FControlLine { const TCHAR* Key; const TCHAR* Desc; };

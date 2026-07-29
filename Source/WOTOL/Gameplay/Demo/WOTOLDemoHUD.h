@@ -213,6 +213,22 @@ private:
 	UPROPERTY(Transient) TObjectPtr<class UTexture2D> NoxeensFrameTexture = nullptr;
 	bool bNoxeensFrameTried = false;
 
+	// Variantes PORTRAIT (menu Réglages, contenu haut/étroit) et LARGE (écran Commandes,
+	// texte de description qui déborderait d'un cadre standard), fournies par Liamor le
+	// 26/07/2026 pour compléter les 2 écrans que le cadre standard (format paysage ~1.5:1)
+	// aurait déformés.
+	class UTexture2D* GetPanelFramePortrait(EFactionID Faction);
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> AquilorisFramePortraitTexture = nullptr;
+	bool bAquilorisFramePortraitTried = false;
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> NoxeensFramePortraitTexture = nullptr;
+	bool bNoxeensFramePortraitTried = false;
+
+	class UTexture2D* GetPanelFrameWide(EFactionID Faction);
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> AquilorisFrameWideTexture = nullptr;
+	bool bAquilorisFrameWideTried = false;
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> NoxeensFrameWideTexture = nullptr;
+	bool bNoxeensFrameWideTried = false;
+
 	// Fond neutre de l'écran de choix de faction (Content/UI/BackgroundFactionSelect.png,
 	// 26/07/2026) : seul écran qui ne pouvait pas utiliser DrawFactionAmbientTint (pas encore
 	// de faction choisie à ce moment) — restait donc 100% procédural jusqu'ici.

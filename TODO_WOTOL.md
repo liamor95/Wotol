@@ -1,5 +1,27 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Cadres PORTRAIT + LARGE pour Reglages/Commandes (26/07/2026, suite)
+
+Liamor a fourni le jour meme les 2 formats manquants notes dans l'entree precedente (cadre
+standard trop paysage pour ces deux ecrans) :
+- `Content/UI/PanelFramePortraitAquiloris.png` / `PanelFramePortraitNoxeens.png` (1024x1536,
+  format haut/etroit) -> branches dans `DrawPauseOverlay` (menu Reglages), derriere titre +
+  volume + plein ecran + vitesse de jeu + 4 boutons.
+- `Content/UI/PanelFrameWideAquiloris.png` / `PanelFrameWideNoxeens.png` (1536x1024, meme
+  aspect que le cadre standard mais dimensionne plus large) -> branche dans
+  `DrawControlsScreen` (ecran Commandes), assez large pour ne pas rogner le texte de
+  description des 3 sections (Bataille/Exploration/Vue Cite).
+- Nouvelles fonctions `GetPanelFramePortrait`/`GetPanelFrameWide` (meme mecanisme de cache que
+  GetPanelFrame), repli sur Noxeens si aucune faction choisie, repli sur le voile plat existant
+  si le fichier est absent.
+- **Ecrans/fenetres modales desormais TOUS habilles** : plus aucun panneau de couleur unie nu
+  dans la demo (objectif, confirmation, reglages, commandes ont tous un cadre orne ; menu
+  principal, choix de faction, et les 6 ecrans post-choix-de-faction ont tous une vraie image).
+- Non verifie ici (pas de compilateur) : a verifier au prochain retour PC que le cadre
+  Reglages ne deborde/ne manque pas en dessous des 4 boutons sur une resolution tres haute
+  (le cadre est en pixels fixes alors que la position des boutons est relative a H — meme
+  limite deja acceptee pour ObjectiveWindow/ConfirmDialog).
+
 ## Cadres de fenetres modales + fond ecran choix de faction (26/07/2026)
 
 Suite a l'audit des ecrans/fenetres (question de Liamor : "est-ce que chaque fenetre a une
