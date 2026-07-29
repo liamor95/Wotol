@@ -1,5 +1,16 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Mise a jour style visuel des cadres LARGE (26/07/2026, suite)
+
+Liamor a fourni une nouvelle passe artistique des cadres LARGE (memes fichiers, `Content/UI/
+PanelFrameWideAquiloris.png` / `PanelFrameWideNoxeens.png` ecrases en place, meme resolution
+1536x1024) : style "lignes de circuit tech" plus fin/detaille sur le bord du cadre, remplace
+l'ancienne version. Aucun changement de code necessaire (le chargeur relit le fichier par
+chemin a chaque nouvelle session) -> pris en compte automatiquement par DrawControlsScreen.
+Cadres PORTRAIT et STANDARD (paysage, ObjectiveWindow/ConfirmDialog) restent dans l'ancien
+style pour l'instant -> incoherence visuelle possible entre ecrans si Liamor ne fournit pas la
+meme passe pour ces deux autres formats.
+
 ## Cadres PORTRAIT + LARGE pour Reglages/Commandes (26/07/2026, suite)
 
 Liamor a fourni le jour meme les 2 formats manquants notes dans l'entree precedente (cadre
