@@ -1,5 +1,25 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Style "circuit tech" applique aussi au cadre STANDARD (26/07/2026, suite)
+
+Liamor a demande de regenerer le meme style (circuit tech, cf. entree precedente) en portrait
+ET paysage standard. `PanelFrameAquiloris.png`/`PanelFrameNoxeens.png` (cadre STANDARD, utilise
+par DrawObjectiveWindow/DrawConfirmDialog) ont EXACTEMENT la meme resolution que les cadres
+LARGE (1536x1024) -> reutilises directement les memes fichiers, aucune regeneration necessaire,
+aucun risque de deformation. Le cadre standard a donc maintenant le meme visuel "circuit tech"
+que le cadre large.
+
+**PAS FAIT : variante PORTRAIT (menu Reglages)** — aucun outil de generation d'image
+texte->image disponible cote assistant dans cette session (seulement des outils d'edition :
+recadrage, filtres, expansion generative sur une image EXISTANTE). Une extension generative
+horizontale->verticale du cadre large aurait produit un resultat degrade (les pics/couronne
+sont composes pour une orientation horizontale, pas juste "plus de fond" en haut/bas) -> pas
+tentee pour eviter de livrer un mauvais rendu presente comme fini. Le cadre portrait
+(`PanelFramePortraitAquiloris/Noxeens.png`) reste dans l'ANCIEN style pour l'instant -> legere
+incoherence visuelle entre le menu Reglages et les autres fenetres modales. A refaire des que
+Liamor fournit la version portrait du nouveau style (meme prompt "circuit tech", composition
+verticale, format ~1024x1536).
+
 ## Mise a jour style visuel des cadres LARGE (26/07/2026, suite)
 
 Liamor a fourni une nouvelle passe artistique des cadres LARGE (memes fichiers, `Content/UI/
