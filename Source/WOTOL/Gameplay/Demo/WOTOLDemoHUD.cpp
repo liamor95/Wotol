@@ -1191,7 +1191,7 @@ void AWOTOLDemoHUD::DrawExplorationHUD(float W, float H, UDemoFlowSubsystem* Dem
 	{
 		DrawCenteredText(Demo->ObjectiveText, 57.f, FLinearColor::White, 1.0f);
 	}
-	DrawCenteredText(TEXT("ZQSD/WASD : nager | Souris : regarder | Espace/E : monter | Maj/Ctrl : descendre | Alt : sprint | C : ruee"),
+	DrawCenteredText(TEXT("ZQSD/WASD : nager | Souris : regarder | Molette : zoom | Espace/E : monter | Maj/Ctrl : descendre | Alt : sprint | C : ruee | F : attaque | R : competence"),
 		H - 48.f, FLinearColor(0.86f, 0.93f, 1.f, 0.95f), 0.9f);
 
 	// Après le rapport du Kraken, le Cristalliseur arrive dans un véritable inventaire de
@@ -1930,14 +1930,15 @@ void AWOTOLDemoHUD::DrawLoadingScreen(float W, float H, UDemoFlowSubsystem* Demo
 	// ajoutees (R + ecran Commandes) en plus des astuces de combat existantes : les tirages
 	// precedents ne mentionnaient que la tactique, jamais les fonctions du HUD (moment ideal
 	// pour les enseigner, entre deux phases, cf. recherche onboarding session du 19/07/2026).
-	static const TCHAR* Tips[6] = {
+	static const TCHAR* Tips[7] = {
 		TEXT("Astuce : attaquez depuis une couche inferieure pour un bonus de degats ascendant."),
 		TEXT("Astuce : les Aquilombres sont invisibles a l'arret — approchez pour frapper dans le dos."),
 		TEXT("Astuce : gardez vos unites groupees, la coordination Aquiloris renforce le groupe."),
 		TEXT("Astuce : les Noxeens sont plus puissants dans les zones bioluminescentes vertes."),
 		TEXT("Astuce : la touche R active la competence des unites selectionnees."),
-		TEXT("Astuce : Reglages > Commandes rappelle toutes les touches a tout moment.") };
-	const int32 Idx = ((int32)(T * 0.2f)) % 6;
+		TEXT("Astuce : Reglages > Commandes rappelle toutes les touches a tout moment."),
+		TEXT("Astuce : choisissez une formation (bas-droite, 2+ unites) avant un ordre de groupe — le carre defensif protege, la colonne va plus vite.") };
+	const int32 Idx = ((int32)(T * 0.2f)) % 7;
 	DrawCenteredText(Tips[Idx], H * 0.86f, FLinearColor(0.75f, 0.85f, 0.95f, 0.9f), 0.95f);
 }
 
@@ -2461,15 +2462,19 @@ void AWOTOLDemoHUD::DrawControlsScreen(float W, float H)
 			{ TEXT("ZQSD / WASD / fleches"), TEXT("Deplacer la camera") },
 			{ TEXT("Ctrl"), TEXT("Selectionner toute l'armee") },
 			{ TEXT("R"), TEXT("Activer la competence des unites selectionnees") },
+			{ TEXT("Puces Formation (bas-droite)"), TEXT("Ligne/Coin/Carre/Lache/Colonne pour le prochain ordre de groupe (2+ unites)") },
 			{ TEXT("Echap / P"), TEXT("Pause") },
 		}},
 		{ TEXT("EXPLORATION (nage libre)"), {
 			{ TEXT("ZQSD / WASD"), TEXT("Nager") },
 			{ TEXT("Souris"), TEXT("Regarder") },
+			{ TEXT("Molette"), TEXT("Zoom") },
 			{ TEXT("Espace / E"), TEXT("Monter") },
 			{ TEXT("Maj / Ctrl"), TEXT("Descendre") },
 			{ TEXT("Alt"), TEXT("Sprint (maintenu)") },
 			{ TEXT("C"), TEXT("Ruee (courte impulsion, a recharge)") },
+			{ TEXT("F / Entree"), TEXT("Attaque de base") },
+			{ TEXT("R"), TEXT("Competence") },
 		}},
 		{ TEXT("VUE CITE"), {
 			{ TEXT("ZQSD / WASD / fleches"), TEXT("Deplacer la camera isometrique") },

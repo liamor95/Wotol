@@ -1,5 +1,38 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Recherche autonome (26/07/2026, suite) — controles non documentes a l'ecran
+
+Suite a "continue les recherches automatiquement" : audit des ajouts recents (formations,
+mode action exploration) contre la convention etablie "toute commande interactive doit
+apparaitre a l'ecran" (bandeau d'instructions + ecran Commandes). Deux oublis trouves et
+corriges :
+- **Ecran Commandes** (`DrawControlsScreen`) : la section BATAILLE ne mentionnait pas les
+  puces de Formation (ajoutees la session precedente) ; la section EXPLORATION ne mentionnait
+  ni la molette (zoom, ajoute la session precedente) ni F/Entree (attaque) ni R (competence,
+  tous deux ajoutes la session precedente). Completees.
+- **Bandeau d'instructions permanent en bas de l'ecran d'exploration** (`DrawExplorationHUD`,
+  toujours visible, pas besoin d'ouvrir le menu Reglages) : listait encore les commandes
+  d'AVANT le mode action (nage/sprint/ruee uniquement) -> le joueur n'avait aucune indication
+  a l'ecran que F/Entree et R faisaient desormais quelque chose. Corrige.
+- Astuce de chargement ajoutee (6 -> 7, meme rotation) expliquant le systeme de formation.
+- **Deliberement pas ajoute** : jauge de recharge dediee pour l'attaque/competence
+  d'exploration (comme `DrawAbilityStatus` en bataille) — la Ruee (Dash), deja presente depuis
+  plus longtemps, n'a elle non plus jamais eu de jauge dediee (juste mentionnee dans le
+  bandeau texte) ; cohérent de garder Attaque/Competence au meme niveau de finition tant que
+  Liamor ne demande pas plus.
+
+**Piste identifiee mais PAS touchee (trop risque sans confirmation) :** `EAbilityShape`
+(Mono/PetiteZone/Zone/GrandeZone/Cone/Aura/ChargeLigne/Souffle, defini dans WOTOLTypes.h)
+n'est reference NULLE PART ailleurs dans le code — ni stocke sur UnitDataAsset, ni lu par
+UAbilityBase::ExecuteAbility (qui applique TOUJOURS un degat mono-cible + soin sur le lanceur,
+quelle que soit la forme documentee au GDD pour l'unite : cone, zone, aura, souffle...). C'est
+la meme "donnee morte" que UFormationComponent l'etait avant d'etre branche, MAIS l'implementer
+changerait le comportement de combat reel de 12 unites (une compétence zone toucherait
+plusieurs cibles au lieu d'une seule) -> risque direct sur l'equilibrage deja calibre/valide.
+Contrairement aux formations (purement additif, comportement par defaut inchange), il n'y a
+pas de version "sans rien casser" evidente ici. A ne faire que sur demande explicite de Liamor,
+avec son arbitrage sur quelles unites/formes traiter en priorite.
+
 ## Mode ACTION de l'exploration (26/07/2026, demande explicite de Liamor)
 
 Audit + implementation suite a la question de Liamor : "est-ce que je vais pouvoir jouer
