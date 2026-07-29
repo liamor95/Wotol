@@ -1,5 +1,49 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Vraie presentation visuelle des arbres de competences, basee sur recherche (29/07/2026, suite)
+
+Liamor a demande une recherche web sur les meilleurs arbres de competences/tech trees d'autres
+jeux (memes mecaniques : choix permanent d'une branche parmi deux, progression par palier) avant
+d'ameliorer visuellement l'ecran COMPETENCES et la fenetre RECHERCHE. Sources et enseignements
+retenus (coherents avec ce qui existe deja, pas de refonte du systeme Grade/Axe) :
+
+- **XCOM (choix binaire permanent par rang)** : exactement le mecanisme de nos Axes — confirme
+  que le design actuel (2 branches, un choix definitif) est un pattern eprouve et appecie des
+  joueurs, pas juste garde tel quel par defaut.
+- **Age of Empires / tech trees a fils** : les prerequis doivent etre relies par des LIGNES
+  visibles, pas juste une position relative. Ajoute des lignes de branche (noeud GRADE -> Axe 1 /
+  Axe 2) dans l'ecran COMPETENCES (elles existaient deja dans RECHERCHE, manquantes ici).
+- **Game UI Database / bonnes pratiques generales** : un bon arbre de competences distingue
+  TOUJOURS les etats verrouille / disponible / possede avec un signal EXPLICITE (pas seulement
+  une couleur plus terne) — texte d'etat ajoute sous chaque noeud d'axe ("[verrouille]",
+  "[besoin du Grade 1]", "[voie deja fixee ailleurs]", "[phase de preparation requise]",
+  "* CHOISI (permanent)").
+- **Icone + couleur, jamais couleur seule** (accessibilite daltonisme, retour recurrent) :
+  glyphes ASCII ajoutes par thematique (X=Offensif, #=Defensif, ^=Support, +=Soins,
+  *=Controle) affiches a cote du nom d'axe, partout ou la thematique apparait (ecran
+  COMPETENCES, onglet Competences de la fenetre de batiment, arbre RECHERCHE), avec une legende
+  visible en bas de chaque ecran.
+- **Clarte du cout/ressources** : le bouton GRADE +1 affiche desormais un texte explicite
+  "[ressources insuffisantes]" (distinct de "[phase de preparation requise]") au lieu d'un
+  simple grisement — le joueur sait POURQUOI le bouton est inactif.
+
+**Corrige au passage** : `AWOTOLDemoHUD::DrawButton` gerait mal le texte MULTI-LIGNE ("\n",
+utilise par les boutons Grade/Axe/Recherche) -> centrait tout le bloc sur la ligne la plus
+large, decalant les lignes courtes vers la gauche. Chaque ligne est desormais centree
+individuellement.
+
+**Sources consultees :**
+- https://www.gamedeveloper.com/design/some-thoughts-about-research-and-upgrades-in-rts-games
+- https://waywardstrategy.com/2020/06/08/the-tapestry-of-rts-design-upgrades-and-research/
+- https://www.gameuidatabase.com/index.php?scrn=64
+- https://xcom2.wiki.fextralife.com/Soldier+Abilities
+- https://ageofempires.fandom.com/wiki/Technology_tree_(Age_of_Empires)
+- https://www.thegamer.com/best-skill-tree-designs-in-video-games/
+
+**Toujours pas fait (hors scope, volontairement pas invente) :** vraies icones dediees par
+thematique (actuellement des glyphes texte ASCII, pas des images) ; portee Aquispheres a
+plusieurs paliers ; mode de visee a la souris pour la telegraphie Noxeflare.
+
 ## Polish demande par Liamor ("b" = on peaufine l'existant, 29/07/2026)
 
 - **`AWOTOLDemoHUD::DrawButton` corrige** : gerait mal le texte MULTI-LIGNE ("\n", utilise par

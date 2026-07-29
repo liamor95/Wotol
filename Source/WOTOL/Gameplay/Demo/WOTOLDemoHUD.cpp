@@ -1488,6 +1488,19 @@ static FLinearColor SkillAxisCategoryColor(const FString& Category)
 	return FLinearColor(0.55f, 0.6f, 0.7f, 1.f); // neutre (pas de categorie / "?")
 }
 
+// Glyphe associé à la thématique — la couleur seule n'est pas assez claire pour un daltonien
+// et n'aide pas à mémoriser la thématique d'un coup d'œil (retour de recherche : les bons
+// arbres de compétences combinent TOUJOURS icône + couleur, jamais la couleur seule).
+static FString SkillAxisCategoryIcon(const FString& Category)
+{
+	if (Category.Contains(TEXT("Soin")))     return TEXT("+");
+	if (Category.Contains(TEXT("Controle"))) return TEXT("*");
+	if (Category.Contains(TEXT("Defensif"))) return TEXT("#");
+	if (Category.Contains(TEXT("Support")))  return TEXT("^");
+	if (Category.Contains(TEXT("Offensif"))) return TEXT("X");
+	return TEXT("?");
+}
+
 UTexture2D* AWOTOLDemoHUD::GetTransitionBackground()
 {
 	if (TransitionBgTexture || bTransitionBgTried) return TransitionBgTexture;
@@ -1846,9 +1859,9 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 				Y, FLinearColor(0.9f, 0.95f, 1.f, 0.95f), 0.88f); Y += 24.f;
 			if (Axis != 0)
 			{
-				DrawCenteredText(FString::Printf(TEXT("(%s) - choix permanent"),
-					*SkillAxisCategory(Fac, SelCat, Axis)),
-					Y, SkillAxisCategoryColor(SkillAxisCategory(Fac, SelCat, Axis)), 0.75f);
+				const FString AxCat = SkillAxisCategory(Fac, SelCat, Axis);
+				DrawCenteredText(FString::Printf(TEXT("[%s] %s - choix permanent"), *SkillAxisCategoryIcon(AxCat), *AxCat),
+					Y, SkillAxisCategoryColor(AxCat), 0.75f);
 				Y += 24.f;
 			}
 			else
@@ -2142,49 +2155,80 @@ void AWOTOLDemoHUD::DrawSkillsView(float W, float H, UDemoFlowSubsystem* Demo)
 		const int32 Cur = Demo->GetUnitAxis(Cat);
 		const bool bAxisChosen = (Cur != 0);
 		const bool bCanPickAxis = bUnlocked && bPrepPhase && Grade >= 1 && !bAxisChosen;
+
+		// Petit "arbre" : lignes de branche entre le noeud GRADE et les 2 noeuds d'axe — même
+		// langage visuel que la fenêtre RECHERCHE (retour de recherche : la cohérence visuelle
+		// d'un même mécanisme dans tout le jeu est ce qui rend un arbre de compétences lisible).
+		const FBox2D GR0 = SkillsGradeButtonRect(i, W, H);
+		const FBox2D AxR1 = SkillsAxisRect(i, 1, W, H);
+		const FBox2D AxR2 = SkillsAxisRect(i, 2, W, H);
+		const float TrunkY = GR0.Min.Y - 12.f;
+		DrawLine((GR0.Min.X + GR0.Max.X) * 0.5f, GR0.Min.Y, (GR0.Min.X + GR0.Max.X) * 0.5f, TrunkY,
+			FLinearColor(1.f, 1.f, 1.f, 0.25f), 1.5f);
+		DrawLine((AxR1.Min.X + AxR1.Max.X) * 0.5f, TrunkY, (AxR1.Min.X + AxR1.Max.X) * 0.5f, AxR1.Max.Y,
+			FLinearColor(1.f, 1.f, 1.f, 0.25f), 1.5f);
+		DrawLine((AxR2.Min.X + AxR2.Max.X) * 0.5f, TrunkY, (AxR2.Min.X + AxR2.Max.X) * 0.5f, AxR2.Max.Y,
+			FLinearColor(1.f, 1.f, 1.f, 0.25f), 1.5f);
+
 		for (int32 a = 0; a < 3; ++a)
 		{
 			const FBox2D R = SkillsAxisRect(i, a, W, H);
 			const bool bSel = (Cur == a);
-			// Teinte par THEMATIQUE (Offensif/Defensif/Support/Soins/Controle) plutot que la
-			// couleur de faction generique -> repere visuel rapide (polish 29/07/2026). Assombrie
-			// si non selectionnable pour l'instant (verrouille/pas encore accessible).
-			const FLinearColor CatColor = (a > 0) ? SkillAxisCategoryColor(SkillAxisCategory(Fac, Cat, a)) : Accent;
+			// Icône + couleur par THÉMATIQUE (Offensif/Défensif/Support/Soins/Contrôle) plutôt
+			// que la couleur de faction générique -> repère visuel immédiat, lisible même en cas
+			// de daltonisme (retour de recherche : icône + couleur, jamais couleur seule).
+			const FString AxCat = (a > 0) ? SkillAxisCategory(Fac, Cat, a) : TEXT("");
+			const FLinearColor CatColor = (a > 0) ? SkillAxisCategoryColor(AxCat) : Accent;
 			FLinearColor Tint = !bUnlocked ? FLinearColor(0.4f, 0.4f, 0.45f, 1.f)
 				: bSel ? CatColor
 				: (a > 0 && !bCanPickAxis) ? FLinearColor(0.3f, 0.32f, 0.36f, 1.f)
 				: CatColor * 0.6f;
 			const FString Label = (a == 0) ? SkillAxisLabel(Fac, Cat, a)
-				: FString::Printf(TEXT("%s\n(%s)"), *SkillAxisLabel(Fac, Cat, a), *SkillAxisCategory(Fac, Cat, a));
+				: FString::Printf(TEXT("[%s] %s\n(%s)"), *SkillAxisCategoryIcon(AxCat),
+					*SkillAxisLabel(Fac, Cat, a), *AxCat);
 			DrawButton(R, Label, Tint, bSel ? 1.05f : 0.85f);
-			if (bSel && a > 0)
+			if (a > 0)
 			{
-				DrawText(TEXT("CHOISI (permanent)"), Accent, R.Min.X, R.Max.Y + 4.f, nullptr, 0.7f);
+				// État explicite sous le noeud : CHOISI (étoile) / verrouillé (cadenas) / prêt à
+				// prendre — ne PAS se reposer sur la couleur seule pour signaler l'état.
+				if (bSel)
+					DrawText(TEXT("* CHOISI (permanent)"), CatColor, R.Min.X, R.Max.Y + 4.f, nullptr, 0.7f);
+				else if (!bUnlocked)
+					DrawText(TEXT("[verrouille]"), FLinearColor(0.55f, 0.55f, 0.6f, 0.9f), R.Min.X, R.Max.Y + 4.f, nullptr, 0.65f);
+				else if (bAxisChosen)
+					DrawText(TEXT("[voie deja fixee ailleurs]"), FLinearColor(0.5f, 0.52f, 0.56f, 0.9f), R.Min.X, R.Max.Y + 4.f, nullptr, 0.65f);
+				else if (Grade < 1)
+					DrawText(TEXT("[besoin du Grade 1]"), FLinearColor(0.55f, 0.55f, 0.6f, 0.9f), R.Min.X, R.Max.Y + 4.f, nullptr, 0.65f);
+				else if (!bPrepPhase)
+					DrawText(TEXT("[phase de preparation requise]"), FLinearColor(0.85f, 0.7f, 0.4f, 0.95f), R.Min.X, R.Max.Y + 4.f, nullptr, 0.65f);
 			}
 		}
 
-		// Bouton d'amélioration de Grade — coût affiché, actif seulement en Phase 3 prépa.
+		// Noeud GRADE — coût par ressource coloré (vert = finançable, rouge = manquant) pour
+		// une lecture immédiate, actif seulement en Phase 3 prépa.
 		if (Grade < MaxGrade)
 		{
 			int32 CCost = 0, ACost = 0, OCost = 0;
 			Demo->GetUnitGradeUpgradeCost(Cat, CCost, ACost, OCost);
 			const bool bCanUpgrade = Demo->CanUpgradeUnitGrade(Cat);
-			const FBox2D GR = SkillsGradeButtonRect(i, W, H);
-			DrawButton(GR, FString::Printf(TEXT("GRADE +1\n%d / %d / %d"), CCost, ACost, OCost),
+			DrawButton(GR0, FString::Printf(TEXT("GRADE +1\n%d / %d / %d"), CCost, ACost, OCost),
 				bCanUpgrade ? Accent : FLinearColor(0.35f, 0.38f, 0.42f, 1.f), 0.8f);
+			if (!bCanUpgrade)
+			{
+				const bool bAfford = (Demo->GetCrystals() >= CCost && Demo->PlayerAbyssalMaterials >= ACost
+					&& Demo->PlayerOceanicEnergy >= OCost);
+				DrawText(bAfford ? TEXT("[phase de preparation requise]") : TEXT("[ressources insuffisantes]"),
+					FLinearColor(0.85f, 0.55f, 0.5f, 0.9f), GR0.Min.X, GR0.Max.Y + 4.f, nullptr, 0.62f);
+			}
 		}
 		else
 		{
-			const FBox2D GR = SkillsGradeButtonRect(i, W, H);
-			DrawButton(GR, TEXT("GRADE MAX"), FLinearColor(0.5f, 0.55f, 0.6f, 1.f), 0.8f);
+			DrawButton(GR0, TEXT("GRADE MAX"), FLinearColor(0.5f, 0.55f, 0.6f, 1.f), 0.8f);
 		}
 	}
 
-	if (!bPrepPhase)
-	{
-		DrawCenteredText(TEXT("Legende cout Grade : Cristaux / Mineraux Abyssaux / Energie Oceanique"),
-			H * 0.90f, FLinearColor(0.7f, 0.78f, 0.88f, 0.8f), 0.85f);
-	}
+	DrawCenteredText(TEXT("X Offensif   # Defensif   ^ Support   + Soins   * Controle   -- Legende cout : Cristaux / Mineraux / Energie"),
+		H * 0.90f, FLinearColor(0.7f, 0.78f, 0.88f, 0.8f), 0.8f);
 
 	DrawButton(SkillsBackButtonRect(W, H), TEXT("RETOUR"), FLinearColor(0.8f, 0.8f, 0.4f, 1.f), 1.2f);
 }
@@ -2267,13 +2311,22 @@ void AWOTOLDemoHUD::DrawResearchView(float W, float H, UDemoFlowSubsystem* Demo)
 			(AxR.Min.X + AxR.Max.X) * 0.5f, AxR.Min.Y, Accent, 2.f);
 		const bool bSel = (ChosenAxis == a);
 		const bool bCanPick = (Grade >= 1) && (ChosenAxis == 0);
-		const FLinearColor CatColor = SkillAxisCategoryColor(SkillAxisCategory(Fac, ChefCat, a));
+		const FString AxCat = SkillAxisCategory(Fac, ChefCat, a);
+		const FLinearColor CatColor = SkillAxisCategoryColor(AxCat);
 		const FLinearColor Tint = bSel ? CatColor
 			: bCanPick ? CatColor * 0.6f : FLinearColor(0.3f, 0.32f, 0.36f, 1.f);
-		DrawButton(AxR, FString::Printf(TEXT("%s\n(%s)%s"), *SkillAxisLabel(Fac, ChefCat, a),
-			*SkillAxisCategory(Fac, ChefCat, a), bSel ? TEXT("\nCHOISI (permanent)") : TEXT("")),
-			Tint, 0.72f);
+		DrawButton(AxR, FString::Printf(TEXT("[%s] %s\n(%s)"), *SkillAxisCategoryIcon(AxCat),
+			*SkillAxisLabel(Fac, ChefCat, a), *AxCat), Tint, 0.72f);
+		if (bSel)
+			DrawText(TEXT("* CHOISI (permanent)"), CatColor, AxR.Min.X, AxR.Max.Y + 4.f, nullptr, 0.68f);
+		else if (Grade < 1)
+			DrawText(TEXT("[besoin du Grade 1]"), FLinearColor(0.55f, 0.55f, 0.6f, 0.9f), AxR.Min.X, AxR.Max.Y + 4.f, nullptr, 0.62f);
+		else if (ChosenAxis != 0)
+			DrawText(TEXT("[voie deja fixee ailleurs]"), FLinearColor(0.5f, 0.52f, 0.56f, 0.9f), AxR.Min.X, AxR.Max.Y + 4.f, nullptr, 0.62f);
 	}
+
+	DrawCenteredText(TEXT("X Offensif   # Defensif   ^ Support   + Soins   * Controle"),
+		H * 0.895f, FLinearColor(0.7f, 0.78f, 0.88f, 0.8f), 0.8f);
 
 	DrawButton(ResearchBackButtonRect(W, H), TEXT("RETOUR"), FLinearColor(0.8f, 0.8f, 0.4f, 1.f), 1.2f);
 }
