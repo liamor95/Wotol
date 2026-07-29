@@ -268,7 +268,7 @@ void AWOTOLDemoUnit::Tick(float DeltaSeconds)
 			FVector To = Foe->GetActorLocation() - GetActorLocation();
 			To.Z = 0.f;
 			const float Dist = To.Size();
-			const float AtkRange = UnitData ? UnitData->Stats.AttackRange * 200.f : 200.f;
+			const float AtkRange = GetEffectiveAttackRange() * 200.f;
 			// Angle SIGNÉ de la cible par rapport à l'AVANT du modèle (0 = pile devant, ±180 = dos).
 			LastTargetYawRel = FMath::FindDeltaAngleDegrees(GetActorRotation().Yaw, To.Rotation().Yaw);
 			// Y a-t-il un ennemi PROCHE dans l'arc ARRIÈRE ? (sert à ne déclencher le coup de queue
@@ -752,7 +752,7 @@ void AWOTOLDemoUnit::UpdateCombatLayer(float Dt)
 	// Les unités à DISTANCE gardent leur couche (elles ont l'allonge pour tirer en travers).
 	if (!UnitData) return;
 	const bool bCanLayer = UnitData->Stats.bCanChangeLayer;
-	const bool bMelee    = UnitData->Stats.AttackRange <= 3.f; // mêlée + montée (lance)
+	const bool bMelee    = GetEffectiveAttackRange() <= 3.f; // mêlée + montée (lance)
 	if (!bCanLayer || !bMelee) return;
 	if (AUnitBase* Foe = FindNearestEnemyUnit())
 	{
@@ -827,7 +827,7 @@ void AWOTOLDemoUnit::CreatureBrainTick(float DeltaSeconds)
 		SetActorRotation(R);
 	}
 
-	const float Range = UnitData ? UnitData->Stats.AttackRange * 200.f : 200.f;
+	const float Range = GetEffectiveAttackRange() * 200.f;
 	const float Edge  = Dist - GetSimpleCollisionRadius() - Nearest->GetSimpleCollisionRadius();
 
 	// Déplacement LATÉRAL pendant la manœuvre : il CONTOURNE l'ennemi (utilise l'espace)
@@ -981,7 +981,7 @@ void AWOTOLDemoUnit::TickAttackCover(float Dt)
 	if (Dist > 1.f) { FRotator R = To.Rotation(); R.Pitch = 0.f; R.Roll = 0.f;
 		SetActorRotation(FMath::RInterpTo(GetActorRotation(), R, Dt, 12.f)); }
 
-	const float Range = UnitData->Stats.AttackRange * 200.f;
+	const float Range = GetEffectiveAttackRange() * 200.f;
 	const bool  bRanged = (UnitData->Stats.AttackType == EUnitAttackType::Ranged);
 	const float Reach = bRanged ? FMath::Max(Range, 900.f) : (Range + 150.f);
 
@@ -2236,7 +2236,7 @@ void AWOTOLDemoUnit::ApplyFormationCohesion(float Dt)
 	UWorld* W = GetWorld(); if (!W || !IsBattleLive()) return;
 
 	// En COMBAT (ennemi proche) : formation libérée -> on ne contraint pas.
-	const float AtkRange = UnitData ? UnitData->Stats.AttackRange * 200.f : 200.f;
+	const float AtkRange = GetEffectiveAttackRange() * 200.f;
 	if (AUnitBase* Foe = FindNearestEnemyUnit())
 	{
 		if (FVector::Dist2D(GetActorLocation(), Foe->GetActorLocation()) < AtkRange + 650.f) return;
@@ -2343,7 +2343,7 @@ void AWOTOLDemoUnit::TickRoleTactics(float Dt)
 	AUnitBase* Foe = FindNearestEnemyUnit(); if (!Foe) return;
 	FVector To = Foe->GetActorLocation() - GetActorLocation(); To.Z = 0.f;
 	const float Dist = To.Size();
-	const float Range = UnitData->Stats.AttackRange * 200.f;
+	const float Range = GetEffectiveAttackRange() * 200.f;
 
 	// HAUTEUR : quand un ennemi approche, l'unité à distance monte d'un cran pour tirer
 	// par-dessus la ligne de mêlée (et bénéficie du bonus d'attaque descendante).

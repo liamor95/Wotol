@@ -14,8 +14,26 @@
 #include "Gameplay/Demo/WOTOLDemoUnit.h"
 #include "Core/FactionRegistrySubsystem.h"
 #include "Gameplay/Factions/FactionSynergySubsystem.h"
+#include "Gameplay/Demo/DemoFlowSubsystem.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
+
+// EUnitRole (Units) et EDemoUnitCategory (Demo) ont les mêmes 6 valeurs mais pas le même
+// ordre/index -> conversion explicite requise (même logique que AbilityBase.cpp, dupliquée
+// volontairement : 6 cases, pas assez pour justifier un fichier partagé).
+static EDemoUnitCategory UnitRoleToAbilityCategory(EUnitRole Role)
+{
+	switch (Role)
+	{
+		case EUnitRole::Chef:       return EDemoUnitCategory::Chef;
+		case EUnitRole::Infanterie: return EDemoUnitCategory::Infanterie;
+		case EUnitRole::Montee:     return EDemoUnitCategory::Montee;
+		case EUnitRole::Distance:   return EDemoUnitCategory::Distance;
+		case EUnitRole::Speciale:   return EDemoUnitCategory::Speciale;
+		case EUnitRole::Mythique:   return EDemoUnitCategory::Mythique;
+	}
+	return EDemoUnitCategory::Infanterie;
+}
 
 // Rythme de bataille (démo) : combats plus longs + déplacements ralentis (eau).
 // 0.42 dégâts -> ~2,5× plus d'échanges ; 0.55 vitesse -> approche/repli plus lents.
@@ -125,6 +143,10 @@ void AUnitBase::InitFromDataAsset()
 				Generic->Cooldown     = FMath::Max(1.f, UnitData->Stats.AbilityCooldown);
 				Generic->Damage       = UnitData->Stats.AttackDPS * 2.5f;
 				Generic->TargetType   = EAbilityTargetType::SingleUnit;
+				// Aperçu holographique avant activation (Noxeflare uniquement, demande Liamor
+				// 29/07/2026) — durée PROVISOIRE, tunable. 0 pour toutes les autres unités
+				// -> comportement instantané inchangé.
+				Generic->TelegraphDuration = UnitData->bAbilityHasTelegraph ? 0.6f : 0.f;
 			}
 		}
 	}
@@ -140,6 +162,26 @@ float AUnitBase::GetHealthPercent() const
 {
 	if (!UnitData || UnitData->Stats.MaxHealth <= 0) return 0.f;
 	return CurrentHealth / static_cast<float>(UnitData->Stats.MaxHealth);
+}
+
+float AUnitBase::GetEffectiveAttackRange() const
+{
+	const float Base = UnitData ? static_cast<float>(UnitData->Stats.AttackRange) : 1.f;
+	if (!UnitData || !UnitData->bAxisAffectsAttackRange) return Base;
+
+	UGameInstance* GI = GetGameInstance();
+	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	if (!Demo) return Base;
+
+	const EDemoUnitCategory Cat = UnitRoleToAbilityCategory(UnitData->Role);
+	if (Demo->GetUnitGrade(Cat) < 1) return Base;
+
+	const int32 Axis = Demo->GetUnitAxis(Cat);
+	// Axe 1 (longue portée, ex. Hydrosniper) : +2. Axe 2 (zone rapprochée, ex. Hydropompe) : -2.
+	// Valeurs PROVISOIRES, cf. TODO_WOTOL.md — bornées à la plage existante [1,5].
+	if (Axis == 1) return FMath::Clamp(Base + 2.f, 1.f, 5.f);
+	if (Axis == 2) return FMath::Clamp(Base - 2.f, 1.f, 5.f);
+	return Base;
 }
 
 float AUnitBase::TakeDamageFromUnit(float Damage, AUnitBase* InstigatorUnit)
@@ -355,7 +397,28 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 			const FVector ToLoc   = (ToA ? ToA->GetComponentLocation() : Target->GetActorLocation()) + FVector(0, 0, 40.f);
 			// Noxéen (Noxeblast) = ovale allongé violet ; Aquiloris (Aquisphères) = petite sphère.
 			const bool bBolt = (GetFaction() == EFactionID::Noxeens);
-			AWOTOLProjectileTracer::Fire(GetWorld(), FromLoc, ToLoc, Col, 1.0f, bBolt);
+			// Distinction visuelle Hydrosniper/Hydropompe (Aquisphères, Axe 1/2 — demande Liamor
+			// 29/07/2026 : "il faut qu'on voit la telle ou telle attaque"). Grade 0 ou toute autre
+			// unité -> Size=1.0/pas de traînée, IDENTIQUE au comportement historique.
+			float Size = 1.0f;
+			bool bBubbleTrail = false;
+			if (UnitData->bAxisAffectsAttackRange)
+			{
+				if (UGameInstance* GI = GetGameInstance())
+				{
+					if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
+					{
+						const EDemoUnitCategory Cat = UnitRoleToAbilityCategory(UnitData->Role);
+						if (Demo->GetUnitGrade(Cat) >= 1)
+						{
+							const int32 Axis = Demo->GetUnitAxis(Cat);
+							if (Axis == 1) Size = 0.65f;                          // Hydrosniper : tir fin, precis
+							else if (Axis == 2) { Size = 1.9f; bBubbleTrail = true; } // Hydropompe : jet large
+						}
+					}
+				}
+			}
+			AWOTOLProjectileTracer::Fire(GetWorld(), FromLoc, ToLoc, Col, Size, bBolt, bBubbleTrail);
 		}
 	}
 

@@ -443,7 +443,7 @@ bool UUnitAIStateComponent::IsInAttackRange(AUnitBase* Target) const
 	if (!Owner || !Owner->GetUnitData()) return false;
 
 	// AttackRange est en "cases hex" — 1 case ≈ 200 UE units
-	const float HexRange = Owner->GetUnitData()->Stats.AttackRange;
+	const float HexRange = Owner->GetEffectiveAttackRange();
 	// CORPS-À-CORPS (portée 1) : on veut le CONTACT VISUEL — l'unité doit être
 	// quasi collée au modèle 3D ennemi, pas à 10 m. On réduit donc la portée
 	// effective au strict bord-à-bord. Les unités à distance (portée ≥ 2) gardent

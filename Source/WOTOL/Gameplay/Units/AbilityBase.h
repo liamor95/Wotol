@@ -42,6 +42,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
 	float HealAmount = 0.f;
 
+	// Délai (secondes) entre Activate() et l'exécution réelle (ExecuteAbility) : 0 = instantané
+	// (comportement historique, INCHANGÉ pour toute unité qui ne le configure pas). > 0 fait
+	// d'abord apparaître un aperçu holographique de zone (AWOTOLZoneTelegraph) puis diffère les
+	// dégâts — cf. UUnitDataAsset::bAbilityHasTelegraph (Noxeflare, demande Liamor 29/07/2026).
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability", meta = (ClampMin = "0.0"))
+	float TelegraphDuration = 0.f;
+
 	// ---
 
 	UFUNCTION(BlueprintCallable, Category = "Ability")

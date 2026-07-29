@@ -411,6 +411,19 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 					return true;
 				}
 			}
+			// Onglets de la fenêtre de bâtiment (Résumé/Recrutement/Statistiques/Compétences/
+			// Rôle) — actifs seulement si un bâtiment est sélectionné (demande Liamor 29/07/2026).
+			if (Demo->HasCitySelection())
+			{
+				for (int32 t = 0; t < 5; ++t)
+				{
+					if (AWOTOLDemoHUD::BuildingTabRect(t, VpSize.X, VpSize.Y).IsInside(M))
+					{
+						Demo->SetSelectedBuildingTab(t);
+						return true;
+					}
+				}
+			}
 			if (AWOTOLDemoHUD::CitySkillsButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 			{
 				Demo->SetScreen(EDemoScreen::Skills); // ouvre l'onglet compétences
@@ -463,9 +476,9 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 	{
 		if (Demo)
 		{
-			for (int32 i = 0; i < AWOTOLDemoHUD::CityCardCount(); ++i)
+			for (int32 i = 0; i < AWOTOLDemoHUD::SkillsCategoryCount(); ++i)
 			{
-				const EDemoUnitCategory Cat = AWOTOLDemoHUD::CityCardCategory(i);
+				const EDemoUnitCategory Cat = AWOTOLDemoHUD::SkillsCategoryAt(i);
 				if (!Demo->IsCategoryUnlocked(Cat)) continue;
 				for (int32 a = 0; a < 3; ++a)
 				{

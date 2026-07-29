@@ -370,10 +370,27 @@ public:
 	bool bCitySelectionValid = false;
 
 	UFUNCTION(BlueprintCallable, Category = "Demo|City")
-	void SetSelectedCityCategory(EDemoUnitCategory Cat) { SelectedCityCategory = Cat; bCitySelectionValid = true; }
+	void SetSelectedCityCategory(EDemoUnitCategory Cat)
+	{
+		if (SelectedCityCategory != Cat) SelectedBuildingTab = 0; // nouvelle selection -> onglet Resume
+		SelectedCityCategory = Cat;
+		bCitySelectionValid = true;
+	}
 
 	UFUNCTION(BlueprintPure, Category = "Demo|City")
 	bool HasCitySelection() const { return bCitySelectionValid; }
+
+	// Onglet actif de la fenêtre de bâtiment (0=Résumé, 1=Recrutement, 2=Statistiques,
+	// 3=Compétences, 4=Rôle). Remis à 0 à chaque nouvelle sélection pour repartir du Résumé
+	// (demande Liamor 29/07/2026 : fenêtre multi-onglets sur clic bâtiment).
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	int32 SelectedBuildingTab = 0;
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	int32 GetSelectedBuildingTab() const { return SelectedBuildingTab; }
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|City")
+	void SetSelectedBuildingTab(int32 Tab) { SelectedBuildingTab = FMath::Clamp(Tab, 0, 4); }
 
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void SetMessage(const FString& Msg) { CurrentMessage = Msg; }

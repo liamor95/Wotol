@@ -1,5 +1,71 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Suite du systeme Grade/Axe : Chef, formes reelles, telegraphie, fenetre a onglets (29/07/2026)
+
+Suite directe de l'entree "Systeme Grade/Axe/Voie de competence" ci-dessous : Liamor a valide
+les 5 points en attente ("1. un exemple pour les onglets. 2. fait la ligne pour le chef. 3. fait
+le aussi. 4. fait le aussi. 5. fait le choix le plus coherent !"), avec en reference une
+maquette (BASTION CRISTALLIN) montrant une fenetre de batiment a onglets (Apercu/Remparts/
+Tourelles/Recherches/Ameliorations/Defense + panneaux ameliorations/recherches/couts a droite).
+
+1. **Ligne Chef dans l'ecran COMPETENCES** : `AWOTOLDemoHUD::SkillsCategoryCount/SkillsCategoryAt`
+   (nouveau, 6 entrees = les 5 cartes + Chef en position 5) remplace `CityCardCount/CityCardCategory`
+   dans `DrawSkillsView` ET dans le handler de clic (`WOTOLPlayerController_Battle.cpp`). Ajout du
+   cas `Chef` dans `CityUnitLabel` (Aquis/Noxar). Le Chef peut donc desormais choisir son axe et
+   monter jusqu'au Grade 2 comme les autres categories.
+2. **Categorie de Noxedrake Axe 2 ("Dominion Radieux")** : "Offensif Persistant" (au lieu du "?"
+   precedent) — reste Offensif (marquage cumulatif = degats, pas un buff/soin d'allies), mais
+   distingue de l'Axe 1 (burst/explosion) par son cote soutenu/DoT, meme logique que Noxeblast
+   (Offensif / Offensif Zone).
+3. **Execution reelle des formes de competence** (`AbilityBase.cpp`) : `GatherAbilityTargets`
+   trouve les ennemis reellement touches par Cone/PetiteZone/Zone/GrandeZone/ChargeLigne/Souffle
+   (rayon/angle PROVISOIRES, pas de valeur GDD chiffree) ; Mono/Aura gardent le comportement
+   historique (Aura geree par un Tick dedie ailleurs, pas touchee ici). Actif UNIQUEMENT si
+   `GetUnitGrade(Cat) >= 1` ET un axe est choisi -> Grade 0 (phases 1&2) reste identique a l'octet
+   pres pour TOUTES les unites, y compris Noxeflare (son AbilityZoneType est Cone en donnee mais
+   ne se manifeste qu'au Grade 1+, cf. discussion "constat de bug vs Grade" — choix assume pour
+   ne jamais toucher l'equilibrage deja valide).
+4. **Telegraphie visuelle** — nouvelle classe reutilisable `AWOTOLZoneTelegraph` (disque
+   holographique translucide, `WOTOLGlow::MakeHalo`, pulsation) :
+   - Noxeflare : `UUnitDataAsset::bAbilityHasTelegraph` -> `UAbilityBase::TelegraphDuration` (0.6s
+     PROVISOIRE) ; `Activate()` spawne l'apercu PUIS diffère `ExecuteAbility` via `FTimerHandle`
+     (0 pour toute unite qui ne configure pas ce champ -> comportement instantane inchange).
+   - Aquilombres Axe 2 "Ombres Projetees" : `bAxisTwoSpawnsShadowVeil` -> voile sombre (rayon 700,
+     4s) qui aveugle reellement les ennemis dedans (`AUnitBase::BlindedUntil` rafraichi en Tick,
+     MEME mecanique que `AWOTOLInkZone`, pas une nouvelle stat). Delibere : PAS de reutilisation
+     directe de `AWOTOLInkZone` (bulles/poison specifiques au Kraken, deja valide) -> nouvelle
+     classe simple plutot que risquer de regresser l'encre du Kraken.
+   - Aquispheres Hydrosniper/Hydropompe : distinction VISUELLE (taille/trainee du tir cosmetique
+     dans `AUnitBase::PerformAttack`, `AWOTOLProjectileTracer::Fire`) ET portee REELLEMENT
+     differente (`AUnitBase::GetEffectiveAttackRange()`, nouveau — +2/-2 cases selon l'axe,
+     `bAxisAffectsAttackRange`). Tous les points de lecture de `Stats.AttackRange` en combat/IA
+     (`WOTOLDemoUnit.cpp` x5, `UnitAIStateComponent.cpp` x1) basculent sur cette fonction — au
+     Grade 0 elle renvoie EXACTEMENT `Stats.AttackRange`, donc aucun changement pour qui n'a pas
+     investi.
+5. **Fenetre de batiment a ONGLETS** (`DrawCityView`, panneau "fiche technique" existant) :
+   RESUME/RECRUTEMENT/STATS/COMPETENCES/ROLE, nouvel `int32 SelectedBuildingTab` sur
+   `UDemoFlowSubsystem` (remis a 0 a chaque nouvelle selection de batiment), barre d'onglets
+   cliquable (`BuildingTabRect`). **Assume comme UN EXEMPLE/PROTOTYPE explicitement demande ainsi
+   ("un exemple pour les onglets")** — pas une recreation pixel-perfect de la maquette BASTION
+   CRISTALLIN (pas de panneaux "Recherches en cours"/liste d'ameliorations avec icones, pas de
+   grande illustration a onglets separes) : les etats VERROUILLE/PAS ENCORE CONSTRUIT restent
+   AU-DESSUS des onglets (prioritaires, comportement inchange) ; l'onglet Recrutement reste
+   informatif (renvoie a la carte de production en bas d'ecran, le VRAI bouton produire n'a pas
+   ete duplique ici pour ne pas dupliquer la logique de clic) ; l'onglet Competences reste
+   informatif aussi (renvoie a l'ecran COMPETENCES pour l'interaction, evite de dupliquer la
+   logique de clic Grade/Axe a deux endroits).
+
+**Reste a faire (hors scope, pas invente) :**
+- Fenetre de batiment : vraie recreation visuelle proche de la maquette (icones d'amelioration,
+  liste "recherches en cours" avec barres de progression, illustration dediee par onglet) si
+  Liamor veut aller plus loin que l'exemple actuel.
+- Rayons/angles de zone (`GatherAbilityTargets`), duree de telegraphie (0.6s), rayon/duree du
+  voile (700/4s) et delta de portee Aquispheres (+2/-2) sont tous PROVISOIRES — aucune valeur GDD
+  chiffree n'existe pour ces formes, a rejouer des que Liamor a des chiffres precis.
+- Le voile d'Aquilombres et l'apercu de Noxeflare sont de simples disques plats (pas de vrai
+  volume/particules comme le nuage d'encre du Kraken) — suffisant pour "voir la zone" mais moins
+  spectaculaire que l'encre.
+
 ## Systeme Grade/Axe/Voie de competence (29/07/2026, demande explicite de Liamor)
 
 Suite a la revue complete unite par unite (Aquiloris + Noxeens, 3 messages voix detailles) :
@@ -51,24 +117,9 @@ n'a ete investi. `UAbilityBase::ExecuteAbility` (degat mono-cible + soin) n'est 
 - `SkillAxisLabel` corrige (Noxeblast) + cas Chef ajoute (etait auparavant sur le fallback
   generique "Axe 1"/"Axe 2").
 
-**Reste a faire (hors scope de cette passe, volontairement pas invente) :**
-1. **Fenetre multi-onglets Resume/Recrutement/Statistiques/Competences/Role** sur clic batiment
-   en cite (demande explicite de Liamor) : PAS FAIT. L'onglet Competences fonctionne comme ecran
-   separe (bouton COMPETENCES existant) plutot que comme un vrai onglet contextuel du batiment
-   selectionne — restructuration de `DrawCityView` plus large, a faire dans une passe dediee.
-2. **Le Chef (Aquis/Noxar) n'apparait pas dans les 5 cartes de `CityCardCount`/`CityCardCategory`**
-   (Infanterie/Distance/Montee/Speciale/Mythique uniquement) -> son axe/Grade ne sont pas
-   accessibles depuis l'ecran Competences actuel, alors qu'il est le SEUL a pouvoir monter au
-   Grade 2. Les donnees (SkillAxisLabel/SkillAxisCategory cas Chef) sont pretes, mais il manque
-   une 6e ligne/carte dediee — a faire avec la restructuration du point 1.
-3. **Execution reelle des formes de competence** (cone/zone/aura touchant plusieurs cibles au
-   lieu du mono-cible generique de `UAbilityBase::ExecuteAbility`) : toujours pas fait, MAIS
-   desormais scope a Grade >= 1 + axe choisi -> peut se faire sans toucher au Grade 0 (risque
-   d'equilibrage supprime par le gating, contrairement au constat du 26/07/2026 ci-dessus).
-4. **Telegraphie visuelle requise par Liamor**, aucune faite cette passe : apercu holographique
-   de zone avant activation (Noxeflare), voile d'encre ~3x taille façon Kraken phase 1
-   (Aquilombres Axe 2), distinction visuelle + portee reellement differente entre Hydrosniper et
-   Hydropompe (Aquispheres).
+**Reste a faire — TOUT TRAITE le 29/07/2026, voir l'entree "Suite du systeme Grade/Axe : Chef,
+formes reelles, telegraphie, fenetre a onglets" en haut de ce fichier** (fenetre a onglets, ligne
+Chef, execution reelle des formes, telegraphie visuelle Noxeflare/Aquilombres/Aquispheres).
 
 ## Recherche autonome (26/07/2026, suite) — controles non documentes a l'ecran
 

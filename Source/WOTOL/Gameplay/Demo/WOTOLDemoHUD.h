@@ -89,6 +89,9 @@ public:
 	static FBox2D CityBuildPlotRect(int32 Index, float W, float H);
 	// Croissance du mythique après sécurisation de la zone.
 	static FBox2D CityFeedMythicButtonRect(float W, float H);
+	// Onglets de la fenêtre de bâtiment (fiche technique) : 0=Résumé, 1=Recrutement,
+	// 2=Statistiques, 3=Compétences, 4=Rôle (demande Liamor 29/07/2026).
+	static FBox2D BuildingTabRect(int32 TabIndex, float W, float H);
 
 	// ─── Gestion du territoire après la défense ──────────────────────────────
 	static FBox2D TerritoryRepairButtonRect(float W, float H);
@@ -106,6 +109,10 @@ public:
 	// Catégories productibles en cité, dans l'ordre des cartes (hors Chef).
 	static int32 CityCardCount();
 	static EDemoUnitCategory CityCardCategory(int32 Index);
+	// Comme CityCardCount/CityCardCategory + le Chef en 6e ligne (pas de carte de
+	// production, mais peut lui aussi monter en Grade/Axe — seul à atteindre le Grade 2).
+	static int32 SkillsCategoryCount();
+	static EDemoUnitCategory SkillsCategoryAt(int32 Index);
 
 	// Carte de la barre de commandement (bas-gauche) pour l'index de groupe donné.
 	// Sert au double-clic : sélectionner + zoomer sur ce groupe d'unités.

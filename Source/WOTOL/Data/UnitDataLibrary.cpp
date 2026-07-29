@@ -192,6 +192,7 @@ static void FillAquipheres(UUnitDataAsset* A)
 	// de zone + portée réellement différente), pas seulement cosmétique — cf. TODO_WOTOL.md.
 	A->AxisOneCategory    = FText::FromString(TEXT("Offensif Longue Portée"));
 	A->AxisTwoCategory    = FText::FromString(TEXT("Offensif Zone Rapprochée"));
+	A->bAxisAffectsAttackRange = true; // Hydrosniper (+portee) / Hydropompe (-portee)
 	A->PassiveDescription = FText::FromString(TEXT("Bonne précision naturelle. Synergie : Léviaphénix"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Champ de Tir des Aquisphères"));
 }
@@ -231,6 +232,7 @@ static void FillAquilombres(UUnitDataAsset* A)
 	A->AxisTwoDescription = FText::FromString(TEXT("Ombre massive devant lignes ennemies, réduit visibilité/précision"));
 	A->AxisOneCategory    = FText::FromString(TEXT("Offensif"));
 	A->AxisTwoCategory    = FText::FromString(TEXT("Contrôle"));
+	A->bAxisTwoSpawnsShadowVeil = true; // voile sombre façon jet d'encre du Kraken (~3x taille)
 	A->PassiveDescription = FText::FromString(TEXT("Invisibles si immobiles. Synergie : Aquis (Chef)"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Nexus des Ombres"));
 }
@@ -309,9 +311,11 @@ static void FillNoxedrake(UUnitDataAsset* A)
 	A->AxisTwoName        = FText::FromString(TEXT("Dominion Radieux"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Marquage cumulatif, légère auto-régénération sur dégâts infligés"));
 	A->AxisOneCategory    = FText::FromString(TEXT("Offensif"));
-	// Catégorie NON confirmée par Liamor (revue du 29/07/2026 : axe gardé tel quel "on
-	// changera plus tard", mais sans validation de thématique) — laissé vide plutôt
-	// qu'inventé. Voir TODO_WOTOL.md.
+	// Catégorie choisie le 29/07/2026 (Liamor : "prends le choix le plus cohérent"). L'axe
+	// inflige des dégâts via marquage cumulatif (pas un soin/buff d'alliés — l'auto-régén est
+	// uniquement pour le lanceur) : reste Offensif, mais distinct de l'Axe 1 (burst/explosion)
+	// par son caractère soutenu/DoT — même logique que Noxeblast (Offensif / Offensif Zone).
+	A->AxisTwoCategory    = FText::FromString(TEXT("Offensif Persistant"));
 	A->PassiveDescription = FText::FromString(TEXT("En infligeant dégâts continus : vitesse augmente, résistance contrôle s'améliore. Synergie : Noxar. ⚠️ Vulnérable pendant canalisation"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Antre du Noxedrake"));
 }
@@ -354,6 +358,7 @@ static void FillNoxeflare(UUnitDataAsset* A)
 	// pas encore implémenté, voir TODO_WOTOL.md.
 	A->AxisOneCategory    = FText::FromString(TEXT("Contrôle"));
 	A->AxisTwoCategory    = FText::FromString(TEXT("Offensif"));
+	A->bAbilityHasTelegraph = true; // apercu holographique de la zone avant activation
 	A->PassiveDescription = FText::FromString(TEXT("Ennemis proches subissent légère baisse précision passive permanente. Synergie clé : Noxeblast"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Fosse d'Emergence"));
 }

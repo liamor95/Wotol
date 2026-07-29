@@ -138,6 +138,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	EFactionID GetFaction() const { return Faction; }
 
+	// Portée d'attaque EFFECTIVE : identique à UnitData->Stats.AttackRange pour toute unité au
+	// Grade 0 (comportement historique inchangé). Une fois le Grade 1+ atteint ET un axe choisi,
+	// certaines unités (cf. UUnitDataAsset::bAxisAffectsAttackRange — Aquisphères Hydrosniper/
+	// Hydropompe) ont une portée réellement différente selon l'axe (demande Liamor 29/07/2026).
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	float GetEffectiveAttackRange() const;
+
 	// Inflige des dégâts ; valeur négative = soin.
 	// VIRTUEL : certaines unités (ex. Aquis) interceptent les dégâts entrants (parade/
 	// absorption par la lame photonique) avant d'appliquer le calcul de base.

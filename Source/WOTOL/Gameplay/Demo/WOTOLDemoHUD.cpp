@@ -1222,6 +1222,14 @@ EDemoUnitCategory AWOTOLDemoHUD::CityCardCategory(int32 Index)
 	return Cats[FMath::Clamp(Index, 0, 4)];
 }
 
+int32 AWOTOLDemoHUD::SkillsCategoryCount() { return 6; }
+
+EDemoUnitCategory AWOTOLDemoHUD::SkillsCategoryAt(int32 Index)
+{
+	if (Index == 5) return EDemoUnitCategory::Chef;
+	return CityCardCategory(Index);
+}
+
 FBox2D AWOTOLDemoHUD::CityCardRect(int32 Index, float W, float H)
 {
 	const int32 N = CityCardCount();
@@ -1264,6 +1272,17 @@ FBox2D AWOTOLDemoHUD::CityFeedMythicButtonRect(float W, float H)
 	const float BW = 460.f, BH = 70.f;
 	return FBox2D(FVector2D((W - BW) * 0.5f, H * 0.49f),
 		FVector2D((W + BW) * 0.5f, H * 0.49f + BH));
+}
+
+FBox2D AWOTOLDemoHUD::BuildingTabRect(int32 TabIndex, float W, float H)
+{
+	// Bande de 5 onglets en haut du panneau de bâtiment (cf. Panel dans DrawCityView).
+	const float PanelMinX = W - 380.f, PanelMaxX = W - 20.f;
+	const float TabY = H * 0.22f + 4.f, TabH = 26.f;
+	const int32 N = 5;
+	const float TabW = (PanelMaxX - PanelMinX) / N;
+	const float X = PanelMinX + FMath::Clamp(TabIndex, 0, N - 1) * TabW;
+	return FBox2D(FVector2D(X, TabY), FVector2D(X + TabW, TabY + TabH));
 }
 
 FBox2D AWOTOLDemoHUD::TerritoryRepairButtonRect(float W, float H)
@@ -1331,6 +1350,51 @@ static FString CityUnitLabel(EFactionID Fac, EDemoUnitCategory Cat)
 		case EDemoUnitCategory::Montee:     return bAq ? TEXT("Aquilances")   : TEXT("Noxebeast");
 		case EDemoUnitCategory::Speciale:   return bAq ? TEXT("Aquilombres") : TEXT("Noxeons");
 		case EDemoUnitCategory::Mythique:   return bAq ? TEXT("Leviaphenix"): TEXT("Noxedrake");
+		case EDemoUnitCategory::Chef:       return bAq ? TEXT("Aquis") : TEXT("Noxar");
+		default: return TEXT("");
+	}
+}
+
+// Courte description (onglet RÉSUMÉ de la fenêtre de bâtiment) — même esprit que
+// CityBuildingLabel, aucune valeur chiffrée inventée (juste du texte de présentation).
+static FString CityBuildingSummary(EFactionID Fac, EDemoUnitCategory Cat)
+{
+	const bool bAq = (Fac != EFactionID::Noxeens);
+	switch (Cat)
+	{
+		case EDemoUnitCategory::Infanterie: return bAq
+			? TEXT("Forme le mur de la ligne de front. Recrute et ameliore les Aquiloryons.")
+			: TEXT("Eclaireurs agressifs de premiere ligne. Recrute et ameliore les Noxeflare.");
+		case EDemoUnitCategory::Distance: return bAq
+			? TEXT("Tir de precision a longue portee. Recrute et ameliore les Aquispheres.")
+			: TEXT("Puissance de feu energetique. Recrute et ameliore les Noxeblast.");
+		case EDemoUnitCategory::Montee: return bAq
+			? TEXT("Charge blindee sur monture. Recrute et ameliore les Aquilances.")
+			: TEXT("Force brute sur monture. Recrute et ameliore les Noxebeast.");
+		case EDemoUnitCategory::Speciale: return bAq
+			? TEXT("Unite furtive d'elite. Recrute et ameliore les Aquilombres.")
+			: TEXT("Soutien de zone bioluminescent. Recrute et ameliore les Noxeons.");
+		case EDemoUnitCategory::Mythique: return bAq
+			? TEXT("Creature mythique unique, elevee et non recrutee en serie.")
+			: TEXT("Creature mythique unique, elevee et non recrutee en serie.");
+		case EDemoUnitCategory::Chef: return bAq
+			? TEXT("Le chef de faction, personnage joue.")
+			: TEXT("Le chef de faction, personnage joue.");
+		default: return TEXT("");
+	}
+}
+
+// Flavor de RÔLE (onglet RÔLE) — reprend EUnitRole/EDemoUnitCategory en une phrase courte.
+static FString CityRoleFlavor(EDemoUnitCategory Cat)
+{
+	switch (Cat)
+	{
+		case EDemoUnitCategory::Chef:       return TEXT("Chef / Commandant : dirige l'armee, seul a pouvoir atteindre le Grade 2.");
+		case EDemoUnitCategory::Infanterie: return TEXT("Infanterie : ligne de front, encaisse et tient le terrain.");
+		case EDemoUnitCategory::Montee:     return TEXT("Montee : percee et mobilite, frappe puis se replie.");
+		case EDemoUnitCategory::Distance:   return TEXT("Distance : degats a portee, reste en retrait de la melee.");
+		case EDemoUnitCategory::Speciale:   return TEXT("Speciale : role tactique unique (furtivite, zone, controle...).");
+		case EDemoUnitCategory::Mythique:   return TEXT("Mythique : creature unique et rare, impact de bataille majeur.");
 		default: return TEXT("");
 	}
 }
@@ -1378,7 +1442,7 @@ static FString SkillAxisCategory(EFactionID Fac, EDemoUnitCategory Cat, int32 Ax
 		case EDemoUnitCategory::Speciale:   return bAq ? (Axis==1?TEXT("Offensif"):TEXT("Controle"))
 		                                               : (Axis==1?TEXT("Support Degats"):TEXT("Support Soin"));
 		case EDemoUnitCategory::Mythique:   return bAq ? (Axis==1?TEXT("Support"):TEXT("Soins"))
-		                                               : (Axis==1?TEXT("Offensif"):TEXT("?"));
+		                                               : (Axis==1?TEXT("Offensif"):TEXT("Offensif Persistant"));
 		case EDemoUnitCategory::Chef:       return bAq ? (Axis==1?TEXT("Offensif"):TEXT("Defensif"))
 		                                               : (Axis==1?TEXT("Offensif"):TEXT("Support"));
 		default: return TEXT("");
@@ -1615,9 +1679,11 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		}
 	}
 
-	// ─── FICHE TECHNIQUE : détail du bâtiment sélectionné (clic 3D sur la maquette
-	// isométrique OU clic sur sa carte). Placée à droite, dans la bande centrale laissée
-	// libre par les bandeaux haut/bas -> ne masque ni les ressources ni les cartes.
+	// ─── FENÊTRE DE BÂTIMENT (multi-onglets) : détail du bâtiment sélectionné (clic 3D sur la
+	// maquette isométrique OU clic sur sa carte). Placée à droite, dans la bande centrale
+	// laissée libre par les bandeaux haut/bas -> ne masque ni les ressources ni les cartes.
+	// Onglets RÉSUMÉ/RECRUTEMENT/STATISTIQUES/COMPÉTENCES/RÔLE (demande Liamor 29/07/2026,
+	// exemple/prototype — pas encore une recréation pixel-perfect d'une maquette de référence).
 	if (Demo->HasCitySelection())
 	{
 		const EDemoUnitCategory SelCat = Demo->SelectedCityCategory;
@@ -1626,18 +1692,23 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 			Panel.Max.X - Panel.Min.X, Panel.Max.Y - Panel.Min.Y);
 		DrawLine(Panel.Min.X, Panel.Min.Y, Panel.Max.X, Panel.Min.Y, Accent, 3.f);
 
-		float Y = Panel.Min.Y + 16.f;
-		// Illustration officielle réelle (même image que le plan 3D affiché dans la scène —
-		// cohérence demandée par Liamor le 25/07/2026 : pas d'écran qui contredit la vue 3D).
-		if (UTexture2D* Icon = WOTOLBuildingArt::GetBuildingIcon(Fac, SelCat))
+		// Barre d'onglets.
+		static const TCHAR* TabNames[5] = { TEXT("RESUME"), TEXT("RECRUTEMENT"), TEXT("STATS"),
+			TEXT("COMPETENCES"), TEXT("ROLE") };
+		const int32 ActiveTab = Demo->GetSelectedBuildingTab();
+		for (int32 t = 0; t < 5; ++t)
 		{
-			const float ImgSize = 108.f;
-			const float ImgX = (Panel.Min.X + Panel.Max.X) * 0.5f - ImgSize * 0.5f;
-			DrawTexture(Icon, ImgX, Y, ImgSize, ImgSize, 0.f, 0.f, 1.f, 1.f);
-			Y += ImgSize + 6.f;
+			const FBox2D TabR = BuildingTabRect(t, W, H);
+			const bool bActiveTab = (t == ActiveTab);
+			DrawRect(bActiveTab ? Accent.CopyWithNewOpacity(0.35f) : FLinearColor(0.f, 0.f, 0.f, 0.3f),
+				TabR.Min.X, TabR.Min.Y, TabR.Max.X - TabR.Min.X, TabR.Max.Y - TabR.Min.Y);
+			DrawText(TabNames[t], bActiveTab ? FLinearColor::White : FLinearColor(0.6f, 0.65f, 0.72f, 1.f),
+				TabR.Min.X + 6.f, TabR.Min.Y + 5.f, GEngine ? GEngine->GetSmallFont() : nullptr, 0.62f);
 		}
-		DrawCenteredText(CityBuildingLabel(Fac, SelCat).ToUpper(), Y, Accent, 1.15f); Y += 34.f;
-		DrawCenteredText(CityUnitLabel(Fac, SelCat), Y, FLinearColor::White, 1.0f); Y += 42.f;
+		DrawLine(Panel.Min.X, Panel.Min.Y + 34.f, Panel.Max.X, Panel.Min.Y + 34.f,
+			FLinearColor(1.f, 1.f, 1.f, 0.15f), 1.f);
+
+		float Y = Panel.Min.Y + 46.f;
 
 		const bool bSelUnlocked = Demo->IsCategoryUnlocked(SelCat);
 		if (!bSelUnlocked)
@@ -1655,7 +1726,41 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 			DrawCenteredText(TEXT("Choisissez un emplacement via sa carte en bas."), Y,
 				FLinearColor(0.7f, 0.75f, 0.85f, 0.85f), 0.8f);
 		}
-		else
+		else if (ActiveTab == 0) // ─── RÉSUMÉ ───
+		{
+			// Illustration officielle réelle (même image que le plan 3D affiché dans la scène —
+			// cohérence demandée par Liamor le 25/07/2026 : pas d'écran qui contredit la vue 3D).
+			if (UTexture2D* Icon = WOTOLBuildingArt::GetBuildingIcon(Fac, SelCat))
+			{
+				const float ImgSize = 84.f;
+				const float ImgX = (Panel.Min.X + Panel.Max.X) * 0.5f - ImgSize * 0.5f;
+				DrawTexture(Icon, ImgX, Y, ImgSize, ImgSize, 0.f, 0.f, 1.f, 1.f);
+				Y += ImgSize + 6.f;
+			}
+			DrawCenteredText(CityBuildingLabel(Fac, SelCat).ToUpper(), Y, Accent, 1.1f); Y += 28.f;
+			DrawCenteredText(CityUnitLabel(Fac, SelCat), Y, FLinearColor::White, 1.0f); Y += 30.f;
+			DrawCenteredText(CityBuildingSummary(Fac, SelCat), Y, FLinearColor(0.8f, 0.86f, 0.95f, 0.9f), 0.78f);
+		}
+		else if (ActiveTab == 1) // ─── RECRUTEMENT ───
+		{
+			DrawCenteredText(CityUnitLabel(Fac, SelCat), Y, FLinearColor::White, 1.0f); Y += 32.f;
+			if (SelCat == EDemoUnitCategory::Mythique)
+			{
+				DrawCenteredText(TEXT("Deja dans votre armee (creature unique, non recrutee en serie)."),
+					Y, FLinearColor(0.7f, 0.85f, 0.75f, 1.f), 0.8f);
+			}
+			else
+			{
+				const FName SelUnitID = Demo->GetUnitID(Fac, SelCat);
+				DrawCenteredText(FString::Printf(TEXT("Cout de production : %d"), Demo->GetProductionCost(SelCat)),
+					Y, FLinearColor(1.f, 0.95f, 0.6f, 1.f), 0.9f); Y += 26.f;
+				DrawCenteredText(FString::Printf(TEXT("En reserve : %d"), Demo->GetReserveCount(SelUnitID)),
+					Y, FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 0.85f); Y += 30.f;
+				DrawCenteredText(TEXT("Utilisez la carte de production en bas de l'ecran pour produire."),
+					Y, FLinearColor(0.7f, 0.75f, 0.85f, 0.85f), 0.72f);
+			}
+		}
+		else if (ActiveTab == 2) // ─── STATISTIQUES ───
 		{
 			// Niveau UNIQUE (1-3) : améliore à la fois attaque ET défense des unités de cette
 			// catégorie (×1.0/1.15/1.30, cf. WOTOLDemoDirector::SpawnUnit) — pas deux jauges
@@ -1664,34 +1769,50 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 			const int32 BLvl = Demo->GetBuildingLevel(SelCat);
 			DrawCenteredText(FString::Printf(TEXT("NIVEAU %d / %d  (attaque + defense)"),
 				BLvl, UDemoFlowSubsystem::MaxBuildingLevel),
-				Y, FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.0f); Y += 30.f;
-
-			// Voie tactique choisie (axe de compétence, réglable dans l'onglet COMPETENCES).
-			if (SelCat != EDemoUnitCategory::Chef)
-			{
-				const int32 Axis = Demo->GetUnitAxis(SelCat);
-				DrawCenteredText(FString::Printf(TEXT("Voie tactique : %s"),
-					*SkillAxisLabel(Fac, SelCat, Axis)),
-					Y, FLinearColor(0.65f, 0.9f, 1.f, 0.95f), 0.9f); Y += 28.f;
-			}
+				Y, FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 0.95f); Y += 30.f;
 
 			const int32 UpCost = Demo->GetBuildingUpgradeCost(SelCat);
 			if (UpCost > 0)
 			{
 				DrawCenteredText(FString::Printf(TEXT("Amelioration : %d cristaux"), UpCost), Y,
 					Demo->CanUpgradeBuilding(SelCat) ? FLinearColor(0.6f, 1.f, 0.65f, 1.f)
-						: FLinearColor(1.f, 0.6f, 0.55f, 1.f), 0.9f);
+						: FLinearColor(1.f, 0.6f, 0.55f, 1.f), 0.85f);
 			}
 			else
 			{
-				DrawCenteredText(TEXT("Niveau maximum atteint"), Y, FLinearColor(0.7f, 0.85f, 1.f, 0.9f), 0.9f);
+				DrawCenteredText(TEXT("Niveau maximum atteint"), Y, FLinearColor(0.7f, 0.85f, 1.f, 0.9f), 0.85f);
 			}
-			Y += 34.f;
+			Y += 30.f;
+			DrawCenteredText(FString::Printf(TEXT("Armee active : %d / %d"),
+				Demo->GetArmyUnitCount(), Demo->GetArmyUnitCap()), Y,
+				FLinearColor(0.8f, 0.86f, 0.95f, 0.85f), 0.8f);
+		}
+		else if (ActiveTab == 3) // ─── COMPÉTENCES ───
+		{
+			const int32 Grade = Demo->GetUnitGrade(SelCat);
+			const int32 MaxGrade = Demo->GetMaxUnitGrade(SelCat);
+			DrawCenteredText(FString::Printf(TEXT("GRADE %d / %d"), Grade, MaxGrade), Y, Accent, 1.0f); Y += 28.f;
 
-			const FName SelUnitID = Demo->GetUnitID(Fac, SelCat);
-			DrawCenteredText(FString::Printf(TEXT("Cout de production : %d   |   Reserve : %d"),
-				Demo->GetProductionCost(SelCat), Demo->GetReserveCount(SelUnitID)), Y,
-				FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 0.85f);
+			const int32 Axis = Demo->GetUnitAxis(SelCat);
+			DrawCenteredText(FString::Printf(TEXT("Voie : %s"), *SkillAxisLabel(Fac, SelCat, Axis)),
+				Y, FLinearColor(0.9f, 0.95f, 1.f, 0.95f), 0.88f); Y += 24.f;
+			if (Axis != 0)
+			{
+				DrawCenteredText(FString::Printf(TEXT("(%s) - choix permanent"),
+					*SkillAxisCategory(Fac, SelCat, Axis)), Y, FLinearColor(0.65f, 0.9f, 1.f, 0.9f), 0.7f);
+				Y += 24.f;
+			}
+			else
+			{
+				Y += 24.f;
+			}
+			DrawCenteredText(TEXT("Ecran COMPETENCES : ameliorer le Grade / choisir la voie."), Y,
+				FLinearColor(0.7f, 0.75f, 0.85f, 0.85f), 0.68f);
+		}
+		else // ─── RÔLE (ActiveTab == 4) ───
+		{
+			DrawCenteredText(CityUnitLabel(Fac, SelCat), Y, FLinearColor::White, 1.0f); Y += 32.f;
+			DrawCenteredText(CityRoleFlavor(SelCat), Y, FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 0.78f);
 		}
 	}
 
@@ -1903,14 +2024,15 @@ void AWOTOLDemoHUD::DrawSkillsView(float W, float H, UDemoFlowSubsystem* Demo)
 		: TEXT("Consultation seule ici — le Grade et le choix de voie s'activent en phase de preparation (Gestion du territoire)"),
 		H * 0.14f, bPrepPhase ? FLinearColor(0.9f, 0.95f, 1.f, 0.95f) : FLinearColor(0.85f, 0.7f, 0.4f, 0.95f), 1.0f);
 
-	for (int32 i = 0; i < CityCardCount(); ++i)
+	for (int32 i = 0; i < SkillsCategoryCount(); ++i)
 	{
-		const EDemoUnitCategory Cat = CityCardCategory(i);
+		const EDemoUnitCategory Cat = SkillsCategoryAt(i);
 		const FBox2D R0 = SkillsAxisRect(i, 0, W, H);
 		const bool bUnlocked = Demo->IsCategoryUnlocked(Cat);
 		const int32 Grade = Demo->GetUnitGrade(Cat);
 		const int32 MaxGrade = Demo->GetMaxUnitGrade(Cat);
-		// Nom de l'unité + Grade courant à gauche de la ligne.
+		// Nom de l'unité + Grade courant à gauche de la ligne (le Chef, seul à pouvoir
+		// atteindre le Grade 2, est ajouté en 6e ligne — cf. SkillsCategoryAt).
 		DrawText(FString::Printf(TEXT("%s (Grade %d/%d)"), *CityUnitLabel(Fac, Cat), Grade, MaxGrade),
 			FLinearColor::White, W * 0.08f, R0.Min.Y - 22.f,
 			GEngine ? GEngine->GetLargeFont() : nullptr, 1.05f);

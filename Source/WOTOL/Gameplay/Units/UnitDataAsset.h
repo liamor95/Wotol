@@ -112,6 +112,25 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
 	TArray<TSoftClassPtr<UObject>> AbilityClasses;
 
+	// ── Télégraphie visuelle (Grade/Axe, demande Liamor 29/07/2026) ────────────────────────
+	// Vrai = un aperçu holographique de la zone d'effet (AWOTOLZoneTelegraph) est affiché
+	// AVANT l'activation réelle de la compétence. Utilisé par Noxeflare (le joueur doit voir la
+	// zone impactée avant de subir/déclencher le flash).
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
+	bool bAbilityHasTelegraph = false;
+
+	// Vrai = quand l'Axe 2 est choisi (Grade 1+), l'exécution de zone spawn en plus un voile
+	// sombre persistant (AWOTOLZoneTelegraph, bAppliesBlindToEnemies) façon jet d'encre du
+	// Kraken, ~3x la taille de l'unité — Aquilombres "Ombres Projetées" uniquement.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
+	bool bAxisTwoSpawnsShadowVeil = false;
+
+	// Vrai = une fois l'Axe choisi (Grade 1+), la PORTÉE D'ATTAQUE effective (pas l'ability)
+	// change réellement selon l'axe (voir AUnitBase::GetEffectiveAttackRange) — Aquisphères
+	// Hydrosniper (+portée) / Hydropompe (-portée) uniquement.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
+	bool bAxisAffectsAttackRange = false;
+
 	// ─── Recrutement ───────────────────────────────────────────────────────────
 
 	// Quota max dans l'escouade (ex: 3 pour Aquisphères, 1 pour Léviaphénix)
