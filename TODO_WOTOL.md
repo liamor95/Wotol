@@ -1,5 +1,20 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Variante PORTRAIT "circuit tech" recue (26/07/2026, suite) — les 4 cadres sont a jour
+
+Liamor a fait generer la variante PORTRAIT manquante via ChatGPT (meme style "circuit tech"
+que les cadres large/standard) + une nouvelle passe des cadres large. Les 6 fichiers cadres
+sont maintenant TOUS dans le meme style coherent :
+- `PanelFramePortraitAquiloris.png` / `PanelFramePortraitNoxeens.png` (1024x1536, nouveau,
+  comble le trou note dans l'entree precedente) -> `DrawPauseOverlay` (menu Reglages).
+- `PanelFrameWideAquiloris.png` / `PanelFrameWideNoxeens.png` (1536x1024, nouvelle passe) ->
+  `DrawControlsScreen` (ecran Commandes).
+- `PanelFrameAquiloris.png` / `PanelFrameNoxeens.png` (cadre STANDARD, meme resolution
+  1536x1024) -> reutilisent les memes fichiers que les cadres large (meme logique que l'entree
+  precedente), `DrawObjectiveWindow`/`DrawConfirmDialog`.
+Aucun changement de code necessaire (les chargeurs relisent le fichier par chemin a chaque
+session). Plus aucune incoherence de style entre les fenetres modales de la demo.
+
 ## Style "circuit tech" applique aussi au cadre STANDARD (26/07/2026, suite)
 
 Liamor a demande de regenerer le meme style (circuit tech, cf. entree precedente) en portrait
