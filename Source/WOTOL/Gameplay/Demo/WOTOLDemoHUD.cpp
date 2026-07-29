@@ -1346,14 +1346,42 @@ static FString SkillAxisLabel(EFactionID Fac, EDemoUnitCategory Cat, int32 Axis)
 		case EDemoUnitCategory::Infanterie: return bAq ? (Axis==1?TEXT("Mur amplifie"):TEXT("Double Lames"))
 		                                               : (Axis==1?TEXT("Voile Profond"):TEXT("Frappe Aveugle"));
 		case EDemoUnitCategory::Distance:   return bAq ? (Axis==1?TEXT("Hydrosniper"):TEXT("Hydropompe"))
-		                                               : (Axis==1?TEXT("Rayon Perforant"):TEXT("Explosion Biolum."));
+		                                               : (Axis==1?TEXT("Tir Concentre"):TEXT("Tir en Rafale"));
 		case EDemoUnitCategory::Montee:     return bAq ? (Axis==1?TEXT("Percee amplifiee"):TEXT("Rempart Synth."))
 		                                               : (Axis==1?TEXT("Bastion Brutal"):TEXT("Defoncement"));
 		case EDemoUnitCategory::Speciale:   return bAq ? (Axis==1?TEXT("Critique Amplifie"):TEXT("Ombres Projetees"))
 		                                               : (Axis==1?TEXT("Reacteur de Guerre"):TEXT("Ancrage Abyssal"));
 		case EDemoUnitCategory::Mythique:   return bAq ? (Axis==1?TEXT("Rayon Stabilisateur"):TEXT("Rayon Vital"))
 		                                               : (Axis==1?TEXT("Devastation Totale"):TEXT("Dominion Radieux"));
+		case EDemoUnitCategory::Chef:       return bAq ? (Axis==1?TEXT("Onde DPS"):TEXT("Onde de Repoussement"))
+		                                               : (Axis==1?TEXT("Domination Laser"):TEXT("Surcharge Biolum."));
 		default: return (Axis==1?TEXT("Axe 1"):TEXT("Axe 2"));
+	}
+}
+
+// Thématique de l'axe (Offensif/Défensif/Support/Support Dégâts/Support Soin/Soins/Contrôle) —
+// revue unité par unité par Liamor le 29/07/2026, affichée à côté du nom d'axe dans l'onglet
+// Compétences (pas de générique "Axe 1"/"Axe 2" — demande explicite). "?" = thématique jamais
+// confirmée (Noxedrake Axe 2 : axe gardé tel quel mais catégorie non validée).
+static FString SkillAxisCategory(EFactionID Fac, EDemoUnitCategory Cat, int32 Axis)
+{
+	if (Axis == 0) return TEXT("");
+	const bool bAq = (Fac != EFactionID::Noxeens);
+	switch (Cat)
+	{
+		case EDemoUnitCategory::Infanterie: return bAq ? (Axis==1?TEXT("Defensif"):TEXT("Offensif"))
+		                                               : (Axis==1?TEXT("Controle"):TEXT("Offensif"));
+		case EDemoUnitCategory::Distance:   return bAq ? (Axis==1?TEXT("Offensif Longue Portee"):TEXT("Offensif Zone Rapprochee"))
+		                                               : (Axis==1?TEXT("Offensif"):TEXT("Offensif Zone"));
+		case EDemoUnitCategory::Montee:     return bAq ? (Axis==1?TEXT("Offensif"):TEXT("Defensif"))
+		                                               : (Axis==1?TEXT("Defensif"):TEXT("Offensif"));
+		case EDemoUnitCategory::Speciale:   return bAq ? (Axis==1?TEXT("Offensif"):TEXT("Controle"))
+		                                               : (Axis==1?TEXT("Support Degats"):TEXT("Support Soin"));
+		case EDemoUnitCategory::Mythique:   return bAq ? (Axis==1?TEXT("Support"):TEXT("Soins"))
+		                                               : (Axis==1?TEXT("Offensif"):TEXT("?"));
+		case EDemoUnitCategory::Chef:       return bAq ? (Axis==1?TEXT("Offensif"):TEXT("Defensif"))
+		                                               : (Axis==1?TEXT("Offensif"):TEXT("Support"));
+		default: return TEXT("");
 	}
 }
 
@@ -1794,6 +1822,14 @@ FBox2D AWOTOLDemoHUD::SkillsBackButtonRect(float W, float H)
 	return FBox2D(FVector2D(40.f, H - BH - 40.f), FVector2D(40.f + BW, H - 40.f));
 }
 
+FBox2D AWOTOLDemoHUD::SkillsGradeButtonRect(int32 CatIndex, float W, float H)
+{
+	// À droite des 3 boutons d'axe, sur la même ligne (cf. SkillsAxisRect).
+	const FBox2D Axis2 = SkillsAxisRect(CatIndex, 2, W, H);
+	const float BW = 200.f;
+	return FBox2D(FVector2D(Axis2.Max.X + 30.f, Axis2.Min.Y), FVector2D(Axis2.Max.X + 30.f + BW, Axis2.Max.Y));
+}
+
 // Nom de la VOIE (axe) par faction/catégorie (0=Base, 1=Axe1, 2=Axe2) — d'après le GDD §7.
 void AWOTOLDemoHUD::DrawVerticalLayerGauge(float W, float H, UWorld* World)
 {
@@ -1856,27 +1892,70 @@ void AWOTOLDemoHUD::DrawSkillsView(float W, float H, UDemoFlowSubsystem* Demo)
 	const FLinearColor Accent = FFactionColors::Get(Fac);
 	DrawFactionAmbientTint(W, H, Fac);
 
+	// Onglet visible dès Phase 1/2 (lecture seule, Grade 0) — l'interaction (choix d'axe,
+	// amélioration de Grade) ne s'active qu'en Phase 3 préparation (Territory_Management),
+	// cf. clarification Liamor 29/07/2026.
+	const bool bPrepPhase = (Demo->GetPhase() == EDemoPhase::Territory_Management);
+
 	DrawGlowTitle(TEXT("COMPETENCES"), H * 0.06f, 2.2f, Accent);
-	DrawCenteredText(TEXT("Choisissez la VOIE de chaque type d'unite (change son axe tactique)"),
-		H * 0.14f, FLinearColor(0.9f, 0.95f, 1.f, 0.95f), 1.05f);
+	DrawCenteredText(bPrepPhase
+		? TEXT("Ameliorez le Grade puis choisissez la VOIE de chaque type d'unite (choix PERMANENT)")
+		: TEXT("Consultation seule ici — le Grade et le choix de voie s'activent en phase de preparation (Gestion du territoire)"),
+		H * 0.14f, bPrepPhase ? FLinearColor(0.9f, 0.95f, 1.f, 0.95f) : FLinearColor(0.85f, 0.7f, 0.4f, 0.95f), 1.0f);
 
 	for (int32 i = 0; i < CityCardCount(); ++i)
 	{
 		const EDemoUnitCategory Cat = CityCardCategory(i);
 		const FBox2D R0 = SkillsAxisRect(i, 0, W, H);
-		// Nom de l'unité à gauche de la ligne.
-		DrawText(CityUnitLabel(Fac, Cat), FLinearColor::White, W * 0.08f, R0.Min.Y + 18.f,
-			GEngine ? GEngine->GetLargeFont() : nullptr, 1.15f);
 		const bool bUnlocked = Demo->IsCategoryUnlocked(Cat);
+		const int32 Grade = Demo->GetUnitGrade(Cat);
+		const int32 MaxGrade = Demo->GetMaxUnitGrade(Cat);
+		// Nom de l'unité + Grade courant à gauche de la ligne.
+		DrawText(FString::Printf(TEXT("%s (Grade %d/%d)"), *CityUnitLabel(Fac, Cat), Grade, MaxGrade),
+			FLinearColor::White, W * 0.08f, R0.Min.Y - 22.f,
+			GEngine ? GEngine->GetLargeFont() : nullptr, 1.05f);
+
 		const int32 Cur = Demo->GetUnitAxis(Cat);
+		const bool bAxisChosen = (Cur != 0);
+		const bool bCanPickAxis = bUnlocked && bPrepPhase && Grade >= 1 && !bAxisChosen;
 		for (int32 a = 0; a < 3; ++a)
 		{
 			const FBox2D R = SkillsAxisRect(i, a, W, H);
 			const bool bSel = (Cur == a);
 			FLinearColor Tint = !bUnlocked ? FLinearColor(0.4f, 0.4f, 0.45f, 1.f)
-				: bSel ? Accent : FLinearColor(0.55f, 0.6f, 0.7f, 1.f);
-			DrawButton(R, SkillAxisLabel(Fac, Cat, a), Tint, bSel ? 1.05f : 0.9f);
+				: bSel ? Accent
+				: (a > 0 && !bCanPickAxis) ? FLinearColor(0.35f, 0.38f, 0.42f, 1.f)
+				: FLinearColor(0.55f, 0.6f, 0.7f, 1.f);
+			const FString Label = (a == 0) ? SkillAxisLabel(Fac, Cat, a)
+				: FString::Printf(TEXT("%s\n(%s)"), *SkillAxisLabel(Fac, Cat, a), *SkillAxisCategory(Fac, Cat, a));
+			DrawButton(R, Label, Tint, bSel ? 1.05f : 0.85f);
+			if (bSel && a > 0)
+			{
+				DrawText(TEXT("CHOISI (permanent)"), Accent, R.Min.X, R.Max.Y + 4.f, nullptr, 0.7f);
+			}
 		}
+
+		// Bouton d'amélioration de Grade — coût affiché, actif seulement en Phase 3 prépa.
+		if (Grade < MaxGrade)
+		{
+			int32 CCost = 0, ACost = 0, OCost = 0;
+			Demo->GetUnitGradeUpgradeCost(Cat, CCost, ACost, OCost);
+			const bool bCanUpgrade = Demo->CanUpgradeUnitGrade(Cat);
+			const FBox2D GR = SkillsGradeButtonRect(i, W, H);
+			DrawButton(GR, FString::Printf(TEXT("GRADE +1\n%d / %d / %d"), CCost, ACost, OCost),
+				bCanUpgrade ? Accent : FLinearColor(0.35f, 0.38f, 0.42f, 1.f), 0.8f);
+		}
+		else
+		{
+			const FBox2D GR = SkillsGradeButtonRect(i, W, H);
+			DrawButton(GR, TEXT("GRADE MAX"), FLinearColor(0.5f, 0.55f, 0.6f, 1.f), 0.8f);
+		}
+	}
+
+	if (!bPrepPhase)
+	{
+		DrawCenteredText(TEXT("Legende cout Grade : Cristaux / Mineraux Abyssaux / Energie Oceanique"),
+			H * 0.90f, FLinearColor(0.7f, 0.78f, 0.88f, 0.8f), 0.85f);
 	}
 
 	DrawButton(SkillsBackButtonRect(W, H), TEXT("RETOUR"), FLinearColor(0.8f, 0.8f, 0.4f, 1.f), 1.2f);

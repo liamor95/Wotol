@@ -471,9 +471,14 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 				{
 					if (AWOTOLDemoHUD::SkillsAxisRect(i, a, VpSize.X, VpSize.Y).IsInside(M))
 					{
-						Demo->SetUnitAxis(Cat, a);
+						Demo->SetUnitAxis(Cat, a); // no-op silencieux si hors Phase 3 / Grade 0 / deja choisi
 						return true;
 					}
+				}
+				if (AWOTOLDemoHUD::SkillsGradeButtonRect(i, VpSize.X, VpSize.Y).IsInside(M))
+				{
+					Demo->UpgradeUnitGrade(Cat); // no-op silencieux si refuse (cout/phase/max)
+					return true;
 				}
 			}
 			if (AWOTOLDemoHUD::SkillsBackButtonRect(VpSize.X, VpSize.Y).IsInside(M))

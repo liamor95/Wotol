@@ -35,6 +35,8 @@ static void FillAquis(UUnitDataAsset* A)
 	A->AxisOneDescription = FText::FromString(TEXT("Onde dégâts importants sur plusieurs unités"));
 	A->AxisTwoName        = FText::FromString(TEXT("Onde de Repoussement"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Onde circulaire projette ennemis proches"));
+	A->AxisOneCategory    = FText::FromString(TEXT("Offensif"));
+	A->AxisTwoCategory    = FText::FromString(TEXT("Défensif"));
 	A->PassiveDescription = FText::FromString(TEXT("Bonus coordination + réduction recharge alliés proches. Synergie : Aquilombres"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Noyau Cristallin"));
 }
@@ -42,7 +44,7 @@ static void FillAquis(UUnitDataAsset* A)
 static void FillLeviaphenix(UUnitDataAsset* A)
 {
 	A->DisplayName   = FText::FromString(TEXT("Léviaphénix"));
-	A->Description   = FText::FromString(TEXT("Mythique Aquiloris — Résonance Technologique (Aura)"));
+	A->Description   = FText::FromString(TEXT("Mythique Aquiloris — Résonance Cristalline (Aura)"));
 	A->Faction       = EFactionID::Aquiloris;
 	A->Role          = EUnitRole::Mythique;
 	A->MaxCountInSquad = 1;
@@ -57,19 +59,25 @@ static void FillLeviaphenix(UUnitDataAsset* A)
 	S.AbilityCooldown  = 20.f;
 	S.RecruitmentCost  = 400;
 	S.StartingMorale   = 85.f;
-	S.AttackType       = EUnitAttackType::Ranged;
+	// Attaque de MÊLÉE confirmée par Liamor le 29/07/2026 (coup de queue/tête/bec/nageoire),
+	// pas à distance malgré la portée 3 ci-dessous héritée de sa taille/allonge.
+	S.AttackType       = EUnitAttackType::Melee;
 	S.AbilityZoneType  = EAbilityZoneType::Aura;
 	S.PreferredLayer   = EVerticalLayer::Epipelagique;
 	S.bCanChangeLayer  = true;
 	S.MasteryDifficulty = 4;
 	S.SynergyRating    = 5;
 
-	A->AbilityName        = FText::FromString(TEXT("Résonance Technologique"));
+	A->AbilityName        = FText::FromString(TEXT("Résonance Cristalline"));
 	A->AbilityDescription = FText::FromString(TEXT("Amplifie les stats de toutes les unités alliées proches"));
 	A->AxisOneName        = FText::FromString(TEXT("Rayonnement Stabilisateur"));
 	A->AxisOneDescription = FText::FromString(TEXT("Amplification poussée, zone élargie"));
+	A->AxisOneCategory    = FText::FromString(TEXT("Support"));
 	A->AxisTwoName        = FText::FromString(TEXT("Rayonnement Vital"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Fait revenir quelques unités tombées"));
+	// Soin, lié au mécanisme de heal passif DÉJÀ existant (retour d'unités tombées) — ne pas
+	// changer ce qui est déjà établi (confirmé Liamor 29/07/2026), seule la catégorie est ajoutée.
+	A->AxisTwoCategory    = FText::FromString(TEXT("Soins"));
 	A->PassiveDescription = FText::FromString(TEXT("Amplifie dégâts, réduit recharges, augmente défense boucliers. Synergie : Aquisphères"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Cœur-Éclat du Léviaphénix"));
 }
@@ -105,6 +113,8 @@ static void FillAquiloryons(UUnitDataAsset* A)
 	A->AxisOneDescription = FText::FromString(TEXT("Protection collective accrue"));
 	A->AxisTwoName        = FText::FromString(TEXT("Double Lames"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Sacrifie défense pour dégâts"));
+	A->AxisOneCategory    = FText::FromString(TEXT("Défensif"));
+	A->AxisTwoCategory    = FText::FromString(TEXT("Offensif"));
 	A->PassiveDescription = FText::FromString(TEXT("Bonus coordination, renforce unités adjacentes. Synergie : Aquilances"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Académie Aquiloryon"));
 }
@@ -140,6 +150,8 @@ static void FillAquilances(UUnitDataAsset* A)
 	A->AxisOneDescription = FText::FromString(TEXT("Dégâts augmentés, renverse unités légères"));
 	A->AxisTwoName        = FText::FromString(TEXT("Rempart Synthétique"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Formation hauteur, empêche attaques descendantes"));
+	A->AxisOneCategory    = FText::FromString(TEXT("Offensif"));
+	A->AxisTwoCategory    = FText::FromString(TEXT("Défensif"));
 	A->PassiveDescription = FText::FromString(TEXT("Résistance frontale, saignement au contact. Synergie : Aquiloryons"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Dôme des Aquilances"));
 }
@@ -175,6 +187,11 @@ static void FillAquipheres(UUnitDataAsset* A)
 	A->AxisOneDescription = FText::FromString(TEXT("Longue portée mono-cible, dégâts élevés"));
 	A->AxisTwoName        = FText::FromString(TEXT("Hydropompe"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Tir zone, dégâts réduits mais AoE"));
+	// Les deux axes infligent des dégâts mais divergent par portée/AoE (confirmé Liamor
+	// 29/07/2026) : distinction visuelle ET mécanique requise entre les deux tirs (télégraphie
+	// de zone + portée réellement différente), pas seulement cosmétique — cf. TODO_WOTOL.md.
+	A->AxisOneCategory    = FText::FromString(TEXT("Offensif Longue Portée"));
+	A->AxisTwoCategory    = FText::FromString(TEXT("Offensif Zone Rapprochée"));
 	A->PassiveDescription = FText::FromString(TEXT("Bonne précision naturelle. Synergie : Léviaphénix"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Champ de Tir des Aquisphères"));
 }
@@ -209,7 +226,11 @@ static void FillAquilombres(UUnitDataAsset* A)
 	A->AxisOneName        = FText::FromString(TEXT("Critique Amplifié"));
 	A->AxisOneDescription = FText::FromString(TEXT("Dégâts critiques augmentés + retour furtif auto"));
 	A->AxisTwoName        = FText::FromString(TEXT("Ombres Projetées"));
+	// Visuel proche du jet d'encre du Kraken (phase 1), échelle ~3x la taille de l'unité,
+	// projeté devant les lignes ennemies (confirmé Liamor 29/07/2026).
 	A->AxisTwoDescription = FText::FromString(TEXT("Ombre massive devant lignes ennemies, réduit visibilité/précision"));
+	A->AxisOneCategory    = FText::FromString(TEXT("Offensif"));
+	A->AxisTwoCategory    = FText::FromString(TEXT("Contrôle"));
 	A->PassiveDescription = FText::FromString(TEXT("Invisibles si immobiles. Synergie : Aquis (Chef)"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Nexus des Ombres"));
 }
@@ -229,12 +250,15 @@ static void FillNoxar(UUnitDataAsset* A)
 	S.AttackDPS        = 150.f;
 	S.DefensePercent   = 10.f;
 	S.MovementSpeed    = 1.0f;
-	S.AttackRange      = 1;
+	// Attaque de base à DISTANCE confirmée par Liamor le 29/07/2026 (tirs laser, pas de
+	// mêlée) — portée alignée sur les autres unités à tirs laser/énergie (Aquisphères,
+	// Noxeblast).
+	S.AttackRange      = 5;
 	S.AttackCooldown   = 1.0f;
 	S.AbilityCooldown  = 12.f;
 	S.RecruitmentCost  = 230;
 	S.StartingMorale   = 90.f;
-	S.AttackType       = EUnitAttackType::Melee;
+	S.AttackType       = EUnitAttackType::Ranged;
 	S.AbilityZoneType  = EAbilityZoneType::Cone;
 	S.PreferredLayer   = EVerticalLayer::Mesopelagique;
 	S.bCanChangeLayer  = true;
@@ -247,6 +271,8 @@ static void FillNoxar(UUnitDataAsset* A)
 	A->AxisOneDescription = FText::FromString(TEXT("Rayons traversants, dégâts exponentiels sur cible isolée, explosion finale"));
 	A->AxisTwoName        = FText::FromString(TEXT("Surcharge Bioluminescente"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Halo amplif vitesse attaque + dégâts énergétiques + résistance peur/contrôle alliés"));
+	A->AxisOneCategory    = FText::FromString(TEXT("Offensif"));
+	A->AxisTwoCategory    = FText::FromString(TEXT("Support"));
 	A->PassiveDescription = FText::FromString(TEXT("Chaque élimination proche = charge de Surcharge. Catalyse recharge Noxedrake. Synergie : Noxedrake"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Trône des Profondeurs"));
 }
@@ -282,6 +308,10 @@ static void FillNoxedrake(UUnitDataAsset* A)
 	A->AxisOneDescription = FText::FromString(TEXT("Souffle plus large, explosion terminale, recharge réduite sur élimination"));
 	A->AxisTwoName        = FText::FromString(TEXT("Dominion Radieux"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Marquage cumulatif, légère auto-régénération sur dégâts infligés"));
+	A->AxisOneCategory    = FText::FromString(TEXT("Offensif"));
+	// Catégorie NON confirmée par Liamor (revue du 29/07/2026 : axe gardé tel quel "on
+	// changera plus tard", mais sans validation de thématique) — laissé vide plutôt
+	// qu'inventé. Voir TODO_WOTOL.md.
 	A->PassiveDescription = FText::FromString(TEXT("En infligeant dégâts continus : vitesse augmente, résistance contrôle s'améliore. Synergie : Noxar. ⚠️ Vulnérable pendant canalisation"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Antre du Noxedrake"));
 }
@@ -289,7 +319,7 @@ static void FillNoxedrake(UUnitDataAsset* A)
 static void FillNoxeflare(UUnitDataAsset* A)
 {
 	A->DisplayName   = FText::FromString(TEXT("Noxeflare"));
-	A->Description   = FText::FromString(TEXT("Infanterie Noxéens — Éblouissement Abyssal (Mono)"));
+	A->Description   = FText::FromString(TEXT("Infanterie Noxéens — Éblouissement Abyssal (Cône)"));
 	A->Faction       = EFactionID::Noxeens;
 	A->Role          = EUnitRole::Infanterie;
 	A->MaxCountInSquad = 3;
@@ -305,7 +335,10 @@ static void FillNoxeflare(UUnitDataAsset* A)
 	S.RecruitmentCost  = 125;
 	S.StartingMorale   = 75.f;
 	S.AttackType       = EUnitAttackType::Melee;
-	S.AbilityZoneType  = EAbilityZoneType::Mono;
+	// Ce n'est PAS mono-cible : le flash touche PLUSIEURS unités alignées devant le lanceur
+	// (sur les côtés, au-dessus) — corrigé suite à la revue Liamor du 29/07/2026, qui a
+	// signalé que Mono était une erreur de donnée par rapport à l'intention d'origine.
+	S.AbilityZoneType  = EAbilityZoneType::Cone;
 	S.PreferredLayer   = EVerticalLayer::Mesopelagique;
 	S.bCanChangeLayer  = true;
 	S.MasteryDifficulty = 2;
@@ -317,6 +350,10 @@ static void FillNoxeflare(UUnitDataAsset* A)
 	A->AxisOneDescription = FText::FromString(TEXT("Zone élargie, durée augmentée, ralentissement, chance d'interruption"));
 	A->AxisTwoName        = FText::FromString(TEXT("Voie de la Frappe Aveugle"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Bonus dégâts massifs sur aveuglés, recharge réduite sur élimination"));
+	// Aperçu holographique de la zone d'effet AVANT activation (requis Liamor 29/07/2026) —
+	// pas encore implémenté, voir TODO_WOTOL.md.
+	A->AxisOneCategory    = FText::FromString(TEXT("Contrôle"));
+	A->AxisTwoCategory    = FText::FromString(TEXT("Offensif"));
 	A->PassiveDescription = FText::FromString(TEXT("Ennemis proches subissent légère baisse précision passive permanente. Synergie clé : Noxeblast"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Fosse d'Emergence"));
 }
@@ -348,10 +385,17 @@ static void FillNoxeblast(UUnitDataAsset* A)
 
 	A->AbilityName        = FText::FromString(TEXT("Décharge Abyssale"));
 	A->AbilityDescription = FText::FromString(TEXT("Tir énergie concentrée, mono-cible, longue portée, dégâts purs. Projectile depuis les paumes"));
-	A->AxisOneName        = FText::FromString(TEXT("Rayon Perforant"));
-	A->AxisOneDescription = FText::FromString(TEXT("Tirs traversants qui percent plusieurs unités alignées"));
-	A->AxisTwoName        = FText::FromString(TEXT("Explosion Bioluminescente"));
-	A->AxisTwoDescription = FText::FromString(TEXT("Explose à l'impact — aveugle unités proches — désorganise formations"));
+	// Axes REDÉFINIS le 29/07/2026 (Liamor a signalé que Rayon Perforant / Explosion
+	// Bioluminescente ne correspondaient pas au design d'origine) : Axe 1 = un orbe unique,
+	// plus gros et concentré, mono-cible, dégâts plus élevés. Axe 2 = salve de nombreux petits
+	// projectiles qui se dispersent pour toucher une zone plus large / plusieurs ennemis
+	// adjacents.
+	A->AxisOneName        = FText::FromString(TEXT("Tir Concentré"));
+	A->AxisOneDescription = FText::FromString(TEXT("Orbe unique plus gros et plus concentré, mono-cible, dégâts fortement augmentés"));
+	A->AxisOneCategory    = FText::FromString(TEXT("Offensif"));
+	A->AxisTwoName        = FText::FromString(TEXT("Tir en Rafale"));
+	A->AxisTwoDescription = FText::FromString(TEXT("Salve de petits projectiles qui se dispersent, touche plusieurs ennemis adjacents"));
+	A->AxisTwoCategory    = FText::FromString(TEXT("Offensif Zone"));
 	A->PassiveDescription = FText::FromString(TEXT("Bonus dégâts significatif sur cible affectée par désorientation/aveuglement. Synergie clé : Noxeflare"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Foyer des Décharges"));
 }
@@ -387,6 +431,8 @@ static void FillNoxeons(UUnitDataAsset* A)
 	A->AxisOneDescription = FText::FromString(TEXT("Bonus zone fortement augmentés, cooldowns réduits, charge Noxedrake accélérée"));
 	A->AxisTwoName        = FText::FromString(TEXT("Ancrage Abyssal"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Zone plus large, résistance accrue alliés, régénération continue, réduction contrôles"));
+	A->AxisOneCategory    = FText::FromString(TEXT("Support Dégâts"));
+	A->AxisTwoCategory    = FText::FromString(TEXT("Support Soin"));
 	A->PassiveDescription = FText::FromString(TEXT("Chaque Noxéon actif augmente légèrement la production énergétique globale. Cumulatif. Synergie : Noxar et Noxedrake. ⚠️ Faible mobilité"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Faille Abyssale"));
 }
@@ -422,6 +468,8 @@ static void FillNoxebeast(UUnitDataAsset* A)
 	A->AxisOneDescription = FText::FromString(TEXT("Réduction massive dégâts après charge — provocation courte — zone instable au sol (ralentit)"));
 	A->AxisTwoName        = FText::FromString(TEXT("Défoncement"));
 	A->AxisTwoDescription = FText::FromString(TEXT("Charge plus rapide, dégâts augmentés, perfore formations, renverse unités lourdes"));
+	A->AxisOneCategory    = FText::FromString(TEXT("Défensif"));
+	A->AxisTwoCategory    = FText::FromString(TEXT("Offensif"));
 	A->PassiveDescription = FText::FromString(TEXT("Plus il subit dégâts consécutifs, plus résistance augmente. Immunité brève contrôle à haut seuil. Synergie : Noxedrake. ⚠️ Vulnérable 2-3s APRÈS la charge"));
 	A->RequiredBuilding   = FText::FromString(TEXT("Cavité des Mastodontes"));
 }

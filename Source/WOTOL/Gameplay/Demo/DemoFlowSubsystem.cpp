@@ -520,7 +520,66 @@ int32 UDemoFlowSubsystem::GetUnitAxis(EDemoUnitCategory Category) const
 
 void UDemoFlowSubsystem::SetUnitAxis(EDemoUnitCategory Category, int32 Axis)
 {
-	UnitAxes.FindOrAdd(Category) = FMath::Clamp(Axis, 0, 2);
+	const int32 Clamped = FMath::Clamp(Axis, 0, 2);
+	if (Clamped == 0) return; // revenir à "base" n'est pas une action valide, rien à choisir
+	if (GetUnitAxis(Category) != 0) return; // choix déjà fait : PERMANENT (Liamor 29/07/2026)
+	if (CurrentPhase != EDemoPhase::Territory_Management) return; // ouvert en Phase 3 prépa seulement
+	if (GetUnitGrade(Category) < 1) return; // il faut au moins le Grade 1 pour choisir un axe
+	UnitAxes.FindOrAdd(Category) = Clamped;
+}
+
+// ─── GRADE de compétence par type d'unité ────────────────────────────────────
+int32 UDemoFlowSubsystem::GetUnitGrade(EDemoUnitCategory Category) const
+{
+	const int32* Found = UnitGrades.Find(Category);
+	return Found ? *Found : 0;
+}
+
+int32 UDemoFlowSubsystem::GetMaxUnitGrade(EDemoUnitCategory Category) const
+{
+	// Seul le Chef (personnage joué) peut atteindre le Grade 2 ; toutes les autres unités
+	// plafonnent au Grade 1 (clarification Liamor 29/07/2026).
+	return (Category == EDemoUnitCategory::Chef) ? 2 : 1;
+}
+
+void UDemoFlowSubsystem::GetUnitGradeUpgradeCost(EDemoUnitCategory Category, int32& OutCrystals,
+	int32& OutAbyssalMaterials, int32& OutOceanicEnergy) const
+{
+	const int32 CurGrade = GetUnitGrade(Category);
+	if (CurGrade >= GetMaxUnitGrade(Category))
+	{
+		OutCrystals = OutAbyssalMaterials = OutOceanicEnergy = 0;
+		return;
+	}
+	const int32 NextGrade = CurGrade + 1;
+	// Coûts PROVISOIRES et éditables, croissants avec le palier ciblé (Grade 2, Chef
+	// uniquement, coûte sensiblement plus cher) — cf. Docs/SYSTEME_CITE_ET_DEFENSE.md.
+	OutCrystals         = 400 * NextGrade;
+	OutAbyssalMaterials = 40  * NextGrade;
+	OutOceanicEnergy    = 60  * NextGrade;
+}
+
+bool UDemoFlowSubsystem::CanUpgradeUnitGrade(EDemoUnitCategory Category) const
+{
+	if (CurrentPhase != EDemoPhase::Territory_Management) return false;
+	if (!IsCategoryUnlocked(Category)) return false;
+	if (GetUnitGrade(Category) >= GetMaxUnitGrade(Category)) return false;
+	int32 Crystals = 0, AbyssalMaterials = 0, OceanicEnergy = 0;
+	GetUnitGradeUpgradeCost(Category, Crystals, AbyssalMaterials, OceanicEnergy);
+	return PlayerCrystals >= Crystals && PlayerAbyssalMaterials >= AbyssalMaterials
+		&& PlayerOceanicEnergy >= OceanicEnergy;
+}
+
+bool UDemoFlowSubsystem::UpgradeUnitGrade(EDemoUnitCategory Category)
+{
+	if (!CanUpgradeUnitGrade(Category)) return false;
+	int32 Crystals = 0, AbyssalMaterials = 0, OceanicEnergy = 0;
+	GetUnitGradeUpgradeCost(Category, Crystals, AbyssalMaterials, OceanicEnergy);
+	PlayerCrystals -= Crystals;
+	PlayerAbyssalMaterials -= AbyssalMaterials;
+	PlayerOceanicEnergy -= OceanicEnergy;
+	UnitGrades.FindOrAdd(Category) = GetUnitGrade(Category) + 1;
+	return true;
 }
 
 EDemoUnitCategory UDemoFlowSubsystem::GetCategoryForUnit(FName UnitID)

@@ -1,5 +1,75 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Systeme Grade/Axe/Voie de competence (29/07/2026, demande explicite de Liamor)
+
+Suite a la revue complete unite par unite (Aquiloris + Noxeens, 3 messages voix detailles) :
+implementation du systeme de progression des competences en Grade + choix d'Axe permanent,
+en s'appuyant sur ce qui existait deja a l'etat de squelette (`UDemoFlowSubsystem::UnitAxes`,
+`GetUnitAxis`/`SetUnitAxis`, deja lus/ecrits par `WOTOLDemoHUD`/`WOTOLPlayerController_Battle`
+mais sans aucune regle de permanence ni de deblocage).
+
+**Regle de securite respectee (meme methode que les formations) :** le Grade 0 (phases 1 et 2)
+reste identique a l'octet pres — `SetUnitAxis` refuse silencieusement tout appel tant que le
+Grade de la categorie est < 1, donc `GetUnitAxis` continue de renvoyer 0 (base) partout ou rien
+n'a ete investi. `UAbilityBase::ExecuteAbility` (degat mono-cible + soin) n'est PAS touche.
+
+**Backend ajoute (`DemoFlowSubsystem.h/.cpp`) :**
+- `TMap<EDemoUnitCategory,int32> UnitGrades` (nouveau, distinct du `GradeLevel` de variance de
+  spawn qui est un concept different — pas touche).
+- `GetUnitGrade`/`GetMaxUnitGrade` (2 pour le Chef uniquement, 1 pour toutes les autres unites,
+  simplification confirmee par Liamor) / `GetUnitGradeUpgradeCost` (Cristaux + Mineraux
+  Abyssaux + Energie Oceanique, couts PROVISOIRES 400/40/60 par palier, a rejouer si besoin de
+  reequilibrage) / `CanUpgradeUnitGrade` / `UpgradeUnitGrade`.
+- `SetUnitAxis` reecrit : choix desormais PERMANENT (refuse tout changement une fois un axe
+  choisi), et gate a la fois par `CurrentPhase == Territory_Management` (phase 3 preparation) et
+  par `GetUnitGrade(Category) >= 1`.
+
+**Donnees corrigees dans `UnitDataLibrary.cpp` (toutes confirmees par Liamor le 29/07/2026) :**
+- Leviaphenix : attaque de base MELEE (pas Distance) ; "Resonance Technologique" renommee
+  "Resonance Cristalline".
+- Noxar : attaque de base a DISTANCE (tirs laser), portee passee de 1 a 5.
+- Noxeflare : `AbilityZoneType` corrige de `Mono` a `Cone` (le flash touche plusieurs unites
+  alignees devant, pas une seule — vraie correction de donnee, pas juste un renommage).
+- Noxeblast : Axe 1/Axe 2 entierement reecrits ("Rayon Perforant"/"Explosion Bioluminescente"
+  ne correspondaient pas au design d'origine) -> "Tir Concentre" (orbe unique, mono-cible,
+  degats eleves) / "Tir en Rafale" (salve de petits projectiles, zone/plusieurs ennemis).
+- Nouveaux champs `UUnitDataAsset::AxisOneCategory`/`AxisTwoCategory` (FText) ajoutes et
+  renseignes pour les 12 unites avec le vocabulaire thematique confirme (Offensif / Defensif /
+  Support / Support Degats / Support Soin / Soins / Controle) — PAS de generique "Axe 1"/"Axe 2".
+  Exception assumee : Noxedrake Axe 2 ("Dominion Radieux") laisse SANS categorie (valeur "?"
+  cote HUD) — Liamor a dit de garder l'axe tel quel mais n'a jamais valide sa thematique,
+  mieux vaut un flag visible qu'une invention.
+
+**HUD (`WOTOLDemoHUD.cpp`, ecran `DrawSkillsView` alias onglet COMPETENCES) :**
+- Reste un ECRAN DEDIE (pas encore integre a une fenetre multi-onglets sur le batiment — voir
+  "Reste a faire" ci-dessous), mais visible et lisible des Phase 1/2 (lecture seule, Grade 0
+  affiche) ; l'interaction (choix d'axe + amelioration de Grade) ne s'active qu'en Phase 3
+  preparation (Territory_Management), avec message explicite sinon.
+- Affiche desormais le Grade courant/max par ligne, le nom ET la categorie thematique de chaque
+  axe, un marqueur "CHOISI (permanent)" sur l'axe deja pris, et un bouton GRADE +1 avec son cout
+  en Cristaux/Mineraux Abyssaux/Energie Oceanique (grise si non finançable ou hors Phase 3).
+- `SkillAxisLabel` corrige (Noxeblast) + cas Chef ajoute (etait auparavant sur le fallback
+  generique "Axe 1"/"Axe 2").
+
+**Reste a faire (hors scope de cette passe, volontairement pas invente) :**
+1. **Fenetre multi-onglets Resume/Recrutement/Statistiques/Competences/Role** sur clic batiment
+   en cite (demande explicite de Liamor) : PAS FAIT. L'onglet Competences fonctionne comme ecran
+   separe (bouton COMPETENCES existant) plutot que comme un vrai onglet contextuel du batiment
+   selectionne — restructuration de `DrawCityView` plus large, a faire dans une passe dediee.
+2. **Le Chef (Aquis/Noxar) n'apparait pas dans les 5 cartes de `CityCardCount`/`CityCardCategory`**
+   (Infanterie/Distance/Montee/Speciale/Mythique uniquement) -> son axe/Grade ne sont pas
+   accessibles depuis l'ecran Competences actuel, alors qu'il est le SEUL a pouvoir monter au
+   Grade 2. Les donnees (SkillAxisLabel/SkillAxisCategory cas Chef) sont pretes, mais il manque
+   une 6e ligne/carte dediee — a faire avec la restructuration du point 1.
+3. **Execution reelle des formes de competence** (cone/zone/aura touchant plusieurs cibles au
+   lieu du mono-cible generique de `UAbilityBase::ExecuteAbility`) : toujours pas fait, MAIS
+   desormais scope a Grade >= 1 + axe choisi -> peut se faire sans toucher au Grade 0 (risque
+   d'equilibrage supprime par le gating, contrairement au constat du 26/07/2026 ci-dessus).
+4. **Telegraphie visuelle requise par Liamor**, aucune faite cette passe : apercu holographique
+   de zone avant activation (Noxeflare), voile d'encre ~3x taille façon Kraken phase 1
+   (Aquilombres Axe 2), distinction visuelle + portee reellement differente entre Hydrosniper et
+   Hydropompe (Aquispheres).
+
 ## Recherche autonome (26/07/2026, suite) — controles non documentes a l'ecran
 
 Suite a "continue les recherches automatiquement" : audit des ajouts recents (formations,
@@ -21,7 +91,12 @@ corriges :
   bandeau texte) ; cohérent de garder Attaque/Competence au meme niveau de finition tant que
   Liamor ne demande pas plus.
 
-**Piste identifiee mais PAS touchee (trop risque sans confirmation) :** `EAbilityShape`
+**Correction (29/07/2026) :** le nom d'enum ci-dessous etait errone — c'est `EAbilityZoneType`
+(pas `EAbilityShape`, qui n'existe pas dans le code). Le constat reste correct : le champ existe
+et est renseigne par unite, mais n'etait lu nulle part (voir entree "Systeme Grade/Axe/Voie" plus
+bas pour la suite donnee).
+
+**Piste identifiee mais PAS touchee a l'epoque (trop risque sans confirmation) :** `EAbilityZoneType`
 (Mono/PetiteZone/Zone/GrandeZone/Cone/Aura/ChargeLigne/Souffle, defini dans WOTOLTypes.h)
 n'est reference NULLE PART ailleurs dans le code — ni stocke sur UnitDataAsset, ni lu par
 UAbilityBase::ExecuteAbility (qui applique TOUJOURS un degat mono-cible + soin sur le lanceur,

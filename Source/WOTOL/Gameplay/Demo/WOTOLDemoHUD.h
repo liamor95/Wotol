@@ -101,6 +101,8 @@ public:
 	// Bouton d'axe (ligne = catégorie d'unité, col 0=Base,1=Axe1,2=Axe2).
 	static FBox2D SkillsAxisRect(int32 CatIndex, int32 AxisIndex, float W, float H);
 	static FBox2D SkillsBackButtonRect(float W, float H);
+	// Bouton "AMÉLIORER LE GRADE" de la ligne (catégorie d'unité).
+	static FBox2D SkillsGradeButtonRect(int32 CatIndex, float W, float H);
 	// Catégories productibles en cité, dans l'ordre des cartes (hors Chef).
 	static int32 CityCardCount();
 	static EDemoUnitCategory CityCardCategory(int32 Index);

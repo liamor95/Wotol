@@ -732,13 +732,43 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Demo|City")
 	bool UpgradeBuilding(EDemoUnitCategory Category);
 
-	// ─── AXE / VOIE par type d'unité (futur onglet Compétences — Axe 1 / Axe 2 du GDD) ──
+	// ─── AXE / VOIE par type d'unité (onglet Compétences — Axe 1 / Axe 2 du GDD) ────────
 	// 0 = base, 1 = Axe 1, 2 = Axe 2. Change l'identité tactique de tout le groupe de ce type.
+	// Choix PERMANENT une fois fait (clarification Liamor 29/07/2026) : SetUnitAxis refuse
+	// silencieusement tout appel hors Phase 3 préparation (Territory_Management), sans le
+	// Grade 1 requis, ou si un axe est déjà choisi (0 -> 1/2 uniquement, jamais de retour en
+	// arrière ni de changement d'axe). Grade 0 (phases 1&2) reste donc TOUJOURS à l'axe 0
+	// (base) — comportement inchangé à l'octet près tant que le Grade n'est pas monté.
 	UFUNCTION(BlueprintPure, Category = "Demo|Skills")
 	int32 GetUnitAxis(EDemoUnitCategory Category) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Demo|Skills")
 	void SetUnitAxis(EDemoUnitCategory Category, int32 Axis);
+
+	// ─── GRADE de compétence par type d'unité (distinct du GradeLevel de variance de spawn) ──
+	// 0 = Grade 0 (base, phases 1&2, TOUJOURS le comportement par défaut). Monte à 1 (débloque
+	// le choix d'Axe) puis, pour le Chef UNIQUEMENT, à 2. Amélioré en Phase 3 préparation
+	// (Territory_Management) contre Cristaux/Biolumens + Minéraux Abyssaux + Énergie Océanique.
+	UFUNCTION(BlueprintPure, Category = "Demo|Skills")
+	int32 GetUnitGrade(EDemoUnitCategory Category) const;
+
+	// Grade maximum atteignable : 2 pour le Chef (personnage joué), 1 pour toutes les autres
+	// unités (simplification confirmée par Liamor le 29/07/2026).
+	UFUNCTION(BlueprintPure, Category = "Demo|Skills")
+	int32 GetMaxUnitGrade(EDemoUnitCategory Category) const;
+
+	// Coût du prochain palier de Grade (Grade actuel + 1). Ressources à zéro si déjà au max.
+	UFUNCTION(BlueprintPure, Category = "Demo|Skills")
+	void GetUnitGradeUpgradeCost(EDemoUnitCategory Category, int32& OutCrystals,
+		int32& OutAbyssalMaterials, int32& OutOceanicEnergy) const;
+
+	UFUNCTION(BlueprintPure, Category = "Demo|Skills")
+	bool CanUpgradeUnitGrade(EDemoUnitCategory Category) const;
+
+	// Améliore le Grade (dépense les ressources). Renvoie faux si refusé (hors Phase 3, déjà
+	// au max, ressources insuffisantes, catégorie non débloquée).
+	UFUNCTION(BlueprintCallable, Category = "Demo|Skills")
+	bool UpgradeUnitGrade(EDemoUnitCategory Category);
 
 	// ─── Fenêtre d'objectif MODALE (validation manuelle — canon v0.8) ───────────
 	// Aucune phase ne s'enchaîne automatiquement : on ouvre une fenêtre (« Objectif
@@ -793,4 +823,7 @@ private:
 	TMap<EDemoUnitCategory, int32> BuildingLevels;
 	// Axe/voie choisi par type d'unité (clé = catégorie). Absent = 0 (base).
 	TMap<EDemoUnitCategory, int32> UnitAxes;
+	// Grade de compétence par type d'unité (clé = catégorie). Absent = 0. DISTINCT du
+	// GradeLevel de variance de spawn (RollUnitGrade) — pas la même notion.
+	TMap<EDemoUnitCategory, int32> UnitGrades;
 };

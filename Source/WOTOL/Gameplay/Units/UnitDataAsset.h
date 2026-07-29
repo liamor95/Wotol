@@ -89,11 +89,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
 	FText AxisOneDescription;
 
+	// Thématique de l'Axe 1 (Offensif / Défensif / Support / Support Dégâts / Support Soin /
+	// Soins / Contrôle...) — affichée dans l'onglet Compétences à la place d'un générique
+	// "Axe 1" (clarification Liamor du 29/07/2026, revue unité par unité des 12 axes).
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
+	FText AxisOneCategory;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
 	FText AxisTwoName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
 	FText AxisTwoDescription;
+
+	// Thématique de l'Axe 2 — voir AxisOneCategory.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
+	FText AxisTwoCategory;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ability")
 	FText PassiveDescription;
