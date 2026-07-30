@@ -50,6 +50,29 @@ void UDemoFlowSubsystem::OpenObjectiveWindow(FName StepId, const FString& Title,
 	bObjectiveWindowOpen = true;
 }
 
+// Montant d'XP par étape de la trame scénarisée de la démo (30/07/2026, retour Liamor : "il
+// faut mesurer la quantité d'expérience reçue en fonction de l'objectif... si c'est un des
+// objectifs principaux, tu vas gagner beaucoup plus d'expérience que si c'est un simple
+// objectif [secondaire]"). MAJEUR = étapes de la trame principale (conquête de territoire,
+// conflit avec la faction rivale, déblocage du mythique) ; MINEUR = transitions/notifications
+// narratives entre deux étapes majeures. Les VRAIES grosses récompenses restent les victoires
+// de bataille (cf. AWOTOLDemoDirector::OnPlayerVictory, largement au-dessus de ces montants).
+// Montants PROVISOIRES ; à choix de quête/chapitres (différé par Liamor), ce classement
+// MAJEUR/MINEUR sera la base naturelle pour distinguer quêtes principales et secondaires.
+static void GetObjectiveXPReward(FName StepId, int32& OutHeroXP, int32& OutCityXP)
+{
+	if (StepId == TEXT("seq_place_crystalliser")   // conquête du territoire
+		|| StepId == TEXT("city_nox_alert")          // alerte de conflit avec la faction rivale
+		|| StepId == TEXT("seq_collect_egg"))        // déblocage du mythique
+	{
+		OutHeroXP = 40; OutCityXP = 30; // MAJEUR
+	}
+	else
+	{
+		OutHeroXP = 10; OutCityXP = 5; // MINEUR (intro, notifications, transitions)
+	}
+}
+
 void UDemoFlowSubsystem::ConfirmObjectiveWindow()
 {
 	if (!bObjectiveWindowOpen) return;
@@ -57,14 +80,15 @@ void UDemoFlowSubsystem::ConfirmObjectiveWindow()
 	const bool bWasFailure = bObjWinIsFailure;
 	bObjectiveWindowOpen = false;
 	ObjWinStepId = NAME_None;
-	// Chaque objectif VALIDÉ (pas un échec) rapporte un peu d'XP Héros/Cité — donne un "but"
-	// concret à chaque étape de l'histoire au lieu de juste faire avancer un texte (demande
-	// Liamor 30/07/2026 : "il n'y a aucun but à l'objectif"). Montant PROVISOIRE, volontairement
-	// petit — les grosses récompenses restent les victoires de bataille (cf.
-	// AWOTOLDemoDirector::OnPlayerVictory, qui accorde déjà bien plus d'XP par victoire).
+	// Chaque objectif VALIDÉ (pas un échec) rapporte de l'XP Héros/Cité — donne un "but" concret
+	// à chaque étape de l'histoire au lieu de juste faire avancer un texte (demande Liamor
+	// 30/07/2026 : "il n'y a aucun but à l'objectif"), avec un montant qui dépend de
+	// l'importance de l'étape (cf. GetObjectiveXPReward ci-dessus).
 	if (!bWasFailure)
 	{
-		GrantProgressionXP(15, 10);
+		int32 HeroXPGain = 0, CityXPGain = 0;
+		GetObjectiveXPReward(Step, HeroXPGain, CityXPGain);
+		GrantProgressionXP(HeroXPGain, CityXPGain);
 	}
 	OnObjectiveConfirmed.Broadcast(Step);
 }

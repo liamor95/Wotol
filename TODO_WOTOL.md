@@ -1,5 +1,37 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## XP differenciee par importance d'objectif (30/07/2026, suite)
+
+Suite au retour de Liamor : le choix de quete/chapitres est confirme pour PLUS TARD (jeu final,
+pas la demo) — la demo reste scriptee/lineaire, mais doit donner une "sensation de choix libre"
+via les ressources ET l'XP accumulees. Point actionnable immediat : les montants d'XP par
+objectif etaient TOUS IDENTIQUES (15/10) jusqu'ici, alors que Liamor veut une vraie hierarchie
+("si c'est un objectif principal, tu vas gagner beaucoup plus d'XP que si c'est un simple
+objectif secondaire").
+
+**Fait** — `GetObjectiveXPReward(StepId)` (nouveau, `DemoFlowSubsystem.cpp`) classe les 7 etapes
+scenarisees de la demo (seules etapes a fenetre modale existantes, verifiees une par une dans
+`WOTOLDemoDirector.cpp`) en deux niveaux :
+- **MAJEUR (40 XP Heros / 30 XP Cite)** : `seq_place_crystalliser` (conquete de territoire),
+  `city_nox_alert` (conflit avec la faction rivale), `seq_collect_egg` (deblocage du mythique)
+  — les 3 etapes qui correspondent a la trame principale decrite par Liamor (conflits entre
+  factions rivales + progression vers l'objectif final).
+- **MINEUR (10 XP Heros / 5 XP Cite)** : `intro_begin_exploration`, `seq_defense_prompt`,
+  `seq_collect_heart`, `seq_return_city` — transitions/notifications narratives, pas des
+  accomplissements en soi.
+- Les VRAIES grosses recompenses restent les victoires de bataille (40/30, 60/70, 150/150,
+  cf. entree precedente), largement au-dessus de ces montants — la hierarchie complete est donc
+  Victoire de bataille > Objectif majeur > Objectif mineur.
+
+**Base pour plus tard** : ce classement MAJEUR/MINEUR est explicitement pense comme la base
+naturelle du futur systeme de choix de quete (quetes principales vs secondaires) quand il sera
+construit pour le jeu final — pas invente au hasard, deja aligne sur la distinction que Liamor
+a decrite.
+
+**Reste PROVISOIRE (pas de chiffres GDD)** : les montants 40/30 et 10/5 sont a rejouer des que
+Liamor a des cibles precises de progression (temps de jeu total vise, nombre de Niveaux Heros/
+Cite souhaites en fin de demo, etc.).
+
 ## Systeme d'XP branche : les objectifs ont enfin un BUT (30/07/2026)
 
 Liamor : "il n'y a aucun but a l'objectif... il faut un systeme d'XP." Recherche faite AVANT
@@ -12,10 +44,12 @@ Cristaux/Mineraux/Energie deja en place) ; le choix de quete/chapitres est VOLON
 scope de cette passe (structure encore 100% lineaire, un chantier a part).
 
 **Ce qui est fait :**
-- `UDemoFlowSubsystem::ConfirmObjectiveWindow` accorde desormais 15 XP Heros / 10 XP Cite a
-  CHAQUE objectif valide (pas les fenetres d'echec) — un seul point d'entree, ne touche pas au
-  gros switch de `WOTOLDemoDirector::HandleObjectiveConfirmed` (trop risque de tout reparcourir
-  a l'aveugle).
+- `UDemoFlowSubsystem::ConfirmObjectiveWindow` accorde desormais de l'XP Heros/Cite a CHAQUE
+  objectif valide (pas les fenetres d'echec) — un seul point d'entree, ne touche pas au gros
+  switch de `WOTOLDemoDirector::HandleObjectiveConfirmed` (trop risque de tout reparcourir a
+  l'aveugle). **[MISE A JOUR 30/07/2026]** Le montant etait initialement fixe (15/10) pour
+  tous les objectifs — desormais differencie par importance, voir l'entree "XP differenciee par
+  importance d'objectif" tout en haut de ce fichier.
 - Ajoute la recompense d'XP manquante pour la victoire de `Battle_Grand` (150/150, la plus
   grosse — c'etait le SEUL des 3 combats a n'en accorder aucune, alors que c'est le climax).
 - **L'XP a enfin un vrai BUT concret** : `RequiredHeroLevelForChefGrade2` (=3) et
@@ -25,13 +59,11 @@ scope de cette passe (structure encore 100% lineaire, un chantier a part).
   1-2 des batiments restent accessibles des le debut (aucun changement pour la progression deja
   validee). Messages explicites ajoutes dans la fenetre RECHERCHE ("[Niveau Heros 3 requis]").
 
-**Toujours PAS fait (hors scope explicitement differe par Liamor) :**
+**Toujours PAS fait (hors scope explicitement differe par Liamor — jeu final, pas la demo) :**
 - Choix de quete (plusieurs objectifs disponibles en parallele, choisis selon la recompense).
 - Structure narrative en chapitres/actes.
-- Montants d'XP par objectif TOUS IDENTIQUES (15/10) — pas de variation selon l'importance de
-  l'objectif (un objectif mineur rapporte pareil qu'un objectif clé) : simplification volontaire
-  pour rester au seul point d'entree `ConfirmObjectiveWindow`, a affiner si Liamor veut des
-  montants differencies par etape.
+- ~~Montants d'XP par objectif tous identiques~~ — RESOLU, voir l'entree "XP differenciee par
+  importance d'objectif" tout en haut de ce fichier.
 
 **Trouve en cours de route, PAS touche (existant, hors scope) :** deux AUTRES systemes d'XP
 morts dans le code, jamais branches a rien — `UHeroExperienceComponent` (jamais attache a un
