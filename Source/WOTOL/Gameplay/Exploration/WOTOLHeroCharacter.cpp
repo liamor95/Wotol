@@ -6,6 +6,7 @@
 #include "Core/WOTOLGameInstance.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
 #include "InputCoreTypes.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -314,7 +315,7 @@ USceneComponent* AWOTOLHeroCharacter::MakeJoint(USceneComponent* Parent, const F
 {
 	USceneComponent* J = NewObject<USceneComponent>(this);
 	if (!J) return nullptr;
-	J->SetupAttachment(Parent ? Parent : RootComponent);
+	J->SetupAttachment(Parent ? Parent : RootComponent.Get());
 	J->RegisterComponent();
 	J->SetRelativeLocation(RelLoc);
 	return J;

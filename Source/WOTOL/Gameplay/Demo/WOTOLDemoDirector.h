@@ -557,6 +557,11 @@ private:
 	bool bCrystalliserPlacementArmed = false;
 	FTimerHandle CrystalliserConstructionHandle;
 
+	// Repères visuels (anneau + piquets) de l'unique emplacement valide du Cristalliseur,
+	// affichés pendant la nage libre post-Kraken (CreateCrystalliserPlacementMarkers).
+	UPROPERTY()
+	TArray<TObjectPtr<AActor>> CrystalliserPlacementMarkers;
+
 	EFactionID CachedPlayerFaction = EFactionID::None;
 	EFactionID CachedRivalFaction  = EFactionID::None;
 

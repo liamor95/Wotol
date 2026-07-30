@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
 #include "Data/WOTOLTypes.h"
+#include "Gameplay/Demo/DemoFlowSubsystem.h"
 #include "WOTOLDemoHUD.generated.h"
 
 // HUD de la démo dessiné 100% en C++ (Canvas) — AUCUN widget UMG requis.
@@ -118,6 +119,20 @@ public:
 	static int32 SkillsCategoryCount();
 	static EDemoUnitCategory SkillsCategoryAt(int32 Index);
 
+	// ─── Fenêtre RECHERCHE (demande Liamor 29/07/2026) ─────────────────────────
+	static FBox2D ResearchBackButtonRect(float W, float H);
+	// Bouton d'amélioration de bâtiment (côté gauche, une ligne par catégorie).
+	static FBox2D ResearchCityUpgradeRect(int32 CatIndex, float W, float H);
+	// Boutons du Chef (côté droit) : Grade +1, puis Axe 1 / Axe 2.
+	static FBox2D ResearchChefGradeRect(float W, float H);
+	static FBox2D ResearchChefAxisRect(int32 AxisIndex, float W, float H);
+	// Palier complémentaire du Chef (Noxar : portée laser), sous les deux noeuds d'axe.
+	static FBox2D ResearchChefTierRect(float W, float H);
+	// Bouton "RECHERCHE" ouvert depuis la fenêtre de bâtiment (visible surtout sur le Chef).
+	static FBox2D BuildingResearchButtonRect(float W, float H);
+	// Sélecteur de formation tactique (voir DrawFormationSelector).
+	static FBox2D FormationButtonRect(int32 Index, float W, float H);
+
 	// Carte de la barre de commandement (bas-gauche) pour l'index de groupe donné.
 	// Sert au double-clic : sélectionner + zoomer sur ce groupe d'unités.
 	static FBox2D CommandCardRect(int32 Index, float W, float H);
@@ -176,16 +191,6 @@ private:
 	// Fenêtre RECHERCHE scindée en deux (demande Liamor 29/07/2026) : bâtiments de la cité à
 	// gauche, arbre Grade/Axe du Chef à droite (un seul écran au lieu de deux séparés).
 	void DrawResearchView(float W, float H, class UDemoFlowSubsystem* Demo);
-	static FBox2D ResearchBackButtonRect(float W, float H);
-	// Bouton d'amélioration de bâtiment (côté gauche, une ligne par catégorie).
-	static FBox2D ResearchCityUpgradeRect(int32 CatIndex, float W, float H);
-	// Boutons du Chef (côté droit) : Grade +1, puis Axe 1 / Axe 2.
-	static FBox2D ResearchChefGradeRect(float W, float H);
-	static FBox2D ResearchChefAxisRect(int32 AxisIndex, float W, float H);
-	// Palier complémentaire du Chef (Noxar : portée laser), sous les deux noeuds d'axe.
-	static FBox2D ResearchChefTierRect(float W, float H);
-	// Bouton "RECHERCHE" ouvert depuis la fenêtre de bâtiment (visible surtout sur le Chef).
-	static FBox2D BuildingResearchButtonRect(float W, float H);
 	// Écran de chargement (fond animé + logo + anneau + astuce).
 	void DrawLoadingScreen(float W, float H, class UDemoFlowSubsystem* Demo);
 	class UTexture2D* GetTransitionBackground();
@@ -282,7 +287,6 @@ private:
 	// que si >=2 unités sont sélectionnées (une formation n'a de sens qu'en groupe). 6 puces
 	// (Aucune/Ligne/Coin/Carré/Lâche/Colonne), surbrillance sur le type actif du contrôleur.
 	void DrawFormationSelector(float W, float H, class UWorld* World);
-	static FBox2D FormationButtonRect(int32 Index, float W, float H);
 	// Minimap schématique (coin haut-droit, sous les boutons pause/réglages) : positions
 	// de toutes les unités vivantes (couleur = faction) + bâtiment de capture + caméra.
 	void DrawMinimap(float W, float H, class UWorld* World);
