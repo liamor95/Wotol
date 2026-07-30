@@ -1899,6 +1899,10 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 		BuildBattleSummary(true, /*bFinal=*/true, TEXT("VICTOIRE TOTALE"));
 		if (Demo)
 		{
+			// Récompense d'XP du CLIMAX — la plus grosse du jeu, manquait totalement jusqu'ici
+			// (seules les 2 batailles précédentes en accordaient). Demande Liamor 30/07/2026 :
+			// "il n'y a aucun but à l'objectif" -> le but final doit être le mieux récompensé.
+			Demo->GrantProgressionXP(150, 150);
 			ReplayPhase = EDemoPhase::Battle_Grand; // « Rejouer » relance la grande bataille
 			Demo->bDemoVictory = true;
 			Demo->SetPhase(EDemoPhase::DemoEnd);

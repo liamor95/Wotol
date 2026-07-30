@@ -54,8 +54,18 @@ void UDemoFlowSubsystem::ConfirmObjectiveWindow()
 {
 	if (!bObjectiveWindowOpen) return;
 	const FName Step = ObjWinStepId;
+	const bool bWasFailure = bObjWinIsFailure;
 	bObjectiveWindowOpen = false;
 	ObjWinStepId = NAME_None;
+	// Chaque objectif VALIDÉ (pas un échec) rapporte un peu d'XP Héros/Cité — donne un "but"
+	// concret à chaque étape de l'histoire au lieu de juste faire avancer un texte (demande
+	// Liamor 30/07/2026 : "il n'y a aucun but à l'objectif"). Montant PROVISOIRE, volontairement
+	// petit — les grosses récompenses restent les victoires de bataille (cf.
+	// AWOTOLDemoDirector::OnPlayerVictory, qui accorde déjà bien plus d'XP par victoire).
+	if (!bWasFailure)
+	{
+		GrantProgressionXP(15, 10);
+	}
 	OnObjectiveConfirmed.Broadcast(Step);
 }
 
@@ -498,6 +508,10 @@ bool UDemoFlowSubsystem::CanUpgradeBuilding(EDemoUnitCategory Category) const
 	if (Cost <= 0 || PlayerCrystals < Cost) return false;
 	if (Category == EDemoUnitCategory::Distance && !Progress.bRangedBuildingConstructed)
 		return false;
+	// Dernier palier (niveau max) : exige un Niveau Cité minimum, gagné en jouant l'histoire
+	// (objectifs + victoires) — cf. RequiredCityLevelForBuildingLevel3.
+	if (GetBuildingLevel(Category) + 1 >= MaxBuildingLevel && CityLevel < RequiredCityLevelForBuildingLevel3)
+		return false;
 	return IsRangedProductionObjectiveComplete()
 		|| PlayerCrystals - Cost >= GetRequiredCrystalReserveForRangedObjective();
 }
@@ -563,7 +577,13 @@ bool UDemoFlowSubsystem::CanUpgradeUnitGrade(EDemoUnitCategory Category) const
 {
 	if (CurrentPhase != EDemoPhase::Territory_Management) return false;
 	if (!IsCategoryUnlocked(Category)) return false;
-	if (GetUnitGrade(Category) >= GetMaxUnitGrade(Category)) return false;
+	const int32 NextGrade = GetUnitGrade(Category) + 1;
+	if (NextGrade > GetMaxUnitGrade(Category)) return false;
+	// Grade 2 (Chef uniquement, dernier palier) : exige un Niveau Héros minimum, gagné en
+	// jouant l'histoire — cf. RequiredHeroLevelForChefGrade2. Grade 1 reste accessible dès le
+	// début pour toutes les unités (aucun changement pour la progression déjà validée).
+	if (Category == EDemoUnitCategory::Chef && NextGrade >= 2 && HeroLevel < RequiredHeroLevelForChefGrade2)
+		return false;
 	int32 Crystals = 0, AbyssalMaterials = 0, OceanicEnergy = 0;
 	GetUnitGradeUpgradeCost(Category, Crystals, AbyssalMaterials, OceanicEnergy);
 	return PlayerCrystals >= Crystals && PlayerAbyssalMaterials >= AbyssalMaterials

@@ -2360,6 +2360,10 @@ void AWOTOLDemoHUD::DrawResearchView(float W, float H, UDemoFlowSubsystem* Demo)
 	DrawGlowTitle(TEXT("RECHERCHE"), H * 0.06f, 2.2f, Accent);
 	DrawCenteredText(TEXT("Cite (gauche) et Chef (droite) — un seul arbre de recherche"),
 		H * 0.14f, FLinearColor(0.9f, 0.95f, 1.f, 0.95f), 1.0f);
+	// Niveaux Héros/Cité rappelés ici : ils débloquent les derniers paliers (Grade 2 du Chef,
+	// niveau 3 des bâtiments) — l'XP qui les fait monter vient des objectifs et des batailles.
+	DrawCenteredText(FString::Printf(TEXT("Niveau Heros %d   |   Niveau Cite %d"),
+		Demo->HeroLevel, Demo->CityLevel), H * 0.175f, FLinearColor(0.75f, 0.85f, 0.95f, 0.9f), 0.85f);
 
 	// Deux panneaux translucides (gauche/droite) + trait vertical central, pour bien voir la
 	// fenêtre scindée en deux demandée par Liamor (au lieu d'un simple trait sur fond uniforme).
@@ -2391,6 +2395,15 @@ void AWOTOLDemoHUD::DrawResearchView(float W, float H, UDemoFlowSubsystem* Demo)
 		DrawButton(R, Label,
 			!bUnlocked ? FLinearColor(0.35f, 0.38f, 0.42f, 1.f)
 				: bCanUp ? Accent : FLinearColor(0.45f, 0.5f, 0.56f, 1.f), 0.75f);
+		// Le dernier palier exige un Niveau Cité minimum (gagné via l'XP des objectifs/batailles)
+		// -> message explicite si c'est la seule chose qui bloque (ressources OK par ailleurs).
+		if (bUnlocked && !bCanUp && Lvl + 1 >= UDemoFlowSubsystem::MaxBuildingLevel
+			&& Demo->CityLevel < UDemoFlowSubsystem::RequiredCityLevelForBuildingLevel3
+			&& Demo->GetCrystals() >= Cost)
+		{
+			DrawText(FString::Printf(TEXT("[Niveau Cite %d requis]"), UDemoFlowSubsystem::RequiredCityLevelForBuildingLevel3),
+				FLinearColor(0.85f, 0.7f, 0.4f, 0.95f), R.Min.X, R.Max.Y + 2.f, nullptr, 0.6f);
+		}
 	}
 
 	// ─── DROITE : arbre Grade/Axe du Chef ───
@@ -2406,6 +2419,14 @@ void AWOTOLDemoHUD::DrawResearchView(float W, float H, UDemoFlowSubsystem* Demo)
 		DrawButton(GradeR, FString::Printf(TEXT("%s - GRADE %d/%d -> +1\n%d / %d / %d"),
 			*CityUnitLabel(Fac, ChefCat), Grade, MaxGrade, CCost, ACost, OCost),
 			bCanUp ? Accent : FLinearColor(0.35f, 0.38f, 0.42f, 1.f), 0.72f);
+		// Le Grade 2 exige un Niveau Héros minimum (gagné via l'XP des objectifs/batailles) ->
+		// message explicite si c'est la seule chose qui bloque (ressources OK par ailleurs).
+		if (!bCanUp && Grade + 1 >= 2 && Demo->HeroLevel < UDemoFlowSubsystem::RequiredHeroLevelForChefGrade2
+			&& Demo->GetCrystals() >= CCost && Demo->PlayerAbyssalMaterials >= ACost && Demo->PlayerOceanicEnergy >= OCost)
+		{
+			DrawText(FString::Printf(TEXT("[Niveau Heros %d requis]"), UDemoFlowSubsystem::RequiredHeroLevelForChefGrade2),
+				FLinearColor(0.85f, 0.7f, 0.4f, 0.95f), GradeR.Min.X, GradeR.Max.Y + 2.f, nullptr, 0.6f);
+		}
 	}
 	else
 	{

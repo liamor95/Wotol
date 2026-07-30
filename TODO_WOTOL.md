@@ -1,5 +1,44 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Systeme d'XP branche : les objectifs ont enfin un BUT (30/07/2026)
+
+Liamor : "il n'y a aucun but a l'objectif... il faut un systeme d'XP." Recherche faite AVANT
+d'implementer (voir Explore agent) : un systeme d'XP Heros/Cite (`HeroXP`/`HeroLevel`/`CityXP`/
+`CityLevel`, `GrantProgressionXP`) existait DEJA dans `DemoFlowSubsystem` mais n'etait branche
+QUE 2 fois dans tout le jeu (victoire Kraken, victoire defense rivale) et ne debloquait RIEN —
+les objectifs eux-memes (fenetres modales "Objectif rempli") ne rapportaient jamais rien.
+Confirme avec Liamor (AskUserQuestion) : XP = progression A PART (ne remplace PAS les couts en
+Cristaux/Mineraux/Energie deja en place) ; le choix de quete/chapitres est VOLONTAIREMENT hors
+scope de cette passe (structure encore 100% lineaire, un chantier a part).
+
+**Ce qui est fait :**
+- `UDemoFlowSubsystem::ConfirmObjectiveWindow` accorde desormais 15 XP Heros / 10 XP Cite a
+  CHAQUE objectif valide (pas les fenetres d'echec) — un seul point d'entree, ne touche pas au
+  gros switch de `WOTOLDemoDirector::HandleObjectiveConfirmed` (trop risque de tout reparcourir
+  a l'aveugle).
+- Ajoute la recompense d'XP manquante pour la victoire de `Battle_Grand` (150/150, la plus
+  grosse — c'etait le SEUL des 3 combats a n'en accorder aucune, alors que c'est le climax).
+- **L'XP a enfin un vrai BUT concret** : `RequiredHeroLevelForChefGrade2` (=3) et
+  `RequiredCityLevelForBuildingLevel3` (=3) — le dernier palier du Grade du Chef et le dernier
+  niveau de batiment (deja construits la session precedente) sont desormais VERROUILLES tant que
+  le Niveau Heros/Cite n'est pas assez haut, meme avec assez de ressources. Grade 1 et niveaux
+  1-2 des batiments restent accessibles des le debut (aucun changement pour la progression deja
+  validee). Messages explicites ajoutes dans la fenetre RECHERCHE ("[Niveau Heros 3 requis]").
+
+**Toujours PAS fait (hors scope explicitement differe par Liamor) :**
+- Choix de quete (plusieurs objectifs disponibles en parallele, choisis selon la recompense).
+- Structure narrative en chapitres/actes.
+- Montants d'XP par objectif TOUS IDENTIQUES (15/10) — pas de variation selon l'importance de
+  l'objectif (un objectif mineur rapporte pareil qu'un objectif clé) : simplification volontaire
+  pour rester au seul point d'entree `ConfirmObjectiveWindow`, a affiner si Liamor veut des
+  montants differencies par etape.
+
+**Trouve en cours de route, PAS touche (existant, hors scope) :** deux AUTRES systemes d'XP
+morts dans le code, jamais branches a rien — `UHeroExperienceComponent` (jamais attache a un
+acteur, lu par `WOTOLBattleWidget` qui affiche donc toujours Niveau 1/0%) et les champs
+`HeroLevel`/`HeroXP` de `WOTOLSaveGame` (jamais assignes). A nettoyer un jour si Liamor confirme
+qu'ils ne servent a rien, mais pas touches ici pour rester dans le scope demande.
+
 ## Portee par paliers pour TOUTES les unites a distance (29/07/2026, suite)
 
 Suite a "fait la portee par paliers pour Aquispheres" puis "et pour les noxeblast egalement !

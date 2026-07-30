@@ -739,6 +739,11 @@ public:
 	// Voir Docs/SYSTEME_CITE_ET_DEFENSE.md. Niveau 1 par défaut, jusqu'à MaxBuildingLevel.
 	static constexpr int32 MaxBuildingLevel = 3;
 
+	// Le dernier palier (MaxBuildingLevel) exige ce Niveau Cité minimum, en plus du coût habituel
+	// — donne enfin un BUT à l'XP de Cité gagnée en complétant les objectifs/batailles (demande
+	// Liamor 30/07/2026 : "il n'y a aucun but à l'objectif"). PROVISOIRE, tunable.
+	static constexpr int32 RequiredCityLevelForBuildingLevel3 = 3;
+
 	UFUNCTION(BlueprintPure, Category = "Demo|City")
 	int32 GetBuildingLevel(EDemoUnitCategory Category) const;
 
@@ -777,6 +782,11 @@ public:
 	// unités (simplification confirmée par Liamor le 29/07/2026).
 	UFUNCTION(BlueprintPure, Category = "Demo|Skills")
 	int32 GetMaxUnitGrade(EDemoUnitCategory Category) const;
+
+	// Le Grade 2 du Chef (dernier palier) exige ce Niveau Héros minimum, en plus du coût
+	// habituel — donne un BUT concret à l'XP Héros gagnée en jouant l'histoire (demande Liamor
+	// 30/07/2026). PROVISOIRE, tunable.
+	static constexpr int32 RequiredHeroLevelForChefGrade2 = 3;
 
 	// Coût du prochain palier de Grade (Grade actuel + 1). Ressources à zéro si déjà au max.
 	UFUNCTION(BlueprintPure, Category = "Demo|Skills")
