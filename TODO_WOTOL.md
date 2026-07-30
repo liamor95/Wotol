@@ -1,5 +1,37 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Premiere compilation reelle sous UE 5.8.1 : 2e passe, 4 vraies erreurs C++ (30/07/2026)
+
+Une fois l'etape UHT passee (voir entree precedente), le vrai compilateur (cl.exe/MSVC) a
+tourne pour la premiere fois sur tout le code de la session et a trouve 4 erreurs reelles,
+toutes corrigees et repoussees :
+
+1. `WOTOLDemoHUD.h` declarait deux methodes retournant `EDemoUnitCategory` par valeur
+   (`CityCardCategory`, `SkillsCategoryAt`) sans jamais inclure `DemoFlowSubsystem.h` (la ou
+   l'enum est definie) — seul `Data/WOTOLTypes.h` etait inclus, qui ne le contient pas. Ca a fait
+   planter le parsing de TOUT le reste de la classe en cascade (erreurs "unknown override
+   specifier", puis "is not a member"). Fix : ajout de l'include.
+2. Meme fichier : 7 fonctions `static FBox2D ...Rect(...)` de la fenetre RECHERCHE et du
+   selecteur de formation (`ResearchBackButtonRect`, `ResearchCityUpgradeRect`,
+   `ResearchChefGradeRect`, `ResearchChefAxisRect`, `ResearchChefTierRect`,
+   `BuildingResearchButtonRect`, `FormationButtonRect`) etaient tombees sous la section
+   `private:` alors qu'elles sont appelees depuis `WOTOLPlayerController_Battle.cpp` pour le
+   hit-test des clics — comme TOUTES les autres fonctions `*Rect` de la classe, qui sont bien
+   publiques. Erreur d'etourderie au moment de leur ajout, jamais detectee faute de compilateur.
+   Fix : deplacees dans la section publique, avec les autres `*Rect`.
+3. `WOTOLDemoDirector.h`/`.cpp` : `CreateCrystalliserPlacementMarkers`/
+   `ClearCrystalliserPlacementMarkers` utilisaient un membre `CrystalliserPlacementMarkers`
+   jamais declare — confusion avec `PlacementMarkers`, deja utilise pour d'autres marqueurs
+   (decors ligne/lampe). Fix : membre dedie ajoute.
+4. `WOTOLHeroCharacter.cpp` : conditionnel ambigu entre `USceneComponent*` et
+   `TObjectPtr<USceneComponent>` (`RootComponent` sans `.Get()`), et `UCapsuleComponent`
+   utilise sans que `Components/CapsuleComponent.h` soit inclus (type incomplet). Deux fix
+   ponctuels.
+
+Confirme une fois de plus : ces bugs (erreurs semantiques/de portee C++) ne sont detectables
+qu'a la compilation reelle, pas par relecture manuelle — attendu que d'autres erreurs de ce
+genre remontent au fur et a mesure des prochains tests PC de Liamor.
+
 ## Premiere compilation reelle sous UE 5.8.1 : 1er bug trouve et corrige (30/07/2026)
 
 Liamor a teste en conditions reelles (PC Windows, moteur 5.8.1, projet telecharge en ZIP depuis
