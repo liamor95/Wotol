@@ -1,5 +1,23 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Premiere compilation reelle sous UE 5.8.1 : 1er bug trouve et corrige (30/07/2026)
+
+Liamor a teste en conditions reelles (PC Windows, moteur 5.8.1, projet telecharge en ZIP depuis
+GitHub). Deux problemes rencontres, aucun des deux n'etait un bug de gameplay :
+
+1. **`WOTOL.uproject` corrompu localement** (encodage UTF-16/BOM introduit lors d'une manipulation
+   cote utilisateur, pas un probleme du depot — verifie via `git show`/`od`, le fichier commit est
+   un UTF-8 propre). Resolu cote utilisateur en re-enregistrant le fichier en UTF-8 sans BOM
+   (Bloc-notes, "Tous les fichiers" + encodage UTF-8). Aucun changement de code necessaire.
+
+2. **Vraie erreur de compilation C++** (premiere fois que ce code passe par un compilateur de
+   toute la session) : UHT (Unreal Header Tool) refuse `BlueprintReadOnly`/`BlueprintReadWrite`
+   sur des `UPROPERTY` declarees `private` (`SceneRoot`/`BackdropMesh` dans
+   `WOTOLCityEnvironment.h`, `CrystalliserConstructionSeconds` dans `WOTOLDemoDirector.h`). Le
+   projet n'utilisant aucun Blueprint (100% C++), ces specifiers etaient de toute facon inutiles
+   — simplement retires. Audit complet (agent Explore) de tous les `.h` du module `WOTOL` : aucun
+   autre cas du meme genre dans le reste du code.
+
 ## XP differenciee par importance d'objectif (30/07/2026, suite)
 
 Suite au retour de Liamor : le choix de quete/chapitres est confirme pour PLUS TARD (jeu final,
