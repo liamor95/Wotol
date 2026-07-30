@@ -44,7 +44,7 @@ private:
 	void BuildAmbientBubbles();
 	void TickAmbientBubbles(float DeltaSeconds);
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<USceneComponent> SceneRoot;
 
 	UPROPERTY()
@@ -53,7 +53,7 @@ private:
 	// Grand fond de cité (illustration officielle, WOTOLBuildingArt::GetCityBackdrop) posé
 	// loin derrière la scène, orienté face à la caméra isométrique fixe. Absent (nullptr) si
 	// le fichier officiel n'existe pas : le décor kitbash existant reste seul visible.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UStaticMeshComponent> BackdropMesh;
 
 	// Petites bulles animées qui montent en boucle — demande de Liamor du 25/07/2026 : garder

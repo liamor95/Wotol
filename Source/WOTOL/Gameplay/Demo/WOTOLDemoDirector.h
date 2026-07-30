@@ -549,7 +549,7 @@ private:
 	TObjectPtr<class AWOTOLCaptureObject> CrystalliserGhost;
 
 	// Délai de l'animation de construction (montée en échelle) après le clic de pose.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Economy")
+	UPROPERTY(EditAnywhere, Category = "Demo|Economy")
 	float CrystalliserConstructionSeconds = 2.5f;
 
 	FVector CrystalliserPlacementLocation = FVector::ZeroVector;
