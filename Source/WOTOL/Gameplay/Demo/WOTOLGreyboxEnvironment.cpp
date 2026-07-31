@@ -7,6 +7,8 @@
 #include "Engine/ExponentialHeightFog.h"
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Engine/PostProcessVolume.h"
+#include "Engine/SkyLight.h"
+#include "Components/SkyLightComponent.h"
 #include "Engine/PointLight.h"
 #include "Components/PointLightComponent.h"
 #include "EngineUtils.h"
@@ -369,6 +371,32 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 			// Bloom DISCRET : assez pour un léger halo bioluminescent, PAS assez pour cramer
 			// un gros blob blanc au centre (les parties vives des unités ne bavent plus).
 			S.bOverride_BloomIntensity = true; S.BloomIntensity = 0.50f;
+			// OCCLUSION AMBIANTE DE CONTACT (absente jusqu'ici) : les formes primitives du
+			// kitbash paraissent "flottantes"/déconnectées les unes des autres sans ombre de
+			// contact entre elles. Ajout SANS toucher à l'exposition (déjà bornée Min/Max
+			// ci-dessus -> aucun risque de retomber sur le bug d'écran noir déjà corrigé).
+			S.bOverride_AmbientOcclusionIntensity = true; S.AmbientOcclusionIntensity = 0.6f;
+			S.bOverride_AmbientOcclusionRadius    = true; S.AmbientOcclusionRadius    = 60.f;
+			S.bOverride_AmbientOcclusionQuality   = true; S.AmbientOcclusionQuality   = 100.f;
+		}
+
+		// LUMIÈRE D'AMBIANCE (SkyLight, absente jusqu'ici) : sans elle, les faces des formes
+		// primitives non éclairées directement tombent au noir complet -> silhouettes dures et
+		// "plates". Teinte identique au brouillard/à la key light (cohérence de palette),
+		// intensité MODESTE pour ne pas aplatir le clair-obscur voulu par la key light.
+		// SourceType laissé par défaut (SLS_CapturedScene) : capture la scène réelle (sol,
+		// rochers, key light déjà teintée) au lieu d'exiger une texture cubemap qu'on n'a pas
+		// -> fonctionne sans aucun asset externe, la teinte ci-dessous vient MULTIPLIER cette
+		// capture, pas la remplacer.
+		if (ASkyLight* Sky = W->SpawnActor<ASkyLight>(ASkyLight::StaticClass(), Center, NoRot, FP))
+		{
+			if (USkyLightComponent* SC = Sky->GetLightComponent())
+			{
+				SC->SetMobility(EComponentMobility::Movable);
+				SC->SetLightColor(bAbyss ? FLinearColor(0.05f, 0.14f, 0.15f) : FLinearColor(0.06f, 0.16f, 0.22f));
+				SC->SetIntensity(0.8f);
+				SC->RecaptureSky();
+			}
 		}
 
 		// Nuages masqués + SOLEIL adouci (lumière directionnelle atténuée et bleutée

@@ -1,5 +1,33 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Passe esthetique GENERALE : occlusion ambiante + lumiere d'ambiance (31/07/2026, suite)
+
+Liamor a demande une amelioration de "toute l'esthetique generale", pas juste le modele du
+Hero. Plutot que de retoucher a l'aveugle des formes deja tres travaillees (HUD deja passe par
+plusieurs rounds de DrawFramedPanel/DrawResourceChip, ecrans deja repris avec references Call
+of Dragons), audit de ce qui manque cote LUMIERE/POST-PROCESS — c'est ce qui a le plus gros
+impact sur le rendu d'un kitbash de formes primitives, independamment de la geometrie exacte de
+chaque objet, et ca ne demande aucun nouvel asset.
+
+Constat (dans `WOTOLGreyboxEnvironment.cpp::BuildArena()`, seul point de reglage
+lumiere/atmosphere du jeu) : brouillard + post-process (teinte, saturation, vignette, bloom)
+deja bien regles, MAIS deux manques identifies :
+1. **Aucune occlusion ambiante** -> les formes primitives semblaient "flottantes", sans ombre de
+   contact entre elles. Activee dans le PostProcessVolume (Intensity 0.6, Radius 60, Quality 100).
+2. **Aucun SkyLight** -> les faces non eclairees directement par la key light tombaient au noir
+   complet, silhouettes dures/plates. Ajoute un SkyLight (SourceType par defaut = capture de
+   scene, donc AUCUN asset cubemap requis), teinte identique a la palette teal/abyssale
+   existante, intensite modeste (0.8) pour ne pas aplatir le clair-obscur voulu par la key light.
+
+Aucun des deux ne touche a l'exposition (deja bornee Min/Max, cf. commentaire "surtout PAS
+d'exposition manuelle, qui rendait l'écran noir" — bug deja corrige avant cette session, pas
+retouche). Le Roughness=1/Specular=0 des materiaux mats (`WOTOLGlow::MakeMatte`) N'A PAS ete
+touche non plus : le commentaire existant indique que c'est un choix delibere ("plus de reflet
+plastique"), donc risque de faire regresser un probleme deja corrige — a items separer si
+Liamor confirme vouloir revenir dessus.
+**A verifier au prochain lancement : la scene doit paraitre moins plate/plus "posee" sans que
+rien ne devienne trop sombre ou trop clair.**
+
 ## Modele du Hero Aquis compare a la reference : crete + cape corrigees (31/07/2026, suite)
 
 Liamor a envoye 3 captures du Hero en jeu (vue exploration + placement de batiment) + reenvoye
