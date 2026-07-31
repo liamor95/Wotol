@@ -80,17 +80,25 @@ void AWOTOLCityEnvironment::BuildEnvironment()
 	}
 
 	// Grand fond de cité (illustration officielle réelle, demande de Liamor du 25/07/2026) —
-	// posé loin derrière/en dessous de la scène, orienté face à la caméra isométrique FIXE
-	// (même calcul que AWOTOLCityBuildingProp, les angles ne changent jamais dans cette vue).
+	// posé loin derrière la scène, orienté face à la caméra isométrique FIXE (même calcul que
+	// AWOTOLCityBuildingProp, les angles ne changent jamais dans cette vue).
 	// Absent silencieusement si le fichier officiel n'existe pas (décor kitbash seul visible).
 	if (UTexture2D* Backdrop = WOTOLBuildingArt::GetCityBackdrop(PlayerFaction))
 	{
+		const FRotator CamLookRot(-55.f, 45.f, 0.f); // memes valeurs que AWOTOLCityCamera
+		const FVector CamForward = FRotationMatrix(CamLookRot).GetScaledAxis(EAxis::X);
+		// Bug trouvé au 1er test PC du 31/07/2026 : l'ancien décalage (-1400,-1400,900) était
+		// DU MÊME CÔTÉ que la caméra elle-même (AWOTOLCityCamera::ResetToHub positionne la
+		// caméra le long de -CamForward*TargetArmLength, soit environ (-1298,-1298,+2621)) et
+		// à une distance INFÉRIEURE à celle de la caméra -> le fond, gigantesque (échelle 48),
+		// se retrouvait placé ENTRE la caméra et la cité, recouvrant tout l'écran d'un simple
+		// aplat bleu (ville entièrement invisible). Il doit être du côté OPPOSÉ (+CamForward),
+		// loin AU-DELÀ du hub et de l'anneau de bâtiments (RingRadius=1500), pour rester
+		// derrière eux du point de vue de la caméra orthographique.
 		BackdropMesh = AddCityDecor(this, SceneRoot, TEXT("/Engine/BasicShapes/Plane.Plane"),
-			FVector(-1400.f, -1400.f, 900.f), FVector(48.f, 48.f, 1.f), nullptr);
+			CamForward * 3600.f, FVector(48.f, 48.f, 1.f), nullptr);
 		if (BackdropMesh)
 		{
-			const FRotator CamLookRot(-55.f, 45.f, 0.f); // memes valeurs que AWOTOLCityCamera
-			const FVector CamForward = FRotationMatrix(CamLookRot).GetScaledAxis(EAxis::X);
 			BackdropMesh->SetRelativeRotation(
 				FRotationMatrix::MakeFromZX(-CamForward, FVector::UpVector).Rotator());
 			if (UMaterialInstanceDynamic* MID = WOTOLGlow::MakeSprite(this, Backdrop))

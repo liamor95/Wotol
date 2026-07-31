@@ -104,18 +104,28 @@ FBox2D AWOTOLDemoHUD::HeroSpecialtyButtonRect(int32 Index, float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
+// Rangée PORTRAIT (cercle + flèches) : calée à un écart FIXE sous le texte de description de
+// la spécialité (pas juste un pourcentage de H indépendant) -> évite le chevauchement du texte
+// avec le cercle de portrait remonté au 1er test PC du 31/07/2026.
+static float HeroPortraitRowY(float W, float H)
+{
+	return AWOTOLDemoHUD::HeroSpecialtyButtonRect(0, W, H).Max.Y + 100.f;
+}
+
 FBox2D AWOTOLDemoHUD::HeroPortraitPrevRect(float W, float H)
 {
 	const float BW = 60.f, BH = 60.f;
 	const float CX = W * 0.5f;
-	return FBox2D(FVector2D(CX - 140.f, H * 0.66f), FVector2D(CX - 140.f + BW, H * 0.66f + BH));
+	const float Y = HeroPortraitRowY(W, H);
+	return FBox2D(FVector2D(CX - 140.f, Y), FVector2D(CX - 140.f + BW, Y + BH));
 }
 
 FBox2D AWOTOLDemoHUD::HeroPortraitNextRect(float W, float H)
 {
 	const float BW = 60.f, BH = 60.f;
 	const float CX = W * 0.5f;
-	return FBox2D(FVector2D(CX + 80.f, H * 0.66f), FVector2D(CX + 80.f + BW, H * 0.66f + BH));
+	const float Y = HeroPortraitRowY(W, H);
+	return FBox2D(FVector2D(CX + 80.f, Y), FVector2D(CX + 80.f + BW, Y + BH));
 }
 
 FBox2D AWOTOLDemoHUD::HeroCustomizationConfirmRect(float W, float H)
@@ -1189,22 +1199,26 @@ void AWOTOLDemoHUD::DrawHeroCustomization(float W, float H, UDemoFlowSubsystem* 
 		TEXT("Maitrise des courants, degats a distance/zone."),
 		TEXT("Traque et controle, cible les ennemis isoles.")
 	};
-	DrawCenteredText(SpecialtyDesc[SpecialtyIdx], HeroSpecialtyButtonRect(0, W, H).Max.Y + H * 0.025f,
+	const float SpecialtyDescY = HeroSpecialtyButtonRect(0, W, H).Max.Y + 30.f;
+	DrawCenteredText(SpecialtyDesc[SpecialtyIdx], SpecialtyDescY,
 		FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 0.9f);
 
 	// Portrait : simple index cyclable + halo teinté par la faction, en attendant de vrais
-	// portraits illustrés (aucun asset de ce type n'existe encore côté Content).
-	DrawCenteredText(TEXT("PORTRAIT"), H * 0.635f, FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.1f);
+	// portraits illustrés (aucun asset de ce type n'existe encore côté Content). Calé à un
+	// écart FIXE sous la description de spécialité -> évite le chevauchement remonté au
+	// 1er test PC du 31/07/2026 (H*0.635/H*0.66 indépendants pouvaient se toucher).
+	const float PortraitRowY = SpecialtyDescY + 70.f; // = HeroPortraitPrevRect/NextRect (même formule)
+	DrawCenteredText(TEXT("PORTRAIT"), PortraitRowY - 50.f, FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.1f);
 	if (Canvas)
 	{
-		const FVector2D Center(W * 0.5f, H * 0.66f + 30.f);
+		const FVector2D Center(W * 0.5f, PortraitRowY + 30.f);
 		const FLinearColor FacCol = FFactionColors::Get(Demo->SelectedFaction);
 		Canvas->K2_DrawPolygon(nullptr, Center, FVector2D(46.f, 46.f), 16, FLinearColor(FacCol.R, FacCol.G, FacCol.B, 0.2f));
 		Canvas->K2_DrawPolygon(nullptr, Center, FVector2D(30.f, 30.f), 16, FacCol);
 	}
 	DrawButton(HeroPortraitPrevRect(W, H), TEXT("<"), FLinearColor(0.5f, 0.55f, 0.62f, 1.f), 1.3f);
 	DrawButton(HeroPortraitNextRect(W, H), TEXT(">"), FLinearColor(0.5f, 0.55f, 0.62f, 1.f), 1.3f);
-	DrawCenteredText(FString::Printf(TEXT("%d / 5"), Loadout.PortraitIndex + 1), H * 0.66f + 70.f,
+	DrawCenteredText(FString::Printf(TEXT("%d / 5"), Loadout.PortraitIndex + 1), PortraitRowY + 86.f,
 		FLinearColor::White, 1.0f);
 
 	DrawButton(HeroCustomizationBackRect(W, H), TEXT("< RETOUR"), FLinearColor(0.4f, 0.45f, 0.52f, 1.f), 1.0f);
@@ -1377,7 +1391,12 @@ FBox2D AWOTOLDemoHUD::TerritoryRepairButtonRect(float W, float H)
 
 FBox2D AWOTOLDemoHUD::TerritoryDefenseButtonRect(float W, float H)
 {
-	return FBox2D(FVector2D(48.f, H * 0.40f), FVector2D(408.f, H * 0.40f + 66.f));
+	// Toujours calé à un écart FIXE (pas juste un pourcentage de H indépendant) sous le
+	// bouton REPARER + le texte "DEFENSES : x/y" entre les deux -> évite le chevauchement de
+	// texte remonté au 1er test PC du 31/07/2026 (H*0.27 et l'ancien H*0.40 pouvaient se
+	// toucher sur une fenêtre d'édition basse au lieu d'un plein écran).
+	const float Y = TerritoryRepairButtonRect(W, H).Max.Y + 68.f;
+	return FBox2D(FVector2D(48.f, Y), FVector2D(408.f, Y + 66.f));
 }
 
 FBox2D AWOTOLDemoHUD::TerritoryGarrisonMinusRect(int32 Index, float W, float H)
@@ -1996,10 +2015,11 @@ void AWOTOLDemoHUD::DrawTerritoryView(float W, float H, UDemoFlowSubsystem* Demo
 
 	const int32 NextDefense = Demo->InstalledDefenseCount + 1;
 	const FString DefenseBuildingName = bNox ? TEXT("ENCEINTE NOXEENNE") : TEXT("BASTION CRISTALLIN");
+	const float DefenseLabelY = TerritoryRepairButtonRect(W, H).Max.Y + 24.f;
 	DrawText(FString::Printf(TEXT("%s — DEFENSES : %d / %d   —   TECHNOLOGIE NIV. %d"),
 		*DefenseBuildingName, Demo->InstalledDefenseCount, Demo->GetDefenseCapacity(),
 		Demo->DefenseTechnologyLevel),
-		FLinearColor::White, 48.f, H * 0.365f - 28.f, nullptr, 0.92f);
+		FLinearColor::White, 48.f, DefenseLabelY, nullptr, 0.92f);
 	DrawButton(TerritoryDefenseButtonRect(W, H),
 		Demo->CanInstallNextDefense()
 			? FString::Printf(TEXT("PLACER %s  —  %d C / %d M"), *DefenseStructureName,
@@ -2010,7 +2030,7 @@ void AWOTOLDemoHUD::DrawTerritoryView(float W, float H, UDemoFlowSubsystem* Demo
 				: FString(TEXT("RESSOURCES INSUFFISANTES"))),
 		Demo->CanInstallNextDefense() ? Accent : FLinearColor(0.34f, 0.38f, 0.42f, 1.f), 0.9f);
 	DrawText(TEXT("Cliquez ensuite l'un des 5 emplacements lumineux."),
-		FLinearColor(0.76f, 0.86f, 0.94f, 1.f), 48.f, H * 0.40f + 78.f, nullptr, 0.82f);
+		FLinearColor(0.76f, 0.86f, 0.94f, 1.f), 48.f, TerritoryDefenseButtonRect(W, H).Max.Y + 12.f, nullptr, 0.82f);
 
 	const float RX = W - 420.f;
 	DrawText(FString::Printf(TEXT("GARNISON : %d / %d"), Demo->GarrisonUnits,
@@ -2165,9 +2185,12 @@ void AWOTOLDemoHUD::DrawVerticalLayerGauge(float W, float H, UWorld* World)
 	const float AvgZ = SumZ / N;            // 0..2400
 	const float Frac = FMath::Clamp(AvgZ / 2400.f, 0.f, 1.f);
 
-	// Barre verticale à gauche, centrée verticalement.
+	// Barre verticale à gauche, centrée verticalement. Le bas est plafonné pour ne jamais
+	// chevaucher la fenêtre TUTO "CONTROLES" (DrawPrepareBar, en bas-gauche, Y = H-386) —
+	// bug remonté au 1er test PC du 31/07/2026 : le texte "SURFACE" se superposait à
+	// "CONTROLES" quand les deux panneaux étaient affichés en même temps (écran Prepare).
 	const float GX = 34.f, GW = 26.f;
-	const float GTop = H * 0.30f, GBot = H * 0.70f, GH = GBot - GTop;
+	const float GTop = H * 0.30f, GBot = FMath::Min(H * 0.70f, H - 440.f), GH = GBot - GTop;
 	DrawRect(FLinearColor(0.03f, 0.06f, 0.10f, 0.75f), GX - 6.f, GTop - 30.f, GW + 12.f, GH + 60.f);
 	// 3 bandes : SURFACE (haut) / MID / SOL (bas).
 	const TCHAR* Labels[3] = { TEXT("SURFACE"), TEXT("MID"), TEXT("SOL") };
