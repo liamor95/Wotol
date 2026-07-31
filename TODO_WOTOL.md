@@ -1,5 +1,43 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## 1er passage COMPLET de la demo (defaite en Phase 3) : 4 bugs reels + refs Call of Dragons (31/07/2026, suite)
+
+Liamor a joue jusqu'au bout (defaite en Phase 3) et envoye 16 captures de reference du jeu
+mobile "Call of Dragons" + 2 captures du bug de Phase 3. 4 bugs reels corriges :
+
+1. **Le plus grave** : Phase 3 affichait le decor de la CITE (disque du sol, cone du hub)
+   derriere le HUD de bataille au lieu de la vraie arene -> bataille jamais vue, juste suivie
+   sur la minicarte. Cause : `StartGrandBattle()` (WOTOLDemoDirector.cpp) etait le seul point
+   d'entree de bataille a ne jamais appeler `PossessBattleCamera()` avant `BeginPreparation()`
+   (tous les autres le font). Le joueur restait sur la camera de cite. Fix : appel ajoute.
+2. Defaite avec seulement 22/60 unites : le texte narratif dit "les mois passent, la cite
+   prospere" mais aucun bonus de ressources n'etait accorde -> impossible d'approcher le
+   plafond avec seulement le reliquat de la phase 2. Bonus ajoute dans
+   `ReturnToCityForGrandBattleReveal`, calcule pour permettre d'atteindre le plafond meme en
+   partant de zero (cout moyen/unite x nombre d'unites manquantes).
+3. Touche Espace en vue Hero (nage libre) inversee : Espace faisait MONTER au lieu de
+   DESCENDRE, incoherent avec la camera RTS de bataille (deja Espace = descendre depuis le
+   debut). Inversee dans Config/DefaultInput.ini + tous les textes d'aide corriges — les 2
+   cameras du jeu partagent maintenant la meme convention.
+4. Inclinaison de camera (banking) en tournant a gauche/droite en vue Hero, ressentie comme
+   une distorsion fisheye : angle reduit de 18° a 6° (effet garde, juste attenue).
+
+**References Call of Dragons (16 captures)** — a exploiter pour les prochaines passes
+visuelles, pas encore fait :
+- Barre de ressources en haut : meme convention pilule icone+nombre que ce qu'on vient de
+  cabler (validé par la reference, rien a changer de ce cote).
+- **Vue Cite** : terrain ORGANIQUE (ile/zone avec relief varie, chemins paves entre les
+  batiments, arbres/rochers/eau en bordure) — TRES different de notre disque plat circulaire
+  actuel. Gros chantier si on veut s'en rapprocher (pas juste redimensionner le disque comme
+  deja fait, repenser toute la forme du sol).
+- **Fenetre de recrutement** ("ENTRAINER LES UNITES") : portrait 3D GRAND FORMAT (pas une
+  petite icone), tags de type d'unite, texte de lore, slider de quantite, cout multi-ressources
+  en icones, 2 boutons d'action (instantane premium / entrainement chronometre), rangee de
+  vignettes en bas pour choisir quel type entrainer. Notre version actuelle (carte simple,
+  portrait ~90px) est un premier pas mais reste bien plus modeste.
+- Selection de batiment en jeu : popup minimaliste directement au-dessus du batiment (icone
+  info + fleche amelioration) plutot qu'un gros panneau lateral permanent — a considerer.
+
 ## Vraies icones de ressources enfin livrees et cablees (31/07/2026, suite)
 
 Liamor a envoye 9 images : les planches des 8 ressources du GDD complet (Biomasse Marine,
