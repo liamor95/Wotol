@@ -1818,8 +1818,22 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 	{
 		const EDemoUnitCategory SelCat = Demo->SelectedCityCategory;
 		const FBox2D Panel(FVector2D(W - 380.f, H * 0.22f), FVector2D(W - 20.f, H * 0.58f));
-		DrawRect(FLinearColor(0.01f, 0.05f, 0.09f, 0.90f), Panel.Min.X, Panel.Min.Y,
-			Panel.Max.X - Panel.Min.X, Panel.Max.Y - Panel.Min.Y);
+		const float PanelW = Panel.Max.X - Panel.Min.X, PanelH = Panel.Max.Y - Panel.Min.Y;
+		// Fond ORNÉ (planche fournie par Liamor le 25/07/2026, jusqu'ici jamais câblée sur cette
+		// fenêtre — c'était un simple rectangle plat + liseré, "pas de fond" selon son retour du
+		// 31/07/2026) : le cadre PORTRAIT est le mieux proportionné pour ce panneau haut et
+		// étroit (les cadres PAYSAGE/WIDE, faits pour des bannières larges, s'écraseraient trop
+		// sur ce format). Voile sombre semi-transparent PAR-DESSUS pour garder le texte lisible
+		// quelle que soit la clarté de l'illustration en dessous.
+		if (UTexture2D* Frame = GetPanelFramePortrait(Demo->GetPlayerFaction()))
+		{
+			DrawTexture(Frame, Panel.Min.X, Panel.Min.Y, PanelW, PanelH, 0.f, 0.f, 1.f, 1.f);
+			DrawRect(FLinearColor(0.01f, 0.05f, 0.09f, 0.55f), Panel.Min.X, Panel.Min.Y, PanelW, PanelH);
+		}
+		else
+		{
+			DrawRect(FLinearColor(0.01f, 0.05f, 0.09f, 0.90f), Panel.Min.X, Panel.Min.Y, PanelW, PanelH);
+		}
 		DrawLine(Panel.Min.X, Panel.Min.Y, Panel.Max.X, Panel.Min.Y, Accent, 3.f);
 
 		// Barre d'onglets.
@@ -1999,9 +2013,25 @@ void AWOTOLDemoHUD::DrawTerritoryView(float W, float H, UDemoFlowSubsystem* Demo
 	const FString RampartName = bNox ? TEXT("Entraves abyssales") : TEXT("Rempart cristallin");
 
 	// Le monde 3D reste visible : deux panneaux latéraux encadrent le bâtiment et ses cinq
-	// emplacements lumineux, au lieu de remplacer la zone par un menu abstrait.
-	DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, 0.88f), 24.f, 28.f, 420.f, H - 150.f);
-	DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, 0.88f), W - 444.f, 28.f, 420.f, H - 150.f);
+	// emplacements lumineux, au lieu de remplacer la zone par un menu abstrait. Fond ORNÉ
+	// (même traitement que la fenêtre de bâtiment de la cité — planche portrait + voile sombre).
+	{
+		UTexture2D* Frame = GetPanelFramePortrait(Demo->GetPlayerFaction());
+		auto DrawSidePanel = [&](float X)
+		{
+			if (Frame)
+			{
+				DrawTexture(Frame, X, 28.f, 420.f, H - 150.f, 0.f, 0.f, 1.f, 1.f);
+				DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, 0.60f), X, 28.f, 420.f, H - 150.f);
+			}
+			else
+			{
+				DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, 0.88f), X, 28.f, 420.f, H - 150.f);
+			}
+		};
+		DrawSidePanel(24.f);
+		DrawSidePanel(W - 444.f);
+	}
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.64f), 0.f, 0.f, W, 112.f);
 	DrawGlowTitle(TEXT("GESTION DU TERRITOIRE"), 24.f, 2.05f, Accent);
 	DrawCenteredText(Demo->ObjectiveText, 76.f, FLinearColor(0.9f, 0.96f, 1.f, 1.f), 1.0f);
