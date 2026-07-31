@@ -43,6 +43,11 @@ private:
 	void BuildEnvironment();
 	void BuildAmbientBubbles();
 	void TickAmbientBubbles(float DeltaSeconds);
+	// Chemin pavé plat entre le hub et un bâtiment + amas de décor (corail/rochers) dispersés
+	// sur le sol — casse l'aspect "anneau géométrique nu" (retour de Liamor le 31/07/2026,
+	// références Call of Dragons : terrain organique, chemins visibles, végétation en bordure).
+	void AddCityPath(const FVector& From, const FVector& To);
+	void BuildGroundDecor();
 
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<USceneComponent> SceneRoot;

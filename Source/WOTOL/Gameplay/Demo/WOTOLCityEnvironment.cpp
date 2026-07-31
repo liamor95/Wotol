@@ -114,14 +114,20 @@ void AWOTOLCityEnvironment::BuildEnvironment()
 
 	// Bâtiments de production : un par catégorie productible, en anneau autour du hub, dans
 	// le MÊME ORDRE que les cartes du HUD 2D (index i <-> carte i) pour rester cohérent.
+	// Léger décalage ORGANIQUE (déterministe, seed fixe) par rapport à l'anneau géométrique
+	// parfait -> moins "aligné au cordeau", plus proche des cités de référence (Call of
+	// Dragons) — sans risque pour le clic, qui vise l'acteur réellement spawné (raycast 3D
+	// sous le curseur), pas une position recalculée par la même formule.
 	UWorld* W = GetWorld();
 	if (!W) return;
+	FRandomStream Jitter(2607);
 	const int32 N = AWOTOLDemoHUD::CityCardCount();
 	for (int32 i = 0; i < N; ++i)
 	{
 		const float Angle = (360.f / static_cast<float>(N)) * static_cast<float>(i);
-		const FVector Offset = FVector(FMath::Cos(FMath::DegreesToRadians(Angle)) * RingRadius,
+		FVector Offset = FVector(FMath::Cos(FMath::DegreesToRadians(Angle)) * RingRadius,
 			FMath::Sin(FMath::DegreesToRadians(Angle)) * RingRadius, 0.f);
+		Offset += FVector(Jitter.FRandRange(-110.f, 110.f), Jitter.FRandRange(-110.f, 110.f), 0.f);
 		const FTransform PropTM(FRotator::ZeroRotator, GetActorLocation() + Offset);
 
 		if (AWOTOLCityBuildingProp* Prop = W->SpawnActorDeferred<AWOTOLCityBuildingProp>(
@@ -132,9 +138,52 @@ void AWOTOLCityEnvironment::BuildEnvironment()
 			UGameplayStatics::FinishSpawningActor(Prop, PropTM);
 			Props.Add(Prop);
 		}
+		AddCityPath(GetActorLocation(), GetActorLocation() + Offset);
 	}
 
 	BuildAmbientBubbles();
+	BuildGroundDecor();
+}
+
+// Bande plate reliant deux points au sol (hub <-> bâtiment) : casse l'impression de "socle vide"
+// entre les éléments, comme les chemins pavés visibles sur les cités de référence.
+void AWOTOLCityEnvironment::AddCityPath(const FVector& From, const FVector& To)
+{
+	const FVector Delta = To - From;
+	const float Length = Delta.Size2D();
+	if (Length < 10.f) return;
+	const FVector Mid = From + Delta * 0.5f;
+	const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(Delta.Y, Delta.X));
+	UStaticMeshComponent* Path = AddCityDecor(this, SceneRoot, TEXT("/Engine/BasicShapes/Cube.Cube"),
+		FVector(Mid.X, Mid.Y, -6.f), FVector(Length / 100.f, 1.6f, 0.04f),
+		WOTOLGlow::MakeMatte(this, FLinearColor(0.22f, 0.24f, 0.27f, 1.f)));
+	if (Path) Path->SetRelativeRotation(FRotator(0.f, Yaw, 0.f));
+}
+
+// Amas de corail/rochers dispersés sur le sol (hors de l'anneau des bâtiments) — décor STATIQUE
+// (contrairement aux bulles ambiantes, qui montent en boucle) pour donner un aspect de terrain
+// naturel plutôt qu'un disque nu, sur le modèle des cités de référence envoyées par Liamor.
+void AWOTOLCityEnvironment::BuildGroundDecor()
+{
+	const bool bAq = (PlayerFaction != EFactionID::Noxeens);
+	FRandomStream Rng(4110);
+	constexpr int32 NumClusters = 22;
+	for (int32 i = 0; i < NumClusters; ++i)
+	{
+		const float Angle = Rng.FRandRange(0.f, 360.f);
+		// Entre le bord de l'anneau de bâtiments et le bord du sol -> jamais sur un bâtiment.
+		const float Radius = Rng.FRandRange(RingRadius + 260.f, RingRadius + 560.f);
+		const FVector Origin(FMath::Cos(FMath::DegreesToRadians(Angle)) * Radius,
+			FMath::Sin(FMath::DegreesToRadians(Angle)) * Radius, -8.f);
+		const float Sz = Rng.FRandRange(0.7f, 1.6f);
+		const FLinearColor CoralCol = bAq
+			? FLinearColor(0.15f + Rng.FRand() * 0.15f, 0.45f + Rng.FRand() * 0.2f, 0.65f + Rng.FRand() * 0.2f, 1.f)
+			: FLinearColor(0.10f + Rng.FRand() * 0.15f, 0.55f + Rng.FRand() * 0.2f, 0.35f + Rng.FRand() * 0.15f, 1.f);
+		const TCHAR* Mesh = (Rng.FRand() > 0.5f)
+			? TEXT("/Engine/BasicShapes/Cone.Cone") : TEXT("/Engine/BasicShapes/Sphere.Sphere");
+		AddCityDecor(this, SceneRoot, Mesh, Origin, FVector(Sz, Sz, Sz * Rng.FRandRange(1.2f, 2.2f)),
+			WOTOLGlow::MakeMatte(this, CoralCol));
+	}
 }
 
 // Petites sphères émissives qui montent en boucle autour de l'anneau de bâtiments — garde la

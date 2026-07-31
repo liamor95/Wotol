@@ -2015,18 +2015,19 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 			}
 			else
 			{
-				// Vraie CARTE de recrutement (portrait + jeton de coût + statut), sur le modèle
-				// de la planche de référence envoyée par Liamor le 31/07/2026 (portrait carré,
-				// coût en icône+nombre, pas un simple texte qui s'enchaîne).
+				// Vraie CARTE de recrutement (grand portrait + tag de rôle + accroche + jeton de
+				// coût + statut), sur le modèle de la planche "ENTRAINER LES UNITES" envoyée par
+				// Liamor le 31/07/2026 : portrait beaucoup plus grand qu'une simple icône, tag de
+				// type d'unité, texte de lore, coût en icône+nombre.
 				const FName SelUnitID = Demo->GetUnitID(Fac, SelCat);
 				const float CardM = 22.f;
-				const FBox2D Card(FVector2D(Panel.Min.X + CardM, Y), FVector2D(Panel.Max.X - CardM, Y + 230.f));
+				const FBox2D Card(FVector2D(Panel.Min.X + CardM, Y), FVector2D(Panel.Max.X - CardM, Y + 272.f));
 				const float CardW = Card.Max.X - Card.Min.X, CardH = Card.Max.Y - Card.Min.Y;
 				DrawRect(FLinearColor(0.10f, 0.13f, 0.18f, 0.6f), Card.Min.X, Card.Min.Y, CardW, CardH);
 				DrawRect(Accent.CopyWithNewOpacity(0.55f), Card.Min.X, Card.Min.Y, CardW, 2.f);
 
 				float CY = Card.Min.Y + 14.f;
-				const float PortraitSize = 88.f;
+				const float PortraitSize = 128.f;
 				const float PortraitX = (Card.Min.X + Card.Max.X) * 0.5f - PortraitSize * 0.5f;
 				if (UTexture2D* Icon = WOTOLBuildingArt::GetBuildingIcon(Fac, SelCat))
 				{
@@ -2034,9 +2035,36 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 						PortraitSize + 6.f, PortraitSize + 6.f);
 					DrawTexture(Icon, PortraitX, CY, PortraitSize, PortraitSize, 0.f, 0.f, 1.f, 1.f);
 				}
-				CY += PortraitSize + 10.f;
-				DrawCenteredTextInBox(Card, CityUnitLabel(Fac, SelCat), CY, FLinearColor::White, 0.95f);
-				CY += 28.f;
+				CY += PortraitSize + 8.f;
+				DrawCenteredTextInBox(Card, CityUnitLabel(Fac, SelCat), CY, FLinearColor::White, 1.0f);
+				CY += 22.f;
+
+				// Tag de type de rôle (pastille colorée) — même palette que les axes de compétence
+				// (SkillAxisCategoryColor) pour rester cohérent visuellement dans tout le HUD.
+				{
+					const TCHAR* TagText = nullptr;
+					switch (SelCat)
+					{
+						case EDemoUnitCategory::Chef:       TagText = TEXT("COMMANDANT"); break;
+						case EDemoUnitCategory::Infanterie: TagText = TEXT("INFANTERIE"); break;
+						case EDemoUnitCategory::Montee:     TagText = TEXT("MONTEE"); break;
+						case EDemoUnitCategory::Distance:   TagText = TEXT("DISTANCE"); break;
+						case EDemoUnitCategory::Speciale:   TagText = TEXT("SPECIALE"); break;
+						case EDemoUnitCategory::Mythique:   TagText = TEXT("MYTHIQUE"); break;
+						default: break;
+					}
+					if (TagText)
+					{
+						float TgW = 0.f, TgH = 0.f;
+						GetTextSize(TagText, TgW, TgH, GEngine ? GEngine->GetSmallFont() : nullptr, 0.75f);
+						const float TgX = (Card.Min.X + Card.Max.X) * 0.5f - (TgW + 20.f) * 0.5f;
+						DrawRect(Accent.CopyWithNewOpacity(0.30f), TgX, CY, TgW + 20.f, TgH + 8.f);
+						DrawText(TagText, Accent, TgX + 10.f, CY + 4.f, GEngine ? GEngine->GetSmallFont() : nullptr, 0.75f);
+					}
+				}
+				CY += 30.f;
+				DrawCenteredTextInBox(Card, CityRoleFlavor(SelCat), CY, FLinearColor(0.8f, 0.86f, 0.95f, 0.9f), 0.68f);
+				CY += 24.f;
 
 				// Vraie icône de ressource + nombre (planche officielle Cristaux/Biolumens),
 				// plutôt qu'une simple ligne de texte "Cout de production : X".
@@ -2377,13 +2405,16 @@ void AWOTOLDemoHUD::DrawVerticalLayerGauge(float W, float H, UWorld* World)
 
 	// Barre verticale à gauche. Hauteur de bande FIXE en pixels (PAS un tiers de GH, qui
 	// dépendait de H et pouvait devenir trop petit pour le texte -> "SURFACE"/"MID"/"SOL" se
-	// chevauchaient entre eux sur une fenêtre basse) + position du haut aussi remontée pour
-	// ne jamais chevaucher la fenêtre TUTO "CONTROLES" (DrawPrepareBar, en bas-gauche,
-	// Y = H-386) — bugs remontés au 1er test PC du 31/07/2026.
+	// chevauchaient entre eux sur une fenêtre basse) + position du haut PLAFONNÉE PAR LE BAS
+	// (jamais au-dessus de Y=160) pour ne jamais chevaucher la fenêtre OBJECTIF (haut-gauche,
+	// coin 14,12, jusqu'à ~130px de haut) NI la fenêtre TUTO "CONTROLES" (DrawPrepareBar, en
+	// bas-gauche, Y = H-386) — bugs remontés au 1er test PC du 31/07/2026, le 2nd confirmé
+	// encore présent sur le retour du 31/07/2026 (la jauge recouvrait l'OBJECTIF sur une
+	// fenêtre basse malgré le 1er correctif, qui ne posait qu'un plafond haut, pas de plancher).
 	const float GX = 34.f, GW = 26.f;
 	const float BandH = 60.f;
 	const float GH = BandH * 3.f;
-	const float GTop = FMath::Min(H * 0.22f, H - 440.f - GH);
+	const float GTop = FMath::Max(160.f, FMath::Min(H * 0.22f, H - 440.f - GH));
 	DrawRect(FLinearColor(0.03f, 0.06f, 0.10f, 0.75f), GX - 6.f, GTop - 30.f, GW + 12.f, GH + 60.f);
 	// 3 bandes : SURFACE (haut) / MID / SOL (bas).
 	const TCHAR* Labels[3] = { TEXT("SURFACE"), TEXT("MID"), TEXT("SOL") };
