@@ -439,12 +439,16 @@ void AWOTOLHeroCharacter::BuildHeroBody()
 	{
 		// ── AQUIS/AQUIRA : crête, pauldrons, gemme losange, cape — même esprit que
 		// BuildAquiKnight (WOTOLDemoUnit.cpp), adapté au forward +X de ce personnage.
+		// Crête en RANGÉE avant-arrière (façon crête/mohawk, cf. references) : Y=0 pour
+		// TOUS les pics (aucun étalement lateral) et aucune rotation en lacet -> évite l'effet
+		// "éventail/couronne" vu de dos (retour terrain 31/07/2026 : comparaison directe avec
+		// la reference du personnage a confirme cet ecart).
 		for (int32 cc = 0; cc < 5; ++cc)
 		{
-			const float t = (cc - 2) / 2.f; // -1..1
-			const float mid = 1.f - FMath::Abs(t) * 0.35f;
-			AddPart(M_CONE, FVector(-H * 0.06f - FMath::Abs(t) * H * 0.02f, t * 10.f, H * 0.44f),
-				FVector(0.06f, 0.09f, h * 0.20f * mid), FRotator(20.f, 0, t * 20.f), AqCrest);
+			const float t = (cc - 2) / 2.f; // -1 (nuque) .. 1 (front)
+			const float mid = 1.f - FMath::Abs(t) * 0.30f;
+			AddPart(M_CONE, FVector(H * 0.02f + t * H * 0.09f, 0, H * 0.44f),
+				FVector(0.06f, 0.06f, h * 0.22f * mid), FRotator(-14.f, 0, 0), AqCrest);
 		}
 		AddPart(M_SPH, FVector(0, H * 0.17f, H * 0.22f), FVector(0.20f, 0.20f, 0.17f), NoRot, AqGold); // pauldron D
 		AddPart(M_SPH, FVector(0, -H * 0.17f, H * 0.22f), FVector(0.20f, 0.20f, 0.17f), NoRot, AqGold); // pauldron G
@@ -454,8 +458,11 @@ void AWOTOLHeroCharacter::BuildHeroBody()
 		AddPart(M_CUBE, FVector(H * 0.15f, 6, H * 0.02f), FVector(0.02f, 0.03f, h * 0.30f), NoRot, AqGold);
 		AddPart(M_CUBE, FVector(H * 0.15f, -6, H * 0.02f), FVector(0.02f, 0.03f, h * 0.30f), NoRot, AqGold);
 		AddPart(M_CYL, FVector(0, 0, H * 0.005f), FVector(BodyW * 0.94f, BodyW * 0.80f, 0.025f), NoRot, AqGold);
-		AddPart(M_CUBE, FVector(-H * 0.12f, H * 0.10f, -H * 0.08f), FVector(0.04f, BodyW * 1.05f, h * 0.62f), FRotator(-9.f, 0, 6.f), AqCape);
-		AddPart(M_CUBE, FVector(-H * 0.12f, -H * 0.10f, -H * 0.08f), FVector(0.04f, BodyW * 1.05f, h * 0.62f), FRotator(-9.f, 0, -6.f), AqCape);
+		// Cape UNIQUE centrée dans le dos (remplace les 2 pans latéraux qui débordaient sur le
+		// côté au lieu de draper le dos, cf. reference) : segment haut étroit aux épaules +
+		// segment bas plus large pour suggérer l'évasement d'un tissu qui tombe.
+		AddPart(M_CUBE, FVector(-H * 0.12f, 0, H * 0.08f), FVector(0.03f, BodyW * 1.15f, h * 0.22f), FRotator(-6.f, 0, 0), AqCape);
+		AddPart(M_CUBE, FVector(-H * 0.15f, 0, -H * 0.20f), FVector(0.03f, BodyW * 1.75f, h * 0.44f), FRotator(-11.f, 0, 0), AqCape);
 	}
 	else
 	{

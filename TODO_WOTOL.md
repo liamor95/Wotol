@@ -1,5 +1,27 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Modele du Hero Aquis compare a la reference : crete + cape corrigees (31/07/2026, suite)
+
+Liamor a envoye 3 captures du Hero en jeu (vue exploration + placement de batiment) + reenvoye
+la reference du personnage Aquis (planche 5 vues). Comparaison directe des deux qui a permis
+d'identifier 2 ecarts concrets (pas juste "c'est moche" sans piste) :
+
+1. **Crete** : dans le jeu, les 5 pics etaient etales sur l'axe GAUCHE-DROITE et tournes en
+   lacet (Yaw) -> effet "eventail/couronne" visible de dos sur la capture. Sur la reference,
+   la crete est une rangee AVANT-ARRIERE façon mohawk. Corrige dans `BuildHeroBody` : les 5
+   pics sont maintenant alignes sur l'axe avant-arriere (Y=0 pour tous), sans lacet, avec une
+   seule inclinaison arriere uniforme.
+2. **Cape** : 2 pans separes de part et d'autre de la colonne, qui debordaient sur le cote au
+   lieu de draper le dos (visible sur les captures : un grand pan plat qui part vers le cote).
+   Remplacee par UNE cape centree (2 segments empiles, etroit aux epaules puis plus large en
+   bas pour suggerer l'evasement d'un tissu qui tombe), comme sur la reference.
+
+Le reste de l'ecart (texture peau ecailleuse, gravure doree detaillee sur l'armure, tissu qui
+flotte, rendu photo) est hors de portee d'un kitbash de formes primitives sans veritable pipeline
+d'assets 3D/textures — pas quelque chose qu'on peut corriger par un ajustement de geometrie.
+**Prochaine capture d'ecran utile : Hero de face/dos apres ce correctif**, pour voir si la
+silhouette se rapproche suffisamment ou s'il faut encore ajuster.
+
 ## Fenetre de batiment repensee + terrain organique + 2 bugs remontes en jeu (31/07/2026, suite)
 
 Suite directe de la section precedente (references Call of Dragons + les 2 chantiers "pas
