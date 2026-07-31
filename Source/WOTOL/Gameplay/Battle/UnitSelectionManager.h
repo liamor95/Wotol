@@ -49,6 +49,14 @@ public:
 	FOnSelectionChanged OnSelectionChanged;
 
 private:
+	// UPROPERTY obligatoire : sans elle, ce tableau n'est pas suivi par le garbage collector,
+	// et une unite detruite (fin de bataille precedente, mort au combat...) laisse un pointeur
+	// pendant au lieu d'etre mis a null -> crash EXCEPTION_ACCESS_VIOLATION au prochain
+	// ClearSelection() qui essaie de le dereferencer (plante reel remonte par Liamor le
+	// 31/07/2026, juste avant la Phase 3 : la selection de la bataille du Kraken restait dans
+	// ce tableau, pointant vers des unites deja detruites, quand BeginPreparation() de la
+	// bataille suivante appelait ClearSelection()).
+	UPROPERTY()
 	TArray<TObjectPtr<AUnitBase>> SelectedUnits;
 
 	bool IsValidForSelection(AUnitBase* Unit, EFactionID PlayerFaction) const;

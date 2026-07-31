@@ -93,7 +93,9 @@ void UUnitSelectionManager::ClearSelection()
 {
 	for (AUnitBase* Unit : SelectedUnits)
 	{
-		if (Unit) Unit->SetSelected(false);
+		// IsValid() (pas juste "!= nullptr") : rejette aussi un pointeur vers une unite deja
+		// detruite/en cours de destruction, contrairement a un simple "if (Unit)".
+		if (IsValid(Unit)) Unit->SetSelected(false);
 	}
 	SelectedUnits.Empty();
 }
@@ -101,7 +103,7 @@ void UUnitSelectionManager::ClearSelection()
 bool UUnitSelectionManager::IsValidForSelection(
 	AUnitBase* Unit, EFactionID PlayerFaction) const
 {
-	return Unit && Unit->IsAlive() && Unit->GetFaction() == PlayerFaction;
+	return IsValid(Unit) && Unit->IsAlive() && Unit->GetFaction() == PlayerFaction;
 }
 
 void UUnitSelectionManager::AddUnitInternal(AUnitBase* Unit)
