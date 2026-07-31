@@ -49,8 +49,14 @@ void AWOTOLCityEnvironment::BuildEnvironment()
 	const FLinearColor GroundColor = bAq ? FLinearColor(0.10f, 0.14f, 0.20f, 1.f)
 	                                      : FLinearColor(0.08f, 0.16f, 0.13f, 1.f);
 
-	// Sol : large disque plat (le "socle" visuel de toute la cité).
-	AddCityDecor(this, SceneRoot, M_CYL, FVector(0.f, 0.f, -10.f), FVector(24.f, 24.f, 0.15f),
+	// Sol : large disque plat (le "socle" visuel de toute la cité). Rayon > RingRadius (1500)
+	// + le rayon des bâtiments eux-mêmes (~120) + la dispersion des bulles ambiantes
+	// (RingRadius*1.15 ≈ 1725) : l'ancien rayon (1200, scale 24) était plus PETIT que l'anneau
+	// de bâtiments -> les bâtiments flottaient hors du sol, et le disque (qui correspondait
+	// exactement à la largeur par défaut de la caméra ortho, 2400) remplissait tout l'écran à
+	// lui seul, écrasant visuellement le reste de la scène (remonté par Liamor le 31/07/2026,
+	// "gros cercle bleu"). Rayon porté à 1900 (scale 38).
+	AddCityDecor(this, SceneRoot, M_CYL, FVector(0.f, 0.f, -10.f), FVector(38.f, 38.f, 0.15f),
 		WOTOLGlow::MakeMatte(this, GroundColor));
 
 	// Hub central (palais/chef — Noyau Cristallin / Trône des Profondeurs) : plus haut et plus

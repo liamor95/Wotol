@@ -2196,19 +2196,22 @@ void AWOTOLDemoHUD::DrawVerticalLayerGauge(float W, float H, UWorld* World)
 	const float AvgZ = SumZ / N;            // 0..2400
 	const float Frac = FMath::Clamp(AvgZ / 2400.f, 0.f, 1.f);
 
-	// Barre verticale à gauche, centrée verticalement. Le bas est plafonné pour ne jamais
-	// chevaucher la fenêtre TUTO "CONTROLES" (DrawPrepareBar, en bas-gauche, Y = H-386) —
-	// bug remonté au 1er test PC du 31/07/2026 : le texte "SURFACE" se superposait à
-	// "CONTROLES" quand les deux panneaux étaient affichés en même temps (écran Prepare).
+	// Barre verticale à gauche. Hauteur de bande FIXE en pixels (PAS un tiers de GH, qui
+	// dépendait de H et pouvait devenir trop petit pour le texte -> "SURFACE"/"MID"/"SOL" se
+	// chevauchaient entre eux sur une fenêtre basse) + position du haut aussi remontée pour
+	// ne jamais chevaucher la fenêtre TUTO "CONTROLES" (DrawPrepareBar, en bas-gauche,
+	// Y = H-386) — bugs remontés au 1er test PC du 31/07/2026.
 	const float GX = 34.f, GW = 26.f;
-	const float GTop = H * 0.30f, GBot = FMath::Min(H * 0.70f, H - 440.f), GH = GBot - GTop;
+	const float BandH = 60.f;
+	const float GH = BandH * 3.f;
+	const float GTop = FMath::Min(H * 0.22f, H - 440.f - GH);
 	DrawRect(FLinearColor(0.03f, 0.06f, 0.10f, 0.75f), GX - 6.f, GTop - 30.f, GW + 12.f, GH + 60.f);
 	// 3 bandes : SURFACE (haut) / MID / SOL (bas).
 	const TCHAR* Labels[3] = { TEXT("SURFACE"), TEXT("MID"), TEXT("SOL") };
 	for (int32 b = 0; b < 3; ++b)
 	{
-		const float y0 = GTop + GH * (b / 3.f);
-		const float h  = GH / 3.f;
+		const float y0 = GTop + BandH * b;
+		const float h  = BandH;
 		// La bande active (contenant la couche moyenne) est mise en avant.
 		const int32 ActiveBand = (Frac >= 0.66f) ? 0 : (Frac >= 0.33f ? 1 : 2);
 		const bool bAct = (b == ActiveBand);
@@ -2218,7 +2221,7 @@ void AWOTOLDemoHUD::DrawVerticalLayerGauge(float W, float H, UWorld* World)
 			GX + GW + 6.f, y0 + h * 0.5f - 8.f, nullptr, 0.85f);
 	}
 	// Curseur de la couche courante (petit repère).
-	const float My = GBot - GH * Frac;
+	const float My = (GTop + GH) - GH * Frac;
 	DrawRect(FLinearColor(0.5f, 0.9f, 1.f, 1.f), GX - 4.f, My - 2.f, GW + 8.f, 4.f);
 }
 
