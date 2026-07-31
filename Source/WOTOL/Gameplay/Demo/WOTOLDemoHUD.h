@@ -203,6 +203,12 @@ private:
 	// Boussole de courant océanique (sens relatif caméra + intensité).
 	void DrawCurrentIndicator(float W, float H, class UWorld* World);
 	void DrawButton(const FBox2D& R, const FString& Label, const FLinearColor& Tint, float TextScale = 1.3f);
+	// Fond de panneau ORNÉ (planche PanelFrame/PanelFrameWide/PanelFramePortrait fournie par
+	// Liamor selon la forme du rectangle) + voile sombre semi-transparent par-dessus pour garder
+	// le texte lisible. Remplace le simple DrawRect plat utilisé jusqu'ici sur la plupart des
+	// écrans (retour de Liamor du 31/07/2026 : "les fenêtres cliquables ça fait des rectangles
+	// mais... pas de fond"). Repli sur un DrawRect plus opaque si la planche est absente.
+	void DrawFramedPanel(const FBox2D& R, EFactionID Faction, float OverlayOpacity = 0.55f);
 	// Pictogramme vectoriel (traits Canvas, pas de texture) pour la thématique d'un axe de
 	// compétence — épée (Offensif), bouclier (Défensif), chevron (Support), croix (Soins),
 	// réticule (Contrôle). Remplace le glyphe texte ASCII provisoire (demande Liamor 29/07/2026).

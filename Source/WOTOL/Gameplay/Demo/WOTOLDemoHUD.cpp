@@ -455,6 +455,25 @@ void AWOTOLDemoHUD::DrawObjectiveWindow(float W, float H, class UDemoFlowSubsyst
 	DrawButton(BR, Demo->ObjWinButton, Accent, 1.3f);
 }
 
+void AWOTOLDemoHUD::DrawFramedPanel(const FBox2D& R, EFactionID Faction, float OverlayOpacity)
+{
+	const float PW = R.Max.X - R.Min.X, PH = R.Max.Y - R.Min.Y;
+	// Planche PAYSAGE/LARGE si le panneau est nettement plus large que haut, PORTRAIT sinon —
+	// évite d'étirer une illustration dans le mauvais sens (déformation visible).
+	const bool bWide = PW > PH * 1.15f;
+	UTexture2D* Frame = bWide ? GetPanelFrameWide(Faction) : GetPanelFramePortrait(Faction);
+	if (!Frame) Frame = bWide ? GetPanelFrame(Faction) : nullptr;
+	if (Frame)
+	{
+		DrawTexture(Frame, R.Min.X, R.Min.Y, PW, PH, 0.f, 0.f, 1.f, 1.f);
+		DrawRect(FLinearColor(0.01f, 0.04f, 0.08f, OverlayOpacity), R.Min.X, R.Min.Y, PW, PH);
+	}
+	else
+	{
+		DrawRect(FLinearColor(0.01f, 0.04f, 0.08f, FMath::Min(OverlayOpacity + 0.32f, 0.92f)), R.Min.X, R.Min.Y, PW, PH);
+	}
+}
+
 void AWOTOLDemoHUD::DrawButton(const FBox2D& R, const FString& Label, const FLinearColor& Tint, float TextScale)
 {
 	const FVector2D Sz = R.Max - R.Min;
@@ -1262,8 +1281,7 @@ void AWOTOLDemoHUD::DrawPreGameSummary(float W, float H, UDemoFlowSubsystem* Dem
 	for (int32 i = 0; i < 3; ++i) if (DiffVals[i] == Demo->GetDifficulty()) DiffLabel = DiffLabels[i];
 
 	const FBox2D Panel(FVector2D(W * 0.5f - 420.f, H * 0.22f), FVector2D(W * 0.5f + 420.f, H * 0.74f));
-	DrawRect(FLinearColor(0.01f, 0.05f, 0.09f, 0.88f), Panel.Min.X, Panel.Min.Y,
-		Panel.Max.X - Panel.Min.X, Panel.Max.Y - Panel.Min.Y);
+	DrawFramedPanel(Panel, Demo->SelectedFaction);
 	DrawLine(Panel.Min.X, Panel.Min.Y, Panel.Max.X, Panel.Min.Y, Accent, 3.f);
 
 	// Deux colonnes, façon UI_ResumePartie.png (Faction | Difficulte, Heritage | Specialite).
@@ -2274,6 +2292,13 @@ void AWOTOLDemoHUD::DrawSkillsView(float W, float H, UDemoFlowSubsystem* Demo)
 		: TEXT("Consultation seule ici — le Grade et le choix de voie s'activent en phase de preparation (Gestion du territoire)"),
 		H * 0.14f, bPrepPhase ? FLinearColor(0.9f, 0.95f, 1.f, 0.95f) : FLinearColor(0.85f, 0.7f, 0.4f, 0.95f), 1.0f);
 
+	// Fond ORNÉ derrière toute la liste (jusqu'ici : rien, les lignes flottaient direct sur le
+	// fond marin) — même traitement que la fenêtre RECHERCHE juste à côté dans le flux du jeu.
+	{
+		const float ListBottom = H * 0.20f + FMath::Max(0, SkillsCategoryCount() - 1) * 92.f + 66.f;
+		DrawFramedPanel(FBox2D(FVector2D(W * 0.04f, H * 0.17f), FVector2D(W * 0.96f, ListBottom + 30.f)), Fac);
+	}
+
 	for (int32 i = 0; i < SkillsCategoryCount(); ++i)
 	{
 		const EDemoUnitCategory Cat = SkillsCategoryAt(i);
@@ -2434,8 +2459,8 @@ void AWOTOLDemoHUD::DrawResearchView(float W, float H, UDemoFlowSubsystem* Demo)
 
 	// Deux panneaux translucides (gauche/droite) + trait vertical central, pour bien voir la
 	// fenêtre scindée en deux demandée par Liamor (au lieu d'un simple trait sur fond uniforme).
-	DrawRect(FLinearColor(0.01f, 0.04f, 0.08f, 0.55f), W * 0.04f, H * 0.20f, W * 0.44f, H * 0.66f);
-	DrawRect(FLinearColor(0.02f, 0.03f, 0.07f, 0.55f), W * 0.52f, H * 0.20f, W * 0.44f, H * 0.66f);
+	DrawFramedPanel(FBox2D(FVector2D(W * 0.04f, H * 0.20f), FVector2D(W * 0.04f + W * 0.44f, H * 0.20f + H * 0.66f)), Fac);
+	DrawFramedPanel(FBox2D(FVector2D(W * 0.52f, H * 0.20f), FVector2D(W * 0.52f + W * 0.44f, H * 0.20f + H * 0.66f)), Fac);
 	DrawLine(W * 0.5f, H * 0.20f, W * 0.5f, H * 0.86f, FLinearColor(1.f, 1.f, 1.f, 0.25f), 2.f);
 	{
 		UFont* HeaderFont = GEngine ? GEngine->GetLargeFont() : nullptr;
@@ -2686,7 +2711,7 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 		const TArray<FUnitLossEntry>& Entries, const FLinearColor& Accent)
 	{
 		const float ColH = ColBot - ColTop;
-		DrawRect(FLinearColor(0.02f, 0.04f, 0.08f, 0.9f), X, ColTop, ColW, ColH);
+		DrawFramedPanel(FBox2D(FVector2D(X, ColTop), FVector2D(X + ColW, ColTop + ColH)), Demo->GetPlayerFaction());
 		DrawRect(Accent, X, ColTop, ColW, 4.f);
 		DrawText(Header, Accent, X + 18.f, ColTop + 10.f, GEngine->GetMediumFont(), 1.2f);
 
@@ -2871,12 +2896,14 @@ void AWOTOLDemoHUD::DrawPrepareBar(float W, float H)
 {
 	// (Les instructions détaillées sont dans les 2 fenêtres ci-dessous — plus de texte
 	// centré qui chevauchait la barre du bâtiment / les unités.)
+	const EFactionID PrepFac = GetGameInstance() && GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()->GetPlayerFaction() : EFactionID::None;
 
 	// ── Fenêtre TUTO "CONTROLES" (à GAUCHE) — souris + clavier caméra. Disparait au combat. ──
 	{
 		const float PW = 400.f, PH = 196.f;
 		const float PX = 16.f, PY = H - 386.f;
-		DrawRect(FLinearColor(0.02f, 0.05f, 0.09f, 0.9f), PX, PY, PW, PH);
+		DrawFramedPanel(FBox2D(FVector2D(PX, PY), FVector2D(PX + PW, PY + PH)), PrepFac);
 		DrawRect(FLinearColor(0.30f, 0.7f, 1.f, 1.f), PX, PY, PW, 4.f);
 
 		DrawText(TEXT("CONTROLES"), FLinearColor(0.6f, 0.9f, 1.f, 1.f),
@@ -2902,7 +2929,7 @@ void AWOTOLDemoHUD::DrawPrepareBar(float W, float H)
 	{
 		const float PW = 380.f, PH = 150.f;
 		const float PX = W - PW - 16.f, PY = H - 340.f;
-		DrawRect(FLinearColor(0.02f, 0.05f, 0.09f, 0.9f), PX, PY, PW, PH);
+		DrawFramedPanel(FBox2D(FVector2D(PX, PY), FVector2D(PX + PW, PY + PH)), PrepFac);
 		DrawRect(FLinearColor(0.30f, 0.7f, 1.f, 1.f), PX, PY, PW, 4.f); // liseré haut
 
 		DrawText(TEXT("HAUTEUR / VERTICALITE"), FLinearColor(0.6f, 0.9f, 1.f, 1.f),
