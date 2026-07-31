@@ -237,8 +237,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<class UTexture2D> NoxeensBgTexture = nullptr;
 	bool bNoxeensBgTried = false;
 
-	// Emblèmes officiels par faction (Content/UI/EmblemAquiloris.png / EmblemNoxeens.png),
-	// utilisés sur l'écran de choix de faction. Même mécanisme de chargement.
+	// Emblèmes officiels par faction, versions DÉTOURÉES (Content/UI/EmblemAquilorisIcon.png /
+	// EmblemNoxeensIcon.png — dégradé alpha généré depuis les planches complètes fournies par
+	// Liamor, cf. commentaire dans GetFactionEmblem), utilisés sur l'écran de choix de faction.
+	// Même mécanisme de chargement.
 	class UTexture2D* GetFactionEmblem(EFactionID Faction);
 	UPROPERTY(Transient) TObjectPtr<class UTexture2D> AquilorisEmblemTexture = nullptr;
 	bool bAquilorisEmblemTried = false;

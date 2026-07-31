@@ -931,7 +931,7 @@ UTexture2D* AWOTOLDemoHUD::GetFactionEmblem(EFactionID Faction)
 	{
 		if (bAquilorisEmblemTried) return AquilorisEmblemTexture;
 		bAquilorisEmblemTried = true;
-		const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/EmblemAquiloris.png");
+		const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/EmblemAquilorisIcon.png");
 		if (FPaths::FileExists(PngPath)) AquilorisEmblemTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
 		return AquilorisEmblemTexture;
 	}
@@ -939,7 +939,7 @@ UTexture2D* AWOTOLDemoHUD::GetFactionEmblem(EFactionID Faction)
 	{
 		if (bNoxeensEmblemTried) return NoxeensEmblemTexture;
 		bNoxeensEmblemTried = true;
-		const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/EmblemNoxeens.png");
+		const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/EmblemNoxeensIcon.png");
 		if (FPaths::FileExists(PngPath)) NoxeensEmblemTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
 		return NoxeensEmblemTexture;
 	}
@@ -1052,14 +1052,18 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 		const FBox2D RN = FactionButtonRect(1, W, H);
 		const float bobA = FMath::Sin(T * 1.4f) * 8.f;
 		const float bobN = FMath::Sin(T * 1.4f + 1.6f) * 8.f;
-		const FVector2D CA((RA.Min.X + RA.Max.X) * 0.5f, RA.Min.Y - H * 0.07f + bobA);
-		const FVector2D CN((RN.Min.X + RN.Max.X) * 0.5f, RN.Min.Y - H * 0.07f + bobN);
-		// Emblèmes officiels (Content/UI/EmblemAquiloris.png / EmblemNoxeens.png, fournis par
-		// Liamor le 25/07/2026) si présents ; repli sur les icônes procédurales sinon.
-		const float IconSize = 100.f;
+		const FVector2D CA((RA.Min.X + RA.Max.X) * 0.5f, RA.Min.Y - H * 0.09f + bobA);
+		const FVector2D CN((RN.Min.X + RN.Max.X) * 0.5f, RN.Min.Y - H * 0.09f + bobN);
+		// Emblèmes officiels détourés (Content/UI/EmblemAquilorisIcon.png / EmblemNoxeensIcon.png —
+		// dégradé alpha, découpés depuis les planches complètes fournies par Liamor le 25/07/2026)
+		// si présents ; repli sur les icônes procédurales sinon. Dessinés à leur RATIO D'ASPECT réel
+		// (les planches sont hautes, pas carrées) et plus grands — l'ancien carré 100x100 écrasait/
+		// rétrécissait l'image au point de la rendre illisible (remonté par Liamor le 31/07/2026).
+		const float IconH = H * 0.17f;
+		const float IconW = IconH * (580.f / 980.f);
 		if (UTexture2D* EmblemA = GetFactionEmblem(EFactionID::Aquiloris))
 		{
-			DrawTexture(EmblemA, CA.X - IconSize * 0.5f, CA.Y - IconSize * 0.5f, IconSize, IconSize, 0.f, 0.f, 1.f, 1.f);
+			DrawTexture(EmblemA, CA.X - IconW * 0.5f, CA.Y - IconH * 0.5f, IconW, IconH, 0.f, 0.f, 1.f, 1.f);
 		}
 		else
 		{
@@ -1069,7 +1073,7 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 		}
 		if (UTexture2D* EmblemN = GetFactionEmblem(EFactionID::Noxeens))
 		{
-			DrawTexture(EmblemN, CN.X - IconSize * 0.5f, CN.Y - IconSize * 0.5f, IconSize, IconSize, 0.f, 0.f, 1.f, 1.f);
+			DrawTexture(EmblemN, CN.X - IconW * 0.5f, CN.Y - IconH * 0.5f, IconW, IconH, 0.f, 0.f, 1.f, 1.f);
 		}
 		else
 		{
@@ -1091,17 +1095,24 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 		Selected == EFactionID::Noxeens ? TEXT("NOXEENS  [CHOISIE]") : TEXT("NOXEENS"),
 		FFactionColors::Get(EFactionID::Noxeens), 1.7f);
 	// Description COURTE, juste sous les boutons de faction (bien au-dessus du bloc difficulté).
+	const float ShortDescY = FactionButtonRect(0, W, H).Max.Y + H * 0.04f;
 	DrawCenteredText(TEXT("Aquiloris : cristal-tech, coordination          Noxeens : abysses bioluminescents"),
-		FactionButtonRect(0, W, H).Max.Y + H * 0.04f, FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 1.0f);
+		ShortDescY, FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 1.0f);
+	// Description LONGUE (dépend de la faction choisie) : calée à un écart FIXE sous la
+	// description courte (pas un ancrage H*0.545 indépendant qui la plaçait "au milieu de
+	// l'écran", décorrélée du reste — remonté par Liamor le 31/07/2026). Couleur quasi-blanche
+	// teintée (pas le pastel clair d'origine, trop proche de la teinte ambiante de fond pour
+	// bien ressortir) -> contraste net quelle que soit la faction choisie.
+	const float LongDescY = ShortDescY + H * 0.045f;
 	if (Selected == EFactionID::Aquiloris)
 	{
 		DrawCenteredText(TEXT("Aquiloris — gardiens d'Aquilor, technologie cristalline et discipline collective."),
-			H * 0.545f, FFactionColors::GetSecondary(EFactionID::Aquiloris), 0.95f);
+			LongDescY, FLinearColor(0.90f, 0.97f, 1.f, 1.f), 0.95f);
 	}
 	else if (Selected == EFactionID::Noxeens)
 	{
 		DrawCenteredText(TEXT("Noxeens — peuple des failles, puissance abyssale et bioluminescence verte."),
-			H * 0.545f, FFactionColors::GetSecondary(EFactionID::Noxeens), 0.95f);
+			LongDescY, FLinearColor(0.88f, 1.f, 0.90f, 1.f), 0.95f);
 	}
 
 	// ── DIFFICULTÉ (3 niveaux) : le joueur la choisit AVANT de cliquer sur une faction.
