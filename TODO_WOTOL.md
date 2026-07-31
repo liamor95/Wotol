@@ -1,5 +1,37 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## 2e vague de captures : sol de cite, jauge, flou en pause (31/07/2026, suite)
+
+Malgre le fix du fond de cite (backdrop mal positionne), le "gros cercle bleu" etait TOUJOURS
+present sur les nouvelles captures de Liamor. Diagnostic approfondi : le VRAI coupable
+principal etait le disque du SOL (`AddCityDecor` cylindre, WOTOLCityEnvironment.cpp), dont le
+rayon (1200, scale 24) etait plus PETIT que `RingRadius` (1500, rayon de l'anneau de
+batiments) -> les batiments flottaient hors du sol, ET ce disque correspondait pile a la
+largeur par defaut de la camera orthographique (OrthoWidth=2400 = diametre du sol) donc
+remplissait TOUT l'ecran des le zoom par defaut. Rayon porte a 1900. Le fix du backdrop
+restait necessaire et correct (visible : le cone du hub apparaissait desormais PAR-DESSUS
+le cercle sur les nouvelles captures, preuve que le repositionnement avait fonctionne) mais
+n'etait pas suffisant a lui seul.
+
+Aussi corrige cette vague :
+- Jauge verticale SURFACE/MID/SOL : bandes a hauteur FIXE (60px, plus GH/3) -> ne se
+  chevauchent plus jamais entre elles, quelle que soit la resolution de fenetre.
+- Flou d'ecran en pause ET en bougeant juste apres avoir repris (signale independamment par
+  Liamor sur 2 messages) : Motion Blur desactive globalement
+  (`Config/DefaultEngine.ini` -> `r.DefaultFeature.MotionBlur=False`). SetGamePaused() fige
+  la simulation mais pas le post-process de flou cinetique, qui reste applique sur le dernier
+  mouvement de camera avant la pause. Inadapte de toute facon a une camera RTS isometrique.
+
+**Trouve par un audit de suivi (agent Explore), PAS corrige — risque latent, pas encore
+declenchable** : `WOTOLInkZone.h` (nuage de bulles d'encre), `struct FBubble` (nichee, pas un
+USTRUCT) a un champ `TObjectPtr<UStaticMeshComponent> Mesh` sans UPROPERTY, meme categorie de
+bug que le crash SelectedUnits. PAS exploitable actuellement (les bulles ne sont jamais
+detruites independamment de tout l'acteur, donc pas de pointeur pendant possible aujourd'hui),
+mais fragile pour un futur changement. Pas corrige maintenant : ca demanderait de sortir
+`FBubble` en USTRUCT au niveau fichier (actuellement nichee dans la classe, UHT ne gere pas
+bien les USTRUCT nichees), un changement structurel plus risque a faire sans compilateur pour
+un bug pas encore actif. A refaire avec verification reelle si l'occasion se presente.
+
 ## Retour esthetique de Liamor (31/07/2026) — fait vs. a prevoir
 
 Gros retour visuel apres le 1er lancement reel. Traite tout de suite (fait, pousse) :
