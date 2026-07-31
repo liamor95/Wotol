@@ -1,5 +1,30 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Vraies icones de ressources enfin livrees et cablees (31/07/2026, suite)
+
+Liamor a envoye 9 images : les planches des 8 ressources du GDD complet (Biomasse Marine,
+Mineraux Abyssaux, Energie Oceanique, Cristaux-Aquiloris, Corail Vivant-Thalassidra,
+Miasmes Toxiques-Mureniens, Biolumens-Noxeens, Debris Technologiques-Pirates Abyssaux) +
+une planche recapitulative. Seules 5 concernent la demo (2 factions jouables) : Cristaux
+(Aquiloris), Biolumens (Noxeens, meme variable PlayerCrystals cote code — cf. commentaire
+DemoFlowSubsystem.h ligne 441 "Cristaux d'energie Aquiloris / Biolumens Noxeens"), Mineraux
+Abyssaux, Biomasse, Energie Oceanique. Thalassidra/Mureniens/Pirates Abyssaux sont des
+factions du jeu final, hors scope demo (seulement Aquiloris/Noxeens jouables).
+
+Fait : detourage (meme technique que les embleme de faction — masque elliptique + degrade
+alpha, fond transparent) + nouvelle fonction commune `DrawResourceChip` (icone+nombre
+chainable) cablee partout ou une ressource etait affichee en texte brut : barre de
+ressources de la vue Cite, ligne Cristaux/Mineraux de l'exploration et du territoire, jeton
+de cout des cartes de recrutement (remplace le jeton rond generique improvise juste avant).
+
+C'etait litteralement deja demande/attendu par un commentaire du code
+(DemoFlowSubsystem.h:455, "Content/UI/Reference/Ressources fournit exactement...") ecrit il
+y a plusieurs jours mais jamais suivi d'un vrai fichier livre — d'ou la reaction de Liamor
+("c'est quoi ca ?!") en decouvrant que ces images existaient déjà chez lui sans jamais avoir
+atterri dans le projet. A garder en tete : verifier systematiquement si un commentaire du
+code reference un asset attendu mais absent, plutot que d'improviser un remplacement (jeton
+generique, glyphe procedural) sans redemander l'asset.
+
 ## Reskin general des fenetres HUD + references concretes (31/07/2026, suite)
 
 Retour de Liamor : pas assez de recherche visuelle faite, "tu as juste compile betement
