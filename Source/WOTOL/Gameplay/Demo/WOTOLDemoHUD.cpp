@@ -1385,7 +1385,7 @@ void AWOTOLDemoHUD::DrawExplorationHUD(float W, float H, UDemoFlowSubsystem* Dem
 	{
 		DrawCenteredText(Demo->ObjectiveText, 57.f, FLinearColor::White, 1.0f);
 	}
-	DrawCenteredText(TEXT("ZQSD/WASD : nager | Souris : regarder | Molette : zoom | Espace/E : monter | Maj/Ctrl : descendre | Alt : sprint | C : ruee | F : attaque | R : competence"),
+	DrawCenteredText(TEXT("ZQSD/WASD : nager | Souris : regarder | Molette : zoom | Espace/E : descendre | Maj/Ctrl : monter | Alt : sprint | C : ruee | F : attaque | R : competence"),
 		H - 48.f, FLinearColor(0.86f, 0.93f, 1.f, 0.95f), 0.9f);
 
 	// Après le rapport du Kraken, le Cristalliseur arrive dans un véritable inventaire de
@@ -3310,8 +3310,8 @@ void AWOTOLDemoHUD::DrawControlsScreen(float W, float H)
 			{ TEXT("ZQSD / WASD"), TEXT("Nager") },
 			{ TEXT("Souris"), TEXT("Regarder") },
 			{ TEXT("Molette"), TEXT("Zoom") },
-			{ TEXT("Espace / E"), TEXT("Monter") },
-			{ TEXT("Maj / Ctrl"), TEXT("Descendre") },
+			{ TEXT("Espace / E"), TEXT("Descendre") },
+			{ TEXT("Maj / Ctrl"), TEXT("Monter") },
 			{ TEXT("Alt"), TEXT("Sprint (maintenu)") },
 			{ TEXT("C"), TEXT("Ruee (courte impulsion, a recharge)") },
 			{ TEXT("F / Entree"), TEXT("Attaque de base") },

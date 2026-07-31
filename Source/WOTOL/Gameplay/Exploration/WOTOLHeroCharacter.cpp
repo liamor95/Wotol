@@ -141,7 +141,8 @@ void AWOTOLHeroCharacter::MoveRight(float Value)
 void AWOTOLHeroCharacter::MoveUp(float Value)
 {
 	// Montée / descente verticale (nage) — indépendante de l'orientation caméra pour
-	// rester simple à comprendre : Espace = monter, Maj/Ctrl = descendre.
+	// rester simple à comprendre : Espace/E = descendre, Maj/Ctrl = monter (cf.
+	// Config/DefaultInput.ini, inversé le 31/07/2026).
 	if (Value == 0.f) return;
 	AddMovementInput(FVector::UpVector, Value);
 }
@@ -259,7 +260,9 @@ void AWOTOLHeroCharacter::Tick(float DeltaSeconds)
 	// Appliquée à la CAMÉRA (bUsePawnControlRotation=false), pas au SpringArm : celui-ci a
 	// bUsePawnControlRotation=true et recalcule sa rotation depuis le contrôleur chaque
 	// tick, ce qui écraserait un roll posé directement dessus.
-	const float TargetRoll = FMath::Clamp(-CurrentLateralInput * 18.f, -18.f, 18.f);
+	// Angle réduit (18° -> 6°, 31/07/2026) : remonté par Liamor comme une "distorsion" façon
+	// fisheye en tournant à gauche/droite — trop prononcé pour une caméra suivant le joueur.
+	const float TargetRoll = FMath::Clamp(-CurrentLateralInput * 6.f, -6.f, 6.f);
 	CurrentBankRoll = FMath::FInterpTo(CurrentBankRoll, TargetRoll, DeltaSeconds, 5.f);
 	if (Camera)
 	{

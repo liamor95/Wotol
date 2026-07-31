@@ -2463,6 +2463,18 @@ void AWOTOLDemoDirector::ReturnToCityForGrandBattleReveal()
 	Demo->GarrisonByUnit.Empty();
 	Demo->ReserveUnits.Empty();
 
+	// Bonus de ressources "ellipse temporelle" : le texte de l'interlude dit explicitement
+	// "les mois passent, votre cite prospere", mais rien ne matérialisait ça en jeu -> avec
+	// seulement le reliquat de la phase 2, impossible d'approcher le plafond d'armee (Liamor
+	// a fini la phase 3 avec 22/60 unites faute de ressources, defaite qui n'avait rien a voir
+	// avec la tactique). Calcule de quoi produire la difference jusqu'au plafond meme en
+	// partant de zero (cout moyen ~150/unite, marge incluse), plutot qu'un chiffre arbitraire.
+	{
+		const int32 UnitsToFund = FMath::Max(0, Demo->MaxArmyUnits - Demo->InitialArmyUnits);
+		const int32 ProsperityCrystals = UnitsToFund * 170; // cout moyen (130-180) + marge
+		Demo->GrantMissionRewards(ProsperityCrystals, ProsperityCrystals / 2, ProsperityCrystals / 3, 150);
+	}
+
 	Demo->SetReadyForGrandBattleDeparture(true);
 	Demo->SetObjective(FString::Printf(TEXT(
 		"VOTRE CITE A GRANDI — nouveaux batiments debloques. Recrutez votre armee (%d / %d) puis embarquez."),
@@ -2487,6 +2499,14 @@ void AWOTOLDemoDirector::StartGrandBattle()
 {
 	UGameInstance* GI = GetGameInstance();
 	UDemoFlowSubsystem* Demo = GI ? GI->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	// Manquait ici : tous les autres points d'entree de bataille (LaunchDefenseFromCity,
+	// TransitionExplorationToBattle...) possedent explicitement la camera de bataille avant
+	// BeginPreparation(). Celui-ci ne le faisait pas -> le joueur restait sur la camera de
+	// cite (EDemoScreen::City l'avait possedee juste avant, dans EmbarkGrandBattleFromCity)
+	// pendant toute la Phase 3 : bug reel remonte par Liamor le 31/07/2026 (captures a l'appui
+	// -> le decor de cite/le disque du sol restaient visibles derriere le HUD de bataille,
+	// bataille jamais vue, seulement suivie via la minicarte).
+	PossessBattleCamera();
 	if (Demo) Demo->UnlockAll(); // spéciale (Aquilombres/Noxéons) + mythique (Léviaphénix/Noxedrake)
 
 	// ZONE NEUTRE : plus aucun objet de capture -> le bloc d'avantage de zone (gaté sur
