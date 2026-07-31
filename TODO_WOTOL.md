@@ -1,5 +1,34 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Premier lancement reel : 4 bugs visuels trouves via captures d'ecran (31/07/2026)
+
+La demo a enfin COMPILE ET SE LANCE (etape 4 de INSTALLATION_UE58.md franchie). Liamor a
+joue jusqu'a juste avant la Phase 2 (crash a diagnostiquer au prochain log recu) et a
+envoye des captures d'ecran reelles du jeu. Analyse -> 4 bugs confirmes et corriges :
+
+1. **Fond de cite qui recouvre tout l'ecran** (le plus grave, capture "Cite d'Aquilor") :
+   `WOTOLCityEnvironment.cpp` positionnait le grand fond illustre du MEME cote que la camera
+   elle-meme (`AWOTOLCityCamera::ResetToHub` la place le long de `-CamForward*3200`), et plus
+   proche qu'elle -> le fond (echelle 48, enorme) se retrouvait ENTRE la camera et la ville,
+   recouvrant tout l'ecran d'un simple aplat bleu. Ville entierement invisible derriere.
+   Repositionne du cote OPPOSE (`+CamForward*3600`), loin au-dela de l'anneau de batiments.
+2. Ecran preparation de bataille : "SURFACE" (jauge de couche verticale) chevauchait
+   "CONTROLES" (panneau tuto) — ancrages independants en `%` de H qui se touchent sur une
+   fenetre d'edition basse. Jauge plafonnee a distance FIXE du panneau CONTROLES.
+3. Ecran gestion du territoire : "BASTION CRISTALLIN — DEFENSES" chevauchait le bouton
+   "BATIMENT REPARE" — meme cause. Rechaine a des ecarts fixes en pixels.
+4. Personnalisation du heros : description de specialite / titre "PORTRAIT" / cercle de
+   portrait tous superposes — meme cause, sur 3 elements a la fois. Toute la rangee portrait
+   rechainee depuis le bas des boutons de specialite (nouveau helper `HeroPortraitRowY`).
+
+**Cause commune identifiee** : plusieurs elements du HUD utilisaient des ancrages Y
+INDEPENDANTS en pourcentage de la hauteur d'ecran (H*0.27, H*0.365, H*0.635, H*0.66...) sans
+jamais verifier l'espacement reel entre eux -> se touchent/se chevauchent des que la fenetre
+n'est pas a la resolution "ideale" implicite. Pattern de fix applique partout : calculer la
+position d'un element comme un ECART FIXE EN PIXELS depuis le `.Max.Y`/`.Min.Y` du precedent,
+jamais deux ancrages `%H` independants qui doivent rester espaces. A garder en tete pour tout
+futur ajout de texte/bouton empile verticalement dans le HUD.
+
 ## Premiere compilation reelle sous UE 5.8.1 : 2e passe, 4 vraies erreurs C++ (30/07/2026)
 
 Une fois l'etape UHT passee (voir entree precedente), le vrai compilateur (cl.exe/MSVC) a
