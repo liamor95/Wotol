@@ -1,5 +1,35 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Modele du Hero : ~35 -> ~90 pieces + animation de nage a 2 axes (31/07/2026, suite)
+
+Liamor a precise que la demande "ameliorer l'esthetique" visait explicitement la QUALITE DU
+MODELE 3D lui-meme (pas la lumiere/post-process de la passe precedente) : (1) beaucoup plus de
+pieces pour composer le kitbash, (2) une animation de nage qui respecte les mecaniques du corps
+(pas juste un bras qui pivote sur un seul axe comme un baton).
+
+**Geometrie** (`WOTOLHeroCharacter.cpp::BuildHeroBody`) : passage d'environ 35 pieces a ~90
+(Aquis) / ~75 (Noxeens) :
+- Mains : doigts a 2 phalanges (base + articulation repliee) au lieu d'un seul batonnet droit
+  par doigt — s'applique aux DEUX factions (BuildHand est partagee).
+- Aquis : crete elargie (5 pics centraux + 6 meches laterales, mirroring BuildAquiKnight des
+  unites RTS), arcade sourciliere, liseres de pauldrons, brassards dores (biceps + avant-bras),
+  gemme secondaire, lisérés d'armure supplementaires, tassets de ceinture, fermoirs de cape,
+  genouillères, jambieres, bracelets de cheville, rehaussement de talon (silhouette de botte).
+- Noxeens : epaulieres sombres a liseré, crete dorsale (3 ailerons), genouillères, griffes de
+  pied — passage plus modeste (le personnage teste par Liamor est Aquis) mais garde la parite.
+
+**Animation** (`AnimateSwim`) : l'epaule combinait UNIQUEMENT un pivot Pitch (avant-arriere,
+plan unique) -> remplace par Pitch + Roll dephases (trajectoire elliptique de brasse, le bras
+s'ecarte du corps au retour). Le coude a sa propre phase (se plie a la traction, se tend a la
+poussee) au lieu d'un simple demi-angle de l'epaule. Le genou (jamais anime avant, la jambe
+pivotait uniquement a la hanche comme une tige rigide) flechit maintenant en phase avec la
+cuisse (battement de jambes articule).
+
+**A verifier au prochain lancement** : (1) capture du Hero de face/dos/profil pour juger si la
+densite de details suffit, (2) courte video ou observation en jeu du mouvement de nage — c'est
+la seule maniere de confirmer que la trajectoire du bras/jambe se lit bien (aucun rendu local
+disponible pour verifier avant ce commit).
+
 ## Passe esthetique GENERALE : occlusion ambiante + lumiere d'ambiance (31/07/2026, suite)
 
 Liamor a demande une amelioration de "toute l'esthetique generale", pas juste le modele du

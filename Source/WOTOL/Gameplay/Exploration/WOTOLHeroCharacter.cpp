@@ -426,11 +426,17 @@ void AWOTOLHeroCharacter::BuildHeroBody()
 	auto BuildHand = [&](USceneComponent* Elbow, float Side)
 	{
 		if (!Elbow) return;
-		MakeBone(Elbow, M_CYL, FVector(0, 0, -h * 0.30f), FVector(0.075f, 0.075f, 0.02f), NoRot, Shade);
-		MakeBone(Elbow, M_CUBE, FVector(0, 0, -h * 0.34f), FVector(0.08f, 0.10f, 0.03f), NoRot, BodyCol);
+		MakeBone(Elbow, M_CYL, FVector(0, 0, -h * 0.30f), FVector(0.075f, 0.075f, 0.02f), NoRot, Shade); // poignet
+		MakeBone(Elbow, M_CUBE, FVector(0, 0, -h * 0.34f), FVector(0.08f, 0.10f, 0.03f), NoRot, BodyCol); // paume
+		// Doigts en 2 phalanges (segment de base droit + 2e segment légèrement replié) au lieu
+		// d'un seul bâtonnet rigide -> silhouette de main crédible (retour 31/07/2026).
 		for (int32 f = -1; f <= 1; ++f)
-			MakeBone(Elbow, M_CYL, FVector(0, f * 5.f, -h * 0.40f), FVector(0.025f, 0.025f, h * 0.07f), NoRot, BodyCol);
-		MakeBone(Elbow, M_CYL, FVector(0, Side * 6.f, -h * 0.33f), FVector(0.025f, 0.025f, h * 0.05f), FRotator(0, 0, Side * 40.f), BodyCol);
+		{
+			MakeBone(Elbow, M_CYL, FVector(0, f * 5.f, -h * 0.395f), FVector(0.022f, 0.022f, h * 0.045f), NoRot, BodyCol);
+			MakeBone(Elbow, M_CYL, FVector(-0.7f, f * 5.f, -h * 0.435f), FVector(0.019f, 0.019f, h * 0.035f), FRotator(24.f, 0, 0), BodyCol);
+		}
+		MakeBone(Elbow, M_CYL, FVector(0, Side * 6.f, -h * 0.33f), FVector(0.025f, 0.025f, h * 0.05f), FRotator(0, 0, Side * 40.f), BodyCol); // pouce, base
+		MakeBone(Elbow, M_CYL, FVector(-0.5f, Side * 9.f, -h * 0.365f), FVector(0.021f, 0.021f, h * 0.035f), FRotator(0, 0, Side * 55.f), BodyCol); // pouce, 2e phalange
 	};
 	BuildHand(JRElbow, 1.f);
 	BuildHand(JLElbow, -1.f);
@@ -450,19 +456,65 @@ void AWOTOLHeroCharacter::BuildHeroBody()
 			AddPart(M_CONE, FVector(H * 0.02f + t * H * 0.09f, 0, H * 0.44f),
 				FVector(0.06f, 0.06f, h * 0.22f * mid), FRotator(-14.f, 0, 0), AqCrest);
 		}
+		// PASSE DE DÉTAIL (31/07/2026, "toute l'esthétique générale à améliorer") : mèches
+		// latérales plus fines qui flanquent la rangée centrale (mirroring BuildAquiKnight,
+		// WOTOLDemoUnit.cpp) -> crête plus fournie qu'une simple rangée isolée.
+		for (int32 sc = 0; sc < 6; ++sc)
+		{
+			const float t = (sc - 2.5f) / 2.5f; // -1..1
+			const float side = (sc % 2 == 0) ? 1.f : -1.f;
+			AddPart(M_CONE, FVector(H * (0.0f - FMath::Abs(t) * 0.02f), side * (5.f + FMath::Abs(t) * 7.f), H * (0.41f - FMath::Abs(t) * 0.03f)),
+				FVector(0.04f, 0.07f, h * (0.13f - FMath::Abs(t) * 0.03f)), FRotator(-18.f, 0, side * 26.f), AqCrest);
+		}
+		// Arcade sourcilière (casse le "visage lisse" vu de face).
+		AddPart(M_CUBE, FVector(H * 0.12f, 0, H * 0.365f), FVector(0.02f, 0.14f, 0.025f), NoRot, Shade);
+
 		AddPart(M_SPH, FVector(0, H * 0.17f, H * 0.22f), FVector(0.20f, 0.20f, 0.17f), NoRot, AqGold); // pauldron D
 		AddPart(M_SPH, FVector(0, -H * 0.17f, H * 0.22f), FVector(0.20f, 0.20f, 0.17f), NoRot, AqGold); // pauldron G
+		// Liseré d'arête sur chaque pauldron (mirroring BuildAquiKnight) : casse le "dôme lisse".
+		AddPart(M_CONE, FVector(2, H * 0.19f, H * 0.30f), FVector(0.03f, 0.03f, h * 0.10f), FRotator(-70.f, 0, 0), AqGold);
+		AddPart(M_CONE, FVector(2, -H * 0.19f, H * 0.30f), FVector(0.03f, 0.03f, h * 0.10f), FRotator(-70.f, 0, 0), AqGold);
+		// Brassards (bandes dorées au biceps) — casse le cylindre uni du haut du bras.
+		MakeBone(JRShoulder, M_CYL, FVector(0, 0, -h * 0.26f), FVector(0.145f, 0.145f, 0.015f), NoRot, AqGold);
+		MakeBone(JLShoulder, M_CYL, FVector(0, 0, -h * 0.26f), FVector(0.145f, 0.145f, 0.015f), NoRot, AqGold);
+		// Brassards d'avant-bras (près du poignet, avant la main) — même logique.
+		MakeBone(JRElbow, M_CYL, FVector(0, 0, -h * 0.27f), FVector(0.12f, 0.12f, 0.015f), NoRot, AqGold);
+		MakeBone(JLElbow, M_CYL, FVector(0, 0, -h * 0.27f), FVector(0.12f, 0.12f, 0.015f), NoRot, AqGold);
+
 		AddPart(M_CONE, FVector(H * 0.145f, 0, H * 0.19f), FVector(0.08f, 0.08f, h * 0.09f), FRotator(90.f, 0, 0), AqGold);
 		AddPart(M_CONE, FVector(H * 0.145f, 0, H * 0.13f), FVector(0.08f, 0.08f, h * 0.09f), FRotator(-90.f, 0, 0), AqGold);
 		AddPart(M_SPH, FVector(H * 0.16f, 0, H * 0.16f), FVector(0.045f, 0.045f, 0.05f), NoRot, AqEnergyHi); // coeur lumineux
+		// Petite gemme secondaire sous la principale (accent, casse la symétrie trop simple).
+		AddPart(M_SPH, FVector(H * 0.155f, 0, H * 0.08f), FVector(0.028f, 0.028f, 0.03f), NoRot, AqEnergyHi);
 		AddPart(M_CUBE, FVector(H * 0.15f, 6, H * 0.02f), FVector(0.02f, 0.03f, h * 0.30f), NoRot, AqGold);
 		AddPart(M_CUBE, FVector(H * 0.15f, -6, H * 0.02f), FVector(0.02f, 0.03f, h * 0.30f), NoRot, AqGold);
+		// 2 lisérés supplémentaires plus au large (armure "à écailles" plus dense, cf. reference).
+		AddPart(M_CUBE, FVector(H * 0.13f, 13, H * 0.01f), FVector(0.018f, 0.025f, h * 0.24f), NoRot, AqGold);
+		AddPart(M_CUBE, FVector(H * 0.13f, -13, H * 0.01f), FVector(0.018f, 0.025f, h * 0.24f), NoRot, AqGold);
 		AddPart(M_CYL, FVector(0, 0, H * 0.005f), FVector(BodyW * 0.94f, BodyW * 0.80f, 0.025f), NoRot, AqGold);
+		// Tassets de ceinture (2 accents dorés qui pendent devant, cassent le bloc "taille lisse").
+		AddPart(M_CUBE, FVector(H * 0.10f, 10, -H * 0.20f), FVector(0.03f, 0.05f, h * 0.16f), NoRot, AqGold);
+		AddPart(M_CUBE, FVector(H * 0.10f, -10, -H * 0.20f), FVector(0.03f, 0.05f, h * 0.16f), NoRot, AqGold);
+
 		// Cape UNIQUE centrée dans le dos (remplace les 2 pans latéraux qui débordaient sur le
 		// côté au lieu de draper le dos, cf. reference) : segment haut étroit aux épaules +
 		// segment bas plus large pour suggérer l'évasement d'un tissu qui tombe.
 		AddPart(M_CUBE, FVector(-H * 0.12f, 0, H * 0.08f), FVector(0.03f, BodyW * 1.15f, h * 0.22f), FRotator(-6.f, 0, 0), AqCape);
 		AddPart(M_CUBE, FVector(-H * 0.15f, 0, -H * 0.20f), FVector(0.03f, BodyW * 1.75f, h * 0.44f), FRotator(-11.f, 0, 0), AqCape);
+		// Fermoirs dorés de la cape aux épaules (petites gemmes d'attache).
+		AddPart(M_SPH, FVector(-H * 0.10f, H * 0.13f, H * 0.19f), FVector(0.035f, 0.035f, 0.04f), NoRot, AqGold);
+		AddPart(M_SPH, FVector(-H * 0.10f, -H * 0.13f, H * 0.19f), FVector(0.035f, 0.035f, 0.04f), NoRot, AqGold);
+
+		// Genouillères dorées (cassent la rotule nue) + jambières (plaque avant du tibia) +
+		// bracelets de cheville + rehaussement du talon (silhouette de botte, pas un pied nu).
+		MakeBone(JRKnee, M_SPH, FVector(H * 0.03f, 0, 0), FVector(0.10f, 0.10f, 0.09f), NoRot, AqGold);
+		MakeBone(JLKnee, M_SPH, FVector(H * 0.03f, 0, 0), FVector(0.10f, 0.10f, 0.09f), NoRot, AqGold);
+		MakeBone(JRKnee, M_CUBE, FVector(H * 0.09f, 0, -h * 0.22f), FVector(0.02f, 0.09f, h * 0.16f), NoRot, AqGold);
+		MakeBone(JLKnee, M_CUBE, FVector(H * 0.09f, 0, -h * 0.22f), FVector(0.02f, 0.09f, h * 0.16f), NoRot, AqGold);
+		MakeBone(JRKnee, M_CYL, FVector(1, 0, -h * 0.455f), FVector(0.105f, 0.105f, 0.012f), NoRot, AqGold);
+		MakeBone(JLKnee, M_CYL, FVector(1, 0, -h * 0.455f), FVector(0.105f, 0.105f, 0.012f), NoRot, AqGold);
+		MakeBone(JRKnee, M_CUBE, FVector(-H * 0.02f, 0, -h * 0.48f), FVector(0.07f, 0.10f, 0.05f), NoRot, Shade);
+		MakeBone(JLKnee, M_CUBE, FVector(-H * 0.02f, 0, -h * 0.48f), FVector(0.07f, 0.10f, 0.05f), NoRot, Shade);
 	}
 	else
 	{
@@ -481,6 +533,19 @@ void AWOTOLHeroCharacter::BuildHeroBody()
 					FVector(0.045f, 0.045f, h * 0.11f), FRotator(0, 0, side * 60.f), NoxDark);
 		AddPart(M_CONE, FVector(-16, 18, H * 0.32f), FVector(0.055f, 0.055f, h * 1.0f), FRotator(-42.f, 0, 42.f), NoxGlow);
 		AddPart(M_CONE, FVector(-16, -18, H * 0.32f), FVector(0.055f, 0.055f, h * 1.0f), FRotator(-42.f, 0, -42.f), NoxGlow);
+		// PASSE DE DÉTAIL (31/07/2026) : épaulières sombres à liseré, crête dorsale, genouillères
+		// et griffes de pied — pour la parité avec le passage de détail Aquis ci-dessus.
+		AddPart(M_SPH, FVector(0, H * 0.17f, H * 0.22f), FVector(0.19f, 0.19f, 0.16f), NoRot, NoxDark);
+		AddPart(M_SPH, FVector(0, -H * 0.17f, H * 0.22f), FVector(0.19f, 0.19f, 0.16f), NoRot, NoxDark);
+		AddPart(M_CONE, FVector(2, H * 0.19f, H * 0.29f), FVector(0.03f, 0.03f, h * 0.09f), FRotator(-70.f, 0, 0), NoxGlow);
+		AddPart(M_CONE, FVector(2, -H * 0.19f, H * 0.29f), FVector(0.03f, 0.03f, h * 0.09f), FRotator(-70.f, 0, 0), NoxGlow);
+		for (int32 s = 0; s < 3; ++s)
+			AddPart(M_CONE, FVector(-H * (0.02f + s * 0.05f), 0, H * (0.20f - s * 0.03f)),
+				FVector(0.04f, 0.04f, h * (0.14f - s * 0.02f)), FRotator(-30.f - s * 8.f, 0, 0), NoxGlow);
+		MakeBone(JRKnee, M_SPH, FVector(H * 0.03f, 0, 0), FVector(0.10f, 0.10f, 0.09f), NoRot, NoxDark);
+		MakeBone(JLKnee, M_SPH, FVector(H * 0.03f, 0, 0), FVector(0.10f, 0.10f, 0.09f), NoRot, NoxDark);
+		MakeBone(JRKnee, M_CONE, FVector(H * 0.11f, 0, -h * 0.52f), FVector(0.03f, 0.03f, h * 0.06f), FRotator(70.f, 0, 0), NoxGlow); // griffe pied D
+		MakeBone(JLKnee, M_CONE, FVector(H * 0.11f, 0, -h * 0.52f), FVector(0.03f, 0.03f, h * 0.06f), FRotator(70.f, 0, 0), NoxGlow); // griffe pied G
 	}
 }
 
@@ -495,15 +560,30 @@ void AWOTOLHeroCharacter::AnimateSwim(float DeltaSeconds)
 	const float SpeedRatio = FMath::Clamp(GetVelocity().Size() / FMath::Max(1.f, SwimSpeed), 0.f, 2.2f);
 	SwimAnimTime += DeltaSeconds * FMath::Lerp(0.7f, 2.6f, FMath::Clamp(SpeedRatio, 0.f, 1.f));
 
-	const float Cycle = FMath::Sin(SwimAnimTime * 6.f);
+	const float Cycle    = FMath::Sin(SwimAnimTime * 6.f);
 	const float CycleOpp = FMath::Sin(SwimAnimTime * 6.f + PI);
+	// Décalage d'un quart de cycle : sert à donner au bras une trajectoire CIRCULAIRE/
+	// elliptique (brasse) au lieu d'un simple aller-retour dans un seul axe (retour
+	// 31/07/2026 : "un bâton qui bouge le bras dans un seul axe").
+	const float CycleQ    = FMath::Sin(SwimAnimTime * 6.f + HALF_PI);
+	const float CycleOppQ = FMath::Sin(SwimAnimTime * 6.f + PI + HALF_PI);
 	const float ArmAmp = 30.f + SpeedRatio * 20.f;
 	const float LegAmp = 18.f + SpeedRatio * 14.f;
 
-	if (JRShoulder) JRShoulder->SetRelativeRotation(FRotator(Cycle * ArmAmp, 0, 0));
-	if (JLShoulder) JLShoulder->SetRelativeRotation(FRotator(CycleOpp * ArmAmp, 0, 0));
-	if (JRElbow)    JRElbow->SetRelativeRotation(FRotator(FMath::Abs(Cycle) * ArmAmp * 0.5f, 0, 0));
-	if (JLElbow)    JLElbow->SetRelativeRotation(FRotator(FMath::Abs(CycleOpp) * ArmAmp * 0.5f, 0, 0));
-	if (JRHip)      JRHip->SetRelativeRotation(FRotator(CycleOpp * LegAmp, 0, 0));
-	if (JLHip)      JLHip->SetRelativeRotation(FRotator(Cycle * LegAmp, 0, 0));
+	// ÉPAULE : Pitch (balayage avant-arrière) + Roll (le bras s'écarte du corps pendant le
+	// retour, se rapproche pendant la poussée) -> mouvement de brasse à 2 axes, pas un pendule
+	// plat.
+	if (JRShoulder) JRShoulder->SetRelativeRotation(FRotator(Cycle * ArmAmp, 0, CycleQ * ArmAmp * 0.35f));
+	if (JLShoulder) JLShoulder->SetRelativeRotation(FRotator(CycleOpp * ArmAmp, 0, -CycleOppQ * ArmAmp * 0.35f));
+	// COUDE : phase décalée par rapport à l'épaule (se plie pendant la traction, se tend
+	// pendant la poussée) au lieu d'être un simple demi-angle systématique de l'épaule.
+	if (JRElbow) JRElbow->SetRelativeRotation(FRotator(FMath::Max(0.f, CycleQ) * ArmAmp * 0.7f, 0, 0));
+	if (JLElbow) JLElbow->SetRelativeRotation(FRotator(FMath::Max(0.f, -CycleOppQ) * ArmAmp * 0.7f, 0, 0));
+
+	// HANCHE + GENOU : battement de jambes (flutter kick) articulé -> le genou fléchit en
+	// phase avec la cuisse au lieu d'une jambe raide qui pivote uniquement à la hanche.
+	if (JRHip)  JRHip->SetRelativeRotation(FRotator(CycleOpp * LegAmp, 0, 0));
+	if (JLHip)  JLHip->SetRelativeRotation(FRotator(Cycle * LegAmp, 0, 0));
+	if (JRKnee) JRKnee->SetRelativeRotation(FRotator(FMath::Max(0.f, CycleOpp) * LegAmp * 0.8f, 0, 0));
+	if (JLKnee) JLKnee->SetRelativeRotation(FRotator(FMath::Max(0.f, Cycle) * LegAmp * 0.8f, 0, 0));
 }
