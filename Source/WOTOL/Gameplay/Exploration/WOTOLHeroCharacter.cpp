@@ -383,6 +383,11 @@ void AWOTOLHeroCharacter::BuildHeroBody()
 	JLHip  = MakeJoint(RootComponent, FVector(0, -H * 0.11f, -H * 0.18f));
 	JRKnee = MakeJoint(JRHip, FVector(0, 0, -h * 0.42f));
 	JLKnee = MakeJoint(JLHip, FVector(0, 0, -h * 0.42f));
+	// Rotule de hanche (comble la couture visible entre le bassin et la cuisse en vue
+	// rapprochée troisième personne — le héros est le SEUL modèle observé de près, contrairement
+	// aux unités RTS où ce détail n'est jamais perceptible).
+	MakeBone(JRHip, M_SPH, FVector::ZeroVector, FVector(0.17f, 0.17f, 0.17f), NoRot, BodyCol);
+	MakeBone(JLHip, M_SPH, FVector::ZeroVector, FVector(0.17f, 0.17f, 0.17f), NoRot, BodyCol);
 	MakeBone(JRHip, M_CYL, FVector(0, 0, -h * 0.20f), FVector(0.16f, 0.16f, h * 0.42f), NoRot, BodyCol);
 	MakeBone(JLHip, M_CYL, FVector(0, 0, -h * 0.20f), FVector(0.16f, 0.16f, h * 0.42f), NoRot, BodyCol);
 	MakeBone(JRKnee, M_SPH, FVector::ZeroVector, FVector(0.14f, 0.14f, 0.14f), NoRot, Shade);
@@ -407,6 +412,10 @@ void AWOTOLHeroCharacter::BuildHeroBody()
 	JLShoulder = MakeJoint(RootComponent, FVector(0, -H * 0.19f, H * 0.24f));
 	JRElbow = MakeJoint(JRShoulder, FVector(0, 0, -h * 0.30f));
 	JLElbow = MakeJoint(JLShoulder, FVector(0, 0, -h * 0.30f));
+	// Rotule d'épaule (même logique que la rotule de hanche ci-dessus) : referme la couture
+	// entre le torse et le bras au lieu de laisser un cylindre "flotter" au ras du buste.
+	MakeBone(JRShoulder, M_SPH, FVector::ZeroVector, FVector(0.145f, 0.145f, 0.145f), NoRot, BodyCol);
+	MakeBone(JLShoulder, M_SPH, FVector::ZeroVector, FVector(0.145f, 0.145f, 0.145f), NoRot, BodyCol);
 	MakeBone(JRShoulder, M_CYL, FVector(0, 0, -h * 0.15f), FVector(0.13f, 0.13f, h * 0.30f), NoRot, BodyCol);
 	MakeBone(JLShoulder, M_CYL, FVector(0, 0, -h * 0.15f), FVector(0.13f, 0.13f, h * 0.30f), NoRot, BodyCol);
 	MakeBone(JRElbow, M_SPH, FVector::ZeroVector, FVector(0.11f, 0.11f, 0.11f), NoRot, Shade);

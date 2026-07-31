@@ -1,5 +1,40 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Fenetre de batiment repensee + terrain organique + 2 bugs remontes en jeu (31/07/2026, suite)
+
+Suite directe de la section precedente (references Call of Dragons + les 2 chantiers "pas
+encore fait"). Deja pousse en 2 commits (`53ce294`, `626fd1d`) :
+- Fenetre de batiment : ne s'affiche plus comme un panneau lateral permanent qui encombre tout
+  l'ecran -> POPUP ancree pres du batiment cliqué (projection ecran de sa position monde,
+  bascule gauche/droite pour rester dans l'ecran, bouton "X" pour fermer). Calcul du rectangle
+  partage entre le HUD (dessin) et le PlayerController (detection de clic) pour rester coherent.
+- Terrain de cite rendu plus organique : chemins paves entre les batiments, 22 amas de
+  corail/rochers decoratifs en bordure, leger decalage aleatoire de la position de chaque
+  batiment — inspire des references Call of Dragons.
+- Carte de recrutement agrandie (portrait 128px, tag de role, texte de lore).
+- Fix chevauchement jauge de verticalite / bandeau OBJECTIF (plancher de position ajoute).
+
+Puis 2 nouveaux bugs remontes par Liamor pendant cette meme session de test, corriges
+directement dans le code (pas encore visibles par Liamor, a confirmer au prochain lancement) :
+
+1. **Kraken "invincible" pres du seuil de defaite** : en Normal, le Kraken ne doit pas mourir
+   avant que le joueur ait atteint un quota minimum de pertes (`MinimumHealthFloor`,
+   garde-fou deja valide). Mais une fois ce plancher atteint, les coups suivants affichaient
+   quand meme "CRITIQUE !" en plein ecran alors que la vie ne bougeait plus du tout (dégâts
+   integralement absorbes par `TakeDamageFromUnit`) -> donnait l'impression d'un bug de
+   hit-registration. Fix dans `UnitBase.cpp::PerformAttack` : si le coup va etre entierement
+   absorbe par le plancher, le texte devient "CARAPACE !" (gris) au lieu de "CRITIQUE !" (or)
+   — le joueur comprend que le Kraken resiste au lieu de croire que ses coups ne comptent pas.
+   Le garde-fou lui-meme n'a pas ete touche (toujours valide par Liamor).
+2. **Modele du Hero jugé "moche" en vue 3e personne** ("je m'attendais a mieux... meme pour une
+   greybox") : sans capture d'ecran du rendu actuel ni acces aux photos de reference envoyees
+   plus tot dans la session, correction ciblee sur un defaut identifiable sans rendu — des
+   coutures visibles entre le torse et les bras/cuisses (aucune "rotule" de raccord a l'epaule/
+   la hanche, contrairement au coude/genou qui en ont deja une). Rotules ajoutees dans
+   `WOTOLHeroCharacter.cpp::BuildHeroBody`. C'est un premier passage ciblé, pas une refonte —
+   **il faudra une nouvelle capture d'ecran du Hero en 3e personne pour identifier precisement
+   ce qui doit encore changer** (proportions ? couleurs ? autre chose ?).
+
 ## 1er passage COMPLET de la demo (defaite en Phase 3) : 4 bugs reels + refs Call of Dragons (31/07/2026, suite)
 
 Liamor a joue jusqu'au bout (defaite en Phase 3) et envoye 16 captures de reference du jeu

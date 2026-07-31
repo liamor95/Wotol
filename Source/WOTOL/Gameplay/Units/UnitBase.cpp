@@ -345,11 +345,22 @@ void AUnitBase::PerformAttack(AUnitBase* Target)
 		if (FMath::FRand() < CritChance)
 		{
 			BaseDamage *= bBackstab ? 2.2f : 1.7f;
+			// GARDE-FOU D'ENCOUNTER (MinimumHealthFloor, ex. le Kraken avant le quota de pertes) :
+			// si la cible est DÉJÀ au plancher, le coup sera intégralement absorbé par
+			// TakeDamageFromUnit (DamageBudget = 0) -> la vie ne bougera PAS. Afficher "CRITIQUE !"
+			// dans ce cas donne l'impression d'un bug (le joueur voit "critique" mais aucune perte
+			// de vie). On affiche donc un texte différent qui explique visuellement l'absorption.
+			const bool bAbsorbedByFloor =
+				(Target->CurrentHealth - FMath::Max(0.f, Target->MinimumHealthFloor)) <= 1.f;
 			USceneComponent* CritAnchor = Target->GetDamageTextAnchor();
 			const FVector Loc = (CritAnchor ? CritAnchor->GetComponentLocation() : Target->GetActorLocation()) + FVector(0.f, 0.f, 50.f);
-			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(GetWorld(), Loc,
-					bBackstab ? TEXT("CRITIQUE DOS !") : TEXT("CRITIQUE !"),
-					FLinearColor(1.f, 0.85f, 0.2f, 1.f)))
+			const FString CritText = bAbsorbedByFloor
+				? TEXT("CARAPACE !")
+				: (bBackstab ? TEXT("CRITIQUE DOS !") : TEXT("CRITIQUE !"));
+			const FLinearColor CritColor = bAbsorbedByFloor
+				? FLinearColor(0.55f, 0.6f, 0.65f, 1.f)
+				: FLinearColor(1.f, 0.85f, 0.2f, 1.f);
+			if (AWOTOLDamageNumber* N = AWOTOLDamageNumber::SpawnText(GetWorld(), Loc, CritText, CritColor))
 				N->SetFollow(CritAnchor, FVector(0.f, 0.f, 140.f));
 		}
 	}
