@@ -23,12 +23,17 @@ resume de bataille (2 colonnes), les 2 fenetres tuto de preparation. Pas appliqu
 widgets fins (bandeau objectif, barre de commandement, minimap, indicateur de competence) —
 une planche etiree sur une bande fine nuirait a la lisibilite plutot que l'ameliorer.
 
-**PROCHAINE ETAPE, pas encore faite** : restructurer l'onglet RECRUTEMENT de la fenetre de
-batiment (actuellement : texte qui s'enchaine verticalement) en VRAIES CARTES individuelles
-cote a cote (portrait + cout + bouton par carte), sur le modele de la 2e capture de Liamor —
-plus proche de ce qu'il demande qu'un simple fond illustre derriere du texte qui coule. Gros
-morceau (implique de repenser la mise en page de DrawCityView/l'onglet Recrutement), a faire
-avec le prochain retour visuel de Liamor pour verifier que ca correspond a l'intention.
+**FAIT** (suite immediate, meme session) : les 2 endroits ou le joueur "recrute" ont ete
+restructures en vraies cartes (portrait + jeton de cout rond + nombre, au lieu de texte qui
+s'enchaine) :
+- Cartes de production du bas de la vue Cite (CityCardRect — la ou le joueur produit
+  reellement) : portrait ajoute en haut a droite de chaque carte, jeton de cout.
+- Onglet RECRUTEMENT de la fenetre de detail de batiment : carte dediee (fond distinct du
+  panneau, portrait, jeton de cout, reserve, statut).
+Pas encore une recreation pixel-perfect de la planche de reference (pas de vraies icones de
+ressources en pilule — remplacees par un jeton rond generique faute d'asset ressource dedie —
+ni de systeme de paliers/emplacements verrouilles multiples, WOTOL n'ayant qu'un seul type
+d'unite par batiment contrairement a la reference). A affiner avec le prochain retour visuel.
 
 ## 2e vague de captures : sol de cite, jauge, flou en pause (31/07/2026, suite)
 
