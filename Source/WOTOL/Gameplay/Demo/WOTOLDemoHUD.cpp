@@ -474,6 +474,30 @@ void AWOTOLDemoHUD::DrawFramedPanel(const FBox2D& R, EFactionID Faction, float O
 	}
 }
 
+float AWOTOLDemoHUD::DrawResourceChip(UTexture2D* Icon, const FString& CountText, float X, float Y,
+	float IconSize, const FLinearColor& TextColor)
+{
+	if (Icon)
+	{
+		DrawTexture(Icon, X, Y, IconSize, IconSize, 0.f, 0.f, 1.f, 1.f);
+	}
+	else
+	{
+		// Repli si jamais l'image est absente : pastille ronde générique (déjà utilisée sur
+		// les cartes de recrutement avant l'arrivée des vraies icônes).
+		if (Canvas)
+		{
+			Canvas->K2_DrawPolygon(nullptr, FVector2D(X + IconSize * 0.5f, Y + IconSize * 0.5f),
+				FVector2D(IconSize * 0.5f, IconSize * 0.5f), 16, FLinearColor(1.f, 0.85f, 0.3f, 1.f));
+		}
+	}
+	const float TextX = X + IconSize + 8.f;
+	DrawText(CountText, TextColor, TextX, Y + IconSize * 0.5f - 9.f, GEngine ? GEngine->GetMediumFont() : nullptr, 1.0f);
+	float TW = 0.f, TH = 0.f;
+	GetTextSize(CountText, TW, TH, GEngine ? GEngine->GetMediumFont() : nullptr, 1.0f);
+	return TextX + TW;
+}
+
 void AWOTOLDemoHUD::DrawButton(const FBox2D& R, const FString& Label, const FLinearColor& Tint, float TextScale)
 {
 	const FVector2D Sz = R.Max - R.Min;
@@ -1020,6 +1044,50 @@ UTexture2D* AWOTOLDemoHUD::GetPanelFrameWide(EFactionID Faction)
 	return NoxeensFrameWideTexture;
 }
 
+UTexture2D* AWOTOLDemoHUD::GetPrimaryResourceIcon(EFactionID Faction)
+{
+	if (Faction != EFactionID::Noxeens)
+	{
+		if (bCrystalsIconTried) return CrystalsIconTexture;
+		bCrystalsIconTried = true;
+		const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/ResourceCrystalsAquiloris.png");
+		if (FPaths::FileExists(PngPath)) CrystalsIconTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+		return CrystalsIconTexture;
+	}
+	if (bBiolumensIconTried) return BiolumensIconTexture;
+	bBiolumensIconTried = true;
+	const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/ResourceBiolumensNoxeens.png");
+	if (FPaths::FileExists(PngPath)) BiolumensIconTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+	return BiolumensIconTexture;
+}
+
+UTexture2D* AWOTOLDemoHUD::GetAbyssalMaterialsIcon()
+{
+	if (bAbyssalMaterialsIconTried) return AbyssalMaterialsIconTexture;
+	bAbyssalMaterialsIconTried = true;
+	const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/ResourceAbyssalMaterials.png");
+	if (FPaths::FileExists(PngPath)) AbyssalMaterialsIconTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+	return AbyssalMaterialsIconTexture;
+}
+
+UTexture2D* AWOTOLDemoHUD::GetBiomassIcon()
+{
+	if (bBiomassIconTried) return BiomassIconTexture;
+	bBiomassIconTried = true;
+	const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/ResourceBiomass.png");
+	if (FPaths::FileExists(PngPath)) BiomassIconTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+	return BiomassIconTexture;
+}
+
+UTexture2D* AWOTOLDemoHUD::GetOceanicEnergyIcon()
+{
+	if (bOceanicEnergyIconTried) return OceanicEnergyIconTexture;
+	bOceanicEnergyIconTried = true;
+	const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/ResourceOceanicEnergy.png");
+	if (FPaths::FileExists(PngPath)) OceanicEnergyIconTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+	return OceanicEnergyIconTexture;
+}
+
 UTexture2D* AWOTOLDemoHUD::GetFactionSelectBackground()
 {
 	if (bFactionSelectBgTried) return FactionSelectBgTexture;
@@ -1329,10 +1397,13 @@ void AWOTOLDemoHUD::DrawExplorationHUD(float W, float H, UDemoFlowSubsystem* Dem
 		DrawButton(ExplorationCrystalliserButtonRect(W, H),
 			bNox ? TEXT("BATIMENT : ABYSSALYSEUR") : TEXT("BATIMENT : CRISTALLISEUR"),
 			FFactionColors::Get(Demo->GetPlayerFaction()), 1.05f);
-		DrawText(FString::Printf(TEXT("Cristaux %d   |   Mineraux %d"),
-			Demo->GetCrystals(), Demo->PlayerAbyssalMaterials),
-			FLinearColor(1.f, 0.94f, 0.58f, 1.f), 38.f, H - 87.f,
-			GEngine ? GEngine->GetMediumFont() : nullptr, 0.9f);
+		{
+			const FLinearColor ResCol(1.f, 0.94f, 0.58f, 1.f);
+			const float NextX = DrawResourceChip(GetPrimaryResourceIcon(Demo->GetPlayerFaction()),
+				FString::Printf(TEXT("%d"), Demo->GetCrystals()), 38.f, H - 92.f, 24.f, ResCol);
+			DrawResourceChip(GetAbyssalMaterialsIcon(), FString::Printf(TEXT("%d"), Demo->PlayerAbyssalMaterials),
+				NextX + 22.f, H - 92.f, 24.f, ResCol);
+		}
 	}
 }
 
@@ -1628,14 +1699,23 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 	const FString CityName = bAq ? TEXT("CITE D'AQUILOR") : TEXT("NOX CAVE");
 	DrawGlowTitle(CityName, H * 0.04f, 2.2f, Accent);
 
-	// Ressources persistantes gagnées en mission (haut-gauche). 4 ressources conformes aux
+	// Ressources persistantes gagnées en mission (haut-gauche), en pastilles ICÔNE + NOMBRE
+	// (planches officielles fournies par Liamor le 31/07/2026, remplacent le texte brut
+	// "Cristaux 40 | Mineraux..." illisible en un coup d'oeil). 4 ressources conformes aux
 	// visuels Content/UI/Reference/Ressources : Cristaux/Biolumens (propre a la faction),
 	// Mineraux Abyssaux, Biomasse, Energie Oceanique (SEULE a capacite de stockage limitee).
-	const FString Res = bAq ? TEXT("Cristaux") : TEXT("Biolumens");
-	DrawText(FString::Printf(TEXT("%s %d   |   Mineraux Abyssaux %d   |   Biomasse %d   |   Energie Oceanique %d/%d"),
-		*Res, Demo->GetCrystals(), Demo->PlayerAbyssalMaterials, Demo->PlayerBiomass,
-		Demo->PlayerOceanicEnergy, Demo->MaxOceanicEnergy),
-		FLinearColor(1.f, 0.95f, 0.6f, 1.f), 44.f, 44.f, GEngine ? GEngine->GetLargeFont() : nullptr, 1.5f);
+	{
+		const FLinearColor ResTextCol(1.f, 0.95f, 0.6f, 1.f);
+		float CX = 44.f;
+		CX = DrawResourceChip(GetPrimaryResourceIcon(Fac), FString::Printf(TEXT("%d"), Demo->GetCrystals()),
+			CX, 40.f, 32.f, ResTextCol) + 26.f;
+		CX = DrawResourceChip(GetAbyssalMaterialsIcon(), FString::Printf(TEXT("%d"), Demo->PlayerAbyssalMaterials),
+			CX, 40.f, 32.f, ResTextCol) + 26.f;
+		CX = DrawResourceChip(GetBiomassIcon(), FString::Printf(TEXT("%d"), Demo->PlayerBiomass),
+			CX, 40.f, 32.f, ResTextCol) + 26.f;
+		DrawResourceChip(GetOceanicEnergyIcon(), FString::Printf(TEXT("%d/%d"), Demo->PlayerOceanicEnergy,
+			Demo->MaxOceanicEnergy), CX, 40.f, 32.f, ResTextCol);
+	}
 	DrawText(FString::Printf(TEXT("ARMEE : %d / %d"), Demo->GetArmyUnitCount(), Demo->GetArmyUnitCap()),
 		Accent, 44.f, 84.f, GEngine ? GEngine->GetMediumFont() : nullptr, 1.15f);
 	// Rappel de commandes caméra — absent jusqu'ici alors que TOUS les autres écrans pilotés
@@ -1827,16 +1907,11 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		}
 		else
 		{
-			// Jeton de coût (pastille ronde, langage visuel de la planche de référence) devant
-			// le texte, au lieu d'un simple "Cout : X" sans repère visuel.
-			if (Canvas)
-			{
-				Canvas->K2_DrawPolygon(nullptr, FVector2D(CX + 7.f, R.Min.Y + 100.f), FVector2D(7.f, 7.f),
-					16, FLinearColor(1.f, 0.85f, 0.3f, 1.f));
-			}
-			DrawText(FString::Printf(TEXT("%d   Reserve : %d"), Cost, InReserve),
-				bAfford ? FLinearColor(1.f, 0.95f, 0.6f, 1.f) : FLinearColor(1.f, 0.55f, 0.5f, 1.f),
-				CX + 18.f, R.Min.Y + 96.f, nullptr, 0.95f);
+			// Vraie icône de ressource (planche officielle, plus une pastille générique) devant
+			// le coût, au lieu d'un simple "Cout : X" sans repère visuel.
+			DrawResourceChip(GetPrimaryResourceIcon(Fac), FString::Printf(TEXT("%d   Reserve : %d"), Cost, InReserve),
+				CX, R.Min.Y + 88.f, 18.f,
+				bAfford ? FLinearColor(1.f, 0.95f, 0.6f, 1.f) : FLinearColor(1.f, 0.55f, 0.5f, 1.f));
 			const FString Action = bAfford ? TEXT("+ PRODUIRE")
 				: (Demo->GetArmyUnitCount() >= Demo->GetArmyUnitCap()
 					? TEXT("PLAFOND D'ARMEE") : TEXT("INDISPONIBLE / RESERVE OBJECTIF"));
@@ -1963,23 +2038,18 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 				DrawCenteredTextInBox(Card, CityUnitLabel(Fac, SelCat), CY, FLinearColor::White, 0.95f);
 				CY += 28.f;
 
-				// Jeton de coût : pastille ronde + nombre (langage "pilule d'icône" de la planche
-				// de référence), plutôt qu'une simple ligne de texte "Cout de production : X".
+				// Vraie icône de ressource + nombre (planche officielle Cristaux/Biolumens),
+				// plutôt qu'une simple ligne de texte "Cout de production : X".
 				const int32 Cost = Demo->GetProductionCost(SelCat);
 				const FString CostStr = FString::Printf(TEXT("%d"), Cost);
 				float CW = 0.f, CH = 0.f;
 				GetTextSize(CostStr, CW, CH, GEngine ? GEngine->GetMediumFont() : nullptr, 1.0f);
-				const float TokenR = 10.f;
-				const float RowW = TokenR * 2.f + 8.f + CW;
+				const float TokenSize = 20.f;
+				const float RowW = TokenSize + 8.f + CW;
 				const float RowX = (Card.Min.X + Card.Max.X) * 0.5f - RowW * 0.5f;
-				if (Canvas)
-				{
-					Canvas->K2_DrawPolygon(nullptr, FVector2D(RowX + TokenR, CY + TokenR), FVector2D(TokenR, TokenR),
-						16, FLinearColor(1.f, 0.85f, 0.3f, 1.f));
-				}
-				DrawText(CostStr, FLinearColor(1.f, 0.95f, 0.7f, 1.f), RowX + TokenR * 2.f + 8.f, CY + 2.f,
-					GEngine ? GEngine->GetMediumFont() : nullptr, 1.0f);
-				CY += TokenR * 2.f + 16.f;
+				DrawResourceChip(GetPrimaryResourceIcon(Fac), CostStr, RowX, CY, TokenSize,
+					FLinearColor(1.f, 0.95f, 0.7f, 1.f));
+				CY += TokenSize + 16.f;
 
 				DrawCenteredTextInBox(Card, FString::Printf(TEXT("En reserve : %d"), Demo->GetReserveCount(SelUnitID)),
 					CY, FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 0.82f);
@@ -2117,9 +2187,13 @@ void AWOTOLDemoHUD::DrawTerritoryView(float W, float H, UDemoFlowSubsystem* Demo
 	DrawText(FString::Printf(TEXT("Integrite : %d %%   —   %s"),
 		FMath::RoundToInt(Demo->GetTerritoryHealthPercent() * 100.f), *RampartName),
 		FLinearColor::White, 48.f, 205.f, nullptr, 1.0f);
-	DrawText(FString::Printf(TEXT("Cristaux %d   |   Mineraux %d"), Demo->GetCrystals(),
-		Demo->PlayerAbyssalMaterials), FLinearColor(1.f, 0.90f, 0.42f, 1.f),
-		48.f, 235.f, nullptr, 0.9f);
+	{
+		const FLinearColor ResCol(1.f, 0.90f, 0.42f, 1.f);
+		const float NextX = DrawResourceChip(GetPrimaryResourceIcon(Demo->GetPlayerFaction()),
+			FString::Printf(TEXT("%d"), Demo->GetCrystals()), 48.f, 228.f, 24.f, ResCol);
+		DrawResourceChip(GetAbyssalMaterialsIcon(), FString::Printf(TEXT("%d"), Demo->PlayerAbyssalMaterials),
+			NextX + 22.f, 228.f, 24.f, ResCol);
+	}
 
 	const int32 RepairC = Demo->GetRepairCrystalCost();
 	const int32 RepairM = Demo->GetRepairAbyssalMaterialCost();

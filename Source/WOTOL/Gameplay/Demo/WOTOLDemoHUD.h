@@ -209,6 +209,12 @@ private:
 	// écrans (retour de Liamor du 31/07/2026 : "les fenêtres cliquables ça fait des rectangles
 	// mais... pas de fond"). Repli sur un DrawRect plus opaque si la planche est absente.
 	void DrawFramedPanel(const FBox2D& R, EFactionID Faction, float OverlayOpacity = 0.55f);
+	// Pastille ICÔNE + NOMBRE (planches Resource*.png fournies par Liamor le 31/07/2026),
+	// remplace le texte brut "Cristaux 40" par un vrai repère visuel. Dessine à (X,Y) et
+	// renvoie la position X juste après la pastille (pour enchaîner plusieurs pastilles sur
+	// une même ligne, ex. la barre de ressources).
+	float DrawResourceChip(class UTexture2D* Icon, const FString& CountText, float X, float Y,
+		float IconSize = 28.f, const FLinearColor& TextColor = FLinearColor(1.f, 0.95f, 0.85f, 1.f));
 	// Pictogramme vectoriel (traits Canvas, pas de texture) pour la thématique d'un axe de
 	// compétence — épée (Offensif), bouclier (Défensif), chevron (Support), croix (Soins),
 	// réticule (Contrôle). Remplace le glyphe texte ASCII provisoire (demande Liamor 29/07/2026).
@@ -277,6 +283,27 @@ private:
 	bool bAquilorisFrameWideTried = false;
 	UPROPERTY(Transient) TObjectPtr<class UTexture2D> NoxeensFrameWideTexture = nullptr;
 	bool bNoxeensFrameWideTried = false;
+
+	// Icônes des 4 ressources jouées en démo (planches détourées fournies par Liamor le
+	// 31/07/2026, Content/UI/Resource*.png), remplaçant le texte brut "Cristaux 40" par une
+	// vraie pastille icône+nombre partout dans le HUD (barre de ressources, jetons de coût des
+	// cartes de recrutement). La ressource de faction change d'image (Cristaux Aquiloris /
+	// Biolumens Noxéens) ; les 3 autres (Minéraux Abyssaux, Biomasse, Énergie Océanique) sont
+	// communes aux deux factions.
+	class UTexture2D* GetPrimaryResourceIcon(EFactionID Faction);
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> CrystalsIconTexture = nullptr;
+	bool bCrystalsIconTried = false;
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> BiolumensIconTexture = nullptr;
+	bool bBiolumensIconTried = false;
+	class UTexture2D* GetAbyssalMaterialsIcon();
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> AbyssalMaterialsIconTexture = nullptr;
+	bool bAbyssalMaterialsIconTried = false;
+	class UTexture2D* GetBiomassIcon();
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> BiomassIconTexture = nullptr;
+	bool bBiomassIconTried = false;
+	class UTexture2D* GetOceanicEnergyIcon();
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> OceanicEnergyIconTexture = nullptr;
+	bool bOceanicEnergyIconTried = false;
 
 	// Fond neutre de l'écran de choix de faction (Content/UI/BackgroundFactionSelect.png,
 	// 26/07/2026) : seul écran qui ne pouvait pas utiliser DrawFactionAmbientTint (pas encore
