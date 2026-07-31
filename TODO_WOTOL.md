@@ -1,5 +1,24 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Allegement memoire des images d'interface (31/07/2026, suite)
+
+Liamor plante (rapport de crash Unreal a envoyer a Epic) juste avant de lancer la bataille
+en Phase 3, sur un PC modeste (meme genre de souci VRAM que deja rencontre avant dans la
+session). Pas de log recupere (ferme avant de le sauvegarder), donc pas de cause certaine,
+mais un point trouve et corrige en attendant : toutes les images d'interface (fonds,
+embleme, cadres, fond de cite, icones de batiment — chargees via
+`FImageUtils::ImportFileAsTexture2D`, HORS pipeline d'import/compression habituel d'Unreal,
+donc en texture BRUTE non compressee, ET jamais liberees, cache permanent) representaient a
+elles seules ~107 Mo cumules en memoire une fois toutes visitees (accumulees au fil des
+ecrans, donc quasiment toutes chargees au moment d'atteindre la Phase 3). Redimensionnees
+(Pillow/LANCZOS, sans perte visible a la taille d'affichage HUD reelle) : plafond 1200px de
+cote pour les fonds/cadres/embleme/fond de cite (jusqu'a 1672px avant), 480px pour les
+icones de batiment (608px avant) -> memoire textures divisee par ~1.6.
+**Si Liamor replante malgre ca**, il faudra vraiment le log/rapport de crash pour aller plus
+loin (impossible de deviner la cause exacte sans lui — probablement le pic de spawn
+d'unites au lancement de bataille, RTSBattleManager/WOTOLUnitSpawner, jamais audite pour la
+memoire faute de retour PC avant aujourd'hui).
+
 ## Premier lancement reel : 4 bugs visuels trouves via captures d'ecran (31/07/2026)
 
 La demo a enfin COMPILE ET SE LANCE (etape 4 de INSTALLATION_UE58.md franchie). Liamor a
