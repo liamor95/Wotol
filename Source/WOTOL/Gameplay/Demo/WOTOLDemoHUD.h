@@ -92,7 +92,17 @@ public:
 	static FBox2D CityFeedMythicButtonRect(float W, float H);
 	// Onglets de la fenêtre de bâtiment (fiche technique) : 0=Résumé, 1=Recrutement,
 	// 2=Statistiques, 3=Compétences, 4=Rôle (demande Liamor 29/07/2026).
-	static FBox2D BuildingTabRect(int32 TabIndex, float W, float H);
+	static FBox2D BuildingTabRect(int32 TabIndex, const FBox2D& Panel);
+	// Rectangle de la fenêtre de détail elle-même : ANCRÉE près du bâtiment réellement cliqué
+	// à l'écran (projection de UDemoFlowSubsystem::SelectedCityBuildingWorldLocation), pas un
+	// panneau fixe qui s'empile avec le reste de l'écran (retour de Liamor du 31/07/2026 —
+	// "fait spawn une fenêtre" comme dans les jeux de référence). Repli au centre-droit si la
+	// projection échoue (PC absent, bâtiment hors champ). Partagée entre le dessin (HUD) et le
+	// clic (PlayerController) pour que les deux calculent EXACTEMENT le même rectangle.
+	static FBox2D GetCityBuildingPanelRect(class APlayerController* PC, const FVector& WorldLoc, float W, float H);
+	// Bouton "X" en haut à droite de la fenêtre de bâtiment (la fermer sans sélectionner un
+	// autre bâtiment — nécessaire maintenant que ce n'est plus un panneau toujours affiché).
+	static FBox2D BuildingCloseButtonRect(const FBox2D& Panel);
 
 	// ─── Gestion du territoire après la défense ──────────────────────────────
 	static FBox2D TerritoryRepairButtonRect(float W, float H);
@@ -129,7 +139,7 @@ public:
 	// Palier complémentaire du Chef (Noxar : portée laser), sous les deux noeuds d'axe.
 	static FBox2D ResearchChefTierRect(float W, float H);
 	// Bouton "RECHERCHE" ouvert depuis la fenêtre de bâtiment (visible surtout sur le Chef).
-	static FBox2D BuildingResearchButtonRect(float W, float H);
+	static FBox2D BuildingResearchButtonRect(const FBox2D& Panel);
 	// Sélecteur de formation tactique (voir DrawFormationSelector).
 	static FBox2D FormationButtonRect(int32 Index, float W, float H);
 

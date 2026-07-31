@@ -373,6 +373,14 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
 	bool bCitySelectionValid = false;
 
+	// Position MONDE du bâtiment cliqué (AWOTOLCityBuildingProp::GetActorLocation()) — sert au
+	// HUD à faire apparaître la fenêtre de détail ANCRÉE près du bâtiment réellement cliqué
+	// (projection écran), au lieu d'un panneau fixe qui s'empilait avec le reste de l'écran
+	// (retour de Liamor du 31/07/2026 : "prends les mécaniques des jeux qui existent... fait
+	// spawn une fenêtre [près du bâtiment]").
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	FVector SelectedCityBuildingWorldLocation = FVector::ZeroVector;
+
 	UFUNCTION(BlueprintCallable, Category = "Demo|City")
 	void SetSelectedCityCategory(EDemoUnitCategory Cat)
 	{
@@ -381,8 +389,17 @@ public:
 		bCitySelectionValid = true;
 	}
 
+	UFUNCTION(BlueprintCallable, Category = "Demo|City")
+	void SetSelectedCityBuildingWorldLocation(const FVector& Loc) { SelectedCityBuildingWorldLocation = Loc; }
+
 	UFUNCTION(BlueprintPure, Category = "Demo|City")
 	bool HasCitySelection() const { return bCitySelectionValid; }
+
+	// Bouton "X" de la fenêtre de bâtiment (fenêtre désormais une popup ancrée, pas un panneau
+	// permanent -> il faut un moyen explicite de la fermer sans devoir cliquer un autre
+	// bâtiment).
+	UFUNCTION(BlueprintCallable, Category = "Demo|City")
+	void ClearCitySelection() { bCitySelectionValid = false; }
 
 	// Onglet actif de la fenêtre de bâtiment (0=Résumé, 1=Recrutement, 2=Statistiques,
 	// 3=Compétences, 4=Rôle). Remis à 0 à chaque nouvelle sélection pour repartir du Résumé

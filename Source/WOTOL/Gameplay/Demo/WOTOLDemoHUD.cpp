@@ -1473,15 +1473,37 @@ FBox2D AWOTOLDemoHUD::CityFeedMythicButtonRect(float W, float H)
 		FVector2D((W + BW) * 0.5f, H * 0.49f + BH));
 }
 
-FBox2D AWOTOLDemoHUD::BuildingTabRect(int32 TabIndex, float W, float H)
+FBox2D AWOTOLDemoHUD::BuildingTabRect(int32 TabIndex, const FBox2D& Panel)
 {
-	// Bande de 5 onglets en haut du panneau de bâtiment (cf. Panel dans DrawCityView).
-	const float PanelMinX = W - 380.f, PanelMaxX = W - 20.f;
-	const float TabY = H * 0.22f + 4.f, TabH = 26.f;
+	// Bande de 5 onglets en haut du panneau de bâtiment (Panel = GetCityBuildingPanelRect).
+	const float TabY = Panel.Min.Y + 38.f, TabH = 26.f;
 	const int32 N = 5;
-	const float TabW = (PanelMaxX - PanelMinX) / N;
-	const float X = PanelMinX + FMath::Clamp(TabIndex, 0, N - 1) * TabW;
+	const float TabW = (Panel.Max.X - Panel.Min.X) / N;
+	const float X = Panel.Min.X + FMath::Clamp(TabIndex, 0, N - 1) * TabW;
 	return FBox2D(FVector2D(X, TabY), FVector2D(X + TabW, TabY + TabH));
+}
+
+FBox2D AWOTOLDemoHUD::GetCityBuildingPanelRect(APlayerController* PC, const FVector& WorldLoc, float W, float H)
+{
+	const float PanelW = 360.f, PanelH = H * 0.36f;
+	FVector2D ScreenPos(W * 0.5f, H * 0.42f); // repli central si la projection échoue
+	if (PC) PC->ProjectWorldLocationToScreen(WorldLoc, ScreenPos, true);
+
+	// Fenêtre "posée" juste à côté du bâtiment cliqué (comme une bulle d'info) : à droite par
+	// défaut, bascule à gauche si ça déborderait de l'écran, puis reste toujours pincée dans
+	// la bande centrale libre entre le bandeau haut (ressources) et le bandeau bas (cartes).
+	float X = ScreenPos.X + 60.f;
+	if (X + PanelW > W - 20.f) X = ScreenPos.X - 60.f - PanelW;
+	X = FMath::Clamp(X, 20.f, W - 20.f - PanelW);
+	float Y = ScreenPos.Y - PanelH * 0.5f;
+	Y = FMath::Clamp(Y, H * 0.18f, H * 0.62f - PanelH);
+	return FBox2D(FVector2D(X, Y), FVector2D(X + PanelW, Y + PanelH));
+}
+
+FBox2D AWOTOLDemoHUD::BuildingCloseButtonRect(const FBox2D& Panel)
+{
+	const float Sz = 26.f;
+	return FBox2D(FVector2D(Panel.Max.X - Sz - 8.f, Panel.Min.Y + 6.f), FVector2D(Panel.Max.X - 8.f, Panel.Min.Y + 6.f + Sz));
 }
 
 FBox2D AWOTOLDemoHUD::TerritoryRepairButtonRect(float W, float H)
@@ -1920,22 +1942,22 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		}
 	}
 
-	// ─── FENÊTRE DE BÂTIMENT (multi-onglets) : détail du bâtiment sélectionné (clic 3D sur la
-	// maquette isométrique OU clic sur sa carte). Placée à droite, dans la bande centrale
-	// laissée libre par les bandeaux haut/bas -> ne masque ni les ressources ni les cartes.
-	// Onglets RÉSUMÉ/RECRUTEMENT/STATISTIQUES/COMPÉTENCES/RÔLE (demande Liamor 29/07/2026,
-	// exemple/prototype — pas encore une recréation pixel-perfect d'une maquette de référence).
+	// ─── FENÊTRE DE BÂTIMENT (multi-onglets) : POPUP ANCRÉE près du bâtiment réellement cliqué
+	// (projection écran de SelectedCityBuildingWorldLocation), pas un panneau fixe qui
+	// s'empilait avec le reste de l'écran (retour de Liamor du 31/07/2026 : "fait spawn une
+	// fenêtre [près du bâtiment], prends les mécaniques des jeux qui existent"). Bouton "X"
+	// pour la fermer explicitement (GetCityBuildingPanelRect/BuildingCloseButtonRect partagés
+	// avec le clic dans WOTOLPlayerController_Battle, même calcul des deux côtés).
+	// Onglets RÉSUMÉ/RECRUTEMENT/STATISTIQUES/COMPÉTENCES/RÔLE (demande Liamor 29/07/2026).
 	if (Demo->HasCitySelection())
 	{
 		const EDemoUnitCategory SelCat = Demo->SelectedCityCategory;
-		const FBox2D Panel(FVector2D(W - 380.f, H * 0.22f), FVector2D(W - 20.f, H * 0.58f));
+		const FBox2D Panel = GetCityBuildingPanelRect(GetOwningPlayerController(),
+			Demo->SelectedCityBuildingWorldLocation, W, H);
 		const float PanelW = Panel.Max.X - Panel.Min.X, PanelH = Panel.Max.Y - Panel.Min.Y;
-		// Fond ORNÉ (planche fournie par Liamor le 25/07/2026, jusqu'ici jamais câblée sur cette
-		// fenêtre — c'était un simple rectangle plat + liseré, "pas de fond" selon son retour du
-		// 31/07/2026) : le cadre PORTRAIT est le mieux proportionné pour ce panneau haut et
-		// étroit (les cadres PAYSAGE/WIDE, faits pour des bannières larges, s'écraseraient trop
-		// sur ce format). Voile sombre semi-transparent PAR-DESSUS pour garder le texte lisible
-		// quelle que soit la clarté de l'illustration en dessous.
+		// Fond ORNÉ (planche fournie par Liamor le 25/07/2026) : le cadre PORTRAIT est le mieux
+		// proportionné pour ce panneau haut et étroit. Voile sombre semi-transparent PAR-DESSUS
+		// pour garder le texte lisible quelle que soit la clarté de l'illustration en dessous.
 		if (UTexture2D* Frame = GetPanelFramePortrait(Demo->GetPlayerFaction()))
 		{
 			DrawTexture(Frame, Panel.Min.X, Panel.Min.Y, PanelW, PanelH, 0.f, 0.f, 1.f, 1.f);
@@ -1947,23 +1969,35 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		}
 		DrawLine(Panel.Min.X, Panel.Min.Y, Panel.Max.X, Panel.Min.Y, Accent, 3.f);
 
+		// Titre (nom du bâtiment) + bouton "X" — une popup a besoin de s'identifier et de se
+		// fermer explicitement, contrairement à un panneau permanent.
+		DrawText(CityBuildingLabel(Fac, SelCat).ToUpper(), Accent, Panel.Min.X + 12.f, Panel.Min.Y + 7.f,
+			GEngine ? GEngine->GetSmallFont() : nullptr, 0.85f);
+		{
+			const FBox2D CloseR = BuildingCloseButtonRect(Panel);
+			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.4f), CloseR.Min.X, CloseR.Min.Y,
+				CloseR.Max.X - CloseR.Min.X, CloseR.Max.Y - CloseR.Min.Y);
+			DrawText(TEXT("X"), FLinearColor(0.9f, 0.5f, 0.45f, 1.f), CloseR.Min.X + 8.f, CloseR.Min.Y + 3.f,
+				GEngine ? GEngine->GetMediumFont() : nullptr, 1.0f);
+		}
+
 		// Barre d'onglets.
 		static const TCHAR* TabNames[5] = { TEXT("RESUME"), TEXT("RECRUTEMENT"), TEXT("STATS"),
 			TEXT("COMPETENCES"), TEXT("ROLE") };
 		const int32 ActiveTab = Demo->GetSelectedBuildingTab();
 		for (int32 t = 0; t < 5; ++t)
 		{
-			const FBox2D TabR = BuildingTabRect(t, W, H);
+			const FBox2D TabR = BuildingTabRect(t, Panel);
 			const bool bActiveTab = (t == ActiveTab);
 			DrawRect(bActiveTab ? Accent.CopyWithNewOpacity(0.35f) : FLinearColor(0.f, 0.f, 0.f, 0.3f),
 				TabR.Min.X, TabR.Min.Y, TabR.Max.X - TabR.Min.X, TabR.Max.Y - TabR.Min.Y);
 			DrawText(TabNames[t], bActiveTab ? FLinearColor::White : FLinearColor(0.6f, 0.65f, 0.72f, 1.f),
 				TabR.Min.X + 6.f, TabR.Min.Y + 5.f, GEngine ? GEngine->GetSmallFont() : nullptr, 0.62f);
 		}
-		DrawLine(Panel.Min.X, Panel.Min.Y + 34.f, Panel.Max.X, Panel.Min.Y + 34.f,
+		DrawLine(Panel.Min.X, Panel.Min.Y + 68.f, Panel.Max.X, Panel.Min.Y + 68.f,
 			FLinearColor(1.f, 1.f, 1.f, 0.15f), 1.f);
 
-		float Y = Panel.Min.Y + 46.f;
+		float Y = Panel.Min.Y + 80.f;
 
 		const bool bSelUnlocked = Demo->IsCategoryUnlocked(SelCat);
 		if (!bSelUnlocked)
@@ -2150,7 +2184,7 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		if (Demo->IsCategoryUnlocked(SelCat)
 			&& !(SelCat == EDemoUnitCategory::Distance && !Demo->IsRangedBuildingConstructed()))
 		{
-			DrawButton(BuildingResearchButtonRect(W, H), TEXT("RECHERCHE"),
+			DrawButton(BuildingResearchButtonRect(Panel), TEXT("RECHERCHE"),
 				FLinearColor(0.6f, 0.8f, 1.f, 1.f), 0.85f);
 		}
 	}
@@ -2364,9 +2398,8 @@ FBox2D AWOTOLDemoHUD::ResearchChefTierRect(float W, float H)
 	return FBox2D(FVector2D(CenterX - BW * 0.5f, Y), FVector2D(CenterX + BW * 0.5f, Y + 56.f));
 }
 
-FBox2D AWOTOLDemoHUD::BuildingResearchButtonRect(float W, float H)
+FBox2D AWOTOLDemoHUD::BuildingResearchButtonRect(const FBox2D& Panel)
 {
-	const FBox2D Panel(FVector2D(W - 380.f, H * 0.22f), FVector2D(W - 20.f, H * 0.58f));
 	const float BW = 200.f, BH = 40.f;
 	return FBox2D(FVector2D(Panel.Max.X - BW - 12.f, Panel.Max.Y - BH - 10.f),
 		FVector2D(Panel.Max.X - 12.f, Panel.Max.Y - 10.f));

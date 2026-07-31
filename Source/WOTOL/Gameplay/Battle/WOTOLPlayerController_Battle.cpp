@@ -22,6 +22,21 @@
 #include "GameFramework/GameUserSettings.h"
 #include "EngineUtils.h"
 
+// Position monde du prop de bâtiment correspondant à une catégorie (sert à ancrer la fenêtre
+// de détail de la cité près du bâtiment réellement cliqué, plutôt qu'un panneau fixe — cf.
+// UDemoFlowSubsystem::SelectedCityBuildingWorldLocation). Utilisé pour les clics sur les
+// cartes 2D du bas d'écran, qui n'ont pas de FHitResult 3D contrairement au clic direct sur
+// la maquette isométrique.
+static FVector FindCityBuildingLocation(UWorld* World, EDemoUnitCategory Cat)
+{
+	if (!World) return FVector::ZeroVector;
+	for (TActorIterator<AWOTOLCityBuildingProp> It(World); It; ++It)
+	{
+		if (It->Category == Cat) return It->GetActorLocation();
+	}
+	return FVector::ZeroVector;
+}
+
 AWOTOLPlayerController_Battle::AWOTOLPlayerController_Battle()
 {
 	bShowMouseCursor    = true;
@@ -372,6 +387,7 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 				if (AWOTOLDemoHUD::CityCardUpgradeRect(i, VpSize.X, VpSize.Y).IsInside(M))
 				{
 					Demo->SetSelectedCityCategory(Cat);
+					Demo->SetSelectedCityBuildingWorldLocation(FindCityBuildingLocation(GetWorld(), Cat));
 					if (Cat == EDemoUnitCategory::Distance && !Demo->IsRangedBuildingConstructed())
 						Demo->ArmRangedBuildingPlacement();
 					else
@@ -382,6 +398,7 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 				if (AWOTOLDemoHUD::CityCardRect(i, VpSize.X, VpSize.Y).IsInside(M))
 				{
 					Demo->SetSelectedCityCategory(Cat);
+					Demo->SetSelectedCityBuildingWorldLocation(FindCityBuildingLocation(GetWorld(), Cat));
 					if (Cat == EDemoUnitCategory::Distance && !Demo->IsRangedBuildingConstructed())
 					{
 						Demo->ArmRangedBuildingPlacement();
@@ -411,25 +428,33 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 					return true;
 				}
 			}
-			// Onglets de la fenêtre de bâtiment (Résumé/Recrutement/Statistiques/Compétences/
-			// Rôle) — actifs seulement si un bâtiment est sélectionné (demande Liamor 29/07/2026).
+			// Fenêtre de bâtiment (popup ancrée près du bâtiment cliqué, cf.
+			// AWOTOLDemoHUD::GetCityBuildingPanelRect — MÊME calcul que le dessin, pour que le
+			// clic tombe exactement sur ce qui est affiché) : bouton "X", onglets, bouton
+			// RECHERCHE — actifs seulement si un bâtiment est sélectionné.
 			if (Demo->HasCitySelection())
 			{
+				const FBox2D BuildingPanel = AWOTOLDemoHUD::GetCityBuildingPanelRect(
+					this, Demo->SelectedCityBuildingWorldLocation, VpSize.X, VpSize.Y);
+				if (AWOTOLDemoHUD::BuildingCloseButtonRect(BuildingPanel).IsInside(M))
+				{
+					Demo->ClearCitySelection();
+					return true;
+				}
 				for (int32 t = 0; t < 5; ++t)
 				{
-					if (AWOTOLDemoHUD::BuildingTabRect(t, VpSize.X, VpSize.Y).IsInside(M))
+					if (AWOTOLDemoHUD::BuildingTabRect(t, BuildingPanel).IsInside(M))
 					{
 						Demo->SetSelectedBuildingTab(t);
 						return true;
 					}
 				}
-			}
-			// Bouton RECHERCHE de la fenêtre de bâtiment (cité + Chef en un seul écran).
-			if (Demo->HasCitySelection()
-				&& AWOTOLDemoHUD::BuildingResearchButtonRect(VpSize.X, VpSize.Y).IsInside(M))
-			{
-				Demo->SetScreen(EDemoScreen::Research);
-				return true;
+				// Bouton RECHERCHE de la fenêtre de bâtiment (cité + Chef en un seul écran).
+				if (AWOTOLDemoHUD::BuildingResearchButtonRect(BuildingPanel).IsInside(M))
+				{
+					Demo->SetScreen(EDemoScreen::Research);
+					return true;
+				}
 			}
 			if (AWOTOLDemoHUD::CitySkillsButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 			{
@@ -471,6 +496,7 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 				if (AWOTOLCityBuildingProp* Prop = Cast<AWOTOLCityBuildingProp>(CityHit.GetActor()))
 				{
 					Demo->SetSelectedCityCategory(Prop->Category);
+					Demo->SetSelectedCityBuildingWorldLocation(Prop->GetActorLocation());
 					return true;
 				}
 			}
