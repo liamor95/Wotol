@@ -1790,6 +1790,17 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		{
 			DrawText(TEXT("Niveau max"), FLinearColor(0.6f, 0.7f, 0.6f, 1.f), CX + 78.f, R.Min.Y + 8.f, nullptr, 0.95f);
 		}
+		// Portrait de l'unité (planche officielle, même image que le socle 3D et la fenêtre de
+		// bâtiment) en haut à droite — la carte n'affichait jusqu'ici que du texte, jamais
+		// l'illustration, contrairement à la planche de référence envoyée par Liamor le
+		// 31/07/2026 (portrait carré sur chaque carte de recrutement).
+		if (UTexture2D* CardIcon = WOTOLBuildingArt::GetBuildingIcon(Fac, Cat))
+		{
+			const float IconSz = 40.f;
+			const float IconX = R.Max.X - IconSz - 8.f, IconY = R.Min.Y + 40.f;
+			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.35f), IconX - 2.f, IconY - 2.f, IconSz + 4.f, IconSz + 4.f);
+			DrawTexture(CardIcon, IconX, IconY, IconSz, IconSz, 0.f, 0.f, 1.f, 1.f);
+		}
 		DrawText(CityBuildingLabel(Fac, Cat), Border, CX, R.Min.Y + 40.f, GEngine ? GEngine->GetMediumFont() : nullptr, 0.9f);
 		DrawText(CityUnitLabel(Fac, Cat), FLinearColor::White, CX, R.Min.Y + 66.f, GEngine ? GEngine->GetLargeFont() : nullptr, 1.1f);
 
@@ -1816,9 +1827,16 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		}
 		else
 		{
-			DrawText(FString::Printf(TEXT("Cout : %d   Reserve : %d"), Cost, InReserve),
+			// Jeton de coût (pastille ronde, langage visuel de la planche de référence) devant
+			// le texte, au lieu d'un simple "Cout : X" sans repère visuel.
+			if (Canvas)
+			{
+				Canvas->K2_DrawPolygon(nullptr, FVector2D(CX + 7.f, R.Min.Y + 100.f), FVector2D(7.f, 7.f),
+					16, FLinearColor(1.f, 0.85f, 0.3f, 1.f));
+			}
+			DrawText(FString::Printf(TEXT("%d   Reserve : %d"), Cost, InReserve),
 				bAfford ? FLinearColor(1.f, 0.95f, 0.6f, 1.f) : FLinearColor(1.f, 0.55f, 0.5f, 1.f),
-				CX, R.Min.Y + 96.f, nullptr, 0.95f);
+				CX + 18.f, R.Min.Y + 96.f, nullptr, 0.95f);
 			const FString Action = bAfford ? TEXT("+ PRODUIRE")
 				: (Demo->GetArmyUnitCount() >= Demo->GetArmyUnitCap()
 					? TEXT("PLAFOND D'ARMEE") : TEXT("INDISPONIBLE / RESERVE OBJECTIF"));
@@ -1922,13 +1940,52 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 			}
 			else
 			{
+				// Vraie CARTE de recrutement (portrait + jeton de coût + statut), sur le modèle
+				// de la planche de référence envoyée par Liamor le 31/07/2026 (portrait carré,
+				// coût en icône+nombre, pas un simple texte qui s'enchaîne).
 				const FName SelUnitID = Demo->GetUnitID(Fac, SelCat);
-				DrawCenteredTextInBox(Panel, FString::Printf(TEXT("Cout de production : %d"), Demo->GetProductionCost(SelCat)),
-					Y, FLinearColor(1.f, 0.95f, 0.6f, 1.f), 0.9f); Y += 26.f;
-				DrawCenteredTextInBox(Panel, FString::Printf(TEXT("En reserve : %d"), Demo->GetReserveCount(SelUnitID)),
-					Y, FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 0.85f); Y += 30.f;
-				DrawCenteredTextInBox(Panel, TEXT("Utilisez la carte de production en bas de l'ecran pour produire."),
-					Y, FLinearColor(0.7f, 0.75f, 0.85f, 0.85f), 0.72f);
+				const float CardM = 22.f;
+				const FBox2D Card(FVector2D(Panel.Min.X + CardM, Y), FVector2D(Panel.Max.X - CardM, Y + 230.f));
+				const float CardW = Card.Max.X - Card.Min.X, CardH = Card.Max.Y - Card.Min.Y;
+				DrawRect(FLinearColor(0.10f, 0.13f, 0.18f, 0.6f), Card.Min.X, Card.Min.Y, CardW, CardH);
+				DrawRect(Accent.CopyWithNewOpacity(0.55f), Card.Min.X, Card.Min.Y, CardW, 2.f);
+
+				float CY = Card.Min.Y + 14.f;
+				const float PortraitSize = 88.f;
+				const float PortraitX = (Card.Min.X + Card.Max.X) * 0.5f - PortraitSize * 0.5f;
+				if (UTexture2D* Icon = WOTOLBuildingArt::GetBuildingIcon(Fac, SelCat))
+				{
+					DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.35f), PortraitX - 3.f, CY - 3.f,
+						PortraitSize + 6.f, PortraitSize + 6.f);
+					DrawTexture(Icon, PortraitX, CY, PortraitSize, PortraitSize, 0.f, 0.f, 1.f, 1.f);
+				}
+				CY += PortraitSize + 10.f;
+				DrawCenteredTextInBox(Card, CityUnitLabel(Fac, SelCat), CY, FLinearColor::White, 0.95f);
+				CY += 28.f;
+
+				// Jeton de coût : pastille ronde + nombre (langage "pilule d'icône" de la planche
+				// de référence), plutôt qu'une simple ligne de texte "Cout de production : X".
+				const int32 Cost = Demo->GetProductionCost(SelCat);
+				const FString CostStr = FString::Printf(TEXT("%d"), Cost);
+				float CW = 0.f, CH = 0.f;
+				GetTextSize(CostStr, CW, CH, GEngine ? GEngine->GetMediumFont() : nullptr, 1.0f);
+				const float TokenR = 10.f;
+				const float RowW = TokenR * 2.f + 8.f + CW;
+				const float RowX = (Card.Min.X + Card.Max.X) * 0.5f - RowW * 0.5f;
+				if (Canvas)
+				{
+					Canvas->K2_DrawPolygon(nullptr, FVector2D(RowX + TokenR, CY + TokenR), FVector2D(TokenR, TokenR),
+						16, FLinearColor(1.f, 0.85f, 0.3f, 1.f));
+				}
+				DrawText(CostStr, FLinearColor(1.f, 0.95f, 0.7f, 1.f), RowX + TokenR * 2.f + 8.f, CY + 2.f,
+					GEngine ? GEngine->GetMediumFont() : nullptr, 1.0f);
+				CY += TokenR * 2.f + 16.f;
+
+				DrawCenteredTextInBox(Card, FString::Printf(TEXT("En reserve : %d"), Demo->GetReserveCount(SelUnitID)),
+					CY, FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 0.82f);
+				CY += 24.f;
+				DrawCenteredTextInBox(Card, TEXT("Produire via la carte en bas de l'ecran"),
+					CY, FLinearColor(0.7f, 0.75f, 0.85f, 0.85f), 0.7f);
 			}
 		}
 		else if (ActiveTab == 2) // ─── STATISTIQUES ───
