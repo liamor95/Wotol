@@ -1,5 +1,35 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Reskin general des fenetres HUD + references concretes (31/07/2026, suite)
+
+Retour de Liamor : pas assez de recherche visuelle faite, "tu as juste compile betement
+une idee au lieu d'aller chercher". Vrai passage de recherche web fait (sources : Game UI
+Database, Interface In Game, gamedeveloper.com, technique 9-slice) + 2 captures de reference
+envoyees par Liamor (jeu mobile type Forge of Empires/Travian) :
+- Carte strategique : bandeau ressources en haut avec icones en pilule arrondie, titre
+  "Carte du continent" en bandeau orne coin haut-gauche, portrait de quete rond avec halo,
+  bouton "Retour" orne en bas-gauche.
+- Fenetre de recrutement de batiment : bandeau titre marron fonce en haut (titre + bouton X),
+  corps en planches de bois avec plusieurs CARTES INDIVIDUELLES cote a cote (une par
+  emplacement/unite) : portrait carre + cout en icones + bouton "Produire" orange par carte,
+  emplacements verrouilles avec icone cadenas + cout de deverrouillage, bandeau d'info
+  bonus/matchup en bas sur fond diorama hexagonal.
+
+**Fait cette passe** : nouvelle fonction commune `DrawFramedPanel` (choisit automatiquement
+la planche PanelFrame/Wide/Portrait selon la forme du panneau + voile de lisibilite) appliquee
+a TOUS les grands ecrans qui n'avaient encore qu'un rectangle plat : recapitulatif avant
+lancement, fenetre RECHERCHE (2 moities), ecran COMPETENCES (n'avait AUCUN fond avant),
+resume de bataille (2 colonnes), les 2 fenetres tuto de preparation. Pas applique aux petits
+widgets fins (bandeau objectif, barre de commandement, minimap, indicateur de competence) —
+une planche etiree sur une bande fine nuirait a la lisibilite plutot que l'ameliorer.
+
+**PROCHAINE ETAPE, pas encore faite** : restructurer l'onglet RECRUTEMENT de la fenetre de
+batiment (actuellement : texte qui s'enchaine verticalement) en VRAIES CARTES individuelles
+cote a cote (portrait + cout + bouton par carte), sur le modele de la 2e capture de Liamor —
+plus proche de ce qu'il demande qu'un simple fond illustre derriere du texte qui coule. Gros
+morceau (implique de repenser la mise en page de DrawCityView/l'onglet Recrutement), a faire
+avec le prochain retour visuel de Liamor pour verifier que ca correspond a l'intention.
+
 ## 2e vague de captures : sol de cite, jauge, flou en pause (31/07/2026, suite)
 
 Malgre le fix du fond de cite (backdrop mal positionne), le "gros cercle bleu" etait TOUJOURS
