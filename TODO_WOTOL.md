@@ -1,5 +1,39 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Retour esthetique de Liamor (31/07/2026) — fait vs. a prevoir
+
+Gros retour visuel apres le 1er lancement reel. Traite tout de suite (fait, pousse) :
+- Nouveau fond de `MainMenuBG.png` (Liamor avait envoye un remplacement, l'ancien trainait
+  encore alors qu'il avait deja ete fourni).
+- Emblemes de l'ecran de choix de faction : etaient colles bruts (planche rectangulaire
+  complete avec son propre decor) dans un carre 100x100 qui les ecrasait -> detoures
+  (degrade alpha, EmblemAquilorisIcon.png/EmblemNoxeensIcon.png) + dessines a leur vrai
+  ratio d'aspect, plus grands.
+- Description de faction repositionnee (ecart fixe sous la description courte, plus
+  d'ancrage H*0.545 independant "au milieu") + couleur quasi-blanche pour le contraste.
+
+**PAS fait, a prevoir pour la suite** (trop risque de faire ca en aveugle sans retour visuel,
+mieux vaut avancer par petites passes verifiees) :
+1. **Portraits du Chef/Aquira/Noxar** : Liamor veut de vrais visuels illustres pour la
+   personnalisation du heros. AUCUN asset de ce type n'existe dans Content/UI (juste des
+   cadres decoratifs) -> il faut que Liamor fournisse les planches (comme pour les
+   batiments/embleme/fond de cite), je ne peux pas inventer de portraits de personnages.
+2. **Reskin de TOUTES les fenetres/boutons cliquables** avec l'esthetique des planches
+   PanelFrame*.png (actuellement : rectangles pleine couleur + liseré doré, pas de texture
+   de fond) — demande explicite de reprendre le style des captures de jeux de reference
+   envoyees (Vikings/Total War). Gros chantier : `DrawButton`/`DrawRect` sont utilises dans
+   quasiment tous les ecrans du HUD (des dizaines d'appels). A faire progressivement,
+   ecran par ecran, pas en un seul gros commit aveugle.
+3. **Suppression de l'ombre portee du texte** (`DrawCenteredText`/`DrawCenteredTextInBox`
+   dessinent systematiquement un texte noir decale +2px derriere -> "dedouble/grossit le
+   trait" selon Liamor) + choix de couleur de texte au CAS PAR CAS selon la couleur de fond
+   de chaque fenetre (pas de couleur generique). Meme remarque : fonction partagee par tout
+   le HUD, a auditer fenetre par fenetre plutot qu'en un seul changement aveugle qui
+   pourrait casser la lisibilite ailleurs.
+4. **Ecrans avec fenetres qui se chevauchent** lors des sequences d'objectifs enchainees
+   (ex: recuperation de l'oeuf, recompense Leviaphenix) — a identifier precisement une fois
+   que Liamor aura renvoye des captures de la nouvelle version compilee.
+
 ## Allegement memoire des images d'interface (31/07/2026, suite)
 
 Liamor plante (rapport de crash Unreal a envoyer a Epic) juste avant de lancer la bataille
