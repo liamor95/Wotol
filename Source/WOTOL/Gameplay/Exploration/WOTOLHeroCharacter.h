@@ -129,6 +129,12 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Hero")
 	EFactionID Faction = EFactionID::None;
 
+	// Incarnation Aquiloris (Aquis/chef vs Aquira/reine, stats identiques — cf. FHeroLoadout) :
+	// lu au spawn depuis le GameInstance, sert uniquement a une variante visuelle dans
+	// BuildHeroBody (sans effet pour les Noxeens).
+	UPROPERTY(BlueprintReadOnly, Category = "Hero")
+	bool bIsAquira = false;
+
 	// Mouvement (nage en volume)
 	void MoveForward(float Value);
 	void MoveRight(float Value);

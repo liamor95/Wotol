@@ -36,7 +36,12 @@ FBox2D AWOTOLDemoHUD::MenuButtonRect(int32 Index, float W, float H)
 {
 	const float BW = 280.f, BH = 54.f, Gap = 18.f;
 	const float X = (W - BW) * 0.5f;
-	const float Y0 = H * 0.50f; // decale vers le bas (place liberee pour la rangee vitesse de jeu)
+	// CHAÎNÉ (retour terrain 31/07/2026) sur le bas de la rangée "Vitesse de jeu" au lieu d'une
+	// fraction fixe de H (H*0.50) indépendante de la chaîne Musique->Affichage->Vitesse
+	// au-dessus -> "Vitesse de jeu" pouvait chevaucher "Reprendre" sur les fenêtres basses
+	// (l'écart entre les deux dépendait de H de façon incohérente, cf. GameSpeedButtonRect).
+	const FBox2D SpeedRect = GameSpeedButtonRect(0, W, H);
+	const float Y0 = SpeedRect.Max.Y + 40.f;
 	const float Y = Y0 + Index * (BH + Gap);
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
@@ -191,18 +196,30 @@ FBox2D AWOTOLDemoHUD::InterludeContinueButtonRect(float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
+// Monter/Descendre : REPOSITIONNÉS (retour terrain 31/07/2026) à côté de la minimap (coin
+// bas-droit, cf. MinimapRect), en plus PETIT — au lieu de flotter seuls au-dessus du coin
+// bas-droit sans rapport visuel avec elle. Bloc partagé (largeur/gap) pour rester synchronisé
+// avec MinimapRect ci-dessous.
+namespace
+{
+	constexpr float kLayerBtnW = 92.f, kLayerBtnH = 34.f, kLayerBtnGap = 8.f;
+	constexpr float kMinimapSz = 180.f, kMinimapMargin = 16.f;
+}
+
 FBox2D AWOTOLDemoHUD::LayerUpButtonRect(float W, float H)
 {
-	const float BW = 130.f, BH = 40.f;
-	const float X = W - BW - 16.f, Y = H - 150.f;
-	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+	const float MinimapX = W - kMinimapSz - kMinimapMargin;
+	const float X = MinimapX - kLayerBtnGap - kLayerBtnW;
+	const float Y = H - kMinimapMargin - kMinimapSz;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + kLayerBtnW, Y + kLayerBtnH));
 }
 
 FBox2D AWOTOLDemoHUD::LayerDownButtonRect(float W, float H)
 {
-	const float BW = 130.f, BH = 40.f;
-	const float X = W - BW - 16.f, Y = H - 104.f;
-	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
+	const float MinimapX = W - kMinimapSz - kMinimapMargin;
+	const float X = MinimapX - kLayerBtnGap - kLayerBtnW;
+	const float Y = H - kMinimapMargin - kMinimapSz + kLayerBtnH + kLayerBtnGap;
+	return FBox2D(FVector2D(X, Y), FVector2D(X + kLayerBtnW, Y + kLayerBtnH));
 }
 
 void AWOTOLDemoHUD::DrawHUD()
@@ -1348,7 +1365,10 @@ void AWOTOLDemoHUD::DrawPreGameSummary(float W, float H, UDemoFlowSubsystem* Dem
 	FString DiffLabel = TEXT("Normal");
 	for (int32 i = 0; i < 3; ++i) if (DiffVals[i] == Demo->GetDifficulty()) DiffLabel = DiffLabels[i];
 
-	const FBox2D Panel(FVector2D(W * 0.5f - 420.f, H * 0.22f), FVector2D(W * 0.5f + 420.f, H * 0.74f));
+	// Hauteur FIXE (retour terrain 31/07/2026) au lieu de "H*0.74" : le contenu (4 lignes de
+	// libellé+valeur, ~316px) ne remplissait qu'une fraction du panneau sur les grandes fenêtres
+	// (jusqu'à 0.52*H de haut) -> gros bloc de cadre décoratif vide sous le texte.
+	const FBox2D Panel(FVector2D(W * 0.5f - 420.f, H * 0.22f), FVector2D(W * 0.5f + 420.f, H * 0.22f + 400.f));
 	DrawFramedPanel(Panel, Demo->SelectedFaction);
 	DrawLine(Panel.Min.X, Panel.Min.Y, Panel.Max.X, Panel.Min.Y, Accent, 3.f);
 
@@ -2915,7 +2935,13 @@ void AWOTOLDemoHUD::DrawSummary(float W, float H, UDemoFlowSubsystem* Demo)
 		const int32 N = FMath::Max(1, Entries.Num());
 		const float Step = FMath::Clamp(AvailH / N, 34.f, 52.f);
 
-		float Y = ColTop + HeaderH;
+		// CENTRÉ VERTICALEMENT dans l'espace dispo (retour terrain 31/07/2026) : avec peu
+		// d'entrées (ex. "PERTES ENNEMIES" = 1 seule ligne "Kraken" face à 3 lignes côté joueur),
+		// le bloc restait collé sous l'en-tête -> grand vide entre lui et TOTAL (ancré en bas),
+		// donnant l'impression d'un cadre à moitié vide/inutilisé. Centrer distribue l'espace
+		// libre au-dessus ET en dessous au lieu de tout laisser en dessous.
+		const float EntriesH = FMath::Min(AvailH, N * Step);
+		float Y = ColTop + HeaderH + FMath::Max(0.f, (AvailH - EntriesH) * 0.5f);
 		int32 TotalLost = 0, Total = 0;
 		if (Entries.Num() == 0)
 		{
@@ -3779,9 +3805,12 @@ void AWOTOLDemoHUD::DrawFormationSelector(float W, float H, UWorld* World)
 
 FBox2D AWOTOLDemoHUD::MinimapRect(float W, float H)
 {
-	const float MW = 220.f, MH = 220.f;
-	// Sous les boutons pause/réglages (qui occupent Y 14-50 en haut-droit) -> pas de chevauchement.
-	return FBox2D(FVector2D(W - MW - 16.f, 58.f), FVector2D(W - 16.f, 58.f + MH));
+	// REPOSITIONNÉE (retour terrain 31/07/2026) : coin bas-droit au lieu de haut-droit -> ne
+	// chevauche plus les cartes de sélection d'unités (bas-gauche, loin) ni les boutons
+	// pause/réglages (haut-droit, maintenant libres). Monter/Descendre (ci-dessus,
+	// LayerUpButtonRect/LayerDownButtonRect) sont ancrés sur les MÊMES constantes -> synchronisés.
+	return FBox2D(FVector2D(W - kMinimapSz - kMinimapMargin, H - kMinimapMargin - kMinimapSz),
+		FVector2D(W - kMinimapMargin, H - kMinimapMargin));
 }
 
 // Bornes du monde (centre + étendue) utilisées par la minimap — extrait en fonction PARTAGÉE

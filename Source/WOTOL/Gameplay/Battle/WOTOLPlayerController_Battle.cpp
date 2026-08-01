@@ -641,11 +641,20 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 			if (AWOTOLDemoHUD::HeroAquilorisVariantButtonRect(0, VpSize.X, VpSize.Y).IsInside(M))
 			{
 				Demo->SetHeroPlayAsAquira(false); // AQUIS
+				// BUG CORRIGE (retour terrain 31/07/2026) : choisir Aquira ne changeait rien en jeu
+				// -> DemoFlowSubsystem::HeroLoadout ne survit PAS au chargement du niveau
+				// d'exploration (contrairement au GameInstance). Le personnage jouable
+				// (WOTOLHeroCharacter::BeginPlay) ne peut lire que le GameInstance -> report
+				// obligatoire ici, meme pattern que SelectFaction ci-dessus.
+				if (UWOTOLGameInstance* GI = Cast<UWOTOLGameInstance>(GetGameInstance()))
+					GI->SessionConfig.HeroLoadout.bPlayAsAquira = false;
 				return true;
 			}
 			if (AWOTOLDemoHUD::HeroAquilorisVariantButtonRect(1, VpSize.X, VpSize.Y).IsInside(M))
 			{
 				Demo->SetHeroPlayAsAquira(true); // AQUIRA
+				if (UWOTOLGameInstance* GI = Cast<UWOTOLGameInstance>(GetGameInstance()))
+					GI->SessionConfig.HeroLoadout.bPlayAsAquira = true;
 				return true;
 			}
 		}

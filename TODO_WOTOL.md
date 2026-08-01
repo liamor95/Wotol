@@ -1,5 +1,57 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## 7 bugs remontes par capture (31/07/2026, suite) : cape geante, Aquira non joue, fenetres qui se chevauchent
+
+Liamor a envoye 7 captures + 1 video de reference (extrait de film, bataille sous-marine
+cinematique — gardee comme reference d'ambiance/intensite, pas de gameplay WOTOL dedans).
+Diagnostics et fix, un par un :
+
+1. **CAPE DU HERO DEVENUE UN MUR** (le plus grave, regression de mon dernier commit) : la
+   cape "centree" ajoutee au tour precedent (BodyW*1.75 de large, jusqu'a -H*0.42) formait en
+   fait un PANNEAU PLAT GEANT qui cachait entierement bras/mains/jambes/pieds vus depuis la
+   camera 3e personne (qui suit DERRIERE le personnage, DU MEME COTE que la cape "dans le
+   dos" -> elle se retrouvait droit devant l'objectif). Confirme par capture (deux blocs bleus
+   massifs recouvrant tout le bas du corps). Cape reduite drastiquement (largeur/hauteur ~-55%)
+   et resserree contre le torse au lieu de draper jusqu'au genou.
+2. **Choisir AQUIRA ne changeait rien en jeu** (toujours le personnage "Aquis") : cause reelle
+   trouvee — `DemoFlowSubsystem::HeroLoadout` (ou vit `bPlayAsAquira`) ne survit PAS au
+   chargement du niveau d'exploration, contrairement au `GameInstance`. Seule la Faction
+   (Aquiloris/Noxeens) etait correctement reportee vers `GI->SessionConfig` (meme pattern que
+   `SelectFaction`) ; le choix Aquis/Aquira ne l'etait jamais. Fix : report ajoute au clic +
+   nouveau membre `WOTOLHeroCharacter::bIsAquira` lu au spawn + variante visuelle (palette
+   or rose + gemme violette au lieu de or pur + gemme cyan, faute d'asset dedie) pour qu'Aquira
+   soit enfin visuellement distincte.
+3. **Minimap devant les cartes de selection d'unites** : deplacee du coin haut-droit vers le
+   coin bas-droit (comme demande), avec les boutons Monter/Descendre reduits et replaces juste
+   a cote au lieu de flotter seuls au-dessus.
+4. **"Vitesse de jeu" cachee par le bouton "Reprendre"** dans REGLAGES : `MenuButtonRect`
+   utilisait une fraction fixe de H (H*0.50) totalement independante de la chaine
+   Musique->Affichage->Vitesse au-dessus -> l'ecart entre les deux devenait negatif sur les
+   petites fenetres. Desormais chainee sur le bas de la rangee Vitesse (meme pattern que la
+   jauge de verticalite corrigee precedemment).
+5. **Fenetres "RESUME DE LA PARTIE" et "KRAKEN VAINCU" : cadre orne vide, contenu ailleurs** :
+   deux causes distinctes. (a) Le panneau de résumé de personnalisation utilisait une hauteur
+   `H*0.74` alors que le contenu (4 lignes) ne remplit qu'environ 316px -> jusqu'a ~250px de
+   cadre vide en dessous sur une grande fenetre ; hauteur passee a une valeur fixe (400px) qui
+   colle au contenu. (b) Sur l'ecran de resume de bataille, la colonne "PERTES ENNEMIES" n'a
+   souvent qu'UNE SEULE entree (le boss) contre 3+ cote joueur -> le total etant ancre en bas
+   du cadre, ca laissait un grand vide entre l'entree (en haut) et le total (en bas) ; les
+   entrees sont maintenant centrees verticalement dans l'espace disponible.
+6. **Ecran de personnalisation du heros sans aucun visuel** (INCARNATION/HERITAGE/SPECIALITE
+   en boutons texte seuls, "PORTRAIT" = juste un disque de couleur) : recherche confirmee,
+   AUCUN asset de portrait de personnage (Aquis/Aquira/Chef) n'existe nulle part dans le
+   projet (`Content/` grep negatif). Je n'ai pas d'outil de generation d'image disponible dans
+   cette session pour en creer. Ce n'est PAS un bug de code — il manque l'ASSET. Pour avancer
+   il faudra soit que Liamor fournisse des illustrations de portrait (comme il l'a fait pour
+   les emblemes de faction et les icones de ressources plus tot dans la session), soit accepter
+   le disque de couleur comme placeholder definitif pour cette demo 100% C++.
+7. Le "bandeau lumineux horizontal" visible sur 2 captures (ecran de preparation + reglages),
+   qui semble traverser tout l'ecran : PAS trouve de cause cote code (la jauge de verticalite
+   et les lisérés de panneaux sont tous etroits, aucun DrawRect plein-largeur a cet endroit) —
+   probablement un artefact de moire du telephone photographiant l'ecran (frequent en filmant
+   un ecran LCD), pas un bug du jeu. A confirmer si ca persiste sur une VRAIE capture d'ecran
+   (touche Impr. ecran) plutot qu'une photo.
+
 ## Modele du Hero : ~35 -> ~90 pieces + animation de nage a 2 axes (31/07/2026, suite)
 
 Liamor a precise que la demande "ameliorer l'esthetique" visait explicitement la QUALITE DU

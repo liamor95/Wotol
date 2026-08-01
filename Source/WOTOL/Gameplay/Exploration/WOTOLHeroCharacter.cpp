@@ -70,6 +70,9 @@ void AWOTOLHeroCharacter::BeginPlay()
 	if (UWOTOLGameInstance* GI = Cast<UWOTOLGameInstance>(GetGameInstance()))
 	{
 		Faction = GI->GetSelectedFaction();
+		// BUG CORRIGE (retour terrain 31/07/2026) : choisir Aquira a la personnalisation ne
+		// changeait rien au personnage joue (toujours Aquis) -> le choix n'etait jamais lu ici.
+		bIsAquira = GI->GetHeroLoadout().bPlayAsAquira;
 	}
 
 	// Corps détaillé fidèle au Chef de la faction (remplace l'ancienne silhouette greybox
@@ -357,11 +360,17 @@ void AWOTOLHeroCharacter::BuildHeroBody()
 	const float h = H / 100.f;
 	const FRotator NoRot = FRotator::ZeroRotator;
 	const bool bAq = (Faction != EFactionID::Noxeens);
+	// Aquira (reine, stats identiques a Aquis, cf. FHeroLoadout::bPlayAsAquira) : jusqu'ici
+	// jouait comme un Aquis identique (choix jamais lu par le personnage). Sans nouvel asset
+	// disponible, distinction visuelle par la palette (or rose + gemme violette au lieu de
+	// or pur + gemme cyan) plutot que par la geometrie -> reste reconnaissable au premier coup
+	// d'oeil sans toucher au reste du kitbash.
+	const bool bQueen = bAq && bIsAquira;
 
 	const FLinearColor AqArmor   (0.11f, 0.20f, 0.50f, 1.f);
-	const FLinearColor AqGold    (0.95f, 0.78f, 0.25f, 1.f);
+	const FLinearColor AqGold    = bQueen ? FLinearColor(0.90f, 0.55f, 0.68f, 1.f) : FLinearColor(0.95f, 0.78f, 0.25f, 1.f);
 	const FLinearColor AqEyeGlow (0.35f, 0.75f, 1.80f, 1.f);
-	const FLinearColor AqEnergyHi(0.55f, 1.30f, 2.60f, 1.f);
+	const FLinearColor AqEnergyHi = bQueen ? FLinearColor(1.10f, 0.55f, 1.60f, 1.f) : FLinearColor(0.55f, 1.30f, 2.60f, 1.f);
 	const FLinearColor AqCrest   (0.55f, 0.78f, 1.00f, 1.f);
 	const FLinearColor AqCape    (0.06f, 0.11f, 0.26f, 1.f);
 	const FLinearColor NoxDark   (0.08f, 0.07f, 0.13f, 1.f);
@@ -499,8 +508,13 @@ void AWOTOLHeroCharacter::BuildHeroBody()
 		// Cape UNIQUE centrée dans le dos (remplace les 2 pans latéraux qui débordaient sur le
 		// côté au lieu de draper le dos, cf. reference) : segment haut étroit aux épaules +
 		// segment bas plus large pour suggérer l'évasement d'un tissu qui tombe.
-		AddPart(M_CUBE, FVector(-H * 0.12f, 0, H * 0.08f), FVector(0.03f, BodyW * 1.15f, h * 0.22f), FRotator(-6.f, 0, 0), AqCape);
-		AddPart(M_CUBE, FVector(-H * 0.15f, 0, -H * 0.20f), FVector(0.03f, BodyW * 1.75f, h * 0.44f), FRotator(-11.f, 0, 0), AqCape);
+		// CORRECTIF URGENT (retour terrain 31/07/2026, capture jeu) : la cape precedente
+		// (BodyW*1.75 de large, jusqu'a -H*0.42) formait un MUR PLAT qui cachait entierement
+		// bras/mains/jambes/pieds vus depuis la camera 3e personne (qui suit DERRIERE le
+		// personnage, du MEME cote que la cape "dans le dos") -> beaucoup plus petite et
+		// resserree contre le torse, s'arrete a la taille au lieu de descendre jusqu'au genou.
+		AddPart(M_CUBE, FVector(-H * 0.10f, 0, H * 0.10f), FVector(0.02f, BodyW * 0.70f, h * 0.14f), FRotator(-6.f, 0, 0), AqCape);
+		AddPart(M_CUBE, FVector(-H * 0.11f, 0, -H * 0.05f), FVector(0.02f, BodyW * 0.85f, h * 0.16f), FRotator(-11.f, 0, 0), AqCape);
 		// Fermoirs dorés de la cape aux épaules (petites gemmes d'attache).
 		AddPart(M_SPH, FVector(-H * 0.10f, H * 0.13f, H * 0.19f), FVector(0.035f, 0.035f, 0.04f), NoRot, AqGold);
 		AddPart(M_SPH, FVector(-H * 0.10f, -H * 0.13f, H * 0.19f), FVector(0.035f, 0.035f, 0.04f), NoRot, AqGold);
