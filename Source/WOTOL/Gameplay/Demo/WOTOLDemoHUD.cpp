@@ -20,6 +20,8 @@
 #include "Engine/Engine.h"
 #include "Kismet/GameplayStatics.h"
 #include "Data/WOTOLTypes.h"
+#include "WOTOLCityBuildingProp.h"
+#include "EngineUtils.h"
 
 FBox2D AWOTOLDemoHUD::PauseButtonRect(float W, float H)
 {
@@ -1936,6 +1938,31 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 			? FLinearColor(1.f, 0.36f, 0.26f, 1.f)
 			: Demo->IsRangedProductionObjectiveComplete() ? FLinearColor(0.45f, 1.f, 0.55f, 1.f)
 			: FLinearColor(0.9f, 0.95f, 1.f, 0.95f), 1.1f);
+
+	// ─── NOMS DES BÂTIMENTS, flottants au-dessus de chaque bâtiment 3D (01/08/2026, retour
+	// terrain : "il faut qu'on ait le nom du bâtiment visuellement... sinon c'est la galère si
+	// on doit cliquer sur chaque bâtiment pour se rappeler"). Projection écran de chaque
+	// AWOTOLCityBuildingProp (même fonction Project héritée d'AHUD que DrawBattlefieldMarkers
+	// pour les unités en bataille) -> texte centré, toujours visible, pas juste au clic.
+	if (UWorld* CityWorld = GetWorld())
+	{
+		for (TActorIterator<AWOTOLCityBuildingProp> It(CityWorld); It; ++It)
+		{
+			AWOTOLCityBuildingProp* Prop = *It;
+			if (!Prop) continue;
+			const FVector WLoc = Prop->GetActorLocation() + FVector(0.f, 0.f, 170.f);
+			const FVector SP = Project(WLoc);
+			if (SP.Z <= 0.f) continue;
+			if (SP.X < -60.f || SP.X > W + 60.f || SP.Y < -40.f || SP.Y > H + 40.f) continue;
+			const FString Label = CityBuildingLabel(Prop->OwnerFaction, Prop->Category).ToUpper();
+			UFont* LabelFont = GEngine ? GEngine->GetSmallFont() : nullptr;
+			float TW = 0.f, TH = 0.f;
+			GetTextSize(Label, TW, TH, LabelFont, 0.85f);
+			const float LX = SP.X - TW * 0.5f, LY = SP.Y - TH * 0.5f;
+			DrawText(Label, FLinearColor(0.f, 0.f, 0.f, 0.45f), LX + 1.f, LY + 1.f, LabelFont, 0.85f);
+			DrawText(Label, Accent, LX, LY, LabelFont, 0.85f);
+		}
+	}
 
 	// Cartes de production PERMANENTES EN BAS SUPPRIMÉES (31/07/2026, demande explicite de
 	// Liamor : "retire complètement les cartes en bas" — plus aucune fenêtre fixe qui

@@ -1,5 +1,39 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## File d'attente x4 (5->20), noms de batiments flottants, nouveaux cadres (01/08/2026)
+
+Trois demandes du meme retour terrain :
+
+1. **File d'attente de production** (`MaxQueuePerCategory`, `DemoFlowSubsystem.h`) :
+   5 -> 20. "5 par 5 c'est relou... tu vas me faire une liste d'attente d'au moins 20."
+   Simple changement de constante, tout le reste du systeme (barre de progression, texte
+   "x/N") lit deja la constante au lieu d'un "5" en dur -> aucun autre changement necessaire.
+2. **Noms de batiments flottants sur la carte de la Cite** : "il faut qu'on ait le nom du
+   batiment visuellement... sinon c'est la galere si on doit cliquer sur chaque batiment
+   pour se rappeler." Nouvelle boucle dans `DrawCityView` (avant le bloc menu contextuel/
+   fenetre) qui projette chaque `AWOTOLCityBuildingProp` a l'ecran (meme `Project()` herite
+   d'AHUD que `DrawBattlefieldMarkers` pour les unites en bataille) et dessine son nom
+   (`CityBuildingLabel`) centre au-dessus, toujours visible (pas seulement au clic).
+3. **Nouveaux cadres PanelFrame** (les 16 images envoyees par Liamor, majoritairement des
+   variantes de cadres Wide/Portrait Aquiloris/Noxeens deja avec alpha reel) : les 4
+   meilleures (les plus detaillees, alpha confirme par script) recadrees a leur contenu
+   visible et installees a la place des 6 fichiers existants (`PanelFrame{,Wide}
+   {Aquiloris,Noxeens}.png` + les 2 `PanelFramePortrait*.png`) — meme methode que le fix de
+   recadrage du 01/08/2026 plus tot dans la journee.
+
+**Point signale mais PAS re-investigue** : "j'avais joue les Noxeens et la fenetre de
+batiment montrait l'image/les couleurs Aquiloris" — tres probablement la MEME cause deja
+trouvee et corrigee ce jour meme (`AWOTOLGameMode_Demo::BeginPlay` lisait la faction depuis
+une source perimee) puisque `DrawCityView` lit deja `Demo->GetPlayerFaction()` (la source
+fiable) pour tout, y compris la fenetre de batiment. A confirmer resolu au prochain retour
+PC plutot que re-diagnostiquer a l'aveugle sans nouvelle capture.
+
+- **Non verifiable sans rendu reel** : positionnement exact des noms de batiments flottants
+  et rendu des nouveaux cadres, a confirmer au prochain retour PC.
+- **PAS FAIT ce tour-ci (scope trop large sans plus de precision)** : le remodelage complet
+  de la cite (formes de batiment 3D representatives au lieu d'illustrations 2D plaquees,
+  camera avec pan/zoom limite, biome de cristaux disperses) reste un gros chantier a part.
+
 ## Bandeaux sombres haut/bas retires (Cite + Exploration) (01/08/2026)
 
 Retour terrain avec 2 captures de la Cite : "les deux bandes sombres... ça fait comme des

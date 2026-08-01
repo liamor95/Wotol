@@ -565,7 +565,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Demo|Production")
 	TArray<FWOTOLProductionOrder> ProductionQueue;
 
-	static constexpr int32 MaxQueuePerCategory = 5;
+	// 5 -> 20 (01/08/2026, retour terrain : "la liste d'attente 5 par 5 c'est relou, tu vas me
+	// faire une liste d'attente d'au moins 20" -- devoir attendre que la file se vide pour
+	// pouvoir en remettre cassait le rythme de recrutement en masse pour la Phase 3).
+	static constexpr int32 MaxQueuePerCategory = 20;
 
 	// La phase 2 commence avec chef + 16 fantassins + 8 montés = 25 unités. Les 10 unités
 	// à distance demandées remplissent donc exactement le plafond de 35. Les places requises
