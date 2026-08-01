@@ -89,14 +89,19 @@ static float FactionDamage(EFactionID F)
 // PERTES (sinon aucun enjeu). On garde donc ses DÉGÂTS assez élevés (kDMG proche de 1) mais on
 // le rend FRAGILE (kHP plus bas -> il meurt vite = facile). Le PRODUIT kHP×kDMG reste = k²
 // (force de combat ennemie inchangée) -> le ratio R = 1/(kHP×kDMG) est conservé :
-//     Facile   kHP 0.65 × kDMG 0.80 = 0.52  -> R≈1.92
+//     Facile   kHP 0.50 × kDMG 0.80 = 0.40  -> R≈2.50 (kHP baissé 0.65->0.50 le 01/08/2026,
+//              retour terrain : une annihilation complete en Phase 3/Facile n'etait pas
+//              atteignable dans le temps imparti meme en jouant bien -- combine a la reduction
+//              d'effectif ennemi de SpawnRivalSquad et au chrono etendu 900->1080s)
 //     Normal   kHP 0.79 × kDMG 0.90 = 0.711 -> R≈1.41
 //     Difficile kHP 0.93 × kDMG 0.97 = 0.902 -> R≈1.11
 static float EnemyDiffKHP(EDemoDifficulty D)
 {
 	switch (D)
 	{
-		case EDemoDifficulty::Facile:    return 0.65f; // ennemi FRAGILE (meurt vite = facile)
+		// 0.65 -> 0.50 (01/08/2026, retour terrain) : ennemi ENCORE PLUS FRAGILE en Facile pour
+		// qu'une annihilation complete de l'armee rivale reste atteignable en Phase 3.
+		case EDemoDifficulty::Facile:    return 0.50f;
 		case EDemoDifficulty::Difficile: return 0.93f;
 		default:                         return 0.79f; // Normal
 	}
@@ -1187,6 +1192,21 @@ void AWOTOLDemoDirector::SpawnRivalSquad(EFactionID RivalFaction, const FVector&
 		{
 			RivalInfantry = 20; RivalMounted = 12; RivalRanged = 18; RivalSpecial = 8;
 		}
+
+		// REDUCTION EN FACILE (01/08/2026, retour terrain : "il faut faire en sorte que le
+		// joueur puisse vaincre l'ennemi" -- une vraie partie en Facile a atteint le chrono de
+		// 15 min avec 46/60 ennemis encore vivants). L'effectif ci-dessus ne variait jusqu'ici
+		// QUE par le HP/DMG de l'ennemi (EnemyDiffKHP/DMG), jamais par son NOMBRE -> en Facile,
+		// en plus d'etre plus fragile, l'armee rivale est maintenant aussi plus PETITE, pour
+		// qu'une annihilation complete reste vraiment atteignable dans le temps imparti. Normal/
+		// Difficile INCHANGES (aucune donnee de partie ne les signale comme problematiques).
+		if (Demo->GetDifficulty() == EDemoDifficulty::Facile)
+		{
+			RivalInfantry = FMath::RoundToInt(RivalInfantry * 0.65f);
+			RivalMounted  = FMath::RoundToInt(RivalMounted  * 0.65f);
+			RivalRanged   = FMath::RoundToInt(RivalRanged   * 0.65f);
+			RivalSpecial  = FMath::RoundToInt(RivalSpecial  * 0.65f);
+		}
 	}
 
 	FVector ChefLoc = O + FVector(-Depth, 0.f, 100.f);
@@ -1326,10 +1346,14 @@ void AWOTOLDemoDirector::LaunchBattle()
 	const bool bCreatureBattle = BattlePhase == EDemoPhase::Battle_Creature;
 	if (URTSBattleManager* RTS = GetWorld()->GetSubsystem<URTSBattleManager>())
 	{
-		// Phase 3 (grande bataille) : chrono ÉTENDU à 15 min (900 s) ; sinon 10 min.
+		// Phase 3 (grande bataille) : chrono ÉTENDU à 18 min (1080 s, relevé de 900 -- retour
+		// terrain 01/08/2026 : "il faut faire en sorte que le joueur puisse vaincre l'ennemi" --
+		// une vraie partie a atteint le chrono avec seulement 14/60 ennemis tués, 15 min ne
+		// laissait pas assez de marge pour une annihilation complète même en jouant bien) ;
+		// sinon 10 min.
 		const bool bGrand = GetGameInstance() && GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()
 			&& GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>()->GetPhase() == EDemoPhase::Battle_Grand;
-		RTS->StartBattlePhase(bGrand ? 900.f : 600.f);
+		RTS->StartBattlePhase(bGrand ? 1080.f : 600.f);
 		// PERF phase 3 : dizaines de pouvoirs simultanés -> on coupe les LAMPES dynamiques des
 		// VFX (rayons/projectiles). L'émissif + le bloom restent : le spectacle est intact, le
 		// GPU respire. Les phases 1/2 (peu d'unités) gardent les lampes.

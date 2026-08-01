@@ -1,5 +1,43 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Rendre l'annihilation complete atteignable en Phase 3 / Facile (01/08/2026)
+
+Demande explicite de Liamor apres une vraie partie (Facile, Noxeens vs Aquiloris) : au
+chrono ecoule (15 min), 46/60 ennemis etaient encore vivants (14 tues en ~11-12 min de
+combat reel) -- meme en jouant bien, l'annihilation totale de l'armee rivale n'etait pas
+atteignable dans le temps imparti. "il faut faire en sorte que le joueur puisse vaincre
+l'ennemi... en prenant en compte tout ce qu'on a dit" (donc sans re-trivialiser le combat
+comme un feu de paille).
+
+**Important, limite honnete** : je n'ai PAS pu faire un calcul de temps-de-mort (TTK)
+precis, les stats reelles par unite (FUnitStats : MaxHealth/AttackDPS/DefensePercent/etc.)
+vivent dans des Data Assets (.uasset) qui ne sont PAS dans ce repo (dossiers Content/
+Factions/* vides, juste des .gitkeep) -- illisibles pour moi sans editeur. Le reglage
+ci-dessous est donc base sur la SEULE donnee fiable disponible (le vrai ratio observe en
+partie, ~14 tues sur ~11-12 min => il aurait fallu ~3,5x ce rythme pour tout finir en 15
+min) et sur les leviers de difficulte deja en C++ (EnemyDiffKHP/DMG, effectifs de
+SpawnRivalSquad, chrono de bataille) -- PAS verifie par un compilateur/playtest reel, a
+confirmer au prochain retour PC. Trois leviers combines, tous EXCLUSIVEMENT en Facile
+(Normal/Difficile inchanges, aucune donnee ne les signale comme problematiques) sauf le
+chrono (universel) :
+
+1. **Chrono de la grande bataille** (`AWOTOLDemoDirector::StartBattleNow`) : 900s (15 min)
+   -> 1080s (18 min), pour TOUTES les difficultes (+20%).
+2. **Effectif ennemi en Facile** (`SpawnRivalSquad`) : ×0.65 sur Infanterie/Montee/
+   Distance/Speciale UNIQUEMENT si `Demo->GetDifficulty() == Facile` -- jusqu'ici
+   l'effectif ne variait JAMAIS par difficulte (seuls HP/DMG variaient), donc "Facile"
+   ne rendait pas la bataille plus COURTE, juste plus molle.
+3. **Fragilite ennemie en Facile** (`EnemyDiffKHP`) : 0.65 -> 0.50 (kDMG inchange a 0.80,
+   l'ennemi inflige toujours quelques pertes). Nouveau ratio de force R≈2.50 (etait
+   R≈1.92), documente dans le commentaire au-dessus de `EnemyDiffKHP`/`EnemyDiffKDMG`.
+
+Effet combine estime (compte ×1/0.65 ≈ 1.54, HP ×1/(0.50/0.65) ≈ 1.3, temps ×1.2) :
+environ ×2,4 de capacite de nettoyage total -- une amelioration substantielle mais qui
+NE FERME PAS entierement l'ecart de ×3,5 observe en partie reelle. Si le prochain
+playtest montre encore une annihilation impossible en Facile, prochaine piste : reduire
+encore l'effectif (0.65 -> 0.5) plutot que de re-toucher kHP (deja bas, risque de rendre
+les combats individuels triviaux/sans enjeu).
+
 ## Detourage des batiments de cite (illustrations flottaient en rectangle plein) (01/08/2026)
 
 Demande de Liamor : "détoure les bâtiments pour qu'on ait l'impression de voir le bâtiment
