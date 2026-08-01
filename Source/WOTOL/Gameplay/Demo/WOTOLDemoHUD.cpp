@@ -1936,9 +1936,24 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		else if (SelCat == EDemoUnitCategory::Distance && !Demo->IsRangedBuildingConstructed())
 		{
 			DrawCenteredTextInBox(Panel, TEXT("PAS ENCORE CONSTRUIT"), Y, FLinearColor(1.f, 0.85f, 0.4f, 1.f), 1.0f); Y += 30.f;
-			DrawCenteredTextInBox(Panel, FString::Printf(TEXT("Cout : %d cristaux + %d mineraux abyssaux"),
-				Demo->RangedBuildingCrystalCost, Demo->RangedBuildingAbyssalMaterialCost), Y,
-				FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 0.9f); Y += 26.f;
+			// Cout en icone+nombre par ressource (01/08/2026, references reelles supplementaires
+			// envoyees par Liamor : Anno / Frostpunk affichent TOUJOURS "Construction Costs" en
+			// icone+chiffre par ligne, jamais en texte brut) — meme motif que DrawResourceChip
+			// deja utilise ailleurs (barre de ressources, carte de recrutement).
+			{
+				const FString CrystalStr = FString::Printf(TEXT("%d"), Demo->RangedBuildingCrystalCost);
+				const FString AbyssalStr = FString::Printf(TEXT("%d"), Demo->RangedBuildingAbyssalMaterialCost);
+				float CW1 = 0.f, CH1 = 0.f, CW2 = 0.f, CH2 = 0.f;
+				GetTextSize(CrystalStr, CW1, CH1, GEngine ? GEngine->GetMediumFont() : nullptr, 1.0f);
+				GetTextSize(AbyssalStr, CW2, CH2, GEngine ? GEngine->GetMediumFont() : nullptr, 1.0f);
+				const float TokenSize = 20.f, ChipGap = 26.f;
+				const float RowW = (TokenSize + 8.f + CW1) + ChipGap + (TokenSize + 8.f + CW2);
+				const float RowX = (Panel.Min.X + Panel.Max.X) * 0.5f - RowW * 0.5f;
+				const FLinearColor ResCol(1.f, 0.95f, 0.7f, 1.f);
+				const float NextX = DrawResourceChip(GetPrimaryResourceIcon(Fac), CrystalStr, RowX, Y, TokenSize, ResCol);
+				DrawResourceChip(GetAbyssalMaterialsIcon(), AbyssalStr, NextX + ChipGap, Y, TokenSize, ResCol);
+			}
+			Y += 26.f;
 			// Vrai bouton CONSTRUIRE (31/07/2026, suite : remplace le texte "Choisissez un
 			// emplacement via sa carte en bas" — carte permanente supprimée). Arme le placement,
 			// le joueur choisit ensuite l'un des 3 emplacements affichés sur la maquette 3D.
