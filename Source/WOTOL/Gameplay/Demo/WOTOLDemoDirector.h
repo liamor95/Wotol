@@ -602,4 +602,8 @@ private:
 	FRandomStream EncounterRandom;
 	bool bAdaptiveBalanceActive = false;
 	bool bAdaptiveSurvivorsProtected = false;
+	// "Mode Frenesie" (31/07/2026) : annonce UNE FOIS quand l'ancre passe sous le seuil
+	// bEnemyNearDefeat, pour rendre visible/justifie le garde-fou anti-victoire-prematuree
+	// (inspire des mecaniques d'Enrage/Berserk des raids MMO) au lieu de le laisser silencieux.
+	bool bAdaptiveFrenzyAnnounced = false;
 };

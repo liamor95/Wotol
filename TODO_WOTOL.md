@@ -1,5 +1,27 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## "Mode Frenesie" du Kraken : mecanique d'Enrage/Berserk inspiree de vraies references (31/07/2026, suite)
+
+Liamor a redemande explicitement une recherche reelle sur internet avant d'implementer, cette
+fois pour la mecanique "le Kraken resiste pres de la defaite" (garde-fou anti-victoire-
+prematuree deja en place, cf. sections precedentes). Recherche faite (WoWWiki/Wowpedia,
+mecanique "Enrage") : c'est un pattern tres etabli dans les MMO — ex. Deathbringer Saurfang
+(WoW) qui entre en "Frenzy" sous 30% de vie, +30% vitesse d'attaque, un buff NOMME et VISIBLE,
+pas une regle cachee. Le garde-fou WOTOL existant (MinimumHealthFloor + multiplicateurs de
+pression) fonctionnait dans cet esprit mais restait totalement INVISIBLE au joueur -> percu
+comme un bug ("je le tape, il perd pas de vie").
+
+Implemente, sans changer l'equilibrage lui-meme (deja valide par Liamor) :
+- Bandeau "MODE FRENESIE — CARAPACE DURCIE" pres du nom du Kraken sur sa barre de vie (HUD),
+  visible en continu tant que sa vie est sous ~18% (meme seuil que le garde-fou existant),
+  couleur rouge/orange pulsante.
+- Annonce spectaculaire UNE SEULE FOIS (texte flottant a la Léviaphénix/dégâts) au moment
+  precis ou le Kraken franchit ce seuil pour la premiere fois, pour marquer clairement la
+  transition de phase — meme principe que les warnings de phase des raids MMO.
+Le texte "CARAPACE !" (deja corrige precedemment a la place de "CRITIQUE !" quand un coup est
+absorbe) garde tout son sens maintenant : le joueur sait DEJA qu'il est en Mode Frenesie avant
+meme de voir le premier coup absorbe.
+
 ## RESOLU : cause du "cercle bleu plat" en cite Noxeens = mauvais ASSET, pas un bug de code (31/07/2026, suite)
 
 Liamor a envoye une planche de reference (cite-cristal Aquiloris, vue aerienne isometrique) en

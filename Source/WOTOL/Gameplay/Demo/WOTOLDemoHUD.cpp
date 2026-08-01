@@ -3523,6 +3523,22 @@ void AWOTOLDemoHUD::DrawBossBar(float W, float H, AWOTOLDemoUnit* Boss)
 	const FString HP = FString::Printf(TEXT("%d / %d"), CurHP, MaxHP);
 	float HW, HH; GetTextSize(HP, HW, HH, GEngine->GetSmallFont(), 1.f);
 	Shadowed(HP, BX + BarW - HW - 8.f, BY + 2.f, GEngine->GetSmallFont(), 1.f, FLinearColor::White);
+
+	// MODE FRENESIE (retour terrain 31/07/2026 : "inspire-toi des mecaniques de jeux qui
+	// existent" — meme principe que l'"Enrage"/"Berserk" des raids MMO, ex. Deathbringer
+	// Saurfang qui entre en Frenzy sous 30% de vie). Rend VISIBLE et NARRATIVEMENT JUSTIFIE le
+	// garde-fou anti-victoire-prematuree (le Kraken resiste sous ~18% de vie tant que le quota
+	// de pertes n'est pas atteint, cf. WOTOLDemoDirector::UpdateAdaptiveBattleBalance) au lieu
+	// de le laisser invisible (perçu comme un bug : "je le tape, il perd pas de vie").
+	if (Pct <= 0.18f)
+	{
+		const float T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+		const float Pulse = 0.7f + 0.3f * FMath::Sin(T * 5.f);
+		const FString Frenzy = TEXT("MODE FRENESIE — CARAPACE DURCIE");
+		float FW, FH; GetTextSize(Frenzy, FW, FH, GEngine->GetSmallFont(), 0.95f);
+		Shadowed(Frenzy, BX + (BarW - FW) * 0.5f, BY + BarH + 6.f, GEngine->GetSmallFont(), 0.95f,
+			FLinearColor(1.f, 0.35f * Pulse + 0.15f, 0.15f, 1.f));
+	}
 }
 
 // Constantes de disposition PARTAGÉES entre le rendu et le hit-test (double-clic).

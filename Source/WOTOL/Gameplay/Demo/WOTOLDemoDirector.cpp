@@ -1,5 +1,6 @@
 #include "WOTOLDemoDirector.h"
 #include "WOTOLDemoUnit.h"
+#include "WOTOLDamageNumber.h"
 #include "WOTOLCaptureObject.h"
 #include "DemoFlowSubsystem.h"
 #include "WOTOLGlow.h"
@@ -1698,6 +1699,17 @@ void AWOTOLDemoDirector::UpdateAdaptiveBattleBalance()
 	{
 		Pressure = FMath::Max(Pressure, FMath::Min(AdaptiveMaxEnemyPressure, 2.0f));
 		EnemyIncoming = FMath::Min(EnemyIncoming, 0.42f);
+		// "Mode Frenesie" (retour terrain 31/07/2026, inspire des Enrage/Berserk des raids MMO
+		// — ex. Deathbringer Saurfang qui entre en Frenzy sous 30% de vie) : annonce visible
+		// UNE SEULE FOIS quand l'ancre passe sous le seuil, pour que le joueur COMPRENNE
+		// pourquoi ses coups portent moins bien, au lieu de le percevoir comme un bug silencieux.
+		if (!bAdaptiveFrenzyAnnounced && AdaptiveEnemyAnchor && GetWorld())
+		{
+			bAdaptiveFrenzyAnnounced = true;
+			AWOTOLDamageNumber::SpawnText(GetWorld(),
+				AdaptiveEnemyAnchor->GetActorLocation() + FVector(0.f, 0.f, 220.f),
+				TEXT("MODE FRENESIE — CARAPACE DURCIE !"), FLinearColor(1.f, 0.35f, 0.15f, 1.f));
+		}
 	}
 	if (Losses >= AdaptiveTargetLossPreferred)
 	{
@@ -1787,6 +1799,7 @@ void AWOTOLDemoDirector::ResetAdaptiveBattleBalance()
 	AdaptivePlayerCommandIntensity = 0.f;
 	bAdaptiveBalanceActive = false;
 	bAdaptiveSurvivorsProtected = false;
+	bAdaptiveFrenzyAnnounced = false;
 }
 
 void AWOTOLDemoDirector::CheckBattleEnd()
