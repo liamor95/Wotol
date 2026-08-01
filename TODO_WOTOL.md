@@ -1,5 +1,35 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Cadres de panneau (PanelFrame*.png) flottaient, deconnectes de l'overlay plat (01/08/2026)
+
+Retour terrain avec 3 captures : "c'est soit tu mets tes fenetres soit tu mets les miennes
+mais les deux styles en meme temps c'est n'importe quoi" — sur l'ecran Resume de partie et
+le panneau CONTROLES (preparation de bataille), une forme "circuit tech" hexagonale bleue/
+verte flottait au milieu du panneau, clairement deconnectee du rectangle sombre plat dessine
+derriere (`DrawFramedPanel`, `WOTOLDemoHUD.cpp`).
+
+VRAIE CAUSE trouvee en inspectant l'alpha reel des PNG (pas juste `Image.getbbox()`, qui
+compte a tort tout pixel RGB non-nul meme a alpha=0 -- verifie avec un seuil alpha>15) :
+les planches `PanelFrame*.png` (fournies par Liamor) ont un ENORME padding transparent
+autour du graphisme "cadre" reel -- ex. `PanelFrameWideAquiloris.png` (1200x800) n'avait de
+contenu visible que sur 46% de la hauteur du canvas, centre verticalement. Comme
+`DrawFramedPanel` etire la texture PLEINE (UV 0,0 a 1,1) sur tout le rectangle cible, puis
+dessine un rectangle sombre plat par-dessus SUR TOUTE LA HAUTEUR, le resultat visible etait
+exactement le rectangle plat (edge-to-edge) avec le graphisme du cadre flottant, minuscule et
+centre, au milieu -- deux styles visuellement disjoints.
+
+Fix : les 6 fichiers (`PanelFrame{,Wide}{Aquiloris,Noxeens}.png` + les 2 `PanelFramePortrait*.png`)
+recadres a leur vrai contenu visible (bounding box sur canal alpha, seuil 15, marge ~2%) via
+script Python/PIL, sans toucher au code (tous les appels `DrawTexture` utilisent deja l'UV
+plein 0,0-1,1, aucune hypothese de dimension pixel en dur trouvee apres verification de tous
+les sites d'appel). Le cadre remplit maintenant quasiment tout le canvas source -> une fois
+etire dans le rectangle cible, il colle enfin aux bords du panneau au lieu de flotter au milieu.
+
+- **Non verifiable sans rendu reel** (comme tout ce chantier cote Claude Code) : a confirmer
+  visuellement au prochain retour PC. Si un cadre parait maintenant "trop serre"/rogne sur un
+  ecran precis, la marge de securite (actuellement ~2% de la zone visible) peut etre augmentee
+  ecran par ecran plutot que de re-elargir tous les fichiers.
+
 ## Rendre l'annihilation complete atteignable en Phase 3 / Facile (01/08/2026)
 
 Demande explicite de Liamor apres une vraie partie (Facile, Noxeens vs Aquiloris) : au
