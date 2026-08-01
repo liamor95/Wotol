@@ -129,6 +129,30 @@ struct FDemoProgress
 	UPROPERTY(BlueprintReadOnly) bool bMythicGiftPending     = false;
 };
 
+// Un ordre de production en file d'attente (01/08/2026, demande explicite de Liamor : vraie
+// file d'attente chronométrée façon Age of Empires IV / StarCraft II / Warcraft III, plutôt
+// qu'une production instantanée). Le PREMIER ordre d'une catégorie donnée dans ProductionQueue
+// est celui EN COURS (son minuteur décompte) ; les suivants de la même catégorie attendent leur
+// tour, comme une vraie file de caserne.
+USTRUCT(BlueprintType)
+struct FWOTOLProductionOrder
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Production")
+	EDemoUnitCategory Category = EDemoUnitCategory::Infanterie;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Production")
+	float RemainingSeconds = 0.f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Production")
+	float TotalSeconds = 0.f;
+
+	// Coût déjà payé à la mise en file (remboursé intégralement en cas d'annulation).
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Production")
+	int32 PaidCost = 0;
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDemoPhaseChanged,
 	EDemoPhase, NewPhase, EDemoPhase, PreviousPhase);
 
@@ -314,6 +338,7 @@ public:
 		UnitAxes.Empty();
 		TotalProducedUnits = 0;
 		RangedUnitsProducedForObjective = 0;
+		ProductionQueue.Empty();
 		RangedBuildingPlotIndex = INDEX_NONE;
 		bCityBuildingPlacementArmed = false;
 		TerritoryBuildingCurrentHealth = TerritoryBuildingMaxHealth;
@@ -528,9 +553,19 @@ public:
 	int32 LastRewardOceanicEnergy = 0;
 
 	// Unités produites en cité, en attente de déploiement à la bataille suivante
-	// (clé = ID d'unité canonique, valeur = nombre en réserve).
+	// (clé = ID d'unité canonique, valeur = nombre en réserve). Alimentée par la file
+	// d'attente ci-dessous QUAND un ordre se termine (plus jamais en instantané).
 	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
 	TMap<FName, int32> ReserveUnits;
+
+	// File d'attente de production RÉELLE (01/08/2026, references AoE4/StarCraft/Warcraft III —
+	// demande explicite de Liamor). Ordre FIFO : pour une catégorie donnée, seul le PREMIER
+	// ordre de cette catégorie dans le tableau décompte (TickProductionQueues), les suivants
+	// patientent. Un plafond par catégorie (MaxQueuePerCategory) évite d'empiler indéfiniment.
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|Production")
+	TArray<FWOTOLProductionOrder> ProductionQueue;
+
+	static constexpr int32 MaxQueuePerCategory = 5;
 
 	// La phase 2 commence avec chef + 16 fantassins + 8 montés = 25 unités. Les 10 unités
 	// à distance demandées remplissent donc exactement le plafond de 35. Les places requises
@@ -769,13 +804,53 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Demo|City")
 	int32 GetProductionCost(EDemoUnitCategory Category) const;
 
-	// Vrai si la catégorie est débloquée ET abordable maintenant.
+	// Vrai si la catégorie est débloquée ET abordable maintenant ET la file n'est pas pleine.
 	UFUNCTION(BlueprintPure, Category = "Demo|City")
 	bool CanProduce(EDemoUnitCategory Category) const;
 
-	// Produit une unité (dépense les cristaux, l'ajoute à la réserve). Renvoie faux si refusé.
+	// Met une unité EN FILE D'ATTENTE (dépense les cristaux immédiatement, comme dans AoE4/
+	// StarCraft/Warcraft III — l'unité elle-même n'est disponible qu'à la fin du minuteur, cf.
+	// TickProductionQueues). Renvoie faux si refusé (CanProduce). Nom conservé (pas
+	// "QueueProduceUnit") pour ne pas casser les appelants existants (HUD/Controller) : seul le
+	// COMPORTEMENT change, pas le contrat (true = accepté).
 	UFUNCTION(BlueprintCallable, Category = "Demo|City")
 	bool ProduceUnit(EDemoUnitCategory Category);
+
+	// Durée du minuteur de production pour cette catégorie, en secondes. Rythme VOLONTAIREMENT
+	// RAPIDE (demande explicite de Liamor : "ça ne doit pas mettre 10 ans non plus") — une vraie
+	// file d'attente, mais à l'échelle d'une démo courte, pas d'un city builder lent.
+	UFUNCTION(BlueprintPure, Category = "Demo|Production")
+	float GetProductionTimeSeconds(EDemoUnitCategory Category) const;
+
+	// Avance tous les ordres en cours de DeltaSeconds ; fait passer à la réserve (ReserveUnits)
+	// tout ordre qui se termine. Appelé en continu par un timer du Director (pas dépendant de
+	// l'écran affiché -> une file lancée en Cité continue même si le joueur regarde ailleurs).
+	UFUNCTION(BlueprintCallable, Category = "Demo|Production")
+	void TickProductionQueues(float DeltaSeconds);
+
+	// Nombre total d'ordres en attente pour cette catégorie (celui en cours inclus).
+	UFUNCTION(BlueprintPure, Category = "Demo|Production")
+	int32 GetQueueCountForCategory(EDemoUnitCategory Category) const;
+
+	// Progression 0..1 de l'ordre EN COURS pour cette catégorie (0 si aucun ordre en file).
+	UFUNCTION(BlueprintPure, Category = "Demo|Production")
+	float GetQueueFrontProgress01(EDemoUnitCategory Category) const;
+
+	// Secondes restantes avant que l'ordre EN COURS de cette catégorie ne se termine (0 si aucun).
+	UFUNCTION(BlueprintPure, Category = "Demo|Production")
+	float GetQueueFrontRemainingSeconds(EDemoUnitCategory Category) const;
+
+	// Annule le DERNIER ordre en file pour cette catégorie (le plus récemment ajouté, comme un
+	// clic-droit dans une caserne AoE) et rembourse intégralement son coût. Renvoie faux si la
+	// file de cette catégorie est vide.
+	UFUNCTION(BlueprintCallable, Category = "Demo|Production")
+	bool CancelLastQueuedForCategory(EDemoUnitCategory Category);
+
+	// Termine INSTANTANÉMENT tous les ordres en file (verse leurs unités en réserve) — appelé
+	// juste avant DrainReserve au départ en bataille pour qu'un ordre payé mais pas encore fini
+	// ne soit jamais perdu (le joueur a déjà payé le coût en cristaux).
+	UFUNCTION(BlueprintCallable, Category = "Demo|Production")
+	void CompleteAllQueuedProduction();
 
 	// Nombre d'unités de ce type en réserve (prêtes à déployer).
 	UFUNCTION(BlueprintPure, Category = "Demo|City")

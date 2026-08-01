@@ -152,7 +152,13 @@ public:
 	// place du texte "Produire via la carte en bas") ; AMÉLIORER dans l'onglet Statistiques.
 	// Rects calculés une seule fois (partagés dessin + clic, comme GetCityBuildingPanelRect).
 	static FBox2D BuildingRecruitCardRect(const FBox2D& Panel);
+	// Largeur FIXE (ne prend jamais toute la carte) pour laisser la place à
+	// BuildingCancelQueueButtonRect à droite, que ce bouton soit visible ou non (01/08/2026, vraie
+	// file d'attente) -> le rect ne change jamais entre dessin et clic selon l'état de la file.
 	static FBox2D BuildingProduceButtonRect(const FBox2D& Card);
+	// Bouton ANNULER (visible seulement si une file existe pour la catégorie sélectionnée) —
+	// annule et rembourse le DERNIER ordre mis en file (comme un clic-droit dans une caserne AoE).
+	static FBox2D BuildingCancelQueueButtonRect(const FBox2D& Card);
 	static FBox2D BuildingUpgradeButtonRect(const FBox2D& Panel);
 	// Bouton CONSTRUIRE (bâtiment à distance pas encore construit) : remplace le texte "Choisissez
 	// un emplacement via sa carte en bas" (carte supprimée) — déclenche le placement du plot 3D.

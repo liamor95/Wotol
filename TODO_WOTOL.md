@@ -1,5 +1,43 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Vraie file d'attente de production chronometree (01/08/2026)
+
+Demande explicite de Liamor apres analyse de 32 captures reelles (Anno 1800, Manor Lords,
+Against the Storm, Frostpunk 2, Age of Wonders 4, Total War, et surtout AoE4/StarCraft II/
+Warcraft III pour "la file d'entrainement directement integree au HUD") : remplacer la
+production INSTANTANEE (payer -> unite immediatement en reserve) par une vraie file d'attente
+avec minuteur. Contrainte explicite ajoutee ensuite : "ça reste une demo donc on va quand-meme
+mettre moins de temps que pour le jeu final" + "ça ne doit pas mettre 10 ans non plus" -> temps
+de production volontairement courts (4 a 6 secondes selon la categorie), pas un rythme city
+builder lent.
+
+- **`DemoFlowSubsystem.h/.cpp`** : nouveau `FWOTOLProductionOrder` (Categorie, secondes
+  restantes/totales, cout deja paye) + `TArray<FWOTOLProductionOrder> ProductionQueue`. Le
+  cout est paye et la place d'armee reservee (`++TotalProducedUnits`) DES la mise en file
+  (`ProduceUnit`, contrat inchange : renvoie true si accepte) ; l'unite n'atterrit dans
+  `ReserveUnits` (vraiment disponible au deploiement) qu'a la fin du minuteur
+  (`TickProductionQueues`). Un seul ordre par categorie decompte a la fois (FIFO), plafond
+  `MaxQueuePerCategory = 5`. `CancelLastQueuedForCategory` rembourse integralement.
+  `CompleteAllQueuedProduction` termine tout instantanement — appele juste avant
+  `DrainReserve` au depart en bataille (`WOTOLDemoDirector.cpp`) pour qu'un ordre deja paye
+  ne soit JAMAIS perdu si le joueur embarque avant la fin du minuteur.
+- **`WOTOLDemoDirector.h/.cpp`** : nouveau timer permanent `ProductionQueueHandle` (0.25s,
+  meme cadence que `MusicPollHandle` deja existant), tick independant de l'ecran affiche —
+  une file lancee en Cite continue meme si le joueur explore/combat ailleurs. Revérifie aussi
+  `NotifyRangedProductionObjectiveComplete()` a chaque tick (idempotent) puisqu'un ordre a
+  distance peut desormais se terminer SEUL, sans clic.
+- **`WOTOLDemoHUD.h/.cpp`** : onglet Recrutement affiche maintenant "EN FORMATION : x/5 — pret
+  dans Xs" + une vraie barre de progression (`DrawBar`, deja utilisee pour la barre du Kraken)
+  quand une file existe, plus un bouton ANNULER a cote de PRODUIRE. `BuildingRecruitCardRect`
+  agrandie (340 -> 390) et `GetCityBuildingPanelRect` (0.42H -> 0.47H, bande de clamp Y
+  elargie 0.18-0.62 -> 0.14-0.85 — l'ancienne contrainte etait pour laisser de la place aux
+  cartes du bas, SUPPRIMEES entretemps, donc obsolete).
+- **`WOTOLPlayerController_Battle.cpp`** : nouveau clic sur `BuildingCancelQueueButtonRect`.
+- **Non verifiable sans compilateur/editeur** (comme tout ce chantier cote Claude Code) : rendu
+  visuel exact de la barre de progression et du bouton ANNULER dans la carte agrandie — a
+  verifier au prochain retour PC. Le rythme de 4-6s/unite est une PREMIERE estimation, a
+  ajuster si ça parait trop rapide ou trop lent en jeu reel.
+
 ## Cartes 2D permanentes en bas de la vue Cite RETIREES COMPLETEMENT (31/07/2026, suite)
 
 Suite explicite de Liamor apres l'ajout du menu contextuel court ci-dessous : "retire

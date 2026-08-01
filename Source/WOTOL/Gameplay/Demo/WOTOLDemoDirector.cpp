@@ -217,6 +217,27 @@ void AWOTOLDemoDirector::BeginPlay()
 	UpdateMusicForScreen();
 	GetWorldTimerManager().SetTimer(MusicPollHandle, this,
 		&AWOTOLDemoDirector::UpdateMusicForScreen, 0.25f, /*bLoop=*/true);
+
+	// FILE D'ATTENTE DE PRODUCTION (01/08/2026, demande explicite de Liamor : vraie file
+	// chronométrée façon AoE4/StarCraft/Warcraft III). Tick permanent à 0.25s (même cadence que
+	// le sondage musique ci-dessus) pour une barre de progression fluide côté HUD.
+	GetWorldTimerManager().SetTimer(ProductionQueueHandle, this,
+		&AWOTOLDemoDirector::TickProductionQueue, 0.25f, /*bLoop=*/true);
+}
+
+void AWOTOLDemoDirector::TickProductionQueue()
+{
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
+		{
+			Demo->TickProductionQueues(0.25f);
+			// Un ordre à distance peut désormais finir SEUL, sans clic (le minuteur tourne même
+			// écran fermé) -> revérifier ici plutôt qu'uniquement au clic PRODUIRE. Idempotent
+			// (NotifyRangedProductionObjectiveComplete se protège via WasRivalAlertShown()).
+			NotifyRangedProductionObjectiveComplete();
+		}
+	}
 }
 
 void AWOTOLDemoDirector::StartDemoAfterSelection()
@@ -857,6 +878,10 @@ void AWOTOLDemoDirector::SpawnPlayerArmy(EFactionID Faction, const FVector& Orig
 		EffSpecial  = GrandBattleBaselineSpecial;
 	}
 	{
+		// Un ordre déjà PAYÉ mais dont le minuteur n'a pas fini ne doit jamais être perdu au
+		// départ en bataille (01/08/2026, vraie file d'attente chronométrée) -> on le termine
+		// instantanément avant de drainer, plutôt que de faire perdre les cristaux au joueur.
+		Demo->CompleteAllQueuedProduction();
 		TMap<FName, int32> Reserve;
 		Demo->DrainReserve(Reserve); // phases 1/2/3 : toujours les unités RÉELLEMENT recrutées
 		for (const TPair<FName, int32>& Pair : Reserve)

@@ -1463,22 +1463,23 @@ FBox2D AWOTOLDemoHUD::BuildingTabRect(int32 TabIndex, const FBox2D& Panel)
 
 FBox2D AWOTOLDemoHUD::GetCityBuildingPanelRect(APlayerController* PC, const FVector& WorldLoc, float W, float H)
 {
-	// Hauteur relevée 0.36 -> 0.42 (31/07/2026, suite) : la carte de recrutement a maintenant
-	// un vrai bouton PRODUIRE (les cartes permanentes en bas de l'écran ont été supprimées) et
-	// avait besoin de plus de place pour ne pas déborder. Reste sous 0.44 (la bande verticale
-	// disponible entre le bandeau haut et bas, cf. clamp Y ci-dessous) pour que le clamp reste valide.
-	const float PanelW = 360.f, PanelH = H * 0.42f;
+	// Hauteur relevée 0.36 -> 0.42 (31/07/2026) puis -> 0.47 (01/08/2026, vraie file d'attente
+	// chronométrée : la carte de recrutement affiche maintenant aussi la progression de la file
+	// + un bouton ANNULER, besoin de plus de place). La bande verticale disponible (clamp Y
+	// ci-dessous) a aussi été élargie : elle était pincée pour laisser de la place aux cartes
+	// permanentes en bas de l'écran, DÉSORMAIS SUPPRIMÉES -> plus besoin de cette contrainte.
+	const float PanelW = 360.f, PanelH = H * 0.47f;
 	FVector2D ScreenPos(W * 0.5f, H * 0.42f); // repli central si la projection échoue
 	if (PC) PC->ProjectWorldLocationToScreen(WorldLoc, ScreenPos, true);
 
 	// Fenêtre "posée" juste à côté du bâtiment cliqué (comme une bulle d'info) : à droite par
 	// défaut, bascule à gauche si ça déborderait de l'écran, puis reste toujours pincée dans
-	// la bande centrale libre entre le bandeau haut (ressources) et le bandeau bas (cartes).
+	// la bande centrale libre entre le bandeau haut (ressources) et le bas de l'écran.
 	float X = ScreenPos.X + 60.f;
 	if (X + PanelW > W - 20.f) X = ScreenPos.X - 60.f - PanelW;
 	X = FMath::Clamp(X, 20.f, W - 20.f - PanelW);
 	float Y = ScreenPos.Y - PanelH * 0.5f;
-	Y = FMath::Clamp(Y, H * 0.18f, H * 0.62f - PanelH);
+	Y = FMath::Clamp(Y, H * 0.14f, H * 0.85f - PanelH);
 	return FBox2D(FVector2D(X, Y), FVector2D(X + PanelW, Y + PanelH));
 }
 
@@ -2061,14 +2062,40 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 
 				DrawCenteredTextInBox(Card, FString::Printf(TEXT("En reserve : %d"), Demo->GetReserveCount(SelUnitID)),
 					CY, FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 0.82f);
+				CY += 22.f;
 
-				// Vrai bouton PRODUIRE (31/07/2026, suite : remplace le texte "Produire via la
-				// carte en bas" — les cartes permanentes en bas de l'écran ont été supprimées à
-				// la demande de Liamor, toutes leurs actions migrent dans cette fenêtre).
+				// VRAIE file d'attente chronométrée (01/08/2026, references reelles AoE4/
+				// StarCraft/Warcraft III, demande explicite de Liamor : "fais la file d'attente à
+				// fond" — rythme volontairement RAPIDE, "ça ne doit pas mettre 10 ans non plus",
+				// cf. UDemoFlowSubsystem::GetProductionTimeSeconds). Barre de progression de
+				// l'ordre EN COURS + decompte, uniquement si au moins un ordre est en file.
+				const int32 QCount = Demo->GetQueueCountForCategory(SelCat);
+				if (QCount > 0)
+				{
+					const float QProgress = Demo->GetQueueFrontProgress01(SelCat);
+					const int32 QRemaining = FMath::CeilToInt(Demo->GetQueueFrontRemainingSeconds(SelCat));
+					DrawCenteredTextInBox(Card, FString::Printf(
+						TEXT("EN FORMATION : %d/%d — pret dans %ds"),
+						QCount, UDemoFlowSubsystem::MaxQueuePerCategory, QRemaining),
+						CY, FLinearColor(1.f, 0.85f, 0.4f, 1.f), 0.7f);
+					CY += 20.f;
+					DrawBar(Card.Min.X + 22.f, CY, CardW - 44.f, 10.f, QProgress,
+						Accent, FLinearColor(0.08f, 0.08f, 0.1f, 0.85f));
+				}
+
+				// Vrais boutons PRODUIRE/ANNULER (31/07/2026, suite : remplacent le texte
+				// "Produire via la carte en bas" — les cartes permanentes en bas de l'écran ont
+				// été supprimées à la demande de Liamor, toutes leurs actions migrent ici).
 				const bool bCanAfford = Demo->GetCrystals() >= Cost;
+				const bool bQueueFull = QCount >= UDemoFlowSubsystem::MaxQueuePerCategory;
 				DrawButton(BuildingProduceButtonRect(Card),
-					bCanAfford ? TEXT("PRODUIRE") : TEXT("RESSOURCES INSUFFISANTES"),
-					bCanAfford ? Accent : FLinearColor(0.45f, 0.42f, 0.42f, 1.f), 0.95f);
+					bQueueFull ? TEXT("FILE PLEINE") : (bCanAfford ? TEXT("PRODUIRE") : TEXT("RESSOURCES INSUFFISANTES")),
+					(bCanAfford && !bQueueFull) ? Accent : FLinearColor(0.45f, 0.42f, 0.42f, 1.f), 0.95f);
+				if (QCount > 0)
+				{
+					DrawButton(BuildingCancelQueueButtonRect(Card), TEXT("ANNULER"),
+						FLinearColor(0.75f, 0.32f, 0.28f, 1.f), 0.85f);
+				}
 			}
 		}
 		else if (ActiveTab == 2) // ─── STATISTIQUES ───
@@ -2370,23 +2397,34 @@ FBox2D AWOTOLDemoHUD::BuildingResearchButtonRect(const FBox2D& Panel)
 FBox2D AWOTOLDemoHUD::BuildingRecruitCardRect(const FBox2D& Panel)
 {
 	// Ancrée juste sous le libellé d'unité de l'onglet Recrutement (Y = Panel.Min.Y + 80 initial
-	// + 32 après le DrawCenteredTextInBox du libellé, cf. DrawBuildingPanel ActiveTab==1) et
-	// haute de 340 pour laisser la place au bouton PRODUIRE en bas de carte. Rect PARTAGÉ
+	// + 32 après le DrawCenteredTextInBox du libellé, cf. DrawBuildingPanel ActiveTab==1). Hauteur
+	// relevée 340 -> 390 (01/08/2026, vraie file d'attente chronométrée : affiche maintenant la
+	// progression de l'ordre en cours + un bouton ANNULER, besoin de plus de place). Rect PARTAGÉ
 	// dessin + clic (comme GetCityBuildingPanelRect) pour que le clic tombe pile sur ce qui
 	// est affiché, même si le contenu au-dessus change.
 	const float CardM = 22.f;
 	const float Y = Panel.Min.Y + 112.f;
-	return FBox2D(FVector2D(Panel.Min.X + CardM, Y), FVector2D(Panel.Max.X - CardM, Y + 340.f));
+	return FBox2D(FVector2D(Panel.Min.X + CardM, Y), FVector2D(Panel.Max.X - CardM, Y + 390.f));
 }
 
 FBox2D AWOTOLDemoHUD::BuildingProduceButtonRect(const FBox2D& Card)
 {
-	// Ancré au bas de la carte (la carte est dimensionnée pour laisser la place, cf.
-	// DrawCityView) plutôt qu'à une position Y explicite -> reste correct même si le contenu
-	// au-dessus change légèrement.
-	const float M = 22.f, BH = 34.f;
+	// Ancré au bas de la carte, largeur FIXE qui laisse toujours la place à
+	// BuildingCancelQueueButtonRect à droite (visible seulement si une file existe) -> le rect
+	// ne change JAMAIS entre dessin et clic selon l'état de la file (01/08/2026, vraie file
+	// d'attente chronométrée).
+	const float M = 22.f, BH = 34.f, Gap = 8.f, CancelW = 100.f;
 	return FBox2D(FVector2D(Card.Min.X + M, Card.Max.Y - BH - 14.f),
-		FVector2D(Card.Max.X - M, Card.Max.Y - 14.f));
+		FVector2D(Card.Max.X - M - CancelW - Gap, Card.Max.Y - 14.f));
+}
+
+FBox2D AWOTOLDemoHUD::BuildingCancelQueueButtonRect(const FBox2D& Card)
+{
+	// À côté du bouton PRODUIRE, même ligne (01/08/2026, vraie file d'attente chronométrée) —
+	// annule et rembourse le dernier ordre mis en file pour la catégorie sélectionnée.
+	const float M = 22.f, BH = 34.f, CancelW = 100.f;
+	const float Y = Card.Max.Y - BH - 14.f;
+	return FBox2D(FVector2D(Card.Max.X - M - CancelW, Y), FVector2D(Card.Max.X - M, Y + BH));
 }
 
 FBox2D AWOTOLDemoHUD::BuildingUpgradeButtonRect(const FBox2D& Panel)

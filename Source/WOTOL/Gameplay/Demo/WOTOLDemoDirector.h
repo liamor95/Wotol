@@ -234,6 +234,12 @@ public:
 	uint8 CurrentMusicCat = 0;   // 0=aucune, 1=menu, 2=bataille, 3=résumé
 	FTimerHandle MusicPollHandle;
 
+	// File d'attente de production de la cité (01/08/2026) : tick régulier et PERMANENT (pas
+	// dépendant de l'écran affiché), même principe que MusicPollHandle ci-dessus -> une file
+	// lancée en Cité continue de décompter même si le joueur explore ou combat ailleurs.
+	FTimerHandle ProductionQueueHandle;
+	void TickProductionQueue();
+
 	// Lance une musique (arrête l'ancienne en fondu). bLoop=false pour un stinger.
 	void PlayMusic(class USoundBase* Music, bool bLoop);
 

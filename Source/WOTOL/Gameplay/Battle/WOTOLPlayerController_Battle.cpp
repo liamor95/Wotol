@@ -474,6 +474,13 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 							}
 							return true;
 						}
+						// Bouton ANNULER (01/08/2026, vraie file d'attente chronométrée) : annule
+						// et rembourse le dernier ordre mis en file pour cette catégorie.
+						if (AWOTOLDemoHUD::BuildingCancelQueueButtonRect(Card).IsInside(M))
+						{
+							Demo->CancelLastQueuedForCategory(SelCat);
+							return true;
+						}
 					}
 					else if (Demo->GetSelectedBuildingTab() == 2) // Statistiques
 					{

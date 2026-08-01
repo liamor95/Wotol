@@ -464,9 +464,15 @@ bool UDemoFlowSubsystem::CanProduce(EDemoUnitCategory Category) const
 	if (Category == EDemoUnitCategory::Mythique) return false;
 	const int32 Cost = GetProductionCost(Category);
 	if (Cost <= 0 || !IsCategoryUnlocked(Category) || PlayerCrystals < Cost) return false;
+	// Le coût de la place d'armée est réservé DÈS la mise en file (cf. ProduceUnit), pas
+	// seulement à la fin du minuteur -> cette vérification reste valable telle quelle avec la
+	// file d'attente : GetArmyUnitCount() inclut déjà tout ordre en cours/en attente.
 	if (GetArmyUnitCount() >= MaxArmyUnits) return false;
 	if (Category == EDemoUnitCategory::Distance && !Progress.bRangedBuildingConstructed)
 		return false;
+	// File d'attente de cette catégorie déjà pleine (01/08/2026, vraie file chronométrée) —
+	// évite d'empiler indéfiniment des ordres qui ne finiront jamais de décompter.
+	if (GetQueueCountForCategory(Category) >= MaxQueuePerCategory) return false;
 
 	// Tant que les 10 unités à distance ne sont pas produites, les autres productions ne
 	// peuvent ni consommer leurs places d'armée ni les cristaux indispensables à l'objectif.
@@ -481,20 +487,130 @@ bool UDemoFlowSubsystem::CanProduce(EDemoUnitCategory Category) const
 	return true;
 }
 
+float UDemoFlowSubsystem::GetProductionTimeSeconds(EDemoUnitCategory Category) const
+{
+	// Rythme volontairement RAPIDE (demande explicite de Liamor : "ça ne doit pas mettre 10 ans
+	// non plus") — vraie file d'attente chronométrée façon AoE4/StarCraft/Warcraft III, mais à
+	// l'échelle d'une démo courte (quelques secondes), pas d'un city builder lent.
+	switch (Category)
+	{
+		case EDemoUnitCategory::Infanterie: return 4.f;
+		case EDemoUnitCategory::Distance:   return 4.5f;
+		case EDemoUnitCategory::Speciale:   return 5.f;
+		case EDemoUnitCategory::Montee:     return 6.f;
+		default: return 4.f;
+	}
+}
+
 bool UDemoFlowSubsystem::ProduceUnit(EDemoUnitCategory Category)
 {
 	if (!CanProduce(Category)) return false;
 	const int32 Cost = GetProductionCost(Category);
 	const FName UnitID = GetUnitID(GetPlayerFaction(), Category);
 	if (UnitID.IsNone()) return false;
+	// Le coût est payé IMMÉDIATEMENT à la mise en file (comme dans AoE4/StarCraft/Warcraft III)
+	// — l'unité elle-même n'atterrit dans ReserveUnits qu'à la fin du minuteur, cf.
+	// TickProductionQueues. ++TotalProducedUnits DÈS MAINTENANT réserve la place d'armée
+	// correspondante (GetArmyUnitCount) pour que CanProduce continue de refuser correctement
+	// une file qui dépasserait le plafond, même si aucun ordre n'a encore terminé.
 	PlayerCrystals -= Cost;
-	ReserveUnits.FindOrAdd(UnitID) += 1;
 	++TotalProducedUnits;
-	if (Category == EDemoUnitCategory::Distance)
-	{
-		++RangedUnitsProducedForObjective;
-	}
+	FWOTOLProductionOrder& Order = ProductionQueue.AddDefaulted_GetRef();
+	Order.Category = Category;
+	Order.TotalSeconds = GetProductionTimeSeconds(Category);
+	Order.RemainingSeconds = Order.TotalSeconds;
+	Order.PaidCost = Cost;
 	return true;
+}
+
+void UDemoFlowSubsystem::TickProductionQueues(float DeltaSeconds)
+{
+	if (ProductionQueue.Num() == 0) return;
+	// Pour chaque catégorie présente, seul le PREMIER ordre de cette catégorie dans le tableau
+	// décompte (les suivants patientent leur tour) -> simule une file par bâtiment sans avoir
+	// besoin d'une structure séparée par catégorie.
+	TSet<EDemoUnitCategory> Ticked;
+	for (int32 i = 0; i < ProductionQueue.Num(); )
+	{
+		FWOTOLProductionOrder& Order = ProductionQueue[i];
+		if (Ticked.Contains(Order.Category)) { ++i; continue; }
+		Ticked.Add(Order.Category);
+		Order.RemainingSeconds -= DeltaSeconds;
+		if (Order.RemainingSeconds > 0.f) { ++i; continue; }
+
+		// Ordre terminé : l'unité rejoint enfin la réserve (disponible au prochain déploiement).
+		const FName UnitID = GetUnitID(GetPlayerFaction(), Order.Category);
+		if (!UnitID.IsNone())
+		{
+			ReserveUnits.FindOrAdd(UnitID) += 1;
+			if (Order.Category == EDemoUnitCategory::Distance)
+			{
+				++RangedUnitsProducedForObjective;
+			}
+		}
+		ProductionQueue.RemoveAt(i); // ne pas incrémenter i : l'élément suivant prend sa place
+	}
+}
+
+int32 UDemoFlowSubsystem::GetQueueCountForCategory(EDemoUnitCategory Category) const
+{
+	int32 Count = 0;
+	for (const FWOTOLProductionOrder& Order : ProductionQueue)
+	{
+		if (Order.Category == Category) ++Count;
+	}
+	return Count;
+}
+
+float UDemoFlowSubsystem::GetQueueFrontProgress01(EDemoUnitCategory Category) const
+{
+	for (const FWOTOLProductionOrder& Order : ProductionQueue)
+	{
+		if (Order.Category != Category) continue;
+		if (Order.TotalSeconds <= 0.f) return 0.f;
+		return FMath::Clamp(1.f - (Order.RemainingSeconds / Order.TotalSeconds), 0.f, 1.f);
+	}
+	return 0.f;
+}
+
+float UDemoFlowSubsystem::GetQueueFrontRemainingSeconds(EDemoUnitCategory Category) const
+{
+	for (const FWOTOLProductionOrder& Order : ProductionQueue)
+	{
+		if (Order.Category == Category) return FMath::Max(0.f, Order.RemainingSeconds);
+	}
+	return 0.f;
+}
+
+bool UDemoFlowSubsystem::CancelLastQueuedForCategory(EDemoUnitCategory Category)
+{
+	for (int32 i = ProductionQueue.Num() - 1; i >= 0; --i)
+	{
+		if (ProductionQueue[i].Category != Category) continue;
+		PlayerCrystals += ProductionQueue[i].PaidCost; // remboursement intégral
+		TotalProducedUnits = FMath::Max(0, TotalProducedUnits - 1); // libère la place d'armée
+		ProductionQueue.RemoveAt(i);
+		return true;
+	}
+	return false;
+}
+
+void UDemoFlowSubsystem::CompleteAllQueuedProduction()
+{
+	// Appelé juste avant DrainReserve au départ en bataille (WOTOLDemoDirector) : un ordre déjà
+	// PAYÉ ne doit jamais être perdu simplement parce que le joueur a embarqué avant la fin du
+	// minuteur -> on le termine instantanément plutôt que de faire attendre le joueur.
+	for (const FWOTOLProductionOrder& Order : ProductionQueue)
+	{
+		const FName UnitID = GetUnitID(GetPlayerFaction(), Order.Category);
+		if (UnitID.IsNone()) continue;
+		ReserveUnits.FindOrAdd(UnitID) += 1;
+		if (Order.Category == EDemoUnitCategory::Distance)
+		{
+			++RangedUnitsProducedForObjective;
+		}
+	}
+	ProductionQueue.Empty();
 }
 
 int32 UDemoFlowSubsystem::GetReserveCount(FName UnitID) const
