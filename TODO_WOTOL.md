@@ -1,5 +1,25 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Ombre de texte adoucie (item differe du 31/07/2026, repris le 01/08/2026)
+
+Item du retour esthetique du 31/07 explicitement laisse de cote a l'epoque ("fonction
+partagee par tout le HUD, a auditer ecran par ecran, pas en un seul changement aveugle qui
+pourrait casser la lisibilite ailleurs") : `DrawCenteredText`/`DrawCenteredTextInBox`
+dessinaient systematiquement un texte noir decale de +2px/opacite 0.7 derriere le texte
+principal, ce qui "dedouble/grossit le trait" selon Liamor.
+
+Plutot qu'une suppression totale (risque d'illisibilite sur fond clair/texture, d'autant
+plus maintenant que le fix du meme jour fait que les cadres PanelFrame remplissent vraiment
+leur rectangle au lieu d'etre presque invisibles derriere le voile sombre), reglage prudent :
+decalage reduit a 1px, opacite reduite a 0.45. Garde un filet de contraste sans dedoubler
+visiblement le trait. Change UNE SEULE fois dans les 2 fonctions partagees (pas ecran par
+ecran) car le changement est une simple attenuation, pas une suppression -- risque de casser
+la lisibilite ailleurs juge faible.
+
+- **Non verifiable sans rendu reel** : a confirmer au prochain retour PC. Si un ecran
+  particulier redevient difficile a lire, ajuster ce reglage specifique la (couleur de fond
+  variable au cas par cas) plutot que de re-durcir l'ombre partout.
+
 ## Cadres de panneau (PanelFrame*.png) flottaient, deconnectes de l'overlay plat (01/08/2026)
 
 Retour terrain avec 3 captures : "c'est soit tu mets tes fenetres soit tu mets les miennes

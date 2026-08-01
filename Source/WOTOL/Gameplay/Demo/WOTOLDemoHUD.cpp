@@ -4070,7 +4070,13 @@ void AWOTOLDemoHUD::DrawCenteredText(const FString& Text, float Y,
 	GetTextSize(Text, TW, TH, Font, Scale);
 	const float X = (Canvas->SizeX - TW) * 0.5f;
 
-	DrawText(Text, FLinearColor(0.f, 0.f, 0.f, 0.7f), X + 2.f, Y + 2.f, Font, Scale);
+	// Ombre ADOUCIE (01/08/2026, retour terrain du 31/07 : "dedouble/grossit le trait" — decalage
+	// 2px/opacite 0.7 lisait comme un contour epaissi plutot qu'une simple ombre de lisibilite).
+	// Reduit a 1px/0.45 : garde le filet de contraste sur fond clair/texture (utile maintenant
+	// que les cadres PanelFrame remplissent vraiment leur rectangle, cf. fix du meme jour) sans
+	// dedoubler visiblement le trait. Fonction partagee par tout le HUD -> reglage prudent,
+	// pas une suppression totale qui risquerait l'illisibilite sur certains fonds.
+	DrawText(Text, FLinearColor(0.f, 0.f, 0.f, 0.45f), X + 1.f, Y + 1.f, Font, Scale);
 	DrawText(Text, Color, X, Y, Font, Scale);
 }
 
@@ -4085,6 +4091,12 @@ void AWOTOLDemoHUD::DrawCenteredTextInBox(const FBox2D& Box, const FString& Text
 	const float BoxW = Box.Max.X - Box.Min.X;
 	const float X = Box.Min.X + (BoxW - TW) * 0.5f;
 
-	DrawText(Text, FLinearColor(0.f, 0.f, 0.f, 0.7f), X + 2.f, Y + 2.f, Font, Scale);
+	// Ombre ADOUCIE (01/08/2026, retour terrain du 31/07 : "dedouble/grossit le trait" — decalage
+	// 2px/opacite 0.7 lisait comme un contour epaissi plutot qu'une simple ombre de lisibilite).
+	// Reduit a 1px/0.45 : garde le filet de contraste sur fond clair/texture (utile maintenant
+	// que les cadres PanelFrame remplissent vraiment leur rectangle, cf. fix du meme jour) sans
+	// dedoubler visiblement le trait. Fonction partagee par tout le HUD -> reglage prudent,
+	// pas une suppression totale qui risquerait l'illisibilite sur certains fonds.
+	DrawText(Text, FLinearColor(0.f, 0.f, 0.f, 0.45f), X + 1.f, Y + 1.f, Font, Scale);
 	DrawText(Text, Color, X, Y, Font, Scale);
 }
