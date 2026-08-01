@@ -273,18 +273,17 @@ void AWOTOLHeroCharacter::Tick(float DeltaSeconds)
 	TickZoom(DeltaSeconds);
 	AnimateSwim(DeltaSeconds);
 
-	// Inclinaison douce en virage (banking) : sensation de nage dirigée, pas un rail figé.
-	// Appliquée à la CAMÉRA (bUsePawnControlRotation=false), pas au SpringArm : celui-ci a
-	// bUsePawnControlRotation=true et recalcule sa rotation depuis le contrôleur chaque
-	// tick, ce qui écraserait un roll posé directement dessus.
-	// Angle réduit (18° -> 6°, 31/07/2026) : remonté par Liamor comme une "distorsion" façon
-	// fisheye en tournant à gauche/droite — trop prononcé pour une caméra suivant le joueur.
-	const float TargetRoll = FMath::Clamp(-CurrentLateralInput * 6.f, -6.f, 6.f);
-	CurrentBankRoll = FMath::FInterpTo(CurrentBankRoll, TargetRoll, DeltaSeconds, 5.f);
+	// Inclinaison de camera en virage (banking) SUPPRIMEE le 01/08/2026 (retour terrain :
+	// "meme decalage" que la version deja attenuee le 31/07/2026, 18° -> 6°) -- toujours
+	// ressentie comme genante en tournant a gauche/droite, meme faction-agnostique, meme
+	// apres attenuation. Plutot qu'une 3e passe de reglage d'angle a l'aveugle, l'effet est
+	// retire completement : CurrentBankRoll ramene explicitement a 0 (pas juste laisse a sa
+	// derniere valeur) pour qu'aucun roll residuel ne reste applique a la camera.
+	CurrentBankRoll = 0.f;
 	if (Camera)
 	{
 		FRotator Local = Camera->GetRelativeRotation();
-		Local.Roll = CurrentBankRoll;
+		Local.Roll = 0.f;
 		Camera->SetRelativeRotation(Local);
 	}
 

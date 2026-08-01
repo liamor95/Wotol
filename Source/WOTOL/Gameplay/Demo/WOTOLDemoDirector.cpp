@@ -693,8 +693,14 @@ void AWOTOLDemoDirector::BeginPreparation()
 	if (Demo)
 	{
 		Demo->SetScreen(EDemoScreen::Prepare);
+		// BUG DE COMMUNICATION CORRIGE (01/08/2026, retour terrain : "j'ai 47 ennemis encore en
+		// face a 3:30 de la fin... j'aurais pas pu detruire la totalite de l'armee") : le texte
+		// "Mettez la faction rivale en DEROUTE" laissait croire qu'il fallait ANEANTIR l'ennemi.
+		// Le VRAI critere de victoire au chrono ecoule (cf. CheckBattleEnd, bGrandPhase) est
+		// "avoir PLUS d'unites vivantes que l'ennemi", pas "tuer tout le monde" -> explicite
+		// maintenant pour eviter la panique/confusion en fin de partie.
 		Demo->SetObjective(bGrand
-			? FString(TEXT("PHASE 3 — Mettez la faction rivale en DEROUTE"))
+			? FString(TEXT("PHASE 3 — Ayez PLUS d'unites vivantes que l'ennemi au temps limite (annihilation totale non requise)"))
 			: (BT == EBattleType::RivalDefense
 				? FString::Printf(TEXT("Proteger le %s — ne le laissez pas tomber a 0"),
 					*BuildingDisplayName(CachedPlayerFaction))
@@ -1956,7 +1962,14 @@ void AWOTOLDemoDirector::OnPlayerVictory()
 	{
 		// Fin de la PHASE 3 : résumé FINAL de démo (victoire) -> Rejouer / Changer de faction.
 		GetWorldTimerManager().ClearTimer(BattleCheckHandle);
-		BuildBattleSummary(true, /*bFinal=*/true, TEXT("VICTOIRE TOTALE"));
+		// Titre CORRIGE (01/08/2026, retour terrain : capture montrant "VICTOIRE TOTALE" avec
+		// seulement 14/60 ennemis tues -- le vrai critere au chrono ecoule est "plus d'unites
+		// vivantes que l'ennemi", pas l'aneantissement, donc "TOTALE" etait trompeur dans ce
+		// cas). "VICTOIRE TOTALE" reste reservee au cas ou l'ennemi est REELLEMENT aneanti
+		// (EnemyAlive == 0, cf. CheckBattleEnd) ; sinon "VICTOIRE" simple, plus honnete.
+		const int32 EnemyAliveAtEnd = CountAlive(CachedRivalFaction);
+		BuildBattleSummary(true, /*bFinal=*/true,
+			EnemyAliveAtEnd <= 0 ? TEXT("VICTOIRE TOTALE") : TEXT("VICTOIRE — SUPERIORITE NUMERIQUE AU TEMPS LIMITE"));
 		if (Demo)
 		{
 			// Récompense d'XP du CLIMAX — la plus grosse du jeu, manquait totalement jusqu'ici
