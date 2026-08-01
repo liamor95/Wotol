@@ -22,21 +22,6 @@
 #include "GameFramework/GameUserSettings.h"
 #include "EngineUtils.h"
 
-// Position monde du prop de bâtiment correspondant à une catégorie (sert à ancrer la fenêtre
-// de détail de la cité près du bâtiment réellement cliqué, plutôt qu'un panneau fixe — cf.
-// UDemoFlowSubsystem::SelectedCityBuildingWorldLocation). Utilisé pour les clics sur les
-// cartes 2D du bas d'écran, qui n'ont pas de FHitResult 3D contrairement au clic direct sur
-// la maquette isométrique.
-static FVector FindCityBuildingLocation(UWorld* World, EDemoUnitCategory Cat)
-{
-	if (!World) return FVector::ZeroVector;
-	for (TActorIterator<AWOTOLCityBuildingProp> It(World); It; ++It)
-	{
-		if (It->Category == Cat) return It->GetActorLocation();
-	}
-	return FVector::ZeroVector;
-}
-
 AWOTOLPlayerController_Battle::AWOTOLPlayerController_Battle()
 {
 	bShowMouseCursor    = true;
@@ -392,54 +377,12 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 					}
 				}
 			}
-			for (int32 i = 0; i < AWOTOLDemoHUD::CityCardCount(); ++i)
-			{
-				const EDemoUnitCategory Cat = AWOTOLDemoHUD::CityCardCategory(i);
-				// Bandeau HAUT de la carte = améliorer le bâtiment (niv. bâtiment -> niv. unités).
-				if (AWOTOLDemoHUD::CityCardUpgradeRect(i, VpSize.X, VpSize.Y).IsInside(M))
-				{
-					Demo->SetSelectedCityCategory(Cat);
-					Demo->SetSelectedCityBuildingWorldLocation(FindCityBuildingLocation(GetWorld(), Cat));
-					if (Cat == EDemoUnitCategory::Distance && !Demo->IsRangedBuildingConstructed())
-						Demo->ArmRangedBuildingPlacement();
-					else
-						Demo->UpgradeBuilding(Cat);
-					return true;
-				}
-				// Reste de la carte = produire une unité.
-				if (AWOTOLDemoHUD::CityCardRect(i, VpSize.X, VpSize.Y).IsInside(M))
-				{
-					Demo->SetSelectedCityCategory(Cat);
-					Demo->SetSelectedCityBuildingWorldLocation(FindCityBuildingLocation(GetWorld(), Cat));
-					if (Cat == EDemoUnitCategory::Distance && !Demo->IsRangedBuildingConstructed())
-					{
-						Demo->ArmRangedBuildingPlacement();
-					}
-					else if (Demo->ProduceUnit(Cat))
-					{
-						// Phase 3 (post-croissance) : recrutement libre jusqu'au plafond faction,
-						// plus rien à voir avec l'objectif "10 unites a distance" de la phase 2.
-						if (Demo->bReadyForGrandBattleDeparture)
-						{
-							Demo->SetObjective(FString::Printf(TEXT(
-								"VOTRE CITE A GRANDI — nouveaux batiments debloques. Recrutez votre armee (%d / %d) puis embarquez."),
-								Demo->GetArmyUnitCount(), Demo->GetArmyUnitCap()));
-						}
-						else
-						{
-							Demo->SetObjective(FString::Printf(TEXT("Produisez 10 unites a distance : %d / %d"),
-								Demo->GetRangedProductionProgress(), Demo->RangedProductionTarget));
-							if (Cat == EDemoUnitCategory::Distance
-								&& Demo->IsRangedProductionObjectiveComplete())
-							{
-								if (AWOTOLDemoDirector* Dir = GetDemoDirector())
-									Dir->NotifyRangedProductionObjectiveComplete();
-							}
-						}
-					}
-					return true;
-				}
-			}
+			// Cartes de production PERMANENTES EN BAS SUPPRIMÉES (31/07/2026, demande explicite de
+			// Liamor : "retire complètement les cartes en bas"). Leurs actions (améliorer/produire/
+			// construire) sont désormais gérées par les vrais boutons de la fenêtre de bâtiment
+			// (PRODUIRE/AMELIORER/CONSTRUIRE, cf. bloc HasCitySelection ci-dessous), ouverte via le
+			// clic 3D sur le bâtiment -> menu contextuel court -> onglet correspondant.
+
 			// Menu contextuel COURT (31/07/2026, references reelles) : etape intermediaire au
 			// clic sur un batiment, avant la grande fenetre a onglets ci-dessous. Un choix ferme
 			// ce menu et ouvre la grande fenetre sur l'onglet correspondant.
@@ -483,6 +426,63 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 					{
 						Demo->SetSelectedBuildingTab(t);
 						return true;
+					}
+				}
+				// Vrais boutons d'action de la fenêtre de bâtiment (31/07/2026, suite : remplacent
+				// les cartes permanentes en bas de l'écran, supprimées à la demande de Liamor).
+				// Même structure de garde que DrawBuildingPanel (VERROUILLE / Distance pas encore
+				// construit / onglets) pour que seul un bouton réellement affiché soit cliquable.
+				const EDemoUnitCategory SelCat = Demo->SelectedCityCategory;
+				if (Demo->IsCategoryUnlocked(SelCat))
+				{
+					if (SelCat == EDemoUnitCategory::Distance && !Demo->IsRangedBuildingConstructed())
+					{
+						if (AWOTOLDemoHUD::BuildingConstructButtonRect(BuildingPanel).IsInside(M))
+						{
+							Demo->ArmRangedBuildingPlacement();
+							return true;
+						}
+					}
+					else if (Demo->GetSelectedBuildingTab() == 1 // Recrutement
+						&& SelCat != EDemoUnitCategory::Mythique && SelCat != EDemoUnitCategory::Chef)
+					{
+						const FBox2D Card = AWOTOLDemoHUD::BuildingRecruitCardRect(BuildingPanel);
+						if (AWOTOLDemoHUD::BuildingProduceButtonRect(Card).IsInside(M))
+						{
+							if (Demo->ProduceUnit(SelCat))
+							{
+								// Phase 3 (post-croissance) : recrutement libre jusqu'au plafond
+								// faction, plus rien à voir avec l'objectif "10 unites a distance"
+								// de la phase 2.
+								if (Demo->bReadyForGrandBattleDeparture)
+								{
+									Demo->SetObjective(FString::Printf(TEXT(
+										"VOTRE CITE A GRANDI — nouveaux batiments debloques. Recrutez votre armee (%d / %d) puis embarquez."),
+										Demo->GetArmyUnitCount(), Demo->GetArmyUnitCap()));
+								}
+								else
+								{
+									Demo->SetObjective(FString::Printf(TEXT("Produisez 10 unites a distance : %d / %d"),
+										Demo->GetRangedProductionProgress(), Demo->RangedProductionTarget));
+									if (SelCat == EDemoUnitCategory::Distance
+										&& Demo->IsRangedProductionObjectiveComplete())
+									{
+										if (AWOTOLDemoDirector* Dir = GetDemoDirector())
+											Dir->NotifyRangedProductionObjectiveComplete();
+									}
+								}
+							}
+							return true;
+						}
+					}
+					else if (Demo->GetSelectedBuildingTab() == 2) // Statistiques
+					{
+						const int32 UpCost = Demo->GetBuildingUpgradeCost(SelCat);
+						if (UpCost > 0 && AWOTOLDemoHUD::BuildingUpgradeButtonRect(BuildingPanel).IsInside(M))
+						{
+							Demo->UpgradeBuilding(SelCat);
+							return true;
+						}
 					}
 				}
 				// Bouton RECHERCHE de la fenêtre de bâtiment (cité + Chef en un seul écran).

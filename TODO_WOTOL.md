@@ -1,5 +1,46 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Cartes 2D permanentes en bas de la vue Cite RETIREES COMPLETEMENT (31/07/2026, suite)
+
+Suite explicite de Liamor apres l'ajout du menu contextuel court ci-dessous : "retire
+completement les cartes en bas aussi" — la section precedente laissait les cartes en place
+par prudence ("PAS FAIT... a confirmer avec Liamor"). Confirme sans ambiguite, fait
+completement dans la foulee (pas de nouvelle passe partielle) :
+
+- **`DrawCityView`** (`WOTOLDemoHUD.cpp`) : le bloc entier de dessin des 5 cartes de
+  production en bas d'ecran (fond, bordure, surbrillance de selection, badge "NOUVEAU !",
+  bandeau ameliorer, portrait, texte produire/construire — ~122 lignes) supprime, remplace
+  par un commentaire explicatif.
+- **`WOTOLPlayerController_Battle.cpp`** : la boucle de clic correspondante
+  (`CityCardUpgradeRect`/`CityCardRect`, avec ses effets de bord : textes d'objectif,
+  `ArmRangedBuildingPlacement`, `NotifyRangedProductionObjectiveComplete`) supprimee. La
+  fonction `FindCityBuildingLocation` (devenue orpheline, ne servait qu'aux clics sur ces
+  cartes) supprimee aussi.
+- **Fonctions de rect `CityCardRect`/`CityCardUpgradeRect`** (devenues mortes — plus aucun
+  appelant) supprimees de `WOTOLDemoHUD.h`/`.cpp`. `CityCardCount`/`CityCardCategory`
+  CONSERVEES : ce sont la source de verite partagee de l'ordre des 5 batiments, utilisees
+  ailleurs (anneau 3D `WOTOLCityEnvironment`, ecran Competences, ecran Recherche) —
+  aucun rapport avec les cartes 2D retirees.
+- **Migration des actions vers la fenetre de batiment** (l'onglet Recrutement affichait
+  litteralement le texte "Produire via la carte en bas de l'ecran" — plus rien a cote de
+  quoi migrer sans casser la production/l'amelioration de batiments) :
+  - Nouveau `BuildingRecruitCardRect(Panel)` : rect partage dessin/clic de la carte de
+    recrutement dans l'onglet Recrutement (remplace le calcul local en dur).
+  - Nouveau `BuildingProduceButtonRect(Card)` + bouton "PRODUIRE" reel (etait juste du texte
+    avant), avec verification de cout (`GetCrystals() >= Cost` — ressource unique partagee
+    Cristaux/Biolumens, pas de champ separe).
+  - `BuildingUpgradeButtonRect(Panel)` simplifie (n'a plus besoin d'un `Y` explicite, offset
+    fixe recalcule = Panel.Min.Y + 166) + bouton "AMELIORER" reel dans l'onglet Statistiques.
+  - Nouveau `BuildingConstructButtonRect(Panel)` + bouton "CONSTRUIRE" reel dans le cas
+    "batiment a distance pas encore construit" (remplacait aussi un texte hint qui pointait
+    vers la carte du bas, desormais supprimee) — declenche `ArmRangedBuildingPlacement()`,
+    le joueur choisit ensuite l'un des 3 emplacements deja existants sur la maquette 3D.
+- Balance accolades/parentheses reverifiee sur les 3 fichiers touches apres coup (methode
+  `grep -o '{'/'}'`  compare aux offsets de base connus du fichier) — aucun ecart introduit.
+- **Non verifiable sans compilateur/editeur** (comme tout ce chantier cote Claude Code) :
+  positionnement pixel-precis des nouveaux boutons a l'interieur de la fenetre de batiment —
+  a verifier au prochain retour PC.
+
 ## Menu contextuel court au clic sur un batiment (references reelles Age of Empires Mobile) (31/07/2026, suite)
 
 Liamor a envoye une planche de reference tres detaillee (compilee via ChatGPT + captures reelles
@@ -22,14 +63,9 @@ DIRECTEMENT la grande fenetre a onglets — pas d'etape intermediaire. Ajoute :
   Stats, Entrainer->Recrutement).
 - Clic ailleurs sur la maquette pendant que le menu est ouvert -> le ferme.
 
-PAS FAIT (scope volontairement limite pour rester prudent sans compilateur) : les CARTES 2D
-permanentes en bas de l'ecran (une par batiment, deja existantes) gardent leur clic direct
-(upgrade/produce sans passer par le menu) — la reference envoyee semble plutot rejeter ce
-principe de cartes permanentes en bas ("pas comme toi... des fenetres en bas qui correspondent
-a chaque batiment"). Les retirer entierement demanderait de migrer TOUTES leurs fonctions vers
-le nouveau clic 3D, un chantier plus risque a faire en un seul passage sans pouvoir tester —
-a confirmer avec Liamor si le nouveau menu contextuel suffit ou si les cartes doivent
-disparaitre completement.
+MISE A JOUR (31/07/2026, suite immediate) : Liamor a confirme sans ambiguite que les cartes
+2D permanentes en bas devaient disparaitre completement — fait, voir la section tout en haut
+de ce fichier ("Cartes 2D permanentes en bas de la vue Cite RETIREES COMPLETEMENT").
 
 ## VRAIE cause (2e recherche) du "cercle bleu" en cite : 2 bugs reels, pas un asset (31/07/2026, suite)
 

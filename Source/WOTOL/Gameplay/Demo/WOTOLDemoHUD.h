@@ -77,10 +77,9 @@ public:
 	static FBox2D ExplorationCrystalliserButtonRect(float W, float H);
 
 	// ─── Vue CITÉ (phases 2 & 9 — production) ───────────────────────────────────
-	// Cartes de production (bâtiments) le long du bas de l'écran.
-	static FBox2D CityCardRect(int32 Index, float W, float H);
-	// Bandeau HAUT de la carte = bouton « Améliorer le bâtiment » (niveau -> niveau des unités).
-	static FBox2D CityCardUpgradeRect(int32 Index, float W, float H);
+	// Cartes de production PERMANENTES EN BAS SUPPRIMÉES (31/07/2026, demande explicite de
+	// Liamor). Actions migrées dans la fenêtre de bâtiment (BuildingRecruitCardRect /
+	// BuildingProduceButtonRect / BuildingUpgradeButtonRect / BuildingConstructButtonRect).
 	// Bouton « Partir en expédition » (bas-droite).
 	static FBox2D CityDepartButtonRect(float W, float H);
 	// Bouton « Compétences » de la cité (ouvre l'onglet des axes).
@@ -147,6 +146,17 @@ public:
 	static FBox2D ResearchChefTierRect(float W, float H);
 	// Bouton "RECHERCHE" ouvert depuis la fenêtre de bâtiment (visible surtout sur le Chef).
 	static FBox2D BuildingResearchButtonRect(const FBox2D& Panel);
+	// Boutons d'action RÉELS dans la fenêtre de bâtiment (31/07/2026, suite : cartes
+	// permanentes en bas de l'écran supprimées à la demande de Liamor — leurs actions migrent
+	// ICI, dans les onglets RECRUTEMENT/STATISTIQUES). PRODUIRE dans l'onglet Recrutement (à la
+	// place du texte "Produire via la carte en bas") ; AMÉLIORER dans l'onglet Statistiques.
+	// Rects calculés une seule fois (partagés dessin + clic, comme GetCityBuildingPanelRect).
+	static FBox2D BuildingRecruitCardRect(const FBox2D& Panel);
+	static FBox2D BuildingProduceButtonRect(const FBox2D& Card);
+	static FBox2D BuildingUpgradeButtonRect(const FBox2D& Panel);
+	// Bouton CONSTRUIRE (bâtiment à distance pas encore construit) : remplace le texte "Choisissez
+	// un emplacement via sa carte en bas" (carte supprimée) — déclenche le placement du plot 3D.
+	static FBox2D BuildingConstructButtonRect(const FBox2D& Panel);
 	// Sélecteur de formation tactique (voir DrawFormationSelector).
 	static FBox2D FormationButtonRect(int32 Index, float W, float H);
 

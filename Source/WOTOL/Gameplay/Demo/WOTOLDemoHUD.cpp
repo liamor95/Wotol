@@ -1427,26 +1427,6 @@ EDemoUnitCategory AWOTOLDemoHUD::SkillsCategoryAt(int32 Index)
 	return CityCardCategory(Index);
 }
 
-FBox2D AWOTOLDemoHUD::CityCardRect(int32 Index, float W, float H)
-{
-	const int32 N = CityCardCount();
-	const float CW = FMath::Min(230.f, (W * 0.82f) / N);
-	const float CH = 168.f;
-	const float Gap = 16.f;
-	const float TotalW = N * CW + (N - 1) * Gap;
-	const float StartX = (W - TotalW) * 0.5f;
-	const float Y = H - CH - 46.f;
-	const float X = StartX + Index * (CW + Gap);
-	return FBox2D(FVector2D(X, Y), FVector2D(X + CW, Y + CH));
-}
-
-FBox2D AWOTOLDemoHUD::CityCardUpgradeRect(int32 Index, float W, float H)
-{
-	// Bandeau supérieur de la carte (les ~34 px du haut).
-	const FBox2D R = CityCardRect(Index, W, H);
-	return FBox2D(R.Min, FVector2D(R.Max.X, R.Min.Y + 34.f));
-}
-
 FBox2D AWOTOLDemoHUD::CityDepartButtonRect(float W, float H)
 {
 	const float BW = 340.f, BH = 60.f;
@@ -1483,7 +1463,11 @@ FBox2D AWOTOLDemoHUD::BuildingTabRect(int32 TabIndex, const FBox2D& Panel)
 
 FBox2D AWOTOLDemoHUD::GetCityBuildingPanelRect(APlayerController* PC, const FVector& WorldLoc, float W, float H)
 {
-	const float PanelW = 360.f, PanelH = H * 0.36f;
+	// Hauteur relevée 0.36 -> 0.42 (31/07/2026, suite) : la carte de recrutement a maintenant
+	// un vrai bouton PRODUIRE (les cartes permanentes en bas de l'écran ont été supprimées) et
+	// avait besoin de plus de place pour ne pas déborder. Reste sous 0.44 (la bande verticale
+	// disponible entre le bandeau haut et bas, cf. clamp Y ci-dessous) pour que le clamp reste valide.
+	const float PanelW = 360.f, PanelH = H * 0.42f;
 	FVector2D ScreenPos(W * 0.5f, H * 0.42f); // repli central si la projection échoue
 	if (PC) PC->ProjectWorldLocationToScreen(WorldLoc, ScreenPos, true);
 
@@ -1869,128 +1853,14 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 			: Demo->IsRangedProductionObjectiveComplete() ? FLinearColor(0.45f, 1.f, 0.55f, 1.f)
 			: FLinearColor(0.9f, 0.95f, 1.f, 0.95f), 1.1f);
 
-	// Cartes de production (bâtiments).
-	for (int32 i = 0; i < CityCardCount(); ++i)
-	{
-		const EDemoUnitCategory Cat = CityCardCategory(i);
-		const FBox2D R = CityCardRect(i, W, H);
-		const int32 Cost = Demo->GetProductionCost(Cat);
-		const bool bUnlocked = Demo->IsCategoryUnlocked(Cat);
-		const bool bNeedsBuilding = Cat == EDemoUnitCategory::Distance
-			&& !Demo->IsRangedBuildingConstructed();
-		const bool bCanBuild = bNeedsBuilding
-			&& Demo->CanAffordTerritoryBuilding(Demo->RangedBuildingCrystalCost,
-				Demo->RangedBuildingAbyssalMaterialCost);
-		const bool bAfford = bNeedsBuilding ? bCanBuild : Demo->CanProduce(Cat);
-		const FName UnitID = Demo->GetUnitID(Fac, Cat);
-		const int32 InReserve = Demo->GetReserveCount(UnitID);
-
-		// Fond de carte : vif si productible, grisé si verrouillé/insuffisant.
-		const FLinearColor CardBg = !bUnlocked ? FLinearColor(0.10f, 0.10f, 0.13f, 0.85f)
-			: bAfford ? FLinearColor(0.08f, 0.16f, 0.24f, 0.92f)
-			          : FLinearColor(0.14f, 0.12f, 0.10f, 0.90f);
-		DrawRect(CardBg, R.Min.X, R.Min.Y, R.Max.X - R.Min.X, R.Max.Y - R.Min.Y);
-		const FLinearColor Border = bAfford ? Accent : FLinearColor(0.4f, 0.42f, 0.48f, 1.f);
-		DrawLine(R.Min.X, R.Min.Y, R.Max.X, R.Min.Y, Border, 2.f);
-		DrawLine(R.Min.X, R.Max.Y, R.Max.X, R.Max.Y, Border, 2.f);
-		DrawLine(R.Min.X, R.Min.Y, R.Min.X, R.Max.Y, Border, 2.f);
-		DrawLine(R.Max.X, R.Min.Y, R.Max.X, R.Max.Y, Border, 2.f);
-		// Surbrillance quand ce bâtiment est sélectionné (clic 3D sur la maquette isométrique
-		// OU clic sur cette carte) : cadre épais blanc en plus du cadre de couleur normal.
-		if (Demo->HasCitySelection() && Demo->SelectedCityCategory == Cat)
-		{
-			DrawLine(R.Min.X - 3.f, R.Min.Y - 3.f, R.Max.X + 3.f, R.Min.Y - 3.f, FLinearColor::White, 3.f);
-			DrawLine(R.Min.X - 3.f, R.Max.Y + 3.f, R.Max.X + 3.f, R.Max.Y + 3.f, FLinearColor::White, 3.f);
-			DrawLine(R.Min.X - 3.f, R.Min.Y - 3.f, R.Min.X - 3.f, R.Max.Y + 3.f, FLinearColor::White, 3.f);
-			DrawLine(R.Max.X + 3.f, R.Min.Y - 3.f, R.Max.X + 3.f, R.Max.Y + 3.f, FLinearColor::White, 3.f);
-		}
-		// Badge "NOUVEAU !" : marque visuellement les bâtiments tout juste débloqués par la
-		// croissance de phase 3 (Spéciale/Mythique) — matérialise le déblocage sans dépendre
-		// uniquement du texte de l'interlude (demande de Liamor du 26/07/2026).
-		if (Demo->bReadyForGrandBattleDeparture
-			&& (Cat == EDemoUnitCategory::Speciale || Cat == EDemoUnitCategory::Mythique))
-		{
-			const FString Badge = TEXT("NOUVEAU !");
-			float BgW, BgH; GetTextSize(Badge, BgW, BgH, GEngine ? GEngine->GetSmallFont() : nullptr, 1.0f);
-			DrawRect(FLinearColor(0.95f, 0.75f, 0.15f, 0.95f),
-				R.Max.X - BgW - 16.f, R.Min.Y - BgH * 0.5f - 6.f, BgW + 12.f, BgH + 8.f);
-			DrawText(Badge, FLinearColor(0.08f, 0.06f, 0.02f, 1.f), R.Max.X - BgW - 10.f,
-				R.Min.Y - BgH * 0.5f - 2.f, GEngine ? GEngine->GetSmallFont() : nullptr, 1.0f);
-		}
-
-		const float CX = R.Min.X + 12.f;
-		// Bandeau HAUT : niveau du bâtiment + bouton « Améliorer » (niv. bâtiment = niv. unités).
-		const int32 BLevel = Demo->GetBuildingLevel(Cat);
-		const int32 UpCost = Demo->GetBuildingUpgradeCost(Cat);
-		const bool  bCanUp = Demo->CanUpgradeBuilding(Cat);
-		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.35f), R.Min.X, R.Min.Y, R.Max.X - R.Min.X, 34.f);
-		const FString LevelLabel = bNeedsBuilding
-			? FString(TEXT("A CONSTRUIRE")) : FString::Printf(TEXT("Niv.%d"), BLevel);
-		DrawText(LevelLabel, Accent, CX, R.Min.Y + 8.f, nullptr, bNeedsBuilding ? 0.9f : 1.0f);
-		if (bNeedsBuilding)
-		{
-			DrawText(TEXT("Selectionnez puis placez"), FLinearColor(1.f, 0.9f, 0.5f, 1.f),
-				CX + 92.f, R.Min.Y + 8.f, nullptr, 0.78f);
-		}
-		else if (UpCost > 0)
-		{
-			DrawText(FString::Printf(TEXT("Ameliorer (%d)"), UpCost),
-				bCanUp ? FLinearColor(1.f, 0.9f, 0.5f, 1.f) : FLinearColor(0.6f, 0.6f, 0.65f, 1.f),
-				CX + 78.f, R.Min.Y + 8.f, nullptr, 0.95f);
-		}
-		else if (!bNeedsBuilding)
-		{
-			DrawText(TEXT("Niveau max"), FLinearColor(0.6f, 0.7f, 0.6f, 1.f), CX + 78.f, R.Min.Y + 8.f, nullptr, 0.95f);
-		}
-		// Portrait de l'unité (planche officielle, même image que le socle 3D et la fenêtre de
-		// bâtiment) en haut à droite — la carte n'affichait jusqu'ici que du texte, jamais
-		// l'illustration, contrairement à la planche de référence envoyée par Liamor le
-		// 31/07/2026 (portrait carré sur chaque carte de recrutement).
-		if (UTexture2D* CardIcon = WOTOLBuildingArt::GetBuildingIcon(Fac, Cat))
-		{
-			const float IconSz = 40.f;
-			const float IconX = R.Max.X - IconSz - 8.f, IconY = R.Min.Y + 40.f;
-			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.35f), IconX - 2.f, IconY - 2.f, IconSz + 4.f, IconSz + 4.f);
-			DrawTexture(CardIcon, IconX, IconY, IconSz, IconSz, 0.f, 0.f, 1.f, 1.f);
-		}
-		DrawText(CityBuildingLabel(Fac, Cat), Border, CX, R.Min.Y + 40.f, GEngine ? GEngine->GetMediumFont() : nullptr, 0.9f);
-		DrawText(CityUnitLabel(Fac, Cat), FLinearColor::White, CX, R.Min.Y + 66.f, GEngine ? GEngine->GetLargeFont() : nullptr, 1.1f);
-
-		if (!bUnlocked)
-		{
-			DrawText(TEXT("Verrouille"), FLinearColor(0.7f, 0.7f, 0.75f, 1.f), CX, R.Min.Y + 96.f, nullptr, 1.f);
-		}
-		else if (bNeedsBuilding)
-		{
-			DrawText(FString::Printf(TEXT("Construction : %d cristaux + %d mineraux abyssaux"),
-				Demo->RangedBuildingCrystalCost, Demo->RangedBuildingAbyssalMaterialCost),
-				bCanBuild ? FLinearColor(1.f, 0.95f, 0.6f, 1.f) : FLinearColor(1.f, 0.55f, 0.5f, 1.f),
-				CX, R.Min.Y + 96.f, nullptr, 0.82f);
-			DrawText(bCanBuild ? TEXT("+ CONSTRUIRE") : TEXT("RESSOURCES INSUFFISANTES"),
-				bCanBuild ? Accent : FLinearColor(0.7f, 0.5f, 0.5f, 1.f),
-				CX, R.Max.Y - 28.f, GEngine ? GEngine->GetMediumFont() : nullptr, 0.9f);
-		}
-		else if (Cat == EDemoUnitCategory::Mythique)
-		{
-			// Créature unique élevée par la narration (Feed & Grow) : jamais recrutable en
-			// série en cité, déjà comptée dans l'armée automatiquement.
-			DrawText(TEXT("Deja dans votre armee (creature unique)"),
-				FLinearColor(0.7f, 0.85f, 0.75f, 1.f), CX, R.Min.Y + 96.f, nullptr, 0.85f);
-		}
-		else
-		{
-			// Vraie icône de ressource (planche officielle, plus une pastille générique) devant
-			// le coût, au lieu d'un simple "Cout : X" sans repère visuel.
-			DrawResourceChip(GetPrimaryResourceIcon(Fac), FString::Printf(TEXT("%d   Reserve : %d"), Cost, InReserve),
-				CX, R.Min.Y + 88.f, 18.f,
-				bAfford ? FLinearColor(1.f, 0.95f, 0.6f, 1.f) : FLinearColor(1.f, 0.55f, 0.5f, 1.f));
-			const FString Action = bAfford ? TEXT("+ PRODUIRE")
-				: (Demo->GetArmyUnitCount() >= Demo->GetArmyUnitCap()
-					? TEXT("PLAFOND D'ARMEE") : TEXT("INDISPONIBLE / RESERVE OBJECTIF"));
-			DrawText(Action, bAfford ? Accent : FLinearColor(0.7f, 0.5f, 0.5f, 1.f),
-				CX, R.Max.Y - 28.f, GEngine ? GEngine->GetMediumFont() : nullptr, 0.82f);
-		}
-	}
+	// Cartes de production PERMANENTES EN BAS SUPPRIMÉES (31/07/2026, demande explicite de
+	// Liamor : "retire complètement les cartes en bas" — plus aucune fenêtre fixe qui
+	// encombre l'écran en permanence). Toutes leurs actions (améliorer/produire/construire)
+	// migrent dans la fenêtre de bâtiment ci-dessous, ouverte via clic sur le bâtiment 3D ->
+	// menu contextuel court -> onglet RECRUTEMENT (bouton PRODUIRE) ou STATISTIQUES (bouton
+	// AMELIORER). Le cas "bâtiment à distance pas encore construit" reste géré via
+	// ArmRangedBuildingPlacement (cf. WOTOLPlayerController_Battle, clic sur le bâtiment ->
+	// choix ENTRAINER dans le menu contextuel).
 
 	// ─── FENÊTRE DE BÂTIMENT (multi-onglets) : POPUP ANCRÉE près du bâtiment réellement cliqué
 	// (projection écran de SelectedCityBuildingWorldLocation), pas un panneau fixe qui
@@ -2069,8 +1939,10 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 			DrawCenteredTextInBox(Panel, FString::Printf(TEXT("Cout : %d cristaux + %d mineraux abyssaux"),
 				Demo->RangedBuildingCrystalCost, Demo->RangedBuildingAbyssalMaterialCost), Y,
 				FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 0.9f); Y += 26.f;
-			DrawCenteredTextInBox(Panel, TEXT("Choisissez un emplacement via sa carte en bas."), Y,
-				FLinearColor(0.7f, 0.75f, 0.85f, 0.85f), 0.8f);
+			// Vrai bouton CONSTRUIRE (31/07/2026, suite : remplace le texte "Choisissez un
+			// emplacement via sa carte en bas" — carte permanente supprimée). Arme le placement,
+			// le joueur choisit ensuite l'un des 3 emplacements affichés sur la maquette 3D.
+			DrawButton(BuildingConstructButtonRect(Panel), TEXT("CONSTRUIRE"), Accent, 0.95f);
 		}
 		else if (ActiveTab == 0) // ─── RÉSUMÉ ───
 		{
@@ -2111,8 +1983,10 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 				// Liamor le 31/07/2026 : portrait beaucoup plus grand qu'une simple icône, tag de
 				// type d'unité, texte de lore, coût en icône+nombre.
 				const FName SelUnitID = Demo->GetUnitID(Fac, SelCat);
-				const float CardM = 22.f;
-				const FBox2D Card(FVector2D(Panel.Min.X + CardM, Y), FVector2D(Panel.Max.X - CardM, Y + 272.f));
+				// Hauteur relevée 272 -> 340 (31/07/2026, suite) pour laisser la place au vrai
+				// bouton PRODUIRE (cartes permanentes en bas de l'écran supprimées). Rect partagé
+				// dessin + clic (BuildingRecruitCardRect), Y ancré ici juste après le libellé.
+				const FBox2D Card = BuildingRecruitCardRect(Panel);
 				const float CardW = Card.Max.X - Card.Min.X, CardH = Card.Max.Y - Card.Min.Y;
 				DrawRect(FLinearColor(0.10f, 0.13f, 0.18f, 0.6f), Card.Min.X, Card.Min.Y, CardW, CardH);
 				DrawRect(Accent.CopyWithNewOpacity(0.55f), Card.Min.X, Card.Min.Y, CardW, 2.f);
@@ -2172,9 +2046,14 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 
 				DrawCenteredTextInBox(Card, FString::Printf(TEXT("En reserve : %d"), Demo->GetReserveCount(SelUnitID)),
 					CY, FLinearColor(0.85f, 0.9f, 1.f, 0.9f), 0.82f);
-				CY += 24.f;
-				DrawCenteredTextInBox(Card, TEXT("Produire via la carte en bas de l'ecran"),
-					CY, FLinearColor(0.7f, 0.75f, 0.85f, 0.85f), 0.7f);
+
+				// Vrai bouton PRODUIRE (31/07/2026, suite : remplace le texte "Produire via la
+				// carte en bas" — les cartes permanentes en bas de l'écran ont été supprimées à
+				// la demande de Liamor, toutes leurs actions migrent dans cette fenêtre).
+				const bool bCanAfford = Demo->GetCrystals() >= Cost;
+				DrawButton(BuildingProduceButtonRect(Card),
+					bCanAfford ? TEXT("PRODUIRE") : TEXT("RESSOURCES INSUFFISANTES"),
+					bCanAfford ? Accent : FLinearColor(0.45f, 0.42f, 0.42f, 1.f), 0.95f);
 			}
 		}
 		else if (ActiveTab == 2) // ─── STATISTIQUES ───
@@ -2203,6 +2082,17 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 			DrawCenteredTextInBox(Panel, FString::Printf(TEXT("Armee active : %d / %d"),
 				Demo->GetArmyUnitCount(), Demo->GetArmyUnitCap()), Y,
 				FLinearColor(0.8f, 0.86f, 0.95f, 0.85f), 0.8f);
+			Y += 26.f;
+
+			// Vrai bouton AMELIORER (31/07/2026, suite : les cartes permanentes en bas de
+			// l'écran ont été supprimées, leur bandeau "améliorer" migre ici).
+			if (UpCost > 0)
+			{
+				const bool bCanUpgrade = Demo->CanUpgradeBuilding(SelCat);
+				DrawButton(BuildingUpgradeButtonRect(Panel),
+					bCanUpgrade ? TEXT("AMELIORER") : TEXT("RESSOURCES INSUFFISANTES"),
+					bCanUpgrade ? Accent : FLinearColor(0.45f, 0.42f, 0.42f, 1.f), 0.95f);
+			}
 		}
 		else if (ActiveTab == 3) // ─── COMPÉTENCES ───
 		{
@@ -2460,6 +2350,47 @@ FBox2D AWOTOLDemoHUD::BuildingResearchButtonRect(const FBox2D& Panel)
 	const float BW = 200.f, BH = 40.f;
 	return FBox2D(FVector2D(Panel.Max.X - BW - 12.f, Panel.Max.Y - BH - 10.f),
 		FVector2D(Panel.Max.X - 12.f, Panel.Max.Y - 10.f));
+}
+
+FBox2D AWOTOLDemoHUD::BuildingRecruitCardRect(const FBox2D& Panel)
+{
+	// Ancrée juste sous le libellé d'unité de l'onglet Recrutement (Y = Panel.Min.Y + 80 initial
+	// + 32 après le DrawCenteredTextInBox du libellé, cf. DrawBuildingPanel ActiveTab==1) et
+	// haute de 340 pour laisser la place au bouton PRODUIRE en bas de carte. Rect PARTAGÉ
+	// dessin + clic (comme GetCityBuildingPanelRect) pour que le clic tombe pile sur ce qui
+	// est affiché, même si le contenu au-dessus change.
+	const float CardM = 22.f;
+	const float Y = Panel.Min.Y + 112.f;
+	return FBox2D(FVector2D(Panel.Min.X + CardM, Y), FVector2D(Panel.Max.X - CardM, Y + 340.f));
+}
+
+FBox2D AWOTOLDemoHUD::BuildingProduceButtonRect(const FBox2D& Card)
+{
+	// Ancré au bas de la carte (la carte est dimensionnée pour laisser la place, cf.
+	// DrawCityView) plutôt qu'à une position Y explicite -> reste correct même si le contenu
+	// au-dessus change légèrement.
+	const float M = 22.f, BH = 34.f;
+	return FBox2D(FVector2D(Card.Min.X + M, Card.Max.Y - BH - 14.f),
+		FVector2D(Card.Max.X - M, Card.Max.Y - 14.f));
+}
+
+FBox2D AWOTOLDemoHUD::BuildingUpgradeButtonRect(const FBox2D& Panel)
+{
+	// Y fixe = Panel.Min.Y + 80 (initial) + 30 (ligne NIVEAU) + 30 (ligne cout/max) + 26
+	// (ligne Armee active), cf. DrawBuildingPanel ActiveTab==2 — même chemin dans les deux
+	// branches (UpCost>0 ou non), donc offset constant.
+	const float M = 22.f, BH = 34.f;
+	const float Y = Panel.Min.Y + 166.f;
+	return FBox2D(FVector2D(Panel.Min.X + M, Y), FVector2D(Panel.Max.X - M, Y + BH));
+}
+
+FBox2D AWOTOLDemoHUD::BuildingConstructButtonRect(const FBox2D& Panel)
+{
+	// Y fixe = Panel.Min.Y + 80 (initial) + 30 ("PAS ENCORE CONSTRUIT") + 26 (ligne cout),
+	// cf. DrawBuildingPanel branche "Distance non construit".
+	const float M = 22.f, BH = 34.f;
+	const float Y = Panel.Min.Y + 136.f;
+	return FBox2D(FVector2D(Panel.Min.X + M, Y), FVector2D(Panel.Max.X - M, Y + BH));
 }
 
 // Nom de la VOIE (axe) par faction/catégorie (0=Base, 1=Axe1, 2=Axe2) — d'après le GDD §7.
