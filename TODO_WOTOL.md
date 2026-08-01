@@ -1,5 +1,25 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Emblemes de faction cachaient le titre "CHOISISSEZ VOTRE FACTION" (01/08/2026)
+
+Retour terrain avec capture : les 2 embleme (cristal Aquiloris / organisme Noxeens) au-dessus
+des boutons de faction chevauchaient le titre, le texte se lisant "...ISISSEZ VOTRE FACT..."
+(CHO et ION masques derriere les embleme). Cause : un commentaire affirmait a tort "plus de
+collision" mais n'avait jamais ete revalide apres l'agrandissement de l'embleme du
+31/07/2026 (IconH 0.17H -> 0.28H, demande "le logo... il soit un peu plus grand") -- cet
+agrandissement a fait remonter le sommet de l'embleme DANS la zone verticale du titre sans
+que personne ne revrifie le chevauchement.
+
+Fix a deux leviers combines (title Y 0.13H -> 0.045H, decalage vertical de l'embleme
+0.155H -> 0.12H) : le titre remonte dans la bande vide au-dessus (visible sur la capture),
+et l'embleme redescend legerement -- reste presque aussi haut/dominant qu'avant (sommet a
+Y_bouton-0.26H contre Y_bouton-0.295H), juste assez pour degager une marge confortable.
+
+- **Non verifiable sans rendu reel** : a confirmer au prochain retour PC. Les hauteurs
+  exactes de police (GetLargeFont a l'echelle 2.4) n'ont pas pu etre mesurees precisement
+  cote Claude Code -- marge volontairement genereuse (~35-40px estimes) pour absorber
+  l'incertitude sur cette mesure.
+
 ## VRAIS portraits de heros enfin livres (Aquis/Aquira/Noxar) (01/08/2026)
 
 Liamor a fourni 3 vraies planches de reference (buste + turnaround corps complet, fond gris

@@ -1173,19 +1173,27 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 	{
 		DrawTexture(BG, 0.f, 0.f, W, H, 0.f, 0.f, 1.f, 1.f, FLinearColor(1.f, 1.f, 1.f, 0.6f));
 	}
-	DrawGlowTitle(TEXT("CHOISISSEZ VOTRE FACTION"), H * 0.13f, 2.4f, FLinearColor(0.7f, 0.9f, 1.f, 1.f));
+	// Titre REMONTE (01/08/2026, retour terrain avec capture : "les deux emblemes cachent une
+	// partie du texte en haut au milieu" — le commentaire juste en dessous affirmait a tort
+	// qu'il n'y avait "plus de collision", jamais revalide apres l'agrandissement de l'embleme
+	// du 31/07/2026 (IconH 0.17H -> 0.28H) qui l'a fait remonter DANS la zone du titre). 0.13H
+	// -> 0.045H, largement dans la bande vide au-dessus du titre visible sur la capture.
+	DrawGlowTitle(TEXT("CHOISISSEZ VOTRE FACTION"), H * 0.045f, 2.4f, FLinearColor(0.7f, 0.9f, 1.f, 1.f));
 
 	const float T = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
-	// Emblème animé au-dessus de chaque bouton (cristal Aquiloris / organisme Noxéen). Les
-	// boutons étant LARGES et écartés, les emblèmes sont loin du titre centré (plus de collision).
 	if (Canvas)
 	{
 		const FBox2D RA = FactionButtonRect(0, W, H);
 		const FBox2D RN = FactionButtonRect(1, W, H);
 		const float bobA = FMath::Sin(T * 1.4f) * 8.f;
 		const float bobN = FMath::Sin(T * 1.4f + 1.6f) * 8.f;
-		const FVector2D CA((RA.Min.X + RA.Max.X) * 0.5f, RA.Min.Y - H * 0.155f + bobA);
-		const FVector2D CN((RN.Min.X + RN.Max.X) * 0.5f, RN.Min.Y - H * 0.155f + bobN);
+		// Décalage vertical réduit 0.155H -> 0.12H (même correction, même jour) : combiné au
+		// titre remonté ci-dessus, laisse une marge confortable entre le bas du titre et le
+		// haut de l'embleme (embleme haut de IconH=0.28H, donc son sommet est maintenant à
+		// Y_bouton - 0.12H - 0.14H = Y_bouton - 0.26H, contre Y_bouton - 0.295H avant -- il
+		// reste presque aussi haut/dominant, juste assez baissé pour ne plus chevaucher le titre).
+		const FVector2D CA((RA.Min.X + RA.Max.X) * 0.5f, RA.Min.Y - H * 0.12f + bobA);
+		const FVector2D CN((RN.Min.X + RN.Max.X) * 0.5f, RN.Min.Y - H * 0.12f + bobN);
 		// Emblèmes officiels détourés (Content/UI/EmblemAquilorisIcon.png / EmblemNoxeensIcon.png —
 		// dégradé alpha, découpés depuis les planches complètes fournies par Liamor le 25/07/2026)
 		// si présents ; repli sur les icônes procédurales sinon. Dessinés à leur RATIO D'ASPECT réel
