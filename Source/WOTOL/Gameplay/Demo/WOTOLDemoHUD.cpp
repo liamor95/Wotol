@@ -1328,11 +1328,23 @@ void AWOTOLDemoHUD::DrawHeroCustomization(float W, float H, UDemoFlowSubsystem* 
 	// 2 sections n'avaient AUCUN effet sur le gameplay (confirme par recherche - jamais lus
 	// en dehors de ce fichier et du sous-systeme de stockage) et n'avaient pas de raison
 	// d'etre : chaque heros a deja un role fixe, ce n'est pas un choix de classe.
+	// FOND ORNÉ ajouté ICI AUSSI (01/08/2026, retour terrain : "c'est réglé les cadres et
+	// fenêtres ?" — audit complet du fichier a trouvé ce cas manquant : les boutons INCARNATION
+	// (AQUIS/AQUIRA/NOXAR) restaient de simples rectangles plats alors que le même choix, sous
+	// une forme quasi identique, a déjà son cadre orné sur l'écran de choix de faction). Même
+	// technique (marge tout autour pour que le cadre dépasse en bordure du bouton).
+	const float IncarnationFrameMargin = 14.f;
 	if (Demo->SelectedFaction == EFactionID::Aquiloris)
 	{
 		DrawCenteredText(TEXT("INCARNATION"), HeroAquilorisVariantButtonRect(0, W, H).Min.Y - H * 0.04f,
 			FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.1f);
 		const TCHAR* VariantLabels[2] = { TEXT("AQUIS"), TEXT("AQUIRA") };
+		for (int32 i = 0; i < 2; ++i)
+		{
+			const FBox2D VR = HeroAquilorisVariantButtonRect(i, W, H);
+			DrawFramedPanel(FBox2D(VR.Min - FVector2D(IncarnationFrameMargin, IncarnationFrameMargin),
+				VR.Max + FVector2D(IncarnationFrameMargin, IncarnationFrameMargin)), Demo->SelectedFaction, 0.55f);
+		}
 		for (int32 i = 0; i < 2; ++i)
 		{
 			const bool bSel = (Loadout.bPlayAsAquira == (i == 1));
@@ -1356,6 +1368,8 @@ void AWOTOLDemoHUD::DrawHeroCustomization(float W, float H, UDemoFlowSubsystem* 
 			FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.1f);
 		const FBox2D NoxarRect(FVector2D(W * 0.5f - W * 0.20f, HeroAquilorisVariantButtonRect(0, W, H).Min.Y),
 			FVector2D(W * 0.5f + W * 0.20f, HeroAquilorisVariantButtonRect(0, W, H).Max.Y));
+		DrawFramedPanel(FBox2D(NoxarRect.Min - FVector2D(IncarnationFrameMargin, IncarnationFrameMargin),
+			NoxarRect.Max + FVector2D(IncarnationFrameMargin, IncarnationFrameMargin)), Demo->SelectedFaction, 0.55f);
 		DrawButton(NoxarRect, TEXT("NOXAR"), FLinearColor(0.35f, 0.85f, 0.55f, 1.f), 1.1f);
 		DrawCenteredText(TEXT("Noxar, chef des Noxeens — seul champion jouable de la faction."),
 			HeroAquilorisVariantButtonRect(0, W, H).Max.Y + H * 0.02f,

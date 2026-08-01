@@ -1,5 +1,26 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Audit complet "cadres/fenetres" : 1 vrai trou trouve et corrige (01/08/2026)
+
+Retour terrain : "et pour les cadres et fenetres alors, c'est regle ca ?!" -- plutot que de
+repondre a l'estime, audit systematique de TOUTES les fonctions `Draw*` de
+`WOTOLDemoHUD.cpp` (grep de chaque fonction pour un appel `DrawFramedPanel`/`GetPanelFrame`).
+
+Resultat : un seul vrai trou trouve. `DrawHeroCustomization` (choix AQUIS/AQUIRA/NOXAR sur
+l'ecran de personnalisation du heros) n'avait AUCUN cadre orne derriere ses boutons
+d'incarnation, alors que l'ecran de choix de faction (juste avant dans le flux) a exactement
+le meme genre de choix ET son cadre depuis le 31/07/2026 -- incoherence entre deux ecrans
+quasi identiques. Corrige avec la meme technique (marge autour du bouton).
+
+Tous les autres ecrans verifies ont soit un vrai cadre (`DrawObjectiveWindow`,
+`DrawFactionSelect`, `DrawPreGameSummary`, `DrawCityQuickMenu`, fenetre de batiment de
+`DrawCityView`, `DrawTerritoryView`, `DrawSkillsView`, `DrawResearchView`, `DrawPrepareBar`,
+`DrawPauseOverlay`, `DrawControlsScreen`, `DrawConfirmDialog`), soit un fond plein-ecran
+IMAGE a la place (`DrawInterlude`, backdrop de transition) -- pas le meme probleme de
+"fenetre plate flottante" que les bandeaux/cadres deja corriges plus tot le meme jour.
+
+- **Non verifiable sans rendu reel** : a confirmer au prochain retour PC.
+
 ## File d'attente x4 (5->20), noms de batiments flottants, nouveaux cadres (01/08/2026)
 
 Trois demandes du meme retour terrain :
