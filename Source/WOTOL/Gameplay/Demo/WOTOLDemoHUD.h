@@ -325,6 +325,20 @@ private:
 	UPROPERTY(Transient) TObjectPtr<class UTexture2D> NoxeensFrameWideTexture = nullptr;
 	bool bNoxeensFrameWideTried = false;
 
+	// Portraits de héros officiels DÉTOURÉS (Content/UI/Portraits/Portrait{Aquis,Aquira,Noxar}.png,
+	// 01/08/2026 — planches réelles fournies par Liamor, recadrées sur le buste + détourées par
+	// script sur le canal alpha, fond gris uni des planches d'origine). Remplace le cercle plat
+	// de couleur qui servait de repli faute d'asset. Un seul portrait réel par héros pour
+	// l'instant (PortraitIndex reste cyclable dans l'UI mais ne change pas encore l'image tant
+	// qu'aucune variante supplémentaire n'est fournie).
+	class UTexture2D* GetHeroPortrait(EFactionID Faction, bool bAquira);
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> AquisPortraitTexture = nullptr;
+	bool bAquisPortraitTried = false;
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> AquiraPortraitTexture = nullptr;
+	bool bAquiraPortraitTried = false;
+	UPROPERTY(Transient) TObjectPtr<class UTexture2D> NoxarPortraitTexture = nullptr;
+	bool bNoxarPortraitTried = false;
+
 	// Icônes des 4 ressources jouées en démo (planches détourées fournies par Liamor le
 	// 31/07/2026, Content/UI/Resource*.png), remplaçant le texte brut "Cristaux 40" par une
 	// vraie pastille icône+nombre partout dans le HUD (barre de ressources, jetons de coût des

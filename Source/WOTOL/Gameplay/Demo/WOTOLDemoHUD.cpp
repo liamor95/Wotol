@@ -1064,6 +1064,31 @@ UTexture2D* AWOTOLDemoHUD::GetPanelFrameWide(EFactionID Faction)
 	return NoxeensFrameWideTexture;
 }
 
+UTexture2D* AWOTOLDemoHUD::GetHeroPortrait(EFactionID Faction, bool bAquira)
+{
+	if (Faction == EFactionID::Aquiloris && bAquira)
+	{
+		if (bAquiraPortraitTried) return AquiraPortraitTexture;
+		bAquiraPortraitTried = true;
+		const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/Portraits/PortraitAquira.png");
+		if (FPaths::FileExists(PngPath)) AquiraPortraitTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+		return AquiraPortraitTexture;
+	}
+	if (Faction == EFactionID::Aquiloris)
+	{
+		if (bAquisPortraitTried) return AquisPortraitTexture;
+		bAquisPortraitTried = true;
+		const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/Portraits/PortraitAquis.png");
+		if (FPaths::FileExists(PngPath)) AquisPortraitTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+		return AquisPortraitTexture;
+	}
+	if (bNoxarPortraitTried) return NoxarPortraitTexture;
+	bNoxarPortraitTried = true;
+	const FString PngPath = FPaths::ProjectContentDir() / TEXT("UI/Portraits/PortraitNoxar.png");
+	if (FPaths::FileExists(PngPath)) NoxarPortraitTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
+	return NoxarPortraitTexture;
+}
+
 UTexture2D* AWOTOLDemoHUD::GetPrimaryResourceIcon(EFactionID Faction)
 {
 	if (Faction != EFactionID::Noxeens)
@@ -1327,23 +1352,46 @@ void AWOTOLDemoHUD::DrawHeroCustomization(float W, float H, UDemoFlowSubsystem* 
 			FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 0.85f);
 	}
 
-	// Portrait : simple index cyclable + halo teinté par la faction, en attendant de vrais
-	// portraits illustrés (aucun asset de ce type n'existe encore côté Content — aucun outil
-	// de génération d'image disponible dans cette session pour en créer). Halo agrandi
-	// (46/30 -> 64/44) pour que cette section, désormais la seule sous Incarnation, ait plus
-	// de présence visuelle.
+	// Portrait : VRAI visuel illustré (01/08/2026 — planches officielles fournies par Liamor,
+	// détourées, cf. GetHeroPortrait). Remplace le halo de couleur plat qui servait de repli
+	// faute d'asset. Un seul portrait réel par héros pour l'instant -> PortraitIndex reste
+	// cyclable (utile si d'autres variantes arrivent plus tard) mais ne change pas encore
+	// l'image affichée.
 	const float PortraitRowY = HeroPortraitRowY(W, H);
 	DrawCenteredText(TEXT("PORTRAIT"), PortraitRowY - 60.f, FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.1f);
 	if (Canvas)
 	{
 		const FVector2D Center(W * 0.5f, PortraitRowY + 30.f);
 		const FLinearColor FacCol = FFactionColors::Get(Demo->SelectedFaction);
-		Canvas->K2_DrawPolygon(nullptr, Center, FVector2D(64.f, 64.f), 20, FLinearColor(FacCol.R, FacCol.G, FacCol.B, 0.2f));
-		Canvas->K2_DrawPolygon(nullptr, Center, FVector2D(44.f, 44.f), 20, FacCol);
+		if (UTexture2D* Portrait = GetHeroPortrait(Demo->SelectedFaction, Loadout.bPlayAsAquira))
+		{
+			// Taille "contain" (pas juste hauteur fixe) : les 3 portraits n'ont PAS le même
+			// ratio d'aspect source (Aquis 528x760, Aquira 528x673, Noxar 637x684, recadrés
+			// depuis les planches officielles) -> une hauteur fixe seule aurait rendu Noxar
+			// (le plus large) assez large pour chevaucher les flèches "<"/">" juste à côté
+			// (HeroPortraitPrevRect/NextRect, à CX±80px). Borné à 150x190 max, dans les deux
+			// sens, pour rester bien à l'intérieur de cet espace quel que soit le ratio source.
+			const float MaxW = 150.f, MaxH = 190.f;
+			const float SrcW = static_cast<float>(Portrait->GetSizeX());
+			const float SrcH = FMath::Max(1.f, static_cast<float>(Portrait->GetSizeY()));
+			const float FitScale = FMath::Min(MaxW / SrcW, MaxH / SrcH);
+			const float ImgW = SrcW * FitScale, ImgH = SrcH * FitScale;
+			Canvas->K2_DrawPolygon(nullptr, Center, FVector2D(ImgW * 0.5f + 10.f, ImgH * 0.5f + 10.f), 20,
+				FLinearColor(FacCol.R, FacCol.G, FacCol.B, 0.25f));
+			DrawTexture(Portrait, Center.X - ImgW * 0.5f, Center.Y - ImgH * 0.5f, ImgW, ImgH, 0.f, 0.f, 1.f, 1.f);
+		}
+		else
+		{
+			Canvas->K2_DrawPolygon(nullptr, Center, FVector2D(64.f, 64.f), 20, FLinearColor(FacCol.R, FacCol.G, FacCol.B, 0.2f));
+			Canvas->K2_DrawPolygon(nullptr, Center, FVector2D(44.f, 44.f), 20, FacCol);
+		}
 	}
 	DrawButton(HeroPortraitPrevRect(W, H), TEXT("<"), FLinearColor(0.5f, 0.55f, 0.62f, 1.f), 1.3f);
 	DrawButton(HeroPortraitNextRect(W, H), TEXT(">"), FLinearColor(0.5f, 0.55f, 0.62f, 1.f), 1.3f);
-	DrawCenteredText(FString::Printf(TEXT("%d / 5"), Loadout.PortraitIndex + 1), PortraitRowY + 86.f,
+	// Décalé 86 -> 145 (01/08/2026) : le vrai portrait (jusqu'à 190px de haut, centré sur
+	// PortraitRowY+30) peut descendre jusqu'à PortraitRowY+125 -> le texte "X/5" à +86 se
+	// serait retrouvé DANS l'image plutôt qu'en dessous.
+	DrawCenteredText(FString::Printf(TEXT("%d / 5"), Loadout.PortraitIndex + 1), PortraitRowY + 145.f,
 		FLinearColor::White, 1.0f);
 
 	DrawButton(HeroCustomizationBackRect(W, H), TEXT("< RETOUR"), FLinearColor(0.4f, 0.45f, 0.52f, 1.f), 1.0f);

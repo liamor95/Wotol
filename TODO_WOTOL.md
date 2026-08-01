@@ -1,5 +1,39 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## VRAIS portraits de heros enfin livres (Aquis/Aquira/Noxar) (01/08/2026)
+
+Liamor a fourni 3 vraies planches de reference (buste + turnaround corps complet, fond gris
+uni) pour Aquis, Aquira et Noxar — le manque d'asset repete plusieurs fois cette session
+("aucun outil de generation d'image disponible") est desormais comble avec du contenu REEL,
+pas genere.
+
+Traitement (Python/PIL, pas d'upload Adobe necessaire — fond des planches suffisamment
+uniforme, verifie : std < 1 sur un patch de coin) :
+1. Recadrage du buste (coin haut-gauche de chaque planche) aux bonnes proportions par
+   personnage (les 3 planches n'ont pas le meme cadrage).
+2. Detourage par distance de couleur au fond ET flood-fill depuis les bords (pas juste un
+   seuil de distance uniforme) — necessaire car l'armure blanche/perle d'Aquira est proche
+   de la couleur du fond gris ; un seuil simple aurait perce des trous dans l'armure. Le
+   flood-fill ne detoure QUE les pixels connectes au bord, laissant les zones interieures de
+   couleur proche intactes.
+3. Sauvegarde dans `Content/UI/Portraits/Portrait{Aquis,Aquira,Noxar}.png` (RGBA, alpha reel).
+
+Code : nouveau `AWOTOLDemoHUD::GetHeroPortrait(Faction, bAquira)` (meme mecanisme de cache
+que `GetFactionEmblem`/`GetPanelFrame`). `DrawHeroCustomization` dessine maintenant la vraie
+image (ajustee en "contain" 150x190 max, PAS une hauteur fixe seule — les 3 portraits ont des
+ratios d'aspect differents selon leur cadrage source, une hauteur fixe aurait fait deborder
+le plus large — Noxar — sur les fleches "<"/">" juste a cote) au lieu du halo de couleur
+plat. Le texte "X/5" en dessous decale (86 -> 145px) pour rester sous l'image agrandie.
+
+- **Un seul portrait reel par heros pour l'instant** : `PortraitIndex` reste cyclable dans
+  l'UI (utile si Liamor fournit d'autres variantes plus tard) mais ne change pas encore
+  l'image affichee — les 5 clichés du "X/5" affichent tous la meme image.
+- **PAS FAIT (scope volontaire)** : l'ecran RESUME DE LA PARTIE (`DrawPreGameSummary`) garde
+  sa ligne "PORTRAIT" en texte seul (panneau deja tres compact, 300px de haut) — pas de
+  miniature ajoutee la, pour ne pas risquer de casser cette mise en page en aveugle.
+- **Non verifiable sans rendu reel** (comme tout ce chantier cote Claude Code) : qualite du
+  detourage et positionnement exact a confirmer au prochain retour PC.
+
 ## Ecran de choix de faction : boutons Difficulte/Lancer restaient plats (01/08/2026)
 
 Suite directe du fix des planches PanelFrame (meme jour) : sur `DrawFactionSelect`, les 2
