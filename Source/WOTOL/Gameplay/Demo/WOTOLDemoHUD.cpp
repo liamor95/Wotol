@@ -1243,6 +1243,20 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 		FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.3f);
 	const TCHAR* DLabels[3] = { TEXT("FACILE"), TEXT("NORMAL"), TEXT("DIFFICILE") };
 	const EDemoDifficulty DVals[3] = { EDemoDifficulty::Facile, EDemoDifficulty::Normal, EDemoDifficulty::Difficile };
+	// FOND ORNÉ ajouté ICI AUSSI (01/08/2026, retour terrain répété : "soit tu mets tes
+	// fenêtres soit tu mets les miennes, mais les deux styles en même temps c'est n'importe
+	// quoi" — les boutons Difficulté/Lancer restaient plats alors que les boutons de faction
+	// juste au-dessus avaient déjà leur cadre orné depuis le 31/07/2026, incohérence visible
+	// sur le même écran). Même principe que les boutons de faction (marge tout autour pour que
+	// le cadre dépasse en bordure), teinté par la faction déjà choisie (repli neutre géré par
+	// DrawFramedPanel/GetPanelFrame si aucune n'est encore sélectionnée).
+	const float DiffFrameMargin = 14.f;
+	for (int32 i = 0; i < 3; ++i)
+	{
+		const FBox2D DR = DifficultyButtonRect(i, W, H);
+		DrawFramedPanel(FBox2D(DR.Min - FVector2D(DiffFrameMargin, DiffFrameMargin),
+			DR.Max + FVector2D(DiffFrameMargin, DiffFrameMargin)), Selected, 0.55f);
+	}
 	for (int32 i = 0; i < 3; ++i)
 	{
 		const bool bSel = (CurDiff == DVals[i]);
@@ -1252,6 +1266,12 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 	}
 
 	const bool bReady = Selected != EFactionID::None;
+	{
+		const FBox2D LR = FactionLaunchButtonRect(W, H);
+		const float LaunchFrameMargin = 16.f;
+		DrawFramedPanel(FBox2D(LR.Min - FVector2D(LaunchFrameMargin, LaunchFrameMargin),
+			LR.Max + FVector2D(LaunchFrameMargin, LaunchFrameMargin)), Selected, 0.5f);
+	}
 	DrawButton(FactionLaunchButtonRect(W, H),
 		bReady ? TEXT("LANCER LA PARTIE") : TEXT("CHOISISSEZ UNE FACTION"),
 		bReady ? FLinearColor(1.f, 0.72f, 0.22f, 1.f) : FLinearColor(0.38f, 0.42f, 0.48f, 1.f),

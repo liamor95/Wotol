@@ -1,5 +1,23 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Ecran de choix de faction : boutons Difficulte/Lancer restaient plats (01/08/2026)
+
+Suite directe du fix des planches PanelFrame (meme jour) : sur `DrawFactionSelect`, les 2
+boutons de FACTION (AQUILORIS/NOXEENS) avaient deja leur cadre orne (`DrawFramedPanel`,
+ajoute le 31/07/2026) mais les 3 boutons de DIFFICULTE et le bouton LANCER LA PARTIE, juste
+en dessous sur le MEME ecran, etaient restes de simples rectangles plats -- exactement
+l'incoherence "soit tu mets tes fenetres soit tu mets les miennes" repetee par Liamor.
+
+Ajoute le meme traitement (`DrawFramedPanel` sur un rect agrandi d'une marge, meme
+technique que les boutons de faction) autour de chacun des 3 boutons Difficulte et du bouton
+Lancer, teinte par la faction deja choisie (repli neutre automatique via
+`GetPanelFrame`/`GetPanelFrameWide` si aucune faction n'est encore choisie -- comportement
+deja existant, pas un nouveau cas particulier).
+
+- **Non verifiable sans rendu reel** : a confirmer au prochain retour PC, en particulier que
+  les cadres des 3 boutons Difficulte (marge 14px) ne se chevauchent pas entre eux malgre
+  l'espacement resserre de la rangee.
+
 ## Ombre de texte adoucie (item differe du 31/07/2026, repris le 01/08/2026)
 
 Item du retour esthetique du 31/07 explicitement laisse de cote a l'epoque ("fonction
