@@ -655,15 +655,17 @@ Aussi corrige cette vague :
   la simulation mais pas le post-process de flou cinetique, qui reste applique sur le dernier
   mouvement de camera avant la pause. Inadapte de toute facon a une camera RTS isometrique.
 
-**Trouve par un audit de suivi (agent Explore), PAS corrige — risque latent, pas encore
-declenchable** : `WOTOLInkZone.h` (nuage de bulles d'encre), `struct FBubble` (nichee, pas un
-USTRUCT) a un champ `TObjectPtr<UStaticMeshComponent> Mesh` sans UPROPERTY, meme categorie de
-bug que le crash SelectedUnits. PAS exploitable actuellement (les bulles ne sont jamais
-detruites independamment de tout l'acteur, donc pas de pointeur pendant possible aujourd'hui),
-mais fragile pour un futur changement. Pas corrige maintenant : ca demanderait de sortir
-`FBubble` en USTRUCT au niveau fichier (actuellement nichee dans la classe, UHT ne gere pas
-bien les USTRUCT nichees), un changement structurel plus risque a faire sans compilateur pour
-un bug pas encore actif. A refaire avec verification reelle si l'occasion se presente.
+**CORRIGE le 01/08/2026** (repere par un audit de suivi le 31/07/2026, laisse de cote a
+l'epoque comme "trop risque a faire en aveugle pour un bug pas encore actif" — repris
+maintenant sur demande explicite de Liamor "continue a corriger les autres trucs") :
+`WOTOLInkZone.h` (nuage de bulles d'encre), `struct FBubble` etait nichee dans la classe (pas
+un USTRUCT — UHT gere mal les USTRUCT nichees) avec un champ `TObjectPtr<UStaticMeshComponent>
+Mesh` sans UPROPERTY, meme categorie de bug que le crash SelectedUnits. Sortie en USTRUCT au
+niveau fichier (`FWOTOLInkBubble`, avec `UPROPERTY()` sur `Mesh`) + `TArray<FWOTOLInkBubble>
+Bubbles` passe UPROPERTY lui aussi (necessaire pour que le GC parcoure les elements du
+tableau). Balance accolades/parentheses reverifiee sur les 2 fichiers (WOTOLInkZone.h/.cpp,
+tous les deux a l'equilibre 0/0 avant et apres) — non teste par un compilateur reel comme tout
+ce chantier cote Claude Code.
 
 ## Retour esthetique de Liamor (31/07/2026) — fait vs. a prevoir
 

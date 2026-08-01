@@ -8,6 +8,32 @@ class UStaticMeshComponent;
 class USceneComponent;
 class AUnitBase;
 
+// Une bulle du nuage d'encre (petite sphère) + ses paramètres d'animation. BUG CORRIGE
+// (01/08/2026, latent depuis sa création — repéré par un audit de suivi le 31/07/2026 mais
+// laissé de côté à l'époque comme "pas encore exploitable, changement structurel trop risqué
+// sans compilateur") : cette struct était nichée DANS AWOTOLInkZone, en simple `struct` (pas
+// USTRUCT — UHT gère mal les USTRUCT nichées dans une UCLASS), avec un `TObjectPtr<...> Mesh`
+// SANS UPROPERTY(). Résultat : le Garbage Collector ne voyait PAS ce pointeur comme une
+// référence vivante vers le UStaticMeshComponent -> risque de pointeur pendant si jamais rien
+// d'autre ne retient l'objet en vie (aujourd'hui protégé uniquement par le fait que ces
+// composants restent enregistrés sur l'acteur tant qu'il existe — fragile, pas garanti pour un
+// futur changement). Sortie en USTRUCT au niveau fichier + UPROPERTY() sur Mesh : le GC track
+// maintenant correctement la référence, comme n'importe quel autre pointeur UObject du projet.
+USTRUCT()
+struct FWOTOLInkBubble
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TObjectPtr<UStaticMeshComponent> Mesh = nullptr;
+
+	FVector Home = FVector::ZeroVector; // position locale "haute" (dans le nuage)
+	FVector Ground = FVector::ZeroVector; // position locale une fois écoulée au sol
+	float Size = 30.f;
+	float Phase = 0.f;    // déphasage d'ondulation
+	float Drip = 0.f;     // 0..1 : retard d'écoulement (gouttes échelonnées)
+};
+
 // NUAGE D'ENCRE du Kraken : un vrai VOLUME de bulles sombres (fumée/encre sous-marine) qui
 // FLOTTE et ondule ~1,5 s à la hauteur du crachat, puis S'ÉCOULE GOUTTE À GOUTTE vers le sol
 // (progressif, pas en bloc) pour former une FLAQUE qui persiste. Les unités prises dedans
@@ -30,19 +56,12 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 
-	// Une bulle du nuage (petite sphère) + ses paramètres d'animation.
-	struct FBubble
-	{
-		TObjectPtr<UStaticMeshComponent> Mesh = nullptr;
-		FVector Home = FVector::ZeroVector; // position locale "haute" (dans le nuage)
-		FVector Ground = FVector::ZeroVector; // position locale une fois écoulée au sol
-		float Size = 30.f;
-		float Phase = 0.f;    // déphasage d'ondulation
-		float Drip = 0.f;     // 0..1 : retard d'écoulement (gouttes échelonnées)
-	};
-
 	UPROPERTY() TObjectPtr<USceneComponent> SceneRoot;
-	TArray<FBubble> Bubbles;
+
+	// UPROPERTY() nécessaire ici (pas juste sur FWOTOLInkBubble::Mesh) : c'est ce qui fait que
+	// le GC parcourt effectivement les éléments du tableau pour y trouver l'UPROPERTY nichée.
+	UPROPERTY()
+	TArray<FWOTOLInkBubble> Bubbles;
 
 	float Elapsed  = 0.f;
 	float DotAccum = 0.f; // accumulateur pour le poison (appliqué ~1x/s)

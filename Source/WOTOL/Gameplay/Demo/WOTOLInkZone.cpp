@@ -54,7 +54,7 @@ void AWOTOLInkZone::BeginPlay()
 		const float hx  = FMath::Cos(ang) * rr;
 		const float hy  = FMath::Sin(ang) * rr;
 		const float hz  = FogTopLocal + (InkRnd(i + 13) - 0.4f) * CloudH;
-		FBubble B;
+		FWOTOLInkBubble B;
 		B.Mesh   = C;
 		B.Home   = FVector(hx, hy, hz);
 		// Position finale au sol : étalée un peu plus large, aplatie (flaque).
@@ -90,7 +90,7 @@ void AWOTOLInkZone::Tick(float Dt)
 
 	for (int32 i = 0; i < Bubbles.Num(); ++i)
 	{
-		FBubble& B = Bubbles[i];
+		FWOTOLInkBubble& B = Bubbles[i];
 		if (!B.Mesh) continue;
 
 		// Ondulation permanente (fumée sous l'eau) : mouvement lent en tourbillon.
