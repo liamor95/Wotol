@@ -157,8 +157,9 @@ void AWOTOLHeroCharacter::MoveRight(float Value)
 void AWOTOLHeroCharacter::MoveUp(float Value)
 {
 	// Montée / descente verticale (nage) — indépendante de l'orientation caméra pour
-	// rester simple à comprendre : Espace/E = descendre, Maj/Ctrl = monter (cf.
-	// Config/DefaultInput.ini, inversé le 31/07/2026).
+	// rester simple à comprendre : Espace = descendre, E/Maj/Ctrl = monter (cf.
+	// Config/DefaultInput.ini ; bug E corrigé le 01/08/2026, avait été basculé par erreur
+	// vers "descendre" en même temps qu'Espace le 31/07/2026).
 	if (Value == 0.f) return;
 	AddMovementInput(FVector::UpVector, Value);
 }
