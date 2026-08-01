@@ -163,26 +163,74 @@ void AWOTOLCityEnvironment::AddCityPath(const FVector& From, const FVector& To)
 // Amas de corail/rochers dispersés sur le sol (hors de l'anneau des bâtiments) — décor STATIQUE
 // (contrairement aux bulles ambiantes, qui montent en boucle) pour donner un aspect de terrain
 // naturel plutôt qu'un disque nu, sur le modèle des cités de référence envoyées par Liamor.
+//
+// REVU EN PROFONDEUR (01/08/2026, retour terrain répété "la cité est moche") : l'ancienne
+// version ne couvrait qu'un anneau étroit (RingRadius+260 à +560) — entre lui et le bord du
+// disque (rayon 1900) restait une bande NUE d'environ 650 unités de sol plat sans RIEN dessus,
+// et le bord du disque lui-même restait un cercle parfaitement net (aucun jeu de référence
+// n'a un bord de carte aussi géométrique). Trois passes maintenant, au lieu d'une seule :
+//  PASSE 1, anneau PROCHE (inchangé dans l'esprit, juste renommé) : petit corail près des
+//    bâtiments.
+//  PASSE 2, remplissage du MILIEU (nouveau) : la bande vide, comblée avec un décor plus
+//    épars/petit.
+//  PASSE 3, bord EXTÉRIEUR (nouveau) : formations plus GRANDES juste avant le bord du disque,
+//    assez hautes et denses pour CASSER la silhouette circulaire nette vue depuis la caméra
+//    isométrique fixe (façon récif/falaise qui borde la cité, pas un mur invisible).
+// + quelques buttes de terrain (sphères très aplaties) dispersées pour un sol qui n'est plus
+// un plateau parfaitement plat.
 void AWOTOLCityEnvironment::BuildGroundDecor()
 {
 	const bool bAq = (PlayerFaction != EFactionID::Noxeens);
 	FRandomStream Rng(4110);
-	constexpr int32 NumClusters = 22;
-	for (int32 i = 0; i < NumClusters; ++i)
+
+	auto CoralColorAt = [&]() -> FLinearColor
 	{
-		const float Angle = Rng.FRandRange(0.f, 360.f);
-		// Entre le bord de l'anneau de bâtiments et le bord du sol -> jamais sur un bâtiment.
-		const float Radius = Rng.FRandRange(RingRadius + 260.f, RingRadius + 560.f);
-		const FVector Origin(FMath::Cos(FMath::DegreesToRadians(Angle)) * Radius,
-			FMath::Sin(FMath::DegreesToRadians(Angle)) * Radius, -8.f);
-		const float Sz = Rng.FRandRange(0.7f, 1.6f);
-		const FLinearColor CoralCol = bAq
+		return bAq
 			? FLinearColor(0.15f + Rng.FRand() * 0.15f, 0.45f + Rng.FRand() * 0.2f, 0.65f + Rng.FRand() * 0.2f, 1.f)
 			: FLinearColor(0.10f + Rng.FRand() * 0.15f, 0.55f + Rng.FRand() * 0.2f, 0.35f + Rng.FRand() * 0.15f, 1.f);
+	};
+	auto SpawnCluster = [&](float MinR, float MaxR, float MinSz, float MaxSz, float ZBase)
+	{
+		const float Angle = Rng.FRandRange(0.f, 360.f);
+		const float Radius = Rng.FRandRange(MinR, MaxR);
+		const FVector Origin(FMath::Cos(FMath::DegreesToRadians(Angle)) * Radius,
+			FMath::Sin(FMath::DegreesToRadians(Angle)) * Radius, ZBase);
+		const float Sz = Rng.FRandRange(MinSz, MaxSz);
 		const TCHAR* Mesh = (Rng.FRand() > 0.5f)
 			? TEXT("/Engine/BasicShapes/Cone.Cone") : TEXT("/Engine/BasicShapes/Sphere.Sphere");
 		AddCityDecor(this, SceneRoot, Mesh, Origin, FVector(Sz, Sz, Sz * Rng.FRandRange(1.2f, 2.2f)),
-			WOTOLGlow::MakeMatte(this, CoralCol));
+			WOTOLGlow::MakeMatte(this, CoralColorAt()));
+	};
+
+	// Passe 1 : anneau proche des bâtiments (comme avant).
+	for (int32 i = 0; i < 22; ++i)
+	{
+		SpawnCluster(RingRadius + 260.f, RingRadius + 560.f, 0.7f, 1.6f, -8.f);
+	}
+	// Passe 2 : comble la bande vide entre l'anneau proche et le bord du disque (rayon du sol =
+	// 1900) — décor plus épars (moins dense que l'anneau proche, le sol doit rester en partie
+	// visible).
+	for (int32 i = 0; i < 26; ++i)
+	{
+		SpawnCluster(RingRadius + 560.f, 1650.f, 0.5f, 1.2f, -8.f);
+	}
+	// Passe 3 : bord extérieur, formations plus grandes et plus denses juste avant le bord du
+	// disque (1900) -> casse la silhouette circulaire nette vue en isométrique.
+	for (int32 i = 0; i < 30; ++i)
+	{
+		SpawnCluster(1650.f, 1880.f, 1.4f, 2.8f, -8.f);
+	}
+	// Buttes de terrain (sphères très aplaties, quasi invisibles individuellement mais qui
+	// cassent le "plateau parfaitement plat") dispersées entre l'anneau de bâtiments et le bord.
+	for (int32 i = 0; i < 10; ++i)
+	{
+		const float Angle = Rng.FRandRange(0.f, 360.f);
+		const float Radius = Rng.FRandRange(RingRadius + 300.f, 1700.f);
+		const FVector Origin(FMath::Cos(FMath::DegreesToRadians(Angle)) * Radius,
+			FMath::Sin(FMath::DegreesToRadians(Angle)) * Radius, -20.f);
+		const float Sz = Rng.FRandRange(3.5f, 6.5f);
+		AddCityDecor(this, SceneRoot, TEXT("/Engine/BasicShapes/Sphere.Sphere"), Origin,
+			FVector(Sz, Sz, Sz * 0.22f), WOTOLGlow::MakeMatte(this, CoralColorAt() * 0.7f));
 	}
 }
 
