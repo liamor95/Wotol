@@ -1498,6 +1498,30 @@ FBox2D AWOTOLDemoHUD::GetCityBuildingPanelRect(APlayerController* PC, const FVec
 	return FBox2D(FVector2D(X, Y), FVector2D(X + PanelW, Y + PanelH));
 }
 
+FBox2D AWOTOLDemoHUD::GetCityQuickMenuRect(APlayerController* PC, const FVector& WorldLoc, float W, float H)
+{
+	// MÊME logique d'ancrage que GetCityBuildingPanelRect (juste une boîte plus petite,
+	// 3 boutons empilés) — étape intermédiaire avant la grande fenêtre à onglets.
+	const float MenuW = 170.f, MenuH = 142.f;
+	FVector2D ScreenPos(W * 0.5f, H * 0.42f);
+	if (PC) PC->ProjectWorldLocationToScreen(WorldLoc, ScreenPos, true);
+
+	float X = ScreenPos.X + 40.f;
+	if (X + MenuW > W - 20.f) X = ScreenPos.X - 40.f - MenuW;
+	X = FMath::Clamp(X, 20.f, W - 20.f - MenuW);
+	float Y = ScreenPos.Y - MenuH * 0.5f;
+	Y = FMath::Clamp(Y, H * 0.18f, H * 0.62f - MenuH);
+	return FBox2D(FVector2D(X, Y), FVector2D(X + MenuW, Y + MenuH));
+}
+
+FBox2D AWOTOLDemoHUD::CityQuickMenuButtonRect(int32 Index, const FBox2D& Menu)
+{
+	const float BH = 36.f, Gap = 6.f, Pad = 8.f;
+	const float X = Menu.Min.X + Pad, W2 = (Menu.Max.X - Menu.Min.X) - Pad * 2.f;
+	const float Y = Menu.Min.Y + Pad + FMath::Clamp(Index, 0, 2) * (BH + Gap);
+	return FBox2D(FVector2D(X, Y), FVector2D(X + W2, Y + BH));
+}
+
 FBox2D AWOTOLDemoHUD::BuildingCloseButtonRect(const FBox2D& Panel)
 {
 	const float Sz = 26.f;
@@ -1698,6 +1722,34 @@ UTexture2D* AWOTOLDemoHUD::GetTransitionBackground()
 		TransitionBgTexture = FImageUtils::ImportFileAsTexture2D(PngPath);
 	}
 	return TransitionBgTexture;
+}
+
+// Menu contextuel COURT (31/07/2026, references reelles envoyees par Liamor : Age of Empires
+// Mobile — clic sur un batiment -> petit menu Ameliorer/Entrainer/Deplacer juste a cote,
+// PUIS le bouton Entrainer ouvre la vraie fenetre dediee). Etape intermediaire AVANT la
+// grande fenetre a onglets (deja existante, gardee telle quelle) : 3 boutons courts
+// (INFOS / AMELIORER / ENTRAINER), un choix ferme ce menu et ouvre la grande fenetre sur
+// l'onglet correspondant (cf. UDemoFlowSubsystem::ChooseCityQuickMenuAction).
+void AWOTOLDemoHUD::DrawCityQuickMenu(float W, float H, UDemoFlowSubsystem* Demo)
+{
+	if (!Demo) return;
+	const FBox2D Menu = GetCityQuickMenuRect(GetOwningPlayerController(),
+		Demo->SelectedCityBuildingWorldLocation, W, H);
+	const FLinearColor Accent = FFactionColors::Get(Demo->GetPlayerFaction());
+	DrawFramedPanel(Menu, Demo->GetPlayerFaction(), 0.60f);
+	DrawLine(Menu.Min.X, Menu.Min.Y, Menu.Max.X, Menu.Min.Y, Accent, 3.f);
+
+	const TCHAR* Labels[3] = { TEXT("INFOS"), TEXT("AMELIORER"), TEXT("ENTRAINER") };
+	for (int32 i = 0; i < 3; ++i)
+	{
+		const FBox2D BtnR = CityQuickMenuButtonRect(i, Menu);
+		const FVector2D Sz = BtnR.Max - BtnR.Min;
+		DrawRect(FLinearColor(0.08f, 0.13f, 0.20f, 0.92f), BtnR.Min.X, BtnR.Min.Y, Sz.X, Sz.Y);
+		DrawRect(Accent, BtnR.Min.X, BtnR.Min.Y, 3.f, Sz.Y);
+		float TW, TH; GetTextSize(Labels[i], TW, TH, GEngine ? GEngine->GetSmallFont() : nullptr, 0.95f);
+		DrawText(Labels[i], FLinearColor::White, BtnR.Min.X + (Sz.X - TW) * 0.5f,
+			BtnR.Min.Y + (Sz.Y - TH) * 0.5f, GEngine ? GEngine->GetSmallFont() : nullptr, 0.95f);
+	}
 }
 
 void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
@@ -1946,6 +1998,13 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 	// fenêtre [près du bâtiment], prends les mécaniques des jeux qui existent"). Bouton "X"
 	// pour la fermer explicitement (GetCityBuildingPanelRect/BuildingCloseButtonRect partagés
 	// avec le clic dans WOTOLPlayerController_Battle, même calcul des deux côtés).
+	// Menu contextuel court (31/07/2026, references reelles) : etape intermediaire au clic sur
+	// un batiment, AVANT la grande fenetre a onglets ci-dessous.
+	if (Demo->HasCityQuickMenu())
+	{
+		DrawCityQuickMenu(W, H, Demo);
+	}
+
 	// Onglets RÉSUMÉ/RECRUTEMENT/STATISTIQUES/COMPÉTENCES/RÔLE (demande Liamor 29/07/2026).
 	if (Demo->HasCitySelection())
 	{

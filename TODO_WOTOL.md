@@ -1,5 +1,36 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Menu contextuel court au clic sur un batiment (references reelles Age of Empires Mobile) (31/07/2026, suite)
+
+Liamor a envoye une planche de reference tres detaillee (compilee via ChatGPT + captures reelles
+de Age of Empires Mobile, Rise of Kingdoms, Age of Wonders 4, Total War) precisant EXACTEMENT
+le fonctionnement attendu : clic sur un batiment -> le batiment est mis en evidence -> un PETIT
+menu contextuel apparait A COTE (Ameliorer/Entrainer/Deplacer dans la reference) -> le bouton
+Entrainer ouvre ENSUITE la vraie fenetre dediee au recrutement.
+
+Jusqu'ici, cliquer sur un batiment (clic 3D direct sur la maquette isometrique) ouvrait
+DIRECTEMENT la grande fenetre a onglets — pas d'etape intermediaire. Ajoute :
+- Nouvel etat `bCityQuickMenuOpen` (DemoFlowSubsystem) : `OpenCityQuickMenu`/`HasCityQuickMenu`/
+  `CloseCityQuickMenu`/`ChooseCityQuickMenuAction(Tab)`.
+- Nouveau menu HUD (`DrawCityQuickMenu`, `GetCityQuickMenuRect`, `CityQuickMenuButtonRect`) :
+  3 boutons empiles (INFOS / AMELIORER / ENTRAINER), ancres au meme point que la grande
+  fenetre (meme projection ecran partagee dessin/clic que le reste du systeme de fenetre de
+  batiment deja en place).
+- Le clic 3D direct sur un batiment (WOTOLPlayerController_Battle) ouvre maintenant ce menu au
+  lieu de la grande fenetre directement ; choisir une action ferme le menu et ouvre la grande
+  fenetre (deja existante, INCHANGEE) sur l'onglet correspondant (Infos->Resume, Ameliorer->
+  Stats, Entrainer->Recrutement).
+- Clic ailleurs sur la maquette pendant que le menu est ouvert -> le ferme.
+
+PAS FAIT (scope volontairement limite pour rester prudent sans compilateur) : les CARTES 2D
+permanentes en bas de l'ecran (une par batiment, deja existantes) gardent leur clic direct
+(upgrade/produce sans passer par le menu) — la reference envoyee semble plutot rejeter ce
+principe de cartes permanentes en bas ("pas comme toi... des fenetres en bas qui correspondent
+a chaque batiment"). Les retirer entierement demanderait de migrer TOUTES leurs fonctions vers
+le nouveau clic 3D, un chantier plus risque a faire en un seul passage sans pouvoir tester —
+a confirmer avec Liamor si le nouveau menu contextuel suffit ou si les cartes doivent
+disparaitre completement.
+
 ## VRAIE cause (2e recherche) du "cercle bleu" en cite : 2 bugs reels, pas un asset (31/07/2026, suite)
 
 Liamor a retesté après le fix precedent (desactivation du mauvais fond Noxeens) et rapporte

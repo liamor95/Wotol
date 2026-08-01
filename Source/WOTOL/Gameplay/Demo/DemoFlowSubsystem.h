@@ -399,7 +399,7 @@ public:
 	// permanent -> il faut un moyen explicite de la fermer sans devoir cliquer un autre
 	// bâtiment).
 	UFUNCTION(BlueprintCallable, Category = "Demo|City")
-	void ClearCitySelection() { bCitySelectionValid = false; }
+	void ClearCitySelection() { bCitySelectionValid = false; bCityQuickMenuOpen = false; }
 
 	// Onglet actif de la fenêtre de bâtiment (0=Résumé, 1=Recrutement, 2=Statistiques,
 	// 3=Compétences, 4=Rôle). Remis à 0 à chaque nouvelle sélection pour repartir du Résumé
@@ -412,6 +412,40 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Demo|City")
 	void SetSelectedBuildingTab(int32 Tab) { SelectedBuildingTab = FMath::Clamp(Tab, 0, 4); }
+
+	// ─── Menu contextuel COURT au clic sur un bâtiment (31/07/2026, references reelles : Age
+	// of Empires Mobile "clic batiment -> petit menu Ameliorer/Entrainer/Deplacer a cote ->
+	// Entrainer ouvre la vraie fenetre") : ETAPE INTERMEDIAIRE entre le clic et la grande
+	// fenetre a onglets (deja existante ci-dessus, gardee telle quelle). Le clic sur un
+	// batiment n'ouvre plus la fenetre complete direct -> il ouvre ce petit menu, dont un
+	// choix ouvre ensuite la fenetre sur le bon onglet.
+	UPROPERTY(BlueprintReadOnly, Category = "Demo|City")
+	bool bCityQuickMenuOpen = false;
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|City")
+	void OpenCityQuickMenu(EDemoUnitCategory Cat, const FVector& Loc)
+	{
+		SelectedCityCategory = Cat;
+		SelectedCityBuildingWorldLocation = Loc;
+		bCityQuickMenuOpen = true;
+		bCitySelectionValid = false; // une seule fenetre/menu a la fois
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Demo|City")
+	bool HasCityQuickMenu() const { return bCityQuickMenuOpen; }
+
+	UFUNCTION(BlueprintCallable, Category = "Demo|City")
+	void CloseCityQuickMenu() { bCityQuickMenuOpen = false; }
+
+	// Choix d'une action du menu contextuel : ferme le menu et ouvre la grande fenetre sur
+	// l'onglet correspondant (0=Infos/Resume, 1=Entrainer/Recrutement, 2=Ameliorer/Stats).
+	UFUNCTION(BlueprintCallable, Category = "Demo|City")
+	void ChooseCityQuickMenuAction(int32 Tab)
+	{
+		bCityQuickMenuOpen = false;
+		SetSelectedCityCategory(SelectedCityCategory);
+		SetSelectedBuildingTab(Tab);
+	}
 
 	UFUNCTION(BlueprintCallable, Category = "Demo")
 	void SetMessage(const FString& Msg) { CurrentMessage = Msg; }

@@ -440,6 +440,30 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 					return true;
 				}
 			}
+			// Menu contextuel COURT (31/07/2026, references reelles) : etape intermediaire au
+			// clic sur un batiment, avant la grande fenetre a onglets ci-dessous. Un choix ferme
+			// ce menu et ouvre la grande fenetre sur l'onglet correspondant.
+			if (Demo->HasCityQuickMenu())
+			{
+				const FBox2D QuickMenu = AWOTOLDemoHUD::GetCityQuickMenuRect(
+					this, Demo->SelectedCityBuildingWorldLocation, VpSize.X, VpSize.Y);
+				const int32 Tabs[3] = { 0 /*Infos->Resume*/, 2 /*Ameliorer->Stats*/, 1 /*Entrainer->Recrutement*/ };
+				for (int32 i = 0; i < 3; ++i)
+				{
+					if (AWOTOLDemoHUD::CityQuickMenuButtonRect(i, QuickMenu).IsInside(M))
+					{
+						Demo->ChooseCityQuickMenuAction(Tabs[i]);
+						return true;
+					}
+				}
+				// Clic ailleurs sur la maquette pendant que le menu est ouvert : le ferme au lieu
+				// de laisser un clic "perdu" retomber sur autre chose derrière.
+				if (!QuickMenu.IsInside(M))
+				{
+					Demo->ClearCitySelection();
+				}
+			}
+
 			// Fenêtre de bâtiment (popup ancrée près du bâtiment cliqué, cf.
 			// AWOTOLDemoHUD::GetCityBuildingPanelRect — MÊME calcul que le dessin, pour que le
 			// clic tombe exactement sur ce qui est affiché) : bouton "X", onglets, bouton
@@ -507,8 +531,11 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 			{
 				if (AWOTOLCityBuildingProp* Prop = Cast<AWOTOLCityBuildingProp>(CityHit.GetActor()))
 				{
-					Demo->SetSelectedCityCategory(Prop->Category);
-					Demo->SetSelectedCityBuildingWorldLocation(Prop->GetActorLocation());
+					// BUG CORRIGE (retour terrain 31/07/2026, references reelles envoyees :
+					// "clic batiment -> petit menu Ameliorer/Entrainer/Deplacer a cote, PUIS
+					// Entrainer ouvre la vraie fenetre") : ouvrait directement la grande fenetre
+					// a onglets -> passe par le menu contextuel court en premier.
+					Demo->OpenCityQuickMenu(Prop->Category, Prop->GetActorLocation());
 					return true;
 				}
 			}

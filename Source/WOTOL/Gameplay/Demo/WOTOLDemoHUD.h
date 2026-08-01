@@ -104,6 +104,13 @@ public:
 	// autre bâtiment — nécessaire maintenant que ce n'est plus un panneau toujours affiché).
 	static FBox2D BuildingCloseButtonRect(const FBox2D& Panel);
 
+	// ─── Menu contextuel COURT au clic sur un bâtiment (31/07/2026, references reelles :
+	// Age of Empires Mobile "clic -> petit menu Ameliorer/Entrainer/Deplacer a cote") ───────
+	// 3 boutons empilés (INFOS/AMÉLIORER/ENTRAÎNER), ancrés au MÊME point que la grande fenêtre
+	// (GetCityBuildingPanelRect) mais beaucoup plus petits — étape intermédiaire avant celle-ci.
+	static FBox2D GetCityQuickMenuRect(class APlayerController* PC, const FVector& WorldLoc, float W, float H);
+	static FBox2D CityQuickMenuButtonRect(int32 Index, const FBox2D& Menu);
+
 	// ─── Gestion du territoire après la défense ──────────────────────────────
 	static FBox2D TerritoryRepairButtonRect(float W, float H);
 	static FBox2D TerritoryDefenseButtonRect(float W, float H);
@@ -195,6 +202,9 @@ private:
 	// Vue cité : chrome par-dessus la scène 3D isométrique (AWOTOLCityEnvironment/
 	// AWOTOLCityCamera) — cristaux, cartes de production, fiche technique, bouton d'expédition.
 	void DrawCityView(float W, float H, class UDemoFlowSubsystem* Demo);
+	// Menu contextuel court (3 boutons) affiché au clic sur un bâtiment, avant la grande
+	// fenêtre à onglets — cf. GetCityQuickMenuRect/CityQuickMenuButtonRect.
+	void DrawCityQuickMenu(float W, float H, class UDemoFlowSubsystem* Demo);
 	void DrawTerritoryView(float W, float H, class UDemoFlowSubsystem* Demo);
 	// Onglet compétences : choix de l'axe (voie) de chaque type d'unité.
 	void DrawSkillsView(float W, float H, class UDemoFlowSubsystem* Demo);
