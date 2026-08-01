@@ -333,6 +333,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 		if (AExponentialHeightFog* Fog = W->SpawnActor<AExponentialHeightFog>(
 				AExponentialHeightFog::StaticClass(), Center + FVector(0, 0, -200.f), NoRot, FP))
 		{
+			ArenaFog = Fog;
 			if (UExponentialHeightFogComponent* FC = Fog->GetComponent())
 			{
 				// Brume SOUS-MARINE bleu-vert PRÉSENTE : c'est ELLE qui donne le sentiment
@@ -352,6 +353,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 		if (APostProcessVolume* PPV = W->SpawnActor<APostProcessVolume>(
 				APostProcessVolume::StaticClass(), Center, NoRot, FP))
 		{
+			ArenaPPV = PPV;
 			PPV->bUnbound = true;
 			PPV->Priority = 100.f;
 			FPostProcessSettings& S = PPV->Settings;
@@ -390,6 +392,7 @@ void AWOTOLGreyboxEnvironment::BuildArena()
 		// capture, pas la remplacer.
 		if (ASkyLight* Sky = W->SpawnActor<ASkyLight>(ASkyLight::StaticClass(), Center, NoRot, FP))
 		{
+			ArenaSkyLight = Sky;
 			if (USkyLightComponent* SC = Sky->GetLightComponent())
 			{
 				SC->SetMobility(EComponentMobility::Movable);
@@ -1010,4 +1013,11 @@ void AWOTOLGreyboxEnvironment::RebuildForPhase(int32 Phase)
 	ClearArena();
 	Variant = Phase;
 	BuildArena();
+}
+
+void AWOTOLGreyboxEnvironment::SetAtmosphereActive(bool bActive)
+{
+	if (ArenaPPV) ArenaPPV->bEnabled = bActive;
+	if (ArenaFog) ArenaFog->SetActorHiddenInGame(!bActive);
+	if (ArenaSkyLight) ArenaSkyLight->SetActorHiddenInGame(!bActive);
 }

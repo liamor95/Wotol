@@ -49,10 +49,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Greybox")
 	void RebuildForPhase(int32 Phase);
 
+	// Active/désactive l'ambiance de bataille (brouillard + post-process + lumière du ciel).
+	// BUG CORRIGE (retour terrain 31/07/2026, recherche dédiée) : ce décor n'est créé QU'UNE
+	// FOIS pour toute la session (WOTOLGameMode_Demo::BeginPlay) et jamais détruit -> son
+	// PostProcessVolume/brouillard/SkyLight (tous bUnbound=true) restaient actifs sur TOUS les
+	// écrans, y compris la Cité, la poussant vers un bleu bien plus saturé que sa couleur
+	// codée. Appelé depuis HandleScreenChanged pour ne l'activer QUE pendant les écrans de
+	// bataille/exploration où il a été conçu.
+	UFUNCTION(BlueprintCallable, Category = "Greybox")
+	void SetAtmosphereActive(bool bActive);
+
 protected:
 	virtual void BeginPlay() override;
 
 private:
+	UPROPERTY()
+	TObjectPtr<class APostProcessVolume> ArenaPPV;
+	UPROPERTY()
+	TObjectPtr<class AExponentialHeightFog> ArenaFog;
+	UPROPERTY()
+	TObjectPtr<class ASkyLight> ArenaSkyLight;
+
 	AStaticMeshActor* SpawnBlock(const TCHAR* MeshPath, const FVector& Loc,
 		const FVector& Scale, const FLinearColor& Color,
 		const FRotator& Rot = FRotator::ZeroRotator, bool bBlocking = true);

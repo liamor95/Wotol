@@ -332,6 +332,21 @@ void AWOTOLDemoDirector::HandleScreenChanged(EDemoScreen NewScreen)
 	{
 		PossessCityCamera();
 	}
+
+	// BUG CORRIGE (retour terrain 31/07/2026, recherche dédiée) : AWOTOLGreyboxEnvironment
+	// (brouillard/post-process/ciel de bataille) est créé UNE SEULE FOIS pour toute la session
+	// et jamais détruit -> son ambiance (tous ses volumes en bUnbound=true) restait active sur
+	// TOUS les écrans, y compris la Cité, la poussant vers un bleu bien plus saturé que sa
+	// couleur codée. Désactivée uniquement en Cité (seul écran où le probleme a été confirmé) ;
+	// réactivée pour tous les autres (bataille/exploration, où elle a été conçue).
+	if (UWorld* W = GetWorld())
+	{
+		for (TActorIterator<AWOTOLGreyboxEnvironment> It(W); It; ++It)
+		{
+			It->SetAtmosphereActive(NewScreen != EDemoScreen::City);
+			break;
+		}
+	}
 }
 
 void AWOTOLDemoDirector::BeginOpeningExploration()

@@ -28,8 +28,15 @@ public:
 	EFactionID PlayerFaction = EFactionID::Aquiloris;
 
 	// Rayon de l'anneau où sont disposés les bâtiments de production autour du hub.
+	// RÉDUIT de 1500 à 700 (retour terrain 31/07/2026, recherche dédiée) : à 1500, avec l'angle
+	// fixe de la caméra isométrique (Pitch -55°) et l'OrthoWidth par défaut (2400, demi-largeur
+	// 1200), les 5 bâtiments de l'anneau tombaient TOUS hors du cadre visible (calcul : décalage
+	// vertical à l'écran ≈1229 unités pour une demi-hauteur de cadre ≈675 sur un ratio 16:9) —
+	// masqué côté Aquiloris par le fond peint (qui donne l'illusion d'une cité même sans les
+	// bâtiments 3D visibles), mais totalement visible côté Noxéens une fois le mauvais fond
+	// désactivé : plus aucun bâtiment à l'écran, juste le hub + les bulles ambiantes.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "City")
-	float RingRadius = 1500.f;
+	float RingRadius = 700.f;
 
 	// Position du hub (centre de la cité) — sert à cadrer la caméra isométrique dessus.
 	UFUNCTION(BlueprintPure, Category = "City")

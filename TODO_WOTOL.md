@@ -1,5 +1,36 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## VRAIE cause (2e recherche) du "cercle bleu" en cite : 2 bugs reels, pas un asset (31/07/2026, suite)
+
+Liamor a retesté après le fix precedent (desactivation du mauvais fond Noxeens) et rapporte
+AUCUN changement visible — le fix precedent etait donc incomplet. 2e recherche dediee,
+verification mathematique de la camera : 2 VRAIS bugs de code trouves cette fois (pas des
+assets), tous les deux faction-agnostiques (donc presents aussi en Aquiloris, juste masques
+la-bas par le fond peint qui donnait l'illusion d'une cite meme sans les 5 batiments visibles) :
+
+1. **Les 5 batiments de l'anneau tombaient TOUS hors du cadre de la camera.** Calcul verifie :
+   avec RingRadius=1500, l'angle fixe de la camera (Pitch -55°) et l'OrthoWidth par defaut
+   (2400, demi-largeur 1200), le decalage vertical a l'ecran d'un batiment de l'anneau atteint
+   ~1229 unites pour une demi-hauteur de cadre d'environ 675 (ratio 16:9) — TOUS les batiments,
+   sur les 5 angles verifies un par un, tombent hors champ sur au moins un axe. RingRadius
+   reduit de 1500 a 700 (`WOTOLCityEnvironment.h`) pour que l'anneau rentre reellement dans le
+   cadre par defaut.
+2. **L'ambiance de bataille (brouillard + post-process + ciel) reste active EN PERMANENCE sur
+   TOUS les ecrans**, y compris la Cite. Cause : `AWOTOLGreyboxEnvironment` est cree UNE SEULE
+   FOIS pour toute la session (`WOTOLGameMode_Demo::BeginPlay`) et jamais detruit ; ses volumes
+   (brouillard, post-process, SkyLight) sont tous `bUnbound=true` -> effet global sur tout le
+   niveau persistant, pas juste l'arene de bataille. Ca poussait le sol de la cite (couleur
+   codee sombre teal-vert pour Noxeens) vers un bleu bien plus sature que prevu. Fix : nouvelle
+   fonction `SetAtmosphereActive(bool)` (stocke les references PPV/brouillard/SkyLight,
+   desactivee quand on entre en Cite, reactivee sinon), appelee depuis
+   `AWOTOLDemoDirector::HandleScreenChanged`.
+
+Avec ces deux corrections, la vraie geometrie 3D de la cite (hub + 5 batiments desormais dans
+le cadre + chemins/decor organique) devrait enfin etre visible avec sa vraie palette de
+couleurs pour les DEUX factions. Le fond peint Noxeens manquant (asset a fournir par Liamor,
+cf. section precedente) reste un manque separe, moins critique maintenant que les batiments
+eux-memes sont visibles.
+
 ## "Mode Frenesie" du Kraken : mecanique d'Enrage/Berserk inspiree de vraies references (31/07/2026, suite)
 
 Liamor a redemande explicitement une recherche reelle sur internet avant d'implementer, cette
