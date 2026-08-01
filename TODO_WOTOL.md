@@ -1,5 +1,31 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Bandeaux sombres haut/bas retires (Cite + Exploration) (01/08/2026)
+
+Retour terrain avec 2 captures de la Cite : "les deux bandes sombres... ça fait comme des
+fenetres en Suisse transparentes... elles n'ont aucun lieu d'etre, ca gache l'ecran pour
+rien" + "c'est pareil en vue 3e personne". Confirme sur les captures : bande sombre en haut
+et grosse bande sombre en bas de l'ecran, coupant la maquette 3D en 3 zones de luminosite
+differente (clair au milieu, sombre en haut ET en bas).
+
+VRAIE CAUSE trouvee : `DrawCityView` dessinait 2 `DrawRect` semi-transparents pleine largeur
+(bandeau haut H*0.16 alpha 0.34, bandeau bas H*0.66-1.0 alpha 0.46). Le bandeau bas etait
+explicitement commente "bandeau bas (cartes)" -- un RELIQUAT des cartes de production
+permanentes en bas de l'ecran, RETIREES le 31/07/2026 (demande explicite de Liamor) sans que
+ce bandeau, devenu inutile, ne soit retire en meme temps. Meme chose dans
+`DrawExplorationHUD` (2 bandeaux fixes 94px/72px en haut/bas, "pour garder le monde 3D
+visible" mais qui creaient le meme effet de bandes).
+
+Les deux bandeaux supprimes dans les deux fonctions. Le texte garde son ombre portee
+(deja adoucie plus tot le 01/08/2026) pour rester lisible sans fond plein derriere.
+
+- **Non traite ce tour-ci (scope plus large, deja documente comme "gros chantier a faire
+  progressivement")** : la demande plus large de Liamor de remplacer TOUTES les fenetres/
+  panneaux plats du HUD par de vraies fenetres a cadre image (comme `DrawFramedPanel`, deja
+  fait pour certains ecrans) plutot que des `DrawRect` unis. Reste a faire ecran par ecran.
+- **Non verifiable sans rendu reel** : a confirmer que la lisibilite du texte (ressources,
+  objectif) reste suffisante sans bandeau derriere, au prochain retour PC.
+
 ## Emblemes de faction cachaient le titre "CHOISISSEZ VOTRE FACTION" (01/08/2026)
 
 Retour terrain avec capture : les 2 embleme (cristal Aquiloris / organisme Noxeens) au-dessus

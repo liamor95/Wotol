@@ -1450,9 +1450,10 @@ void AWOTOLDemoHUD::DrawPreGameSummary(float W, float H, UDemoFlowSubsystem* Dem
 
 void AWOTOLDemoHUD::DrawExplorationHUD(float W, float H, UDemoFlowSubsystem* Demo)
 {
-	// On garde le monde 3D visible : seulement deux bandeaux translucides, jamais le HUD RTS.
-	DrawRect(FLinearColor(0.f, 0.02f, 0.06f, 0.72f), 0.f, 0.f, W, 94.f);
-	DrawRect(FLinearColor(0.f, 0.02f, 0.06f, 0.68f), 0.f, H - 72.f, W, 72.f);
+	// On garde le monde 3D visible : jamais le HUD RTS complet. BANDEAUX SUPPRIMÉS (01/08/2026,
+	// retour terrain : "c'est pareil quand je joue en vue 3e personne, il y a les deux bandes
+	// sombres aussi... il faut les virer") — le texte garde son ombre portée pour rester
+	// lisible sans bandeau plein derrière.
 	DrawCenteredText(TEXT("EXPLORATION — NOUVELLE ZONE"), 20.f,
 		FLinearColor(0.55f, 0.88f, 1.f, 1.f), 1.45f);
 	if (Demo && !Demo->ObjectiveText.IsEmpty())
@@ -1821,11 +1822,14 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 	// La cité est maintenant une VRAIE scène 3D vue depuis une caméra isométrique fixe
 	// (AWOTOLCityCamera/AWOTOLCityEnvironment, possédée automatiquement en entrant sur cet
 	// écran — cf. AWOTOLDemoDirector::HandleScreenChanged/PossessCityCamera) : elle est déjà
-	// rendue DERRIÈRE ce Canvas. On ne dessine donc plus d'image/dégradé plein écran ici (ça
-	// la masquerait entièrement) — seuls les bandeaux de chrome haut/bas restent, translucides,
-	// pour garder les cartes/ressources lisibles sans cacher la maquette au centre.
-	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.34f), 0.f, 0.f, W, H * 0.16f);          // bandeau haut
-	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.46f), 0.f, H * 0.66f, W, H * 0.34f);    // bandeau bas (cartes)
+	// rendue DERRIÈRE ce Canvas.
+	// BANDEAUX HAUT/BAS SUPPRIMÉS (01/08/2026, retour terrain avec captures : "les deux bandes
+	// sombres... ça fait comme des fenêtres en Suisse transparentes... elles n'ont aucun lieu
+	// d'être, ça gâche l'écran pour rien"). Le bandeau bas ("pour les cartes") est un reliquat
+	// des cartes de production permanentes, RETIRÉES le 31/07/2026 — il n'assombrissait plus
+	// rien d'utile depuis, juste la moitié basse de la maquette 3D sans raison. Le bandeau
+	// haut est retiré pour la même raison (cohérence + demande explicite). Le texte garde son
+	// ombre portée (DrawText/DrawCenteredText) pour rester lisible sans bandeau plein.
 
 	const bool bAq = (Fac != EFactionID::Noxeens);
 	const FLinearColor Accent = FFactionColors::Get(Fac);
