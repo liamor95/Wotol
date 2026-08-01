@@ -242,7 +242,17 @@ UMaterialInterface* WOTOLGlow::GetSpriteParent()
 
 		M->GetEditorOnlyData()->EmissiveColor.Expression = Mul;
 		M->GetEditorOnlyData()->OpacityMask.Expression = Tex;
-		M->GetEditorOnlyData()->OpacityMask.Mask = 0;
+		// BUG CORRIGE (01/08/2026, retour terrain : "détoure les bâtiments... on a l'impression
+		// de voir le rectangle de l'image entier") : FExpressionInput::Mask est le flag qui
+		// ACTIVE le sous-masquage de canal (MaskR/G/B/A) — s'il vaut 0, MaskA=1 ci-dessous est
+		// tout simplement IGNORE et le compilateur prend la sortie PAR DEFAUT du noeud Texture
+		// (RGB, pas Alpha) comme masque d'opacité. Résultat : le plan restait quasi partout
+		// opaque (l'illustration remplissait son cadre RGB), d'où l'impression de voir le
+		// rectangle entier de l'image au lieu d'un vrai détourage. Il faut Mask=1 pour que
+		// MaskA=1 soit effectivement pris en compte -> l'alpha réel du PNG (déjà correctement
+		// détouré dans les fichiers Content/UI/Buildings/*.png, vérifié pixel par pixel) découpe
+		// enfin la silhouette du bâtiment, effet "trompe l'œil" demandé.
+		M->GetEditorOnlyData()->OpacityMask.Mask = 1;
 		M->GetEditorOnlyData()->OpacityMask.MaskA = 1; // canal alpha = decoupe
 
 		M->PostEditChange();

@@ -1,5 +1,33 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Detourage des batiments de cite (illustrations flottaient en rectangle plein) (01/08/2026)
+
+Demande de Liamor : "détoure les bâtiments pour qu'on ait l'impression de voir le bâtiment
+seulement... genre un trompe l'œil". Verifie d'abord que les PNG sources
+(`Content/UI/Buildings/*.png`) ont bien un vrai canal alpha decoupe (verifie pixel par pixel
+via script Python/PIL sur `BuildingAquilorisInfanterie.png` : ~40% de pixels alpha=0, ~56%
+alpha=255, transition nette) — donc PAS un probleme d'asset cette fois.
+
+VRAIE CAUSE trouvee dans `WOTOLGlow::MakeSprite`/`GetSpriteParent()` (materiau dynamique
+utilise par `WOTOLCityBuildingProp` pour les illustrations de batiment ET par
+`WOTOLCityEnvironment` pour le fond de cite) : le noeud `OpacityMask` du materiau UNLIT+MASQUE
+etait cable avec `OpacityMask.Mask = 0`. Dans Unreal, `FExpressionInput::Mask` est le flag qui
+ACTIVE le sous-masquage de canal (MaskR/G/B/A) — a 0, les flags individuels
+(`MaskA = 1` juste en dessous, cense selectionner le canal alpha) sont purement et simplement
+IGNORES, et le compilateur prend la sortie PAR DEFAUT du noeud Texture (RGB) comme masque
+d'opacite au lieu de l'alpha reel -> le plan restait quasi partout opaque, d'ou l'impression
+de voir le rectangle entier de l'image. Corrige : `OpacityMask.Mask = 1` (une seule ligne,
+`Source/WOTOL/Gameplay/Demo/WOTOLGlow.cpp`) pour que `MaskA = 1` soit enfin pris en compte.
+Correction a effet global : tout ce qui utilise `WOTOLGlow::MakeSprite` (verifie via grep :
+seulement `WOTOLCityBuildingProp.cpp` et `WOTOLCityEnvironment.cpp` actuellement) beneficie
+du vrai detourage sans autre changement.
+
+- **Non verifiable sans compilateur/editeur** (comme tout ce chantier cote Claude Code) :
+  rendu visuel reel du detourage — a verifier au prochain retour PC. Si le contour parait
+  encore "dur"/crénelé (pas d'anti-aliasing sur le bord du masque, propre a BLEND_Masked),
+  ce sera un axe d'amelioration separe (ex. passer en BLEND_Translucent avec tri de
+  transparence, ou ameliorer l'anti-aliasing du masque via un seuil de clip ajuste).
+
 ## Vraie file d'attente de production chronometree (01/08/2026)
 
 Demande explicite de Liamor apres analyse de 32 captures reelles (Anno 1800, Manor Lords,
