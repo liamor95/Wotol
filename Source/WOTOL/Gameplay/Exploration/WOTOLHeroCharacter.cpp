@@ -195,6 +195,33 @@ void AWOTOLHeroCharacter::PerformDash()
 	DashFOVPunchRemaining = DashFOVPunchDuration; // petit coup de zoom arrière, pas de shake asset en greybox
 }
 
+void AWOTOLHeroCharacter::ClampToExplorationBounds()
+{
+	// BUG CORRIGE (01/08/2026, retour terrain) : rien ne bornait le deplacement du heros en vue
+	// 3e personne -> le joueur pouvait nager indefiniment hors du terrain greybox et se
+	// retrouver dans le vide, ou il a trouve la vue Cite posee tres loin a (0, 30000, 0)
+	// (AWOTOLGameMode_Demo::BeginPlay, "CityOrigin"), decor qui n'est JAMAIS cense etre visible/
+	// accessible pendant l'exploration.
+	//
+	// Bornes = l'unique sol solide de l'arene ("seul element BLOQUANT", cf.
+	// AWOTOLGreyboxEnvironment::BuildArena, cube 300x300x1 -> demi-etendue 15000 en X ET Y quel
+	// que soit le variant/phase, meme si le couloir de combat visuel (SpawnPlaza) est parfois
+	// plus etroit). Marge de securite vers l'interieur (14000 au lieu de 15000) pour rester sur
+	// le sable avant le bord, et bornes verticales larges (mais finies) pour la nage en volume.
+	constexpr float kHalfExtentXY = 14000.f;
+	constexpr float kMinZ = -3000.f, kMaxZ = 4000.f;
+
+	FVector Loc = GetActorLocation();
+	const FVector Clamped(
+		FMath::Clamp(Loc.X, -kHalfExtentXY, kHalfExtentXY),
+		FMath::Clamp(Loc.Y, -kHalfExtentXY, kHalfExtentXY),
+		FMath::Clamp(Loc.Z, kMinZ, kMaxZ));
+	if (!Clamped.Equals(Loc, 0.1f))
+	{
+		SetActorLocation(Clamped, /*bSweep=*/false);
+	}
+}
+
 void AWOTOLHeroCharacter::InputZoom(float V) { ZoomInput += V; }
 
 void AWOTOLHeroCharacter::TickZoom(float DeltaSeconds)
@@ -250,6 +277,8 @@ void AWOTOLHeroCharacter::TryHitFeedback(float Range, const TCHAR* Label)
 void AWOTOLHeroCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+	ClampToExplorationBounds();
 
 	if (DashCooldownRemaining > 0.f)
 	{

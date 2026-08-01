@@ -92,6 +92,12 @@ protected:
 	void TickZoom(float DeltaSeconds);
 	float ZoomInput = 0.f;
 
+	// Empeche de sortir de la zone d'exploration greybox (01/08/2026, retour terrain : "j'ai pu
+	// sortir de la carte... naviguer dans l'espace vide du jeu" -- le joueur avait trouve la
+	// cite, posee tres loin a (0,30000,0), en nageant hors des limites du terrain, qu'aucun
+	// code ne clampait jusqu'ici). Voir WOTOLHeroCharacter.cpp pour les bornes.
+	void ClampToExplorationBounds();
+
 	void PerformAttack();
 	void PerformAbility();
 	void TryHitFeedback(float Range, const TCHAR* Label);
