@@ -1654,15 +1654,22 @@ void AWOTOLDemoDirector::UpdateAdaptiveBattleBalance()
 	const int32 Losses = FMath::Clamp(AdaptiveInitialPlayerCount - PlayerAlive,
 		0, AdaptiveInitialPlayerCount);
 
-	if (Losses >= AdaptiveTargetLossMin) ReleaseAdaptiveEnemyAnchor();
-	if (Losses >= AdaptiveTargetLossMax) ProtectAdaptivePlayerSurvivors();
-
 	const float Elapsed = FMath::Max(0.f,
 		GetWorld()->GetTimeSeconds() - AdaptiveBalanceStartTime);
 	const float Pacing = AdaptiveBalancePhase == EDemoPhase::Battle_Creature
 		? KrakenCasualtyPacingSeconds
 		: (AdaptiveBalancePhase == EDemoPhase::Battle_Grand
 			? GrandBattleCasualtyPacingSeconds : DefenseCasualtyPacingSeconds);
+
+	// GARDE-FOU CONTRE LE BLOCAGE INFINI (retour terrain 31/07/2026) : Losses >= AdaptiveTargetLossMin
+	// est la SEULE condition qui libère le plancher de vie de l'ancre (MinimumHealthFloor). Un
+	// joueur qui domine (peu/pas de pertes) ne l'atteint jamais -> le dernier ennemi restait
+	// increvable indéfiniment (constaté : 98 unités contre 1, 5+ minutes, l'ennemi ne meurt
+	// jamais). Le "pas de victoire prématurée" reste respecté pendant la fenêtre de pacing
+	// normale, mais passé un délai de grâce (+20%) le plancher se libère de toute façon.
+	if (Losses >= AdaptiveTargetLossMin || Elapsed >= Pacing * 1.2f) ReleaseAdaptiveEnemyAnchor();
+	if (Losses >= AdaptiveTargetLossMax) ProtectAdaptivePlayerSurvivors();
+
 	const float ExpectedLosses = AdaptiveTargetLossPreferred
 		* FMath::Clamp(Elapsed / FMath::Max(1.f, Pacing), 0.f, 1.f);
 	const float Error = (ExpectedLosses - Losses)
@@ -3138,12 +3145,16 @@ void AWOTOLDemoDirector::HandleObjectiveConfirmed(FName StepId)
 	else if (StepId == TEXT("seq_collect_heart"))
 	{
 		if (ActiveReward) { ActiveReward->Collect(); ActiveReward = nullptr; }
-		// L'œuf de Léviaphénix apparaît (récompense finale de la conquête).
+		// L'œuf du mythique apparaît (récompense finale de la conquête). BUG CORRIGE (retour
+		// terrain 31/07/2026) : le titre/texte était codé en dur sur "Leviaphenix" quel que
+		// soit la faction -> les joueurs Noxéens recevaient un texte Aquiloris. MythicDisplayName
+		// (déjà utilisé ailleurs, cf. BuildingDisplayName juste au-dessus) fournit le bon nom.
 		SpawnReward(EWOTOLRewardType::LeviaphenixEgg, Center + FVector(-350.f, 0.f, 60.f));
 		Demo->DiscoverMythic();
+		const FString MythicName = MythicDisplayName(CachedPlayerFaction);
 		Demo->OpenObjectiveWindow(TEXT("seq_collect_egg"),
-			TEXT("OEUF DE LEVIAPHENIX"),
-			TEXT("Un oeuf de Leviaphenix vous attend.\nRecuperez-le : ce sera votre allie mythique."),
+			FString::Printf(TEXT("OEUF DE %s"), *MythicName.ToUpper()),
+			FString::Printf(TEXT("Un oeuf de %s vous attend.\nRecuperez-le : ce sera votre allie mythique."), *MythicName),
 			TEXT("Recuperer l'oeuf"));
 	}
 	else if (StepId == TEXT("seq_collect_egg"))

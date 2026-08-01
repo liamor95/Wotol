@@ -1,5 +1,32 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## 1er passage Noxeens complet : texte recompense fige + dernier ennemi increvable (31/07/2026, suite)
+
+Liamor a joue une partie complete en Noxeens (premiere fois testee dans cette session — tout
+le travail precedent portait sur l'Aquiloris). 2 bugs reels confirmes et corriges :
+
+1. **Texte de recompense fige sur "Leviaphenix"** : `WOTOLDemoDirector.cpp` (sequence
+   post-Kraken, `seq_collect_egg`) affichait "OEUF DE LEVIAPHENIX" / "Un oeuf de Leviaphenix
+   vous attend" EN DUR, quelle que soit la faction — les joueurs Noxeens recevaient le nom
+   Aquiloris. `MythicDisplayName(Faction)` existe deja et est utilise ailleurs (menu
+   personnalisation, etc.) mais n'etait pas applique ici. Corrige.
+2. **Dernier ennemi increvable** (le plus grave) : confirme par le retour terrain — en Noxeens,
+   98 unites contre 1 ennemi restant, 5+ minutes, l'ennemi ne meurt JAMAIS, obligeant a
+   attendre la fin du chrono. Cause : `MinimumHealthFloor` de l'unite-ancre (garde-fou anti-
+   victoire-prematuree, cf. "le Kraken ne tombe pas avant 5 pertes") ne se libere QUE si
+   `Losses >= AdaptiveTargetLossMin` — un joueur qui domine (peu/pas de pertes) n'atteint
+   JAMAIS ce seuil, donc le plancher ne se leve jamais et le combat devient litteralement
+   infini. Fix : ajout d'un delai de grace (+20% du temps de pacing de la phase) au-dela
+   duquel le plancher se libere de toute facon, meme sans avoir atteint le quota de pertes.
+   Le "pas de victoire prematuree" reste respecte pendant la fenetre normale, mais le combat
+   ne peut plus jamais rester bloque indefiniment.
+
+Egalement signale mais PAS ENCORE diagnostique (recherche en cours) : le modele du Hero en
+exploration reste Aquis/bleu meme en jouant Noxeens (alors que le roster de bataille RTS est
+bien Noxeens) ; le double-clic sur une carte d'unite ne selectionne pas le groupe en Noxeens ;
+une bande lumineuse horizontale plein-ecran visible sur plusieurs captures, cause toujours pas
+trouvee.
+
 ## "fait tout !" — passe Noxar complete dans la limite du squelette partage (31/07/2026, suite)
 
 Suite directe de la section precedente : Liamor a demande d'aller jusqu'au bout sur Noxar.
