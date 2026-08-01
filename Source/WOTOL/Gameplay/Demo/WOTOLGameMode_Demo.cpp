@@ -1,4 +1,5 @@
 #include "WOTOLGameMode_Demo.h"
+#include "DemoFlowSubsystem.h"
 #include "WOTOLDemoDirector.h"
 #include "WOTOLGreyboxEnvironment.h"
 #include "WOTOLDemoHUD.h"
@@ -6,7 +7,6 @@
 #include "WOTOLCityCamera.h"
 #include "Gameplay/Battle/WOTOLBattleCamera.h"
 #include "Gameplay/Battle/WOTOLPlayerController_Battle.h"
-#include "Core/WOTOLGameInstance.h"
 #include "Kismet/GameplayStatics.h"
 
 AWOTOLGameMode_Demo::AWOTOLGameMode_Demo()
@@ -24,13 +24,23 @@ void AWOTOLGameMode_Demo::BeginPlay()
 	UWorld* W = GetWorld();
 	if (!W) return;
 
-	// Faction joueur (menu ou défaut Aquiloris)
+	// Faction joueur (menu ou défaut Aquiloris). BUG CORRIGE (01/08/2026, retour terrain :
+	// "j'avais choisi les Noxeens et tu as mis le visuel de la cité des Aquiloris") : lisait
+	// directement GameInstance->GetSelectedFaction() au lieu de la source FIABLE
+	// UDemoFlowSubsystem::GetPlayerFaction() -- même anti-pattern déjà corrigé dans
+	// AWOTOLHeroCharacter::BeginPlay() et AWOTOLPlayerController_Battle::BeginPlay() plus tôt
+	// dans la session, mais présent ICI AUSSI (3e occurrence non détectée alors). Ce résultat
+	// est propagé à GreyboxEnvironment, Director->DefaultPlayerFaction, CityEnv->PlayerFaction
+	// ET PC->SetPlayerFaction() (qui ÉCRASE la résolution propre que le PlayerController fait
+	// lui-même dans son propre BeginPlay) -> un seul repli périmé ici pouvait fausser la
+	// faction dans TOUTE la scène de bataille/cité, pas seulement le fond de cité.
 	EFactionID PlayerFaction = EFactionID::Aquiloris;
-	if (const UWOTOLGameInstance* GI = Cast<UWOTOLGameInstance>(GetGameInstance()))
+	if (UDemoFlowSubsystem* Demo = GetGameInstance()
+			? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr)
 	{
-		if (GI->GetSelectedFaction() != EFactionID::None)
+		if (Demo->GetPlayerFaction() != EFactionID::None)
 		{
-			PlayerFaction = GI->GetSelectedFaction();
+			PlayerFaction = Demo->GetPlayerFaction();
 		}
 	}
 

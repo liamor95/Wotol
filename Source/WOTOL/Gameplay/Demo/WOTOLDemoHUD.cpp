@@ -3771,7 +3771,15 @@ void AWOTOLDemoHUD::DrawAbilityStatus(float W, float H, class UWorld* World)
 
 	const bool  bReady = Remaining <= 0.f;
 	const float PW = 260.f, PH = 56.f;
-	const float PX = W - PW - 16.f, PY = H - 210.f;
+	// BUG CORRIGE (01/08/2026, retour terrain : "chevauchement de fenetre pendant la bataille",
+	// capture montrant le nom de la capacite -- ex. "Faille Abyssale" -- coupe par le bouton
+	// Monter ET la minimap) : l'ancien PY = H - 210 mettait ce panneau (haut de 56, donc jusqu'a
+	// H-154) directement DANS la colonne bas-droite occupee par MinimapRect/LayerUpButtonRect/
+	// LayerDownButtonRect (H-196 a H-16), qui n'existaient pas encore quand ce panneau a ete
+	// place initialement. Remonte AU-DESSUS de la rangee Formation (et de son etiquette a
+	// FormationButtonRect(0).Min.Y - 20 = (H-250) - 20 = H-270) au lieu d'empieter sur la
+	// colonne minimap/calques, avec une marge de 10px.
+	const float PX = W - PW - 16.f, PY = H - 336.f;
 
 	DrawRect(FLinearColor(0.02f, 0.05f, 0.09f, 0.85f), PX, PY, PW, PH);
 	DrawRect(bReady ? FLinearColor(0.25f, 0.9f, 0.4f, 1.f) : FLinearColor(0.6f, 0.6f, 0.62f, 1.f),
@@ -3794,9 +3802,10 @@ void AWOTOLDemoHUD::DrawAbilityStatus(float W, float H, class UWorld* World)
 	}
 }
 
-// 6 puces compactes (Aucune/Ligne/Coin/Carré/Lâche/Colonne), au-dessus du panneau de
-// compétence (H-210) pour ne jamais le chevaucher, même position/largeur que lui (aligné à
-// droite, cf. DrawAbilityStatus) pour une colonne d'UI cohérente en bas-droite.
+// 6 puces compactes (Aucune/Ligne/Coin/Carré/Lâche/Colonne), EN DESSOUS du panneau de
+// compétence (remonté à H-336 le 01/08/2026, cf. DrawAbilityStatus) et au-dessus de la colonne
+// minimap/calques (H-196 à H-16) — même position/largeur que le panneau de compétence (aligné
+// à droite) pour une colonne d'UI cohérente en bas-droite, sans chevaucher ni l'un ni l'autre.
 FBox2D AWOTOLDemoHUD::FormationButtonRect(int32 Index, float W, float H)
 {
 	const float TotalW = 260.f, BtnH = 30.f, Gap = 4.f;
