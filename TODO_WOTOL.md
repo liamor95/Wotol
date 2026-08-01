@@ -1,5 +1,48 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## Vraie cause du modele Noxar/double-clic + refonte ecran personnalisation/factions (31/07/2026, suite)
+
+Recherche approfondie (agent dedie) sur 3 bugs Noxeens signales : cause commune trouvee pour 2
+d'entre eux, plus 2 demandes de mise en page traitees separement.
+
+1. **Modele Hero toujours Aquis en jouant Noxeens** ET **double-clic sur une carte d'unite
+   sans effet en Noxeens** : MEME cause racine. `UDemoFlowSubsystem::GetPlayerFaction()` est
+   deja la source FIABLE etablie dans le code (son propre commentaire dit explicitement que le
+   repli GameInstance peut etre "perime") et c'est ce que lit le HUD pour dessiner le roster de
+   bataille (d'ou l'affichage correct de Noxar/Noxeflare/Noxebeast). Mais DEUX endroits
+   lisaient encore `GameInstance->GetSelectedFaction()` en DIRECT au lieu de cette source
+   fiable : `AWOTOLHeroCharacter::BeginPlay()` (modele du Hero) et
+   `AWOTOLPlayerController_Battle::BeginPlay()` (`PlayerFaction`, utilise par
+   `HandleCommandBarClick` -> double-clic). Les deux bascules sur la meme source fiable que le
+   reste du jeu.
+2. **HERITAGE / SPECIALITE retires** de l'ecran de personnalisation du heros ET du resume de
+   partie (demande explicite et repetee : "aucune classe a choisir, chaque heros a deja son
+   role fixe") — confirme par recherche : ces 2 sections n'avaient JAMAIS eu d'effet sur le
+   gameplay (jamais lues en dehors de leur propre stockage/affichage). Suppression sans risque.
+   Le portrait (seule section restante sous Incarnation) a un halo agrandi. Les Noxeens
+   affichent maintenant un bandeau "NOXAR" en lecture seule a la place du vide total signale
+   ("il y a meme pas le chef qui est mentionne").
+3. **Ecran de choix de faction** : boutons reduits (40% de la largeur -> 22%, ne "prennent
+   plus la moitie de l'ecran"), embleme de faction agrandi (H*0.17 -> H*0.28, domine
+   visuellement au-dessus du bouton comme demande), et un vrai cadre orne (DrawFramedPanel, sur
+   un rectangle plus grand que le bouton pour deborder en bordure visible) derriere chaque
+   bouton au lieu du rectangle plat "sans fond".
+4. **Bande lumineuse plein-ecran (enfin identifiee)** : ce n'est PAS un artefact photo. Les
+   planches PanelFrame*.png (utilisees par DrawFramedPanel un peu partout) ont un halo
+   lumineux quasi-blanc BAKE AU CENTRE de l'image (verifie en ouvrant PanelFrameWideAquiloris.png
+   directement) ; le voile sombre applique par-dessus (OverlayOpacity) n'etait qu'a 0.55, donc
+   45% du halo restait visible -> lisible comme une bande qui traverse l'ecran des que du texte
+   est pose dessus, sur TOUS les panneaux utilisant DrawFramedPanel (pas seulement CONTROLES/
+   HAUTEUR-VERTICALITE, juste plus visible la a cause du texte dense). Opacite par defaut
+   relevee a 0.74 (un seul point de reglage, tous les panneaux corriges d'un coup).
+
+**EN COURS (agent dedie encore actif)** : pourquoi la vue Cite en Noxeens ("NOX CAVE") affiche
+un simple cercle bleu plat plutot que la vraie scene 3D isometrique (avec batiments/decor
+organique deja construits plus tot dans la session) — comparaison directe envoyee par Liamor
+avec une planche de reference (cite-cristal Aquiloris, vue aerienne isometrique large, plusieurs
+anneaux de batiments relies par des chemins). Diagnostic pas encore confirme au moment de ce
+commit ; a traiter des que l'agent revient.
+
 ## 1er passage Noxeens complet : texte recompense fige + dernier ennemi increvable (31/07/2026, suite)
 
 Liamor a joue une partie complete en Noxeens (premiere fois testee dans cette session — tout

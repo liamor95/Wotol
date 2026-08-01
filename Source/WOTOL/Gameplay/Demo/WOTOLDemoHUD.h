@@ -218,7 +218,12 @@ private:
 	// le texte lisible. Remplace le simple DrawRect plat utilisé jusqu'ici sur la plupart des
 	// écrans (retour de Liamor du 31/07/2026 : "les fenêtres cliquables ça fait des rectangles
 	// mais... pas de fond"). Repli sur un DrawRect plus opaque si la planche est absente.
-	void DrawFramedPanel(const FBox2D& R, EFactionID Faction, float OverlayOpacity = 0.55f);
+	// OverlayOpacity relevé 0.55 -> 0.74 (31/07/2026, suite) : les planches PanelFrame*.png ont
+	// un halo lumineux BRILLANT au centre (pensé pour un fond de HUD vide) qui, à 0.55, restait
+	// assez visible pour lire comme une "bande lumineuse" traversant l'écran une fois du texte
+	// posé dessus (confirmé en comparant l'image PanelFrameWideAquiloris.png elle-même : le
+	// halo central est presque blanc à pleine luminosité, 45% en transparaissait encore).
+	void DrawFramedPanel(const FBox2D& R, EFactionID Faction, float OverlayOpacity = 0.74f);
 	// Pastille ICÔNE + NOMBRE (planches Resource*.png fournies par Liamor le 31/07/2026),
 	// remplace le texte brut "Cristaux 40" par un vrai repère visuel. Dessine à (X,Y) et
 	// renvoie la position X juste après la pastille (pour enchaîner plusieurs pastilles sur

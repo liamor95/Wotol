@@ -52,10 +52,22 @@ void AWOTOLPlayerController_Battle::BeginPlay()
 	// même quand le jeu est en pause -> la caméra peut se déplacer alors que l'action est gelée.
 	bShouldPerformFullTickWhenPaused = true;
 
-	// Récupérer la faction depuis le GameInstance
-	if (UWOTOLGameInstance* GI = Cast<UWOTOLGameInstance>(GetGameInstance()))
+	// Récupérer la faction. BUG CORRIGE (retour terrain 31/07/2026, suite) : lire
+	// GI->GetSelectedFaction() en direct pouvait rester périmé par rapport à
+	// UDemoFlowSubsystem::GetPlayerFaction() (la source fiable, déjà utilisée par le HUD pour
+	// dessiner le roster) -> PlayerFaction stale ici faisait échouer silencieusement
+	// BuildRosterGroups dans HandleCommandBarClick (double-clic sur une carte d'unité sans
+	// effet), alors que le HUD affichait pourtant le bon roster. Même source que le HUD.
+	if (UGameInstance* GI = GetGameInstance())
 	{
-		PlayerFaction = GI->GetSelectedFaction();
+		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
+		{
+			PlayerFaction = Demo->GetPlayerFaction();
+		}
+		else if (UWOTOLGameInstance* WGI = Cast<UWOTOLGameInstance>(GI))
+		{
+			PlayerFaction = WGI->GetSelectedFaction();
+		}
 	}
 
 	// La caméra est spawnée par le GameMode et placée dans le niveau.
@@ -658,24 +670,7 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 				return true;
 			}
 		}
-		const EHeroHeritage HeritageVals[4] = { EHeroHeritage::Thalassi, EHeroHeritage::Givrelier, EHeroHeritage::Abysseen, EHeroHeritage::Gardien };
-		for (int32 i = 0; i < 4; ++i)
-		{
-			if (AWOTOLDemoHUD::HeroHeritageButtonRect(i, VpSize.X, VpSize.Y).IsInside(M))
-			{
-				Demo->SetHeroHeritage(HeritageVals[i]);
-				return true;
-			}
-		}
-		const EHeroSpecialty SpecialtyVals[4] = { EHeroSpecialty::Thalassi, EHeroSpecialty::Guerrier, EHeroSpecialty::Mage, EHeroSpecialty::Inquisiteur };
-		for (int32 i = 0; i < 4; ++i)
-		{
-			if (AWOTOLDemoHUD::HeroSpecialtyButtonRect(i, VpSize.X, VpSize.Y).IsInside(M))
-			{
-				Demo->SetHeroSpecialty(SpecialtyVals[i]);
-				return true;
-			}
-		}
+		// HERITAGE / SPECIALITE retires (31/07/2026) : cf. WOTOLDemoHUD.cpp::DrawHeroCustomization.
 		if (AWOTOLDemoHUD::HeroPortraitPrevRect(VpSize.X, VpSize.Y).IsInside(M))
 		{
 			Demo->CycleHeroPortrait(-1);

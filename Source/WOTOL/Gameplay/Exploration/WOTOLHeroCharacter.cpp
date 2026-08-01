@@ -4,6 +4,7 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Core/WOTOLGameInstance.h"
+#include "Gameplay/Demo/DemoFlowSubsystem.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -67,12 +68,24 @@ void AWOTOLHeroCharacter::BeginPlay()
 	GetCharacterMovement()->MaxFlySpeed = SwimSpeed;
 	if (Camera) BaseFOV = Camera->FieldOfView;
 
-	if (UWOTOLGameInstance* GI = Cast<UWOTOLGameInstance>(GetGameInstance()))
+	// BUG CORRIGE (retour terrain 31/07/2026, suite) : en jouant Noxeens, le Hero d'exploration
+	// restait affiche en Aquiloris (bleu/or) alors que le roster de bataille RTS affichait bien
+	// les bonnes unites Noxeens. Cause reelle : ce code lisait GI->GetSelectedFaction() en
+	// DIRECT, alors que le sous-systeme UDemoFlowSubsystem::GetPlayerFaction() est deja la
+	// source FIABLE etablie dans le reste du code (son propre commentaire dit explicitement
+	// "le repli GameInstance peut etre perime" -> exactement le bug ici, un cas ou GI trainait
+	// une valeur differente de celle vraiment active). Bascule sur la meme source fiable que
+	// le reste du jeu (roster RTS, Director, etc.).
+	if (UGameInstance* GI = GetGameInstance())
 	{
-		Faction = GI->GetSelectedFaction();
-		// BUG CORRIGE (retour terrain 31/07/2026) : choisir Aquira a la personnalisation ne
-		// changeait rien au personnage joue (toujours Aquis) -> le choix n'etait jamais lu ici.
-		bIsAquira = GI->GetHeroLoadout().bPlayAsAquira;
+		if (UDemoFlowSubsystem* Demo = GI->GetSubsystem<UDemoFlowSubsystem>())
+		{
+			Faction = Demo->GetPlayerFaction();
+		}
+		if (UWOTOLGameInstance* WGI = Cast<UWOTOLGameInstance>(GI))
+		{
+			bIsAquira = WGI->GetHeroLoadout().bPlayAsAquira;
+		}
 	}
 
 	// Corps détaillé fidèle au Chef de la faction (remplace l'ancienne silhouette greybox

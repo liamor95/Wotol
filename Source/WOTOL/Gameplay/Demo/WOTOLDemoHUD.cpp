@@ -56,12 +56,14 @@ FBox2D AWOTOLDemoHUD::StartGameButtonRect(float W, float H)
 
 FBox2D AWOTOLDemoHUD::FactionButtonRect(int32 Index, float W, float H)
 {
-	// LARGES et ÉTALÉS : chaque bouton fait ~40% de la largeur -> on remplit l'écran au lieu
-	// de tout tasser au centre. Gauche = Aquiloris, droite = Noxéens.
-	const float BW = W * 0.40f, BH = H * 0.16f, Gap = W * 0.08f;
+	// REDUITS (retour terrain 31/07/2026, suite) : chaque bouton faisait ~40% de la largeur
+	// ("les fenetres... prennent la moitie de l'ecran") -> ramené à une taille de bouton
+	// normale, comparable aux autres écrans (DifficultyButtonRect fait 26% de large par ex.),
+	// pour laisser la place à l'emblème (agrandi ci-dessous) de dominer visuellement.
+	const float BW = W * 0.22f, BH = H * 0.08f, Gap = W * 0.06f;
 	const float TotalW = BW * 2.f + Gap;
 	const float X = (W - TotalW) * 0.5f + Index * (BW + Gap);
-	const float Y = H * 0.30f;
+	const float Y = H * 0.38f;
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
@@ -109,12 +111,13 @@ FBox2D AWOTOLDemoHUD::HeroSpecialtyButtonRect(int32 Index, float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
-// Rangée PORTRAIT (cercle + flèches) : calée à un écart FIXE sous le texte de description de
-// la spécialité (pas juste un pourcentage de H indépendant) -> évite le chevauchement du texte
-// avec le cercle de portrait remonté au 1er test PC du 31/07/2026.
+// Rangée PORTRAIT (cercle + flèches) : calée à un écart FIXE sous la section INCARNATION.
+// HERITAGE/SPECIALITE ont été retirés (31/07/2026, demande de Liamor : aucun effet gameplay —
+// chaque héros a déjà un rôle fixe, ces boutons de "classe" n'avaient pas lieu d'être) ; le
+// portrait s'ancre donc directement sous Incarnation (Aquiloris) / la ligne Noxar (Noxéens).
 static float HeroPortraitRowY(float W, float H)
 {
-	return AWOTOLDemoHUD::HeroSpecialtyButtonRect(0, W, H).Max.Y + 100.f;
+	return AWOTOLDemoHUD::HeroAquilorisVariantButtonRect(0, W, H).Max.Y + H * 0.16f;
 }
 
 FBox2D AWOTOLDemoHUD::HeroPortraitPrevRect(float W, float H)
@@ -1156,14 +1159,15 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 		const FBox2D RN = FactionButtonRect(1, W, H);
 		const float bobA = FMath::Sin(T * 1.4f) * 8.f;
 		const float bobN = FMath::Sin(T * 1.4f + 1.6f) * 8.f;
-		const FVector2D CA((RA.Min.X + RA.Max.X) * 0.5f, RA.Min.Y - H * 0.09f + bobA);
-		const FVector2D CN((RN.Min.X + RN.Max.X) * 0.5f, RN.Min.Y - H * 0.09f + bobN);
+		const FVector2D CA((RA.Min.X + RA.Max.X) * 0.5f, RA.Min.Y - H * 0.155f + bobA);
+		const FVector2D CN((RN.Min.X + RN.Max.X) * 0.5f, RN.Min.Y - H * 0.155f + bobN);
 		// Emblèmes officiels détourés (Content/UI/EmblemAquilorisIcon.png / EmblemNoxeensIcon.png —
 		// dégradé alpha, découpés depuis les planches complètes fournies par Liamor le 25/07/2026)
 		// si présents ; repli sur les icônes procédurales sinon. Dessinés à leur RATIO D'ASPECT réel
-		// (les planches sont hautes, pas carrées) et plus grands — l'ancien carré 100x100 écrasait/
-		// rétrécissait l'image au point de la rendre illisible (remonté par Liamor le 31/07/2026).
-		const float IconH = H * 0.17f;
+		// (les planches sont hautes, pas carrées). AGRANDIS (31/07/2026, suite) : les boutons ont
+		// été réduits pour ne plus prendre la moitié de l'écran, et l'emblème doit désormais
+		// dominer visuellement au-dessus ("le logo... il soit un peu plus grand").
+		const float IconH = H * 0.28f;
 		const float IconW = IconH * (580.f / 980.f);
 		if (UTexture2D* EmblemA = GetFactionEmblem(EFactionID::Aquiloris))
 		{
@@ -1192,10 +1196,18 @@ void AWOTOLDemoHUD::DrawFactionSelect(float W, float H)
 	const EFactionID Selected = Flow ? Flow->SelectedFaction : EFactionID::None;
 	// Couleurs de faction : FFactionColors — source de vérité unique (thème d'interface par
 	// faction, décision Liamor du 22/07/2026) — jamais redéfinies localement.
-	DrawButton(FactionButtonRect(0, W, H),
+	// FOND ORNÉ (31/07/2026, suite) : "tes fenêtres cliquables... sans fond". DrawButton est
+	// quasi-opaque (0.97 d'alpha) donc un DrawFramedPanel dessiné à la MÊME taille serait
+	// invisible dessous -> dessiné sur un rectangle plus GRAND (marge tout autour) pour que le
+	// cadre orné dépasse en bordure du bouton, visible comme un vrai encadrement.
+	const FBox2D R0 = FactionButtonRect(0, W, H), R1 = FactionButtonRect(1, W, H);
+	const float FrameMargin = 22.f;
+	DrawFramedPanel(FBox2D(R0.Min - FVector2D(FrameMargin, FrameMargin), R0.Max + FVector2D(FrameMargin, FrameMargin)), EFactionID::Aquiloris);
+	DrawFramedPanel(FBox2D(R1.Min - FVector2D(FrameMargin, FrameMargin), R1.Max + FVector2D(FrameMargin, FrameMargin)), EFactionID::Noxeens);
+	DrawButton(R0,
 		Selected == EFactionID::Aquiloris ? TEXT("AQUILORIS  [CHOISIE]") : TEXT("AQUILORIS"),
 		FFactionColors::Get(EFactionID::Aquiloris), 1.7f);
-	DrawButton(FactionButtonRect(1, W, H),
+	DrawButton(R1,
 		Selected == EFactionID::Noxeens ? TEXT("NOXEENS  [CHOISIE]") : TEXT("NOXEENS"),
 		FFactionColors::Get(EFactionID::Noxeens), 1.7f);
 	// Description COURTE, juste sous les boutons de faction (bien au-dessus du bloc difficulté).
@@ -1256,7 +1268,11 @@ void AWOTOLDemoHUD::DrawHeroCustomization(float W, float H, UDemoFlowSubsystem* 
 
 	// Choix Aquis / Aquira — Aquiloris uniquement (demande de Liamor, 25/07/2026). Stats et
 	// capacites strictement identiques (Role Chef) ; celui non choisi devient le chef de
-	// faction en narration/PNJ. Les Noxeens n'ont pas ce choix (Noxar reste seul chef jouable).
+	// faction en narration/PNJ.
+	// HERITAGE / SPECIALITE RETIRES (31/07/2026, demande explicite repetee de Liamor) : ces
+	// 2 sections n'avaient AUCUN effet sur le gameplay (confirme par recherche - jamais lus
+	// en dehors de ce fichier et du sous-systeme de stockage) et n'avaient pas de raison
+	// d'etre : chaque heros a deja un role fixe, ce n'est pas un choix de classe.
 	if (Demo->SelectedFaction == EFactionID::Aquiloris)
 	{
 		DrawCenteredText(TEXT("INCARNATION"), HeroAquilorisVariantButtonRect(0, W, H).Min.Y - H * 0.04f,
@@ -1274,62 +1290,36 @@ void AWOTOLDemoHUD::DrawHeroCustomization(float W, float H, UDemoFlowSubsystem* 
 			HeroAquilorisVariantButtonRect(0, W, H).Max.Y + H * 0.02f,
 			FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 0.85f);
 	}
-
-	DrawCenteredText(TEXT("HERITAGE"), HeroHeritageButtonRect(0, W, H).Min.Y - H * 0.045f,
-		FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.2f);
-	const TCHAR* HeritageLabels[4] = { TEXT("THALASSI"), TEXT("GIVRELERE"), TEXT("ABYSSEEN"), TEXT("GARDIEN") };
-	const EHeroHeritage HeritageVals[4] = { EHeroHeritage::Thalassi, EHeroHeritage::Givrelier, EHeroHeritage::Abysseen, EHeroHeritage::Gardien };
-	int32 HeritageIdx = 0;
-	for (int32 i = 0; i < 4; ++i)
+	else
 	{
-		const bool bSel = (Loadout.Heritage == HeritageVals[i]);
-		if (bSel) HeritageIdx = i;
-		const FLinearColor Col = bSel ? FLinearColor(0.4f, 0.85f, 1.f, 1.f) : FLinearColor(0.4f, 0.45f, 0.52f, 1.f);
-		DrawButton(HeroHeritageButtonRect(i, W, H), HeritageLabels[i], Col, bSel ? 1.15f : 1.0f);
+		// Noxéens : pas de choix d'incarnation (Noxar reste le seul chef jouable), mais
+		// jusqu'ici l'écran n'affichait ABSOLUMENT RIEN à cet endroit -> impression d'écran
+		// vide/cassé (retour terrain 31/07/2026 : "il y a même pas le chef qui est mentionné,
+		// il y a rien visuel"). Affiche maintenant le même bandeau qu'Aquiloris, en lecture
+		// seule, pour que le héros joué reste toujours visible/nommé.
+		DrawCenteredText(TEXT("INCARNATION"), HeroAquilorisVariantButtonRect(0, W, H).Min.Y - H * 0.04f,
+			FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.1f);
+		const FBox2D NoxarRect(FVector2D(W * 0.5f - W * 0.20f, HeroAquilorisVariantButtonRect(0, W, H).Min.Y),
+			FVector2D(W * 0.5f + W * 0.20f, HeroAquilorisVariantButtonRect(0, W, H).Max.Y));
+		DrawButton(NoxarRect, TEXT("NOXAR"), FLinearColor(0.35f, 0.85f, 0.55f, 1.f), 1.1f);
+		DrawCenteredText(TEXT("Noxar, chef des Noxeens — seul champion jouable de la faction."),
+			HeroAquilorisVariantButtonRect(0, W, H).Max.Y + H * 0.02f,
+			FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 0.85f);
 	}
-	const TCHAR* HeritageDesc[4] = {
-		TEXT("Sang des courants de surface — rapide et adaptable."),
-		TEXT("Glace des abysses polaires — endurance accrue."),
-		TEXT("Nuit des grands fonds — camouflage et perception."),
-		TEXT("Lignee protectrice — robustesse au combat.")
-	};
-	DrawCenteredText(HeritageDesc[HeritageIdx], HeroHeritageButtonRect(0, W, H).Max.Y + H * 0.025f,
-		FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 0.9f);
-
-	DrawCenteredText(TEXT("SPECIALITE"), HeroSpecialtyButtonRect(0, W, H).Min.Y - H * 0.045f,
-		FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.2f);
-	const TCHAR* SpecialtyLabels[4] = { TEXT("THALASSI"), TEXT("GUERRIER"), TEXT("MAGE"), TEXT("INQUISITEUR") };
-	const EHeroSpecialty SpecialtyVals[4] = { EHeroSpecialty::Thalassi, EHeroSpecialty::Guerrier, EHeroSpecialty::Mage, EHeroSpecialty::Inquisiteur };
-	int32 SpecialtyIdx = 0;
-	for (int32 i = 0; i < 4; ++i)
-	{
-		const bool bSel = (Loadout.Specialty == SpecialtyVals[i]);
-		if (bSel) SpecialtyIdx = i;
-		const FLinearColor Col = bSel ? FLinearColor(1.f, 0.72f, 0.22f, 1.f) : FLinearColor(0.4f, 0.45f, 0.52f, 1.f);
-		DrawButton(HeroSpecialtyButtonRect(i, W, H), SpecialtyLabels[i], Col, bSel ? 1.15f : 1.0f);
-	}
-	const TCHAR* SpecialtyDesc[4] = {
-		TEXT("Combat polyvalent, equilibre attaque/defense."),
-		TEXT("Force brute, degats de melee eleves."),
-		TEXT("Maitrise des courants, degats a distance/zone."),
-		TEXT("Traque et controle, cible les ennemis isoles.")
-	};
-	const float SpecialtyDescY = HeroSpecialtyButtonRect(0, W, H).Max.Y + 30.f;
-	DrawCenteredText(SpecialtyDesc[SpecialtyIdx], SpecialtyDescY,
-		FLinearColor(0.8f, 0.9f, 1.f, 0.9f), 0.9f);
 
 	// Portrait : simple index cyclable + halo teinté par la faction, en attendant de vrais
-	// portraits illustrés (aucun asset de ce type n'existe encore côté Content). Calé à un
-	// écart FIXE sous la description de spécialité -> évite le chevauchement remonté au
-	// 1er test PC du 31/07/2026 (H*0.635/H*0.66 indépendants pouvaient se toucher).
-	const float PortraitRowY = SpecialtyDescY + 70.f; // = HeroPortraitPrevRect/NextRect (même formule)
-	DrawCenteredText(TEXT("PORTRAIT"), PortraitRowY - 50.f, FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.1f);
+	// portraits illustrés (aucun asset de ce type n'existe encore côté Content — aucun outil
+	// de génération d'image disponible dans cette session pour en créer). Halo agrandi
+	// (46/30 -> 64/44) pour que cette section, désormais la seule sous Incarnation, ait plus
+	// de présence visuelle.
+	const float PortraitRowY = HeroPortraitRowY(W, H);
+	DrawCenteredText(TEXT("PORTRAIT"), PortraitRowY - 60.f, FLinearColor(0.95f, 0.85f, 0.4f, 1.f), 1.1f);
 	if (Canvas)
 	{
 		const FVector2D Center(W * 0.5f, PortraitRowY + 30.f);
 		const FLinearColor FacCol = FFactionColors::Get(Demo->SelectedFaction);
-		Canvas->K2_DrawPolygon(nullptr, Center, FVector2D(46.f, 46.f), 16, FLinearColor(FacCol.R, FacCol.G, FacCol.B, 0.2f));
-		Canvas->K2_DrawPolygon(nullptr, Center, FVector2D(30.f, 30.f), 16, FacCol);
+		Canvas->K2_DrawPolygon(nullptr, Center, FVector2D(64.f, 64.f), 20, FLinearColor(FacCol.R, FacCol.G, FacCol.B, 0.2f));
+		Canvas->K2_DrawPolygon(nullptr, Center, FVector2D(44.f, 44.f), 20, FacCol);
 	}
 	DrawButton(HeroPortraitPrevRect(W, H), TEXT("<"), FLinearColor(0.5f, 0.55f, 0.62f, 1.f), 1.3f);
 	DrawButton(HeroPortraitNextRect(W, H), TEXT(">"), FLinearColor(0.5f, 0.55f, 0.62f, 1.f), 1.3f);
@@ -1350,29 +1340,20 @@ void AWOTOLDemoHUD::DrawPreGameSummary(float W, float H, UDemoFlowSubsystem* Dem
 	const FHeroLoadout& Loadout = Demo->GetHeroLoadout();
 	const FLinearColor Accent = FFactionColors::Get(Demo->SelectedFaction);
 
-	const TCHAR* HeritageLabels[4] = { TEXT("Thalassi"), TEXT("Givrelere"), TEXT("Abysseen"), TEXT("Gardien") };
-	const EHeroHeritage HeritageVals[4] = { EHeroHeritage::Thalassi, EHeroHeritage::Givrelier, EHeroHeritage::Abysseen, EHeroHeritage::Gardien };
-	FString HeritageLabel = TEXT("?");
-	for (int32 i = 0; i < 4; ++i) if (HeritageVals[i] == Loadout.Heritage) HeritageLabel = HeritageLabels[i];
-
-	const TCHAR* SpecialtyLabels[4] = { TEXT("Thalassi"), TEXT("Guerrier"), TEXT("Mage"), TEXT("Inquisiteur") };
-	const EHeroSpecialty SpecialtyVals[4] = { EHeroSpecialty::Thalassi, EHeroSpecialty::Guerrier, EHeroSpecialty::Mage, EHeroSpecialty::Inquisiteur };
-	FString SpecialtyLabel = TEXT("?");
-	for (int32 i = 0; i < 4; ++i) if (SpecialtyVals[i] == Loadout.Specialty) SpecialtyLabel = SpecialtyLabels[i];
-
+	// HERITAGE / SPECIALITE retires (31/07/2026) : cf. DrawHeroCustomization, meme raison
+	// (aucun effet gameplay, pas un choix de classe reel).
 	const TCHAR* DiffLabels[3] = { TEXT("Facile"), TEXT("Normal"), TEXT("Difficile") };
 	const EDemoDifficulty DiffVals[3] = { EDemoDifficulty::Facile, EDemoDifficulty::Normal, EDemoDifficulty::Difficile };
 	FString DiffLabel = TEXT("Normal");
 	for (int32 i = 0; i < 3; ++i) if (DiffVals[i] == Demo->GetDifficulty()) DiffLabel = DiffLabels[i];
 
-	// Hauteur FIXE (retour terrain 31/07/2026) au lieu de "H*0.74" : le contenu (4 lignes de
-	// libellé+valeur, ~316px) ne remplissait qu'une fraction du panneau sur les grandes fenêtres
-	// (jusqu'à 0.52*H de haut) -> gros bloc de cadre décoratif vide sous le texte.
-	const FBox2D Panel(FVector2D(W * 0.5f - 420.f, H * 0.22f), FVector2D(W * 0.5f + 420.f, H * 0.22f + 400.f));
+	// Hauteur FIXE, ajustée (31/07/2026) : encore réduite pour coller aux 3 lignes restantes
+	// depuis le retrait de la ligne Heritage/Specialite (contenu ~232px, contre ~316px avant).
+	const FBox2D Panel(FVector2D(W * 0.5f - 420.f, H * 0.22f), FVector2D(W * 0.5f + 420.f, H * 0.22f + 300.f));
 	DrawFramedPanel(Panel, Demo->SelectedFaction);
 	DrawLine(Panel.Min.X, Panel.Min.Y, Panel.Max.X, Panel.Min.Y, Accent, 3.f);
 
-	// Deux colonnes, façon UI_ResumePartie.png (Faction | Difficulte, Heritage | Specialite).
+	// Deux colonnes, façon UI_ResumePartie.png (Faction | Difficulte).
 	const float ColL = Panel.Min.X + 50.f, ColR = Panel.Min.X + 470.f;
 	float Y = Panel.Min.Y + 40.f;
 	auto Row = [&](float X, const FString& Label, const FString& Value)
@@ -1384,9 +1365,6 @@ void AWOTOLDemoHUD::DrawPreGameSummary(float W, float H, UDemoFlowSubsystem* Dem
 	Y += 84.f;
 	Row(ColL, TEXT("FACTION"), Demo->SelectedFaction == EFactionID::Noxeens ? TEXT("Noxeens") : TEXT("Aquiloris"));
 	Row(ColR, TEXT("NIVEAU DE DIFFICULTE"), DiffLabel);
-	Y += 84.f;
-	Row(ColL, TEXT("HERITAGE"), HeritageLabel);
-	Row(ColR, TEXT("SPECIALITE"), SpecialtyLabel);
 	Y += 84.f;
 	Row(ColL, TEXT("PORTRAIT"), FString::Printf(TEXT("%d / 5"), Loadout.PortraitIndex + 1));
 
