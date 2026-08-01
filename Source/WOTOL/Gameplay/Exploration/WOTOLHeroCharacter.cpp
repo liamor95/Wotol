@@ -586,6 +586,44 @@ void AWOTOLHeroCharacter::BuildHeroBody()
 				FVector(0.03f, 0.03f, h * (0.30f - FMath::Abs(Ang) * 0.08f)),
 				FRotator(-50.f - FMath::Abs(Ang) * 20.f, 0, Side * 35.f), NoxGlow);
 		}
+
+		// PASSE "fait tout" (31/07/2026) : la refonte complète de la silhouette (posture voûtée,
+		// proportions monstrueuses) reste hors de portée sans toucher au squelette PARTAGÉ avec
+		// Aquis (torse/bras/jambes construits avant ce bloc, cf. plus haut) — mais tout ce qui
+		// peut s'ajouter EN PLUS sans toucher à ce squelette commun est fait ici : griffes
+		// (mains ET pieds), crocs, arcade sourcilière anguleuse, carrure épaules/bras plus
+		// massive. Ne modifie AUCUNE géométrie utilisée par Aquis (branche else uniquement).
+		const FLinearColor Fang(0.85f, 0.85f, 0.82f, 1.f);
+
+		// Griffes aux mains (les doigts de BuildHand, partagés, restent arrondis pour Aquis ;
+		// Noxar ajoute une pointe de griffe sombre au bout de chaque doigt/pouce).
+		for (int32 side = -1; side <= 1; side += 2)
+		{
+			USceneComponent* HandElbow = (side < 0) ? JLElbow : JRElbow;
+			for (int32 f = -1; f <= 1; ++f)
+				MakeBone(HandElbow, M_CONE, FVector(-1.0f, f * 5.f, -h * 0.465f),
+					FVector(0.014f, 0.014f, h * 0.03f), FRotator(30.f, 0, 0), NoxDark);
+			MakeBone(HandElbow, M_CONE, FVector(-0.9f, side * 9.f, -h * 0.395f),
+				FVector(0.014f, 0.014f, h * 0.03f), FRotator(0, 0, side * 55.f), NoxDark);
+		}
+
+		// Griffes de pied supplémentaires (1 -> 3 par pied, en éventail).
+		MakeBone(JRKnee, M_CONE, FVector(H * 0.095f, 5.f, -h * 0.495f), FVector(0.024f, 0.024f, h * 0.05f), FRotator(64.f, 0, 10.f), NoxGlow);
+		MakeBone(JRKnee, M_CONE, FVector(H * 0.095f, -5.f, -h * 0.495f), FVector(0.024f, 0.024f, h * 0.05f), FRotator(64.f, 0, -10.f), NoxGlow);
+		MakeBone(JLKnee, M_CONE, FVector(H * 0.095f, 5.f, -h * 0.495f), FVector(0.024f, 0.024f, h * 0.05f), FRotator(64.f, 0, 10.f), NoxGlow);
+		MakeBone(JLKnee, M_CONE, FVector(H * 0.095f, -5.f, -h * 0.495f), FVector(0.024f, 0.024f, h * 0.05f), FRotator(64.f, 0, -10.f), NoxGlow);
+
+		// Crocs (mâchoire) + arcade sourcilière anguleuse (tête plus monstrueuse, cf. planche).
+		AddPart(M_CONE, FVector(H * 0.13f, 5.f, H * 0.335f), FVector(0.018f, 0.018f, h * 0.04f), FRotator(160.f, 0, 0), Fang);
+		AddPart(M_CONE, FVector(H * 0.13f, -5.f, H * 0.335f), FVector(0.018f, 0.018f, h * 0.04f), FRotator(160.f, 0, 0), Fang);
+		for (int32 r = -1; r <= 1; ++r)
+			AddPart(M_CONE, FVector(H * 0.11f, r * 6.f, H * 0.415f), FVector(0.025f, 0.025f, h * 0.06f),
+				FRotator(-40.f, 0, r * 15.f), NoxDark);
+
+		// Carrure plus massive (bulk épaules/biceps) — silhouette plus imposante sans toucher
+		// à la longueur/l'échelle des bras partagés avec Aquis.
+		MakeBone(JRShoulder, M_SPH, FVector(0, 3.f, -h * 0.08f), FVector(0.17f, 0.17f, 0.15f), NoRot, NoxDark);
+		MakeBone(JLShoulder, M_SPH, FVector(0, -3.f, -h * 0.08f), FVector(0.17f, 0.17f, 0.15f), NoRot, NoxDark);
 	}
 }
 

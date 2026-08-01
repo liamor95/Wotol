@@ -1,5 +1,24 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## "fait tout !" — passe Noxar complete dans la limite du squelette partage (31/07/2026, suite)
+
+Suite directe de la section precedente : Liamor a demande d'aller jusqu'au bout sur Noxar.
+Contrainte technique inchangee : le torse/bras/jambes de base sont construits AVANT le
+if(bAq)/else dans BuildHeroBody (squelette PARTAGE avec Aquis) — une vraie refonte de posture
+(voutee, proportions monstre) demanderait de dupliquer tout ce bloc, trop risque a l'aveugle
+sans compilateur. Tout ce qui pouvait s'ajouter EN PLUS, sans toucher au squelette commun, a
+ete fait :
+- Griffes aux MAINS (bout de chaque doigt + pouce, sombre) — les doigts de BuildHand restent
+  arrondis pour Aquis, Noxar ajoute juste une pointe.
+- Griffes de PIED : 1 -> 3 par pied (eventail), au lieu d'une seule griffe centrale.
+- Crocs (2, blanc casse) + arcade sourciliere anguleuse (3 pointes) sur le visage.
+- Carrure epaules/bras plus massive (bulk supplementaire aux epaules).
+- (deja fait au commit precedent : 6 tentacules de crane + 3 ailerons dorsaux + veines
+  bioluminescentes + epaulieres sombres + genouilleres).
+Reste HORS de portee sans refonte separee du squelette : la posture voutee/monstrueuse elle-meme
+(le corps reste un humanoide bien droit) et des proportions de membres asymetriques (bras plus
+longs, etc.) — a faire en chantier dedie si Liamor teste cette faction et veut aller plus loin.
+
 ## VRAIES planches de reference recues (Aquis/Aquira/Noxar) : palette corrigee (31/07/2026, suite)
 
 Liamor a envoye 3 vraies planches de reference personnage (turnaround complet, plusieurs
