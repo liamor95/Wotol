@@ -1,5 +1,33 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## VRAIES planches de reference recues (Aquis/Aquira/Noxar) : palette corrigee (31/07/2026, suite)
+
+Liamor a envoye 3 vraies planches de reference personnage (turnaround complet, plusieurs
+angles) — AQUIS (chef, armure bleu marine + or + longue cape), AQUIRA (reine, armure
+PERLE/BLANCHE + or, PAS de cape) et NOXAR (creature/monstre : peau ecailleuse sombre, yeux et
+veines bleues lumineuses, tentacules a l'arriere du crane). Comparaison directe avec le kitbash
+actuel a revele des erreurs de palette jamais detectees faute de vraie reference avant
+aujourd'hui :
+1. **Gemme du torse Aquis/Aquira** : codee CYAN (`AqEnergyHi`) alors que la planche montre
+   clairement une gemme OR/ORANGE lumineuse -> corrigee. Concernait aussi le "coeur lumineux"
+   partout ailleurs dans le kitbash.
+2. **Distinction Aquis/Aquira** : ma passe precedente inventait une teinte "or rose" pour
+   Aquira sans reference reelle — remplacee par la VRAIE distinction de la planche : armure
+   PERLE/BLANCHE (`AqArmorQueen`) au lieu du bleu marine d'Aquis, et SANS cape (contrairement
+   a Aquis qui en porte une longue). L'or et la gemme restent identiques pour les deux (planche
+   confirmee).
+3. **Cape d'Aquis rallongee** : la planche montre une cape qui tombe jusqu'au sol. Le correctif
+   d'urgence du tour precedent (mur qui cachait tout le corps) l'avait rendue a la fois etroite
+   ET courte ; gardee etroite (evite de refaire le bug du mur) mais rallongee jusqu'au genou
+   (pas jusqu'au sol, pour eviter tout chevauchement avec l'animation de nage des jambes).
+4. **Noxar** : ecart bien plus important (planche = creature/monstre hunched, kitbash actuel =
+   chevalier humanoide avec quelques accents tentacules) — refonte complete de la silhouette
+   PAS faite ici (trop risque a l'aveugle sans compilateur, pour une faction que Liamor n'a pas
+   encore testee en jeu contrairement a l'Aquis). Seul ajout : 6 tentacules supplementaires a
+   l'arriere du crane (trait le plus reconnaissable de la planche), en plus des 2 deja
+   presentes. Une vraie refonte du corps Noxar reste a faire en chantier separe si Liamor teste
+   cette faction et confirme que l'ecart le derange.
+
 ## 7 bugs remontes par capture (31/07/2026, suite) : cape geante, Aquira non joue, fenetres qui se chevauchent
 
 Liamor a envoye 7 captures + 1 video de reference (extrait de film, bataille sous-marine

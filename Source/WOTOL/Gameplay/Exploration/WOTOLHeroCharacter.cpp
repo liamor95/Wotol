@@ -361,16 +361,22 @@ void AWOTOLHeroCharacter::BuildHeroBody()
 	const FRotator NoRot = FRotator::ZeroRotator;
 	const bool bAq = (Faction != EFactionID::Noxeens);
 	// Aquira (reine, stats identiques a Aquis, cf. FHeroLoadout::bPlayAsAquira) : jusqu'ici
-	// jouait comme un Aquis identique (choix jamais lu par le personnage). Sans nouvel asset
-	// disponible, distinction visuelle par la palette (or rose + gemme violette au lieu de
-	// or pur + gemme cyan) plutot que par la geometrie -> reste reconnaissable au premier coup
-	// d'oeil sans toucher au reste du kitbash.
+	// jouait comme un Aquis identique (choix jamais lu par le personnage). Planches officielles
+	// recues (31/07/2026) : Aquis = armure BLEU MARINE + or + longue cape ; Aquira = armure
+	// PERLE/BLANCHE + or, SANS cape, plaques plus decoupees. Distinction par la couleur de
+	// l'armure (pas juste un liseré) + la cape desactivee pour Aquira, plutot que la teinte or
+	// rose inventee au tour precedent (corrigee : l'or et la gemme sont IDENTIQUES sur les
+	// deux planches, seule l'armure change).
 	const bool bQueen = bAq && bIsAquira;
 
-	const FLinearColor AqArmor   (0.11f, 0.20f, 0.50f, 1.f);
-	const FLinearColor AqGold    = bQueen ? FLinearColor(0.90f, 0.55f, 0.68f, 1.f) : FLinearColor(0.95f, 0.78f, 0.25f, 1.f);
+	const FLinearColor AqArmorKing (0.11f, 0.20f, 0.50f, 1.f);  // Aquis : bleu marine (planche)
+	const FLinearColor AqArmorQueen(0.72f, 0.74f, 0.80f, 1.f);  // Aquira : perle/blanc (planche)
+	const FLinearColor AqArmor    = bQueen ? AqArmorQueen : AqArmorKing;
+	const FLinearColor AqGold    (0.95f, 0.78f, 0.25f, 1.f);
 	const FLinearColor AqEyeGlow (0.35f, 0.75f, 1.80f, 1.f);
-	const FLinearColor AqEnergyHi = bQueen ? FLinearColor(1.10f, 0.55f, 1.60f, 1.f) : FLinearColor(0.55f, 1.30f, 2.60f, 1.f);
+	// Gemme dorée/orangée (planches officielles : le cœur lumineux du torse est OR, pas cyan —
+	// corrige une erreur de palette du kitbash d'origine, jamais comparée à une vraie référence).
+	const FLinearColor AqEnergyHi(1.00f, 0.65f, 0.15f, 1.f);
 	const FLinearColor AqCrest   (0.55f, 0.78f, 1.00f, 1.f);
 	const FLinearColor AqCape    (0.06f, 0.11f, 0.26f, 1.f);
 	const FLinearColor NoxDark   (0.08f, 0.07f, 0.13f, 1.f);
@@ -505,19 +511,26 @@ void AWOTOLHeroCharacter::BuildHeroBody()
 		AddPart(M_CUBE, FVector(H * 0.10f, 10, -H * 0.20f), FVector(0.03f, 0.05f, h * 0.16f), NoRot, AqGold);
 		AddPart(M_CUBE, FVector(H * 0.10f, -10, -H * 0.20f), FVector(0.03f, 0.05f, h * 0.16f), NoRot, AqGold);
 
-		// Cape UNIQUE centrée dans le dos (remplace les 2 pans latéraux qui débordaient sur le
-		// côté au lieu de draper le dos, cf. reference) : segment haut étroit aux épaules +
-		// segment bas plus large pour suggérer l'évasement d'un tissu qui tombe.
-		// CORRECTIF URGENT (retour terrain 31/07/2026, capture jeu) : la cape precedente
-		// (BodyW*1.75 de large, jusqu'a -H*0.42) formait un MUR PLAT qui cachait entierement
-		// bras/mains/jambes/pieds vus depuis la camera 3e personne (qui suit DERRIERE le
-		// personnage, du MEME cote que la cape "dans le dos") -> beaucoup plus petite et
-		// resserree contre le torse, s'arrete a la taille au lieu de descendre jusqu'au genou.
-		AddPart(M_CUBE, FVector(-H * 0.10f, 0, H * 0.10f), FVector(0.02f, BodyW * 0.70f, h * 0.14f), FRotator(-6.f, 0, 0), AqCape);
-		AddPart(M_CUBE, FVector(-H * 0.11f, 0, -H * 0.05f), FVector(0.02f, BodyW * 0.85f, h * 0.16f), FRotator(-11.f, 0, 0), AqCape);
-		// Fermoirs dorés de la cape aux épaules (petites gemmes d'attache).
-		AddPart(M_SPH, FVector(-H * 0.10f, H * 0.13f, H * 0.19f), FVector(0.035f, 0.035f, 0.04f), NoRot, AqGold);
-		AddPart(M_SPH, FVector(-H * 0.10f, -H * 0.13f, H * 0.19f), FVector(0.035f, 0.035f, 0.04f), NoRot, AqGold);
+		// Cape UNIQUE centrée dans le dos, réservée à AQUIS (planche officielle : Aquira n'en
+		// porte pas). NARROW (largeur modeste, hugant le dos) mais LONGUE (descend jusqu'au
+		// genou) — la planche montre une cape ample qui tombe jusqu'au sol ; on s'arrête au
+		// genou pour éviter tout chevauchement avec l'animation de nage des jambes (retour
+		// terrain 31/07/2026 : une cape LARGE avait déjà caché tout le bas du corps une fois,
+		// voir CORRECTIF URGENT ci-dessous — la largeur reste volontairement modeste ici,
+		// seule la longueur est augmentée).
+		if (!bQueen)
+		{
+			// CORRECTIF URGENT (retour terrain 31/07/2026, capture jeu) : la cape précédente
+			// (BodyW*1.75 de large, jusqu'à -H*0.42) formait un MUR PLAT qui cachait entièrement
+			// bras/mains/jambes/pieds vus depuis la caméra 3e personne (qui suit DERRIÈRE le
+			// personnage, du MÊME côté que la cape "dans le dos") -> restée étroite ici.
+			AddPart(M_CUBE, FVector(-H * 0.10f, 0, H * 0.10f), FVector(0.02f, BodyW * 0.70f, h * 0.14f), FRotator(-6.f, 0, 0), AqCape);
+			AddPart(M_CUBE, FVector(-H * 0.11f, 0, -H * 0.08f), FVector(0.02f, BodyW * 0.82f, h * 0.22f), FRotator(-9.f, 0, 0), AqCape);
+			AddPart(M_CUBE, FVector(-H * 0.12f, 0, -H * 0.38f), FVector(0.02f, BodyW * 0.90f, h * 0.36f), FRotator(-11.f, 0, 0), AqCape);
+			// Fermoirs dorés de la cape aux épaules (petites gemmes d'attache).
+			AddPart(M_SPH, FVector(-H * 0.10f, H * 0.13f, H * 0.19f), FVector(0.035f, 0.035f, 0.04f), NoRot, AqGold);
+			AddPart(M_SPH, FVector(-H * 0.10f, -H * 0.13f, H * 0.19f), FVector(0.035f, 0.035f, 0.04f), NoRot, AqGold);
+		}
 
 		// Genouillères dorées (cassent la rotule nue) + jambières (plaque avant du tibia) +
 		// bracelets de cheville + rehaussement du talon (silhouette de botte, pas un pied nu).
@@ -560,6 +573,19 @@ void AWOTOLHeroCharacter::BuildHeroBody()
 		MakeBone(JLKnee, M_SPH, FVector(H * 0.03f, 0, 0), FVector(0.10f, 0.10f, 0.09f), NoRot, NoxDark);
 		MakeBone(JRKnee, M_CONE, FVector(H * 0.11f, 0, -h * 0.52f), FVector(0.03f, 0.03f, h * 0.06f), FRotator(70.f, 0, 0), NoxGlow); // griffe pied D
 		MakeBone(JLKnee, M_CONE, FVector(H * 0.11f, 0, -h * 0.52f), FVector(0.03f, 0.03f, h * 0.06f), FRotator(70.f, 0, 0), NoxGlow); // griffe pied G
+		// Tentacules de tête (planche officielle NOXAR reçue 31/07/2026 : plusieurs longs
+		// filaments d'énergie bleue qui partent de l'arrière du crâne, en plus des 2 déjà
+		// présentes dans le dos) — trait le plus reconnaissable de la référence, ajouté ici
+		// sans toucher à la silhouette générale (refonte complète du corps = chantier séparé,
+		// trop risqué à l'aveugle sans compilateur pour une faction pas encore testée en jeu).
+		for (int32 t = 0; t < 6; ++t)
+		{
+			const float Ang = (t - 2.5f) / 2.5f; // -1..1
+			const float Side = (t % 2 == 0) ? 1.f : -1.f;
+			AddPart(M_CONE, FVector(-H * 0.05f, Side * (10.f + FMath::Abs(Ang) * 14.f), H * (0.36f + FMath::Abs(Ang) * 0.02f)),
+				FVector(0.03f, 0.03f, h * (0.30f - FMath::Abs(Ang) * 0.08f)),
+				FRotator(-50.f - FMath::Abs(Ang) * 20.f, 0, Side * 35.f), NoxGlow);
+		}
 	}
 }
 
