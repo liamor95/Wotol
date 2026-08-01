@@ -1833,7 +1833,10 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 
 	const bool bAq = (Fac != EFactionID::Noxeens);
 	const FLinearColor Accent = FFactionColors::Get(Fac);
-	const FString CityName = bAq ? TEXT("CITE D'AQUILOR") : TEXT("NOX CAVE");
+	// "CITE D'AQUILOR" -> "AQUILOR" (01/08/2026, retour terrain : "il faut pas marquer Cite
+	// d'Aquilor, il faut marquer [un vrai nom de lieu]" -- symetrique a "NOX CAVE", deja un nom
+	// de lieu court et evocateur, pas un gabarit generique "Cite des Noxeens").
+	const FString CityName = bAq ? TEXT("AQUILOR") : TEXT("NOX CAVE");
 	DrawGlowTitle(CityName, H * 0.04f, 2.2f, Accent);
 
 	// Ressources persistantes gagnées en mission (haut-gauche), en pastilles ICÔNE + NOMBRE
