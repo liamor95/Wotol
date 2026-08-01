@@ -1,5 +1,32 @@
 # TODO WOTOL — notes a appliquer au PROCHAIN changement
 
+## RESOLU : cause du "cercle bleu plat" en cite Noxeens = mauvais ASSET, pas un bug de code (31/07/2026, suite)
+
+Liamor a envoye une planche de reference (cite-cristal Aquiloris, vue aerienne isometrique) en
+demandant pourquoi la cite Noxeens ne ressemble a rien de comparable. Recherche dediee (agent) :
+- Camera (AWOTOLCityCamera : OrthoWidth, position, angle), rayon du sol, rayon de l'anneau de
+  batiments, nombre de batiments spawnes (5) : TOUS identiques/faction-agnostiques entre
+  Aquiloris et Noxeens. Aucun bug de geometrie, camera ou possession trouve.
+- Cause reelle : `AWOTOLCityEnvironment::BuildEnvironment()` pose un grand fond peint
+  (`Content/UI/CityBackdrop{Faction}.png`) DERRIERE la scene, volontairement dimensionne pour
+  remplir tout le cadre de la camera orthographique (design assume : c'est CE fond qui donne
+  l'impression de "vraie cite peinte", cf. commentaire dans le code). Pour l'Aquiloris,
+  `CityBackdropAquiloris.png` EST exactement la planche que Liamor vient d'envoyer comme
+  reference — deja utilisee correctement. Pour Noxeens, `CityBackdropNoxeens.png` est en
+  realite une scene de RECIF/GROTTE bioluminescente SANS AUCUNE architecture (verifie en
+  ouvrant le fichier) — d'ou l'aplat bleu/turquoise quasi uniforme avec quelques meduses
+  lumineuses, pris pour "rien du tout".
+- Fix applique (`WOTOLBuildingArt::GetCityBackdrop`) : ce fond incorrect n'est PLUS charge pour
+  Noxeens (retourne null) -> la vraie geometrie 3D de la cite (hub + anneau de 5 batiments +
+  chemins/decor organique construits plus tot dans la session) redevient visible au premier
+  plan au lieu d'etre masquee par une image hors sujet. C'est plus sobre qu'un vrai fond peint,
+  mais c'est desormais une VRAIE cite visible, pas un aplat vide.
+- **RESTE A FAIRE, hors de portee sans outil de generation d'image dans cette session** : une
+  vraie illustration de cite Noxeens (meme esprit que la planche Aquiloris — architecture
+  organique/bio-mecanique sombre, bioluminescence cyan/verte, meme cadrage aerien) doit etre
+  fournie par Liamor pour remplacer ce garde-fou et retrouver le meme niveau de finition que
+  l'Aquiloris.
+
 ## Vraie cause du modele Noxar/double-clic + refonte ecran personnalisation/factions (31/07/2026, suite)
 
 Recherche approfondie (agent dedie) sur 3 bugs Noxeens signales : cause commune trouvee pour 2
