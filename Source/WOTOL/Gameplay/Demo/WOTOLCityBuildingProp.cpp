@@ -78,8 +78,13 @@ void AWOTOLCityBuildingProp::BuildVisual()
 	// affichée sur un plan orienté face à la caméra isométrique FIXE de la vue Cité (jamais
 	// de rotation possible -> l'illusion tient à tout niveau de zoom, demande de Liamor du
 	// 25/07/2026). Repli automatique sur l'ancien kitbash (cylindre émissif) si l'image
-	// officielle est absente (fichier Content/UI/Buildings/ manquant).
-	if (UTexture2D* Art = WOTOLBuildingArt::GetBuildingIcon(OwnerFaction, Category))
+	// officielle est absente (fichier Content/UI/Buildings/ manquant). Le Chef n'a pas
+	// d'icône par CATEGORIE (pas de carte de recrutement) mais a son propre bâtiment-siège
+	// dédié (Noyau Cristallin / Trône des profondeurs, ajouté le 02/08/2026).
+	UTexture2D* Art = (Category == EDemoUnitCategory::Chef)
+		? WOTOLBuildingArt::GetSiegeBuildingIcon(OwnerFaction)
+		: WOTOLBuildingArt::GetBuildingIcon(OwnerFaction, Category);
+	if (Art)
 	{
 		const TCHAR* M_PLANE = TEXT("/Engine/BasicShapes/Plane.Plane");
 		TierMesh = AddCityPiece(this, SceneRoot, M_PLANE, FVector(0.f, 0.f, 90.f), FVector(3.2f, 3.2f, 1.f));

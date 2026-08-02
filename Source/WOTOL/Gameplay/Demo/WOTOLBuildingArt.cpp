@@ -76,6 +76,20 @@ UTexture2D* WOTOLBuildingArt::GetDefenseBuildingIcon(EFactionID Faction)
 	return LoadCached(FString::Printf(TEXT("Buildings/Building%sDefense.png"), Fac));
 }
 
+UTexture2D* WOTOLBuildingArt::GetSiegeBuildingIcon(EFactionID Faction)
+{
+	const TCHAR* Fac = FactionPrefix(Faction);
+	if (!Fac) return nullptr;
+	return LoadCached(FString::Printf(TEXT("Buildings/Building%sSiege.png"), Fac));
+}
+
+UTexture2D* WOTOLBuildingArt::GetTerritoryBastionIcon(EFactionID Faction)
+{
+	const TCHAR* Fac = FactionPrefix(Faction);
+	if (!Fac) return nullptr;
+	return LoadCached(FString::Printf(TEXT("Buildings/Building%sBastion.png"), Fac));
+}
+
 UTexture2D* WOTOLBuildingArt::GetCityBackdrop(EFactionID Faction)
 {
 	// BUG D'ASSET CONFIRME (retour terrain 31/07/2026, recherche dediee) : Content/UI/

@@ -26,6 +26,16 @@ namespace WOTOLBuildingArt
 	// Structure défensive individuelle (Tourelle hydrocristalline / Œil bioluminal).
 	UTexture2D* GetDefenseBuildingIcon(EFactionID Faction);
 
+	// Bâtiment-siège (Noyau Cristallin / Trône des profondeurs). Aquiloris : planche pas
+	// encore reçue de Liamor -> retourne nullptr (repli sur l'ancien comportement, pas de
+	// régression). Noxeens : "Trône des profondeurs" disponible depuis le 02/08/2026.
+	UTexture2D* GetSiegeBuildingIcon(EFactionID Faction);
+
+	// Bâtiment de défense TERRITORIALE principal (Bastion Cristallin / Enceinte Noxéenne),
+	// affiché dans la gestion du territoire — distinct de la tourelle individuelle
+	// installable ci-dessus (GetDefenseBuildingIcon).
+	UTexture2D* GetTerritoryBastionIcon(EFactionID Faction);
+
 	// Fond de cité grand format (vue Cité 3D uniquement).
 	UTexture2D* GetCityBackdrop(EFactionID Faction);
 }

@@ -2088,10 +2088,19 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 		{
 			// Illustration officielle réelle (même image que le plan 3D affiché dans la scène —
 			// cohérence demandée par Liamor le 25/07/2026 : pas d'écran qui contredit la vue 3D).
-			// Le Chef utilise l'illustration CENTRALE dédiée (pas d'icône par catégorie pour lui).
-			UTexture2D* SummaryIcon = (SelCat == EDemoUnitCategory::Chef)
-				? WOTOLBuildingArt::GetCentralBuildingIcon(Fac)
-				: WOTOLBuildingArt::GetBuildingIcon(Fac, SelCat);
+			// Le Chef utilise son bâtiment-siège dédié (Noyau Cristallin / Trône des profondeurs,
+			// ajouté le 02/08/2026) ; repli sur l'illustration CENTRALE si la planche Aquiloris
+			// (Noyau Cristallin) n'est pas encore fournie, pour ne rien régresser en attendant.
+			UTexture2D* SummaryIcon = nullptr;
+			if (SelCat == EDemoUnitCategory::Chef)
+			{
+				SummaryIcon = WOTOLBuildingArt::GetSiegeBuildingIcon(Fac);
+				if (!SummaryIcon) SummaryIcon = WOTOLBuildingArt::GetCentralBuildingIcon(Fac);
+			}
+			else
+			{
+				SummaryIcon = WOTOLBuildingArt::GetBuildingIcon(Fac, SelCat);
+			}
 			if (UTexture2D* Icon = SummaryIcon)
 			{
 				const float ImgSize = 84.f;
@@ -2337,20 +2346,33 @@ void AWOTOLDemoHUD::DrawTerritoryView(float W, float H, UDemoFlowSubsystem* Demo
 	// (même traitement que la fenêtre de bâtiment de la cité — planche portrait + voile sombre).
 	{
 		UTexture2D* Frame = GetPanelFramePortrait(Demo->GetPlayerFaction());
-		auto DrawSidePanel = [&](float X)
+		// Illustrations reelles ajoutees le 02/08/2026 : le panneau gauche montre le batiment
+		// central (Cristalliseur/Abyssalyseur, dont le nom+la barre de vie sont affiches juste
+		// a cote), le panneau droit le batiment de defense territoriale principal (Bastion
+		// Cristallin/Enceinte Noxeenne, dont le bouton d'installation est affiche juste a cote)
+		// -> chaque planche illustre desormais le concept dont le texte parle a sa hauteur,
+		// au lieu d'un cadre purement decoratif vide des deux cotes.
+		UTexture2D* CentralIcon = WOTOLBuildingArt::GetCentralBuildingIcon(Demo->GetPlayerFaction());
+		UTexture2D* BastionIcon = WOTOLBuildingArt::GetTerritoryBastionIcon(Demo->GetPlayerFaction());
+		auto DrawSidePanel = [&](float X, UTexture2D* Icon)
 		{
 			if (Frame)
 			{
 				DrawTexture(Frame, X, 28.f, 420.f, H - 150.f, 0.f, 0.f, 1.f, 1.f);
-				DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, 0.60f), X, 28.f, 420.f, H - 150.f);
+				if (Icon)
+				{
+					const float IS = 300.f;
+					DrawTexture(Icon, X + (420.f - IS) * 0.5f, 60.f, IS, IS, 0.f, 0.f, 1.f, 1.f);
+				}
+				DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, Icon ? 0.32f : 0.60f), X, 28.f, 420.f, H - 150.f);
 			}
 			else
 			{
 				DrawRect(FLinearColor(0.01f, 0.03f, 0.06f, 0.88f), X, 28.f, 420.f, H - 150.f);
 			}
 		};
-		DrawSidePanel(24.f);
-		DrawSidePanel(W - 444.f);
+		DrawSidePanel(24.f, CentralIcon);
+		DrawSidePanel(W - 444.f, BastionIcon);
 	}
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.64f), 0.f, 0.f, W, 112.f);
 	DrawGlowTitle(TEXT("GESTION DU TERRITOIRE"), 24.f, 2.05f, Accent);
