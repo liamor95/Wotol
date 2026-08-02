@@ -40,9 +40,12 @@ void AWOTOLCityEnvironment::RebuildForFaction(EFactionID NewFaction)
 	// l'ancienne faction -> BuildEnvironment() ci-dessous repart d'une scène vierge.
 	if (SceneRoot)
 	{
-		TArray<USceneComponent*> Children;
-		SceneRoot->GetChildrenComponents(false, Children);
-		for (USceneComponent* Child : Children)
+		// Nommé différemment de "Children" : AActor::Children (TArray<TObjectPtr<AActor>>)
+		// existe déjà sur la classe de base -> masquerait ce membre (erreur de build MSVC
+		// C4458 réelle, remontée par Liamor le 02/08/2026 via le log de compilation).
+		TArray<USceneComponent*> ChildComponents;
+		SceneRoot->GetChildrenComponents(false, ChildComponents);
+		for (USceneComponent* Child : ChildComponents)
 		{
 			if (Child) Child->DestroyComponent();
 		}
