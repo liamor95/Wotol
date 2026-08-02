@@ -46,16 +46,13 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UStaticMeshComponent> BaseMesh;
 
-	// Corps du bâtiment : la TAILLE (échelle uniforme) reflète le niveau (1/2/3). Depuis le
-	// 25/07/2026, c'est un plan texturé (illustration officielle réelle, WOTOLBuildingArt)
-	// orienté pour faire face à la caméra isométrique FIXE de la vue Cité (jamais de rotation
-	// possible -> l'illusion "trompe l'œil" tient à tous les niveaux de zoom). Repli
-	// automatique sur l'ancien kitbash (cylindre émissif) si l'image officielle est absente.
+	// Corps du bâtiment : amas procédural de pointes cristal/épines (MÊME technique que
+	// AWOTOLDefenseStructure::BuildVisual), depuis le 02/08/2026 — remplace l'ancien plan
+	// texturé avec illustration officielle collée (trompe-l'œil rejeté explicitement par
+	// Liamor pour les bâtiments de la cité : "tu dois faire des formes toi-même, pas coller
+	// une image"). La TAILLE (échelle uniforme de TierCluster) reflète le niveau (1/2/3).
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	TObjectPtr<UStaticMeshComponent> TierMesh;
-
-	// Vrai si TierMesh est le plan texturé (bâtiment officiel) plutôt que le repli cylindre.
-	bool bUsingRealArt = false;
+	TObjectPtr<USceneComponent> TierCluster;
 
 	// Anneau lumineux au sol, visible uniquement quand ce bâtiment est sélectionné.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
@@ -64,6 +61,8 @@ protected:
 private:
 	void BuildVisual();
 
+	// Matériau dynamique PARTAGÉ par toutes les pointes du cluster : Refresh() n'a besoin que
+	// d'un seul SetVectorParameterValue pour changer toutes les pointes d'un coup.
 	UPROPERTY(Transient)
 	TObjectPtr<class UMaterialInstanceDynamic> TierMID;
 
