@@ -2578,3 +2578,26 @@ de leur traitement :
    `Demo->ObjectiveText` affichée en permanence dans son propre bandeau de titre) — plus
    discret/intégré qu'un bandeau plein écran, priorité moindre, à revoir si Liamor le demande
    explicitement pour cet écran aussi.
+
+## Bâtiments de la cité : vraies formes procédurales (02/08/2026, suite — "la modélisation de la cité")
+
+Liamor a relancé avec insistance sur la demande jamais pleinement traitée : que les bâtiments
+de la cité soient de VRAIES formes construites, pas des illustrations collées sur un plan.
+
+- **FAIT** : `AWOTOLCityBuildingProp::BuildVisual()` remplace le plan texturé
+  (`WOTOLBuildingArt::GetBuildingIcon`/`GetSiegeBuildingIcon`) par un amas procédural de
+  pointes cristal/épines — exactement la même technique que
+  `AWOTOLDefenseStructure::AddSpikeCluster` (passe précédente, déjà validée pour les
+  tourelles/sentinelles sans nouvelle plainte dessus). Couleur = teinte de catégorie mélangée
+  à l'accent de faction ; le niveau (1-3) fait grandir tout le cluster.
+- **Camera pan/zoom** : déjà implémenté (`AWOTOLCityCamera` — PanSpeed/PanRadius/
+  MinOrthoWidth/MaxOrthoWidth), contrairement à ce qui était noté comme manquant dans une
+  entrée précédente de ce fichier — vérifié en lisant le header, rien à faire de ce côté.
+- **PAS FAIT** : la demande la plus lourde — réutiliser la carte de bataille/exploration
+  elle-même (son terrain, ses arches/ruines) et la "remodeler en mode cité" au lieu d'un
+  disque séparé avec décor de corail générique (`AWOTOLCityEnvironment`, posé loin de
+  l'arène). C'est un changement structurel majeur (fusionner deux systèmes d'environnement
+  différents) que je n'ai pas tenté sans confirmation explicite — le décor actuel reste un
+  disque + amas de corail/rochers proceduraux, pas le terrain du greybox d'exploration
+  (`WOTOLGreyboxEnvironment`) recyclé. A confirmer avec Liamor si c'est bien ce point précis
+  qui doit être attaqué en priorité ensuite.
