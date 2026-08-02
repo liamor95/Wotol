@@ -2570,11 +2570,13 @@ void AWOTOLDemoDirector::ReturnToCityForGrandBattleReveal()
 
 	// PHASE 3 : l'armée passe d'une composition scriptée fixe à une base réduite (vétérans
 	// de la phase 2, chef + mythique compris) + recrutement libre en cité, plafonné par
-	// faction (60 Aquiloris / 100 Noxéens) — demande de Liamor du 26/07/2026. On repart
+	// faction — demande de Liamor du 26/07/2026, plafonds ABAISSÉS le 02/08/2026 (60/100
+	// -> 50/70 Aquiloris/Noxéens) : avec le rival Facile ramené à ~40 unités (retour terrain
+	// du 01/08/2026), un plafond joueur de 100 restait bien trop déséquilibré. On repart
 	// d'une réserve vide : la garnison de la phase 2 reste garder la zone, elle ne rejoint
 	// pas la grande bataille en zone neutre.
 	const EFactionID Fac = Demo->GetPlayerFaction();
-	Demo->MaxArmyUnits = (Fac == EFactionID::Noxeens) ? 100 : 60;
+	Demo->MaxArmyUnits = (Fac == EFactionID::Noxeens) ? 70 : 50;
 	Demo->InitialArmyUnits = 2 // chef + mythique, ajoutés séparément dans SpawnPlayerArmy
 		+ GrandBattleBaselineInfantry + GrandBattleBaselineMounted
 		+ GrandBattleBaselineRanged + GrandBattleBaselineSpecial;
