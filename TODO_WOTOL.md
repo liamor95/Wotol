@@ -2635,3 +2635,15 @@ victoire finalement acquise mais ~13 min avec un seul ennemi increvable) :
 - **PAS UN BUG** (confirmé, expliqué à Liamor) : "40 ennemis au lieu de 60" est la réduction
   d'effectif Facile ajoutée le 01/08/2026 (×0.65, même correctif "rendre la Phase 3 gagnable")
   — non modifiée, le vrai problème était le dernier ennemi increvable ci-dessus.
+
+## Décor de la cité par biome + plafond d'armée Phase 3 réajusté (02/08/2026, suite)
+
+- **FAIT** : le décor du sol de la cité (`BuildGroundDecor`) change de FORME en plus de la
+  couleur selon la faction (Aquiloris = pointes de cristal lumineuses ; Noxéens = épines
+  sombres + pods bioluminescents), et la teinte des ruines (`BuildRuinsDecor`, passe
+  précédente) part d'une base de pierre différente par biome (glacée bleutée / moussue
+  sombre) au lieu d'un gris neutre commun, mélange à l'accent de faction renforcé.
+- **FAIT** : plafond d'armée joueur en Phase 3 abaissé de 60/100 à 50/70 (Aquiloris/Noxéens) —
+  demande explicite de Liamor ("si tu laisses 40 ennemis, ne laisse pas 100 unités... 50
+  aquiloris contre 70 noxéens"), toujours déterminé par la faction réellement choisie par le
+  joueur quel que soit son choix.
