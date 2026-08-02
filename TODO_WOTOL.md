@@ -2474,3 +2474,31 @@ des armes a celui des unites. Contexte : test complet prevu sur PC dans ~2 jours
   (formes de batiments modelisees a la main d'apres les planches, camera avec leger pan/zoom
   borne, decor de cristaux disseminee evoquant le biome, nom de lieu propre au lieu de "Cite
   d'Aquiloris") reste largement a faire au-dela du fix de nom deja applique ("AQUILOR").
+
+## Bâtiment Infanterie Noxéens : mauvaise illustration corrigée (02/08/2026)
+
+- Nouveau lot de planches de référence de Liamor (noms officiels des bâtiments de la cité,
+  cohérents avec les unités déjà nommées dans le code : Aquiloryon, Aquisphères, Aquilances,
+  Aquilombres/Ombres, Léviaphénix côté Aquiloris ; Noxedrake, mastodontes côté Noxéens).
+  Vérification systématique des 14 fichiers `Content/UI/Buildings/Building*.png` existants
+  contre les planches reçues (comparaison visuelle directe) :
+  - **BUG CONFIRME** : `BuildingNoxeensInfanterie.png` affichait "Enceinte Noxéenne" (planche
+    "BÂTIMENT – DÉFENSE TERRITORIALE", donc PAS un bâtiment de production) au lieu de "Fosse
+    d'Émergence" (planche explicitement sous-titrée "BÂTIMENT – PRODUCTION D'INFANTERIE").
+    Corrige un vrai bug de contenu (bâtiment Infanterie Noxéens affichait la mauvaise
+    illustration depuis son intégration le 31/07). Recadrage + détourage (flood-fill depuis
+    les bords, meme technique que les portraits de héros) de la planche "Fosse d'Émergence"
+    fournie -> fichier remplacé.
+  - Les 13 autres fichiers (Central/Defense/Infanterie/Distance/Montee/Speciale/Mythique ×
+    2 factions) correspondent DEJA correctement aux planches reçues (Cristalliseur,
+    Abysalyseur, Tourelle hydrocristalline, Œil bioluminal, Académie Aquiloryon, Champ de Tir
+    des Aquisphères, Dôme des Aquilances, Nexus des Ombres, Cœur-Éclat du Léviaphénix, Cavité
+    des mastodontes, Antre du Noxedrake, Foyer des décharges, Faille Abyssale) — aucun autre
+    changement necessaire sur ces 13 fichiers.
+- **Reste en attente / hors scope de cette passe** : plusieurs planches reçues n'ont PAS de
+  slot dédié dans le code actuel (`WOTOLBuildingArt` ne connaît que Central/Defense/5
+  catégories de production) : "Enceinte Noxéenne" (défense territoriale, 2 variantes de
+  couleur), "Trône des profondeurs", "Carrière des Profondeurs", "Puits des courants
+  cristallins", "Bastion cristallin". Pas de bâtiment/mécanique existante à laquelle les
+  raccrocher sans inventer un nouveau système (hors scope d'une simple correction de bug) —
+  a garder sous le coude si Liamor precise leur usage prevu.
