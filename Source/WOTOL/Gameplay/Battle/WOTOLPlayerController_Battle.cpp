@@ -282,11 +282,36 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 	{
 		if (AWOTOLDemoDirector* Dir = GetDemoDirector())
 		{
-			if (Dir->IsCrystalliserPlacementAvailable()
-				&& AWOTOLDemoHUD::ExplorationCrystalliserButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+			if (Dir->IsCrystalliserPlacementAvailable() && !Dir->IsCrystalliserPlacementArmed())
 			{
-				Dir->ArmCrystalliserPlacement();
-				return true;
+				// Panneau d'INVENTAIRE replié par défaut (demande de Liamor du 02/08/2026) :
+				// l'étiquette "INVENTAIRE" ouvre/ferme le panneau à onglets.
+				if (AWOTOLDemoHUD::ExplorationInventoryToggleButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+				{
+					bExplorationInventoryOpen = !bExplorationInventoryOpen;
+					return true;
+				}
+				if (bExplorationInventoryOpen)
+				{
+					if (AWOTOLDemoHUD::ExplorationInventoryTabRect(0, VpSize.X, VpSize.Y).IsInside(M))
+					{
+						ExplorationInventoryTab = 0;
+						return true;
+					}
+					if (AWOTOLDemoHUD::ExplorationInventoryTabRect(1, VpSize.X, VpSize.Y).IsInside(M))
+					{
+						ExplorationInventoryTab = 1;
+						return true;
+					}
+					if (ExplorationInventoryTab == 0
+						&& AWOTOLDemoHUD::ExplorationCrystalliserButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+					{
+						Dir->ArmCrystalliserPlacement();
+						bExplorationInventoryOpen = false; // referme -> le repère 3D redevient cliquable
+						return true;
+					}
+					return true; // panneau ouvert : absorbe le reste du clic (ne traverse pas vers la nage)
+				}
 			}
 			if (Dir->IsCrystalliserPlacementArmed())
 			{

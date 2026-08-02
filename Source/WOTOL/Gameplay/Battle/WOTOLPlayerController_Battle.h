@@ -89,6 +89,13 @@ private:
 	// affiché tout le temps". Un clic ouvre le bandeau complet (texte d'objectif + dernier
 	// message), un reclic le referme ; ne gèle pas l'action (contrairement aux réglages).
 	bool bObjectivePanelOpen = false;
+	// Panneau d'INVENTAIRE d'exploration (bâtiment à placer / ressources), replié par défaut —
+	// remplace l'ancien bouton "BATIMENT : CRISTALLISEUR" affiché en permanence (demande de
+	// Liamor du 02/08/2026, même esprit que bObjectivePanelOpen ci-dessus). Un clic sur
+	// l'étiquette "INVENTAIRE" l'ouvre (onglets BATIMENTS/RESSOURCES) ; un clic sur la carte du
+	// bâtiment arme le placement ET referme le panneau (pour laisser le repère 3D cliquable).
+	bool bExplorationInventoryOpen = false;
+	int32 ExplorationInventoryTab = 0;
 	void ApplyPauseState(); // pause moteur = (bFrozen || bSettingsOpen)
 	void TogglePause();     // bascule bFrozen
 	void ToggleSettings();  // ouvre/ferme le menu réglages
@@ -98,6 +105,8 @@ public:
 	bool IsControlsOpen() const { return bControlsOpen; }
 	bool IsObjectivePanelOpen() const { return bObjectivePanelOpen; }
 	void ToggleObjectivePanel() { bObjectivePanelOpen = !bObjectivePanelOpen; }
+	bool IsExplorationInventoryOpen() const { return bExplorationInventoryOpen; }
+	int32 GetExplorationInventoryTab() const { return ExplorationInventoryTab; }
 	// 0 = aucune confirmation en attente, 1 = confirmer "Recommencer", 2 = confirmer "Quitter".
 	uint8 GetPendingConfirmAction() const { return PendingConfirmAction; }
 

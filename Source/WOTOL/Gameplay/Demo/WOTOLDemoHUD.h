@@ -75,7 +75,11 @@ public:
 	// Bouton « Continuer » de la fenêtre d'objectif MODALE (validation manuelle v0.8).
 	static FBox2D ObjectiveContinueButtonRect(float W, float H);
 
-	// Inventaire de bâtiments pendant la nage libre post-Kraken.
+	// Inventaire de bâtiments pendant la nage libre post-Kraken. Étiquette repliée par
+	// défaut (02/08/2026) ; ouverte, panneau à onglets BATIMENTS(0)/RESSOURCES(1).
+	static FBox2D ExplorationInventoryToggleButtonRect(float W, float H);
+	static FBox2D ExplorationInventoryPanelRect(float W, float H);
+	static FBox2D ExplorationInventoryTabRect(int32 TabIndex, float W, float H);
 	static FBox2D ExplorationCrystalliserButtonRect(float W, float H);
 
 	// ─── Vue CITÉ (phases 2 & 9 — production) ───────────────────────────────────

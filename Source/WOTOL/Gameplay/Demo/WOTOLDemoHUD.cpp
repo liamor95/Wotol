@@ -433,10 +433,31 @@ FBox2D AWOTOLDemoHUD::ObjectiveContinueButtonRect(float W, float H)
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }
 
+FBox2D AWOTOLDemoHUD::ExplorationInventoryToggleButtonRect(float W, float H)
+{
+	return FBox2D(FVector2D(28.f, H - 64.f), FVector2D(28.f + 190.f, H - 20.f));
+}
+
+FBox2D AWOTOLDemoHUD::ExplorationInventoryPanelRect(float W, float H)
+{
+	const float PW = 380.f, PH = 230.f;
+	return FBox2D(FVector2D(28.f, H - PH - 20.f), FVector2D(28.f + PW, H - 20.f));
+}
+
+FBox2D AWOTOLDemoHUD::ExplorationInventoryTabRect(int32 TabIndex, float W, float H)
+{
+	const FBox2D Panel = ExplorationInventoryPanelRect(W, H);
+	const float TabW = (Panel.Max.X - Panel.Min.X - 20.f) * 0.5f;
+	const float X = Panel.Min.X + 8.f + static_cast<float>(TabIndex) * (TabW + 4.f);
+	return FBox2D(FVector2D(X, Panel.Min.Y + 8.f), FVector2D(X + TabW, Panel.Min.Y + 42.f));
+}
+
 FBox2D AWOTOLDemoHUD::ExplorationCrystalliserButtonRect(float W, float H)
 {
-	const float BW = 330.f, BH = 76.f;
-	return FBox2D(FVector2D(28.f, H - BH - 92.f), FVector2D(28.f + BW, H - 92.f));
+	const FBox2D Panel = ExplorationInventoryPanelRect(W, H);
+	const float BW = (Panel.Max.X - Panel.Min.X) - 24.f, BH = 64.f;
+	return FBox2D(FVector2D(Panel.Min.X + 12.f, Panel.Min.Y + 54.f),
+		FVector2D(Panel.Min.X + 12.f + BW, Panel.Min.Y + 54.f + BH));
 }
 
 void AWOTOLDemoHUD::DrawObjectiveWindow(float W, float H, class UDemoFlowSubsystem* Demo)
@@ -1476,20 +1497,64 @@ void AWOTOLDemoHUD::DrawExplorationHUD(float W, float H, UDemoFlowSubsystem* Dem
 		H - 48.f, FLinearColor(0.86f, 0.93f, 1.f, 0.95f), 0.9f);
 
 	// Après le rapport du Kraken, le Cristalliseur arrive dans un véritable inventaire de
-	// bâtiment. Le joueur doit sélectionner cette carte puis cliquer la cible 3D lumineuse.
+	// bâtiment à onglets (BATIMENTS/RESSOURCES), REPLIÉ par défaut (demande explicite de
+	// Liamor du 02/08/2026 : "aucun jeu ne laisse ça affiché tout le temps") — un clic sur
+	// l'étiquette "INVENTAIRE" l'ouvre, un clic sur la carte du bâtiment arme le placement ET
+	// referme le panneau pour laisser le repère 3D lumineux cliquable. Pas d'onglet
+	// ÉQUIPEMENT : aucun système d'équipement du héros n'existe encore dans le code (à
+	// concevoir séparément si Liamor le souhaite, plutôt qu'un onglet vide qui ne ferait rien).
 	if (Demo && Demo->GetPhase() == EDemoPhase::Capture_Zone
 		&& !Demo->GetProgress().bZoneCaptured)
 	{
 		const bool bNox = Demo->GetPlayerFaction() == EFactionID::Noxeens;
-		DrawButton(ExplorationCrystalliserButtonRect(W, H),
-			bNox ? TEXT("BATIMENT : ABYSSALYSEUR") : TEXT("BATIMENT : CRISTALLISEUR"),
-			FFactionColors::Get(Demo->GetPlayerFaction()), 1.05f);
+		AWOTOLPlayerController_Battle* InvPC = Cast<AWOTOLPlayerController_Battle>(GetOwningPlayerController());
+		const bool bInvOpen = InvPC && InvPC->IsExplorationInventoryOpen();
+		if (!bInvOpen)
 		{
-			const FLinearColor ResCol(1.f, 0.94f, 0.58f, 1.f);
-			const float NextX = DrawResourceChip(GetPrimaryResourceIcon(Demo->GetPlayerFaction()),
-				FString::Printf(TEXT("%d"), Demo->GetCrystals()), 38.f, H - 92.f, 24.f, ResCol);
-			DrawResourceChip(GetAbyssalMaterialsIcon(), FString::Printf(TEXT("%d"), Demo->PlayerAbyssalMaterials),
-				NextX + 22.f, H - 92.f, 24.f, ResCol);
+			DrawButton(ExplorationInventoryToggleButtonRect(W, H), TEXT("INVENTAIRE"),
+				FFactionColors::Get(Demo->GetPlayerFaction()), 1.0f);
+		}
+		else
+		{
+			const FBox2D Panel = ExplorationInventoryPanelRect(W, H);
+			DrawFramedPanel(Panel, Demo->GetPlayerFaction());
+
+			const int32 ActiveTab = InvPC ? InvPC->GetExplorationInventoryTab() : 0;
+			const TCHAR* TabNames[2] = { TEXT("BATIMENTS"), TEXT("RESSOURCES") };
+			for (int32 t = 0; t < 2; ++t)
+			{
+				DrawButton(ExplorationInventoryTabRect(t, W, H), TabNames[t],
+					t == ActiveTab ? FFactionColors::Get(Demo->GetPlayerFaction())
+						: FLinearColor(0.32f, 0.36f, 0.40f, 1.f), 0.82f);
+			}
+
+			if (ActiveTab == 0)
+			{
+				DrawButton(ExplorationCrystalliserButtonRect(W, H),
+					bNox ? TEXT("BATIMENT : ABYSSALYSEUR") : TEXT("BATIMENT : CRISTALLISEUR"),
+					FFactionColors::Get(Demo->GetPlayerFaction()), 1.0f);
+				const FLinearColor ResCol(1.f, 0.94f, 0.58f, 1.f);
+				const float NextX = DrawResourceChip(GetPrimaryResourceIcon(Demo->GetPlayerFaction()),
+					FString::Printf(TEXT("%d"), Demo->GetCrystals()),
+					Panel.Min.X + 14.f, Panel.Max.Y - 34.f, 22.f, ResCol);
+				DrawResourceChip(GetAbyssalMaterialsIcon(), FString::Printf(TEXT("%d"), Demo->PlayerAbyssalMaterials),
+					NextX + 20.f, Panel.Max.Y - 34.f, 22.f, ResCol);
+			}
+			else
+			{
+				DrawText(TEXT("Ressources actuelles :"), FLinearColor::White,
+					Panel.Min.X + 14.f, Panel.Min.Y + 54.f, nullptr, 0.92f);
+				const FLinearColor ResCol(1.f, 0.94f, 0.58f, 1.f);
+				float RY = Panel.Min.Y + 86.f;
+				DrawResourceChip(GetPrimaryResourceIcon(Demo->GetPlayerFaction()),
+					FString::Printf(TEXT("%d"), Demo->GetCrystals()), Panel.Min.X + 14.f, RY, 22.f, ResCol);
+				RY += 40.f;
+				DrawResourceChip(GetAbyssalMaterialsIcon(), FString::Printf(TEXT("%d"), Demo->PlayerAbyssalMaterials),
+					Panel.Min.X + 14.f, RY, 22.f, ResCol);
+				RY += 40.f;
+				DrawResourceChip(GetBiomassIcon(), FString::Printf(TEXT("%d"), Demo->PlayerBiomass),
+					Panel.Min.X + 14.f, RY, 22.f, ResCol);
+			}
 		}
 	}
 }
