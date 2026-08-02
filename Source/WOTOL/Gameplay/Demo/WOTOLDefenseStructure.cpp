@@ -65,22 +65,52 @@ void AWOTOLDefenseStructure::BuildVisual()
 		return C;
 	};
 
+	// Amas de pointes (cristal/épine) tout autour du socle, tailles/rotations variées — se
+	// rapproche des planches officielles "Tourelle hydrocristalline"/"Œil bioluminal" fournies
+	// par Liamor le 01/08/2026 (un amas dense de pointes irrégulières, pas un seul cône nu).
+	// Nombre ET taille du cluster augmentent avec StructureLevel (1->3), comme les 4 étapes de
+	// croissance illustrées sur les planches. Seed fixe par acteur (déterministe à l'écran,
+	// jamais recalculé au hasard entre deux frames) mais VARIÉ par instance (a sinon toutes les
+	// tourelles/sentinelles d'un même niveau étaient rigoureusement identiques -> alignement au
+	// cordeau visible, incohérent avec des cristaux/épines naturels).
+	auto AddSpikeCluster = [&](const FLinearColor& SpikeCol, float BaseRadius, int32 Count)
+	{
+		FRandomStream Rng(GetUniqueID() * 977 + 13);
+		for (int32 i = 0; i < Count; ++i)
+		{
+			const float Angle = (360.f / static_cast<float>(Count)) * static_cast<float>(i)
+				+ Rng.FRandRange(-12.f, 12.f);
+			const float Dist = Rng.FRandRange(BaseRadius * 0.55f, BaseRadius);
+			const FVector Pos(FMath::Cos(FMath::DegreesToRadians(Angle)) * Dist,
+				FMath::Sin(FMath::DegreesToRadians(Angle)) * Dist, 6.f);
+			const float H2 = Rng.FRandRange(70.f, 150.f) * (0.75f + 0.25f * static_cast<float>(StructureLevel));
+			const float Wd = Rng.FRandRange(0.22f, 0.34f);
+			const float Tilt = Rng.FRandRange(-8.f, 8.f);
+			Add(SceneRoot, M_CONE, Pos, FVector(Wd, Wd, H2 / 100.f),
+				FRotator(Tilt, Rng.FRandRange(0.f, 360.f), Tilt), SpikeCol, true);
+		}
+	};
+
 	if (OwnerFaction == EFactionID::Noxeens)
 	{
-		// OEIL BIOLUMINAL (Noxéens) : pilier sombre + orbe vert bioluminescent qui vise.
+		// OEIL BIOLUMINAL (Noxéens) : pilier sombre + orbe vert bioluminescent qui vise, entouré
+		// d'épines sombres (planche "Entraves abyssales"/"Œil bioluminal").
 		const FLinearColor Dark(0.07f, 0.10f, 0.11f, 1.f);
 		const FLinearColor Green(0.28f, 1.6f, 0.55f, 1.f);
-		Add(SceneRoot, M_CYL, FVector(0, 0, 100.f), FVector(0.7f, 0.7f, 2.0f), FRotator::ZeroRotator, Dark, false); // fût
 		Add(SceneRoot, M_CYL, FVector(0, 0, 10.f),  FVector(1.6f, 1.6f, 0.2f), FRotator::ZeroRotator, Dark, false); // socle
+		AddSpikeCluster(Dark, 130.f, 6 + StructureLevel * 2);
+		Add(SceneRoot, M_CYL, FVector(0, 0, 100.f), FVector(0.7f, 0.7f, 2.0f), FRotator::ZeroRotator, Dark, false); // fût
 		Add(Head, M_SPH, FVector::ZeroVector, FVector(0.9f, 0.9f, 0.9f), FRotator::ZeroRotator, Green, true);        // orbe
 		Add(Head, M_CONE, FVector(60.f, 0, 0), FVector(0.3f, 0.3f, 0.9f), FRotator(90.f, 0, 0), Green, true);        // canon
 	}
 	else
 	{
-		// TOURELLE HYDROCRISTALLINE (Aquiloris) : socle cristal + tête sphérique + canon (bleu énergie).
+		// TOURELLE HYDROCRISTALLINE (Aquiloris) : socle cristal entouré de pointes bleues, tête
+		// sphérique + canon (planche "Tourelle hydrocristalline"/"Rempart cristallin").
 		const FLinearColor Steel(0.20f, 0.24f, 0.30f, 1.f);
 		const FLinearColor Blue(0.35f, 0.85f, 3.0f, 1.f);
 		Add(SceneRoot, M_CYL, FVector(0, 0, 10.f),  FVector(1.7f, 1.7f, 0.25f), FRotator::ZeroRotator, Steel, false); // socle
+		AddSpikeCluster(Blue, 140.f, 6 + StructureLevel * 2);
 		Add(SceneRoot, M_CYL, FVector(0, 0, 110.f), FVector(0.8f, 0.8f, 2.0f),  FRotator::ZeroRotator, Steel, false); // fût
 		Add(SceneRoot, M_CONE, FVector(0, 0, 190.f),FVector(0.5f, 0.5f, 0.6f),  FRotator::ZeroRotator, Blue, true);   // cristal
 		Add(Head, M_SPH, FVector::ZeroVector, FVector(0.85f, 0.85f, 0.7f), FRotator::ZeroRotator, Steel, false);      // tête
