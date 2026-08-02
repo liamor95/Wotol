@@ -2601,3 +2601,37 @@ de la cité soient de VRAIES formes construites, pas des illustrations collées 
   disque + amas de corail/rochers proceduraux, pas le terrain du greybox d'exploration
   (`WOTOLGreyboxEnvironment`) recyclé. A confirmer avec Liamor si c'est bien ce point précis
   qui doit être attaqué en priorité ensuite.
+
+## Clarification "modélisation de la cité" + 3 bugs Phase 3 (02/08/2026, suite)
+
+Liamor a explicitement corrigé ma mauvaise interprétation précédente : la demande n'a JAMAIS
+été de fusionner `AWOTOLCityEnvironment` et `AWOTOLGreyboxEnvironment` (deux acteurs distincts,
+deux cartes distinctes) — mais de réutiliser la MÊME TECHNIQUE que le redécor par phase déjà en
+place pour l'arène (`AWOTOLGreyboxEnvironment::RebuildForPhase`/`BuildArena`, qui reconstruit
+le MÊME terrain avec arches/colonnades/escaliers/dallage différents selon la phase), appliquée
+cette fois à la cité.
+
+- **FAIT** : `AWOTOLCityEnvironment` gagne `SpawnCityArch`/`SpawnCityColonnade`/
+  `SpawnCityStairs`/`SpawnCityPlaza` (même construction géométrique que les équivalents de
+  `WOTOLGreyboxEnvironment`, portée en composants attachés à `SceneRoot` pour rester
+  compatible avec `RebuildForFaction`) + `BuildRuinsDecor()` qui place 2 arches, 1 colonnade
+  brisée, 2 dallages et 1 escalier en positions fixes autour du hub, à l'écart de l'anneau de
+  bâtiments. Donne à la cité le même vocabulaire "ruines" que la carte de bataille/exploration.
+- **PAS FAIT** : reproduire fidèlement la disposition/l'ampleur exacte de `BuildArena()` (très
+  longue fonction, ~700 lignes, nombreuses variantes) — seulement un sous-ensemble volontaire
+  et sûr (4 types de pièces, placements fixes non aléatoires) pour rester dans un périmètre
+  vérifiable cette passe. A enrichir si Liamor veut davantage de ruines/plus de variété.
+
+Trois bugs Phase 3 distincts remontés dans le même message (partie Facile + armée boostée,
+victoire finalement acquise mais ~13 min avec un seul ennemi increvable) :
+- **FAIT** : dernier ennemi increvable — le plancher de vie anti-blocage de l'ancre
+  d'équilibrage adaptatif se libérait bien mais bien trop tard (fenêtre de grâce ~9-10 min) une
+  fois l'ennemi déjà quasi anéanti. Grâce raccourcie à 90s max quand il ne reste plus que
+  1-2 ennemis.
+- **FAIT** : écran de chargement manquant entre la cité et le positionnement de la Phase 3
+  (`EmbarkGrandBattleFromCity`/`StartGrandBattle` ne passait jamais par `EDemoScreen::Loading`,
+  seul point de transition lourde à ne pas le faire) — même pattern que les autres transitions
+  ajouté.
+- **PAS UN BUG** (confirmé, expliqué à Liamor) : "40 ennemis au lieu de 60" est la réduction
+  d'effectif Facile ajoutée le 01/08/2026 (×0.65, même correctif "rendre la Phase 3 gagnable")
+  — non modifiée, le vrai problème était le dernier ennemi increvable ci-dessus.
