@@ -217,12 +217,13 @@ void AWOTOLCityEnvironment::BuildGroundDecor()
 	const bool bAq = (PlayerFaction != EFactionID::Noxeens);
 	FRandomStream Rng(4110);
 
-	auto CoralColorAt = [&]() -> FLinearColor
-	{
-		return bAq
-			? FLinearColor(0.15f + Rng.FRand() * 0.15f, 0.45f + Rng.FRand() * 0.2f, 0.65f + Rng.FRand() * 0.2f, 1.f)
-			: FLinearColor(0.10f + Rng.FRand() * 0.15f, 0.55f + Rng.FRand() * 0.2f, 0.35f + Rng.FRand() * 0.15f, 1.f);
-	};
+	// Décor du sol propre au BIOME de la faction (demande explicite de Liamor du 02/08/2026 :
+	// "à TOI de modeler cette carte/cité pour qu'elle ressemble au biome correspondant") — pas
+	// seulement une teinte différente, la FORME change aussi pour matcher les planches reçues :
+	//   AQUILORIS : pointes de cristal hautes et fines, TOUJOURS lumineuses (planches "Carrière
+	//     des Profondeurs"/"Puits des courants cristallins"/"Rempart cristallin").
+	//   NOXEENS : amas organiques majoritairement sombres et épineux (planche "Entraves
+	//     abyssales"), avec quelques pods bioluminescents (planche "Fosse nourricière").
 	auto SpawnCluster = [&](float MinR, float MaxR, float MinSz, float MaxSz, float ZBase)
 	{
 		const float Angle = Rng.FRandRange(0.f, 360.f);
@@ -230,10 +231,30 @@ void AWOTOLCityEnvironment::BuildGroundDecor()
 		const FVector Origin(FMath::Cos(FMath::DegreesToRadians(Angle)) * Radius,
 			FMath::Sin(FMath::DegreesToRadians(Angle)) * Radius, ZBase);
 		const float Sz = Rng.FRandRange(MinSz, MaxSz);
-		const TCHAR* Mesh = (Rng.FRand() > 0.5f)
-			? TEXT("/Engine/BasicShapes/Cone.Cone") : TEXT("/Engine/BasicShapes/Sphere.Sphere");
-		AddCityDecor(this, SceneRoot, Mesh, Origin, FVector(Sz, Sz, Sz * Rng.FRandRange(1.2f, 2.2f)),
-			WOTOLGlow::MakeMatte(this, CoralColorAt()));
+
+		if (bAq)
+		{
+			const FLinearColor Crystal(0.25f + Rng.FRand() * 0.15f, 0.55f + Rng.FRand() * 0.2f,
+				0.95f + Rng.FRand() * 0.4f, 1.f);
+			AddCityDecor(this, SceneRoot, TEXT("/Engine/BasicShapes/Cone.Cone"), Origin,
+				FVector(Sz * 0.55f, Sz * 0.55f, Sz * Rng.FRandRange(2.2f, 3.4f)),
+				WOTOLGlow::MakeGlow(this, Crystal));
+		}
+		else if (Rng.FRand() < 0.3f) // pod bioluminescent
+		{
+			const FLinearColor Pod(0.15f + Rng.FRand() * 0.15f, 0.85f + Rng.FRand() * 0.3f,
+				0.55f + Rng.FRand() * 0.25f, 1.f);
+			AddCityDecor(this, SceneRoot, TEXT("/Engine/BasicShapes/Sphere.Sphere"), Origin,
+				FVector(Sz * 0.8f, Sz * 0.8f, Sz * 0.8f), WOTOLGlow::MakeGlow(this, Pod));
+		}
+		else // épine sombre
+		{
+			const FLinearColor Thorn(0.06f + Rng.FRand() * 0.08f, 0.10f + Rng.FRand() * 0.08f,
+				0.09f + Rng.FRand() * 0.06f, 1.f);
+			AddCityDecor(this, SceneRoot, TEXT("/Engine/BasicShapes/Cone.Cone"), Origin,
+				FVector(Sz * 0.6f, Sz * 0.6f, Sz * Rng.FRandRange(1.6f, 2.6f)),
+				WOTOLGlow::MakeMatte(this, Thorn));
+		}
 	};
 
 	// Passe 1 : anneau proche des bâtiments (comme avant).
@@ -263,8 +284,11 @@ void AWOTOLCityEnvironment::BuildGroundDecor()
 		const FVector Origin(FMath::Cos(FMath::DegreesToRadians(Angle)) * Radius,
 			FMath::Sin(FMath::DegreesToRadians(Angle)) * Radius, -20.f);
 		const float Sz = Rng.FRandRange(3.5f, 6.5f);
+		const FLinearColor ButteColor = bAq
+			? FLinearColor(0.14f, 0.28f, 0.42f, 1.f)
+			: FLinearColor(0.07f, 0.12f, 0.09f, 1.f);
 		AddCityDecor(this, SceneRoot, TEXT("/Engine/BasicShapes/Sphere.Sphere"), Origin,
-			FVector(Sz, Sz, Sz * 0.22f), WOTOLGlow::MakeMatte(this, CoralColorAt() * 0.7f));
+			FVector(Sz, Sz, Sz * 0.22f), WOTOLGlow::MakeMatte(this, ButteColor));
 	}
 }
 
@@ -356,8 +380,16 @@ void AWOTOLCityEnvironment::SpawnCityPlaza(const FVector& Center, float HalfX, f
 // jamais gêner la lisibilité/le clic de l'anneau de bâtiments (RingRadius, ~700 par défaut).
 void AWOTOLCityEnvironment::BuildRuinsDecor()
 {
+	// Teinte de pierre propre au BIOME — renforcée le 02/08/2026, demande explicite de Liamor :
+	// la précédente version, trop proche du gris neutre, ne lisait pas assez comme "cristal
+	// glacé" (Aquiloris) ou "pierre organique moussue" (Noxéens) — base de teinte différente
+	// par faction EN PLUS du mélange avec l'accent, au lieu d'un simple gris commun aux deux.
+	const bool bAqStone = (PlayerFaction != EFactionID::Noxeens);
+	const FLinearColor StoneBase = bAqStone
+		? FLinearColor(0.16f, 0.22f, 0.30f, 1.f)   // pierre glacée bleutée
+		: FLinearColor(0.09f, 0.14f, 0.10f, 1.f);  // pierre moussue sombre
 	const FLinearColor Stone = FLinearColor::LerpUsingHSV(
-		FLinearColor(0.20f, 0.21f, 0.24f, 1.f), FFactionColors::Get(PlayerFaction), 0.18f);
+		StoneBase, FFactionColors::Get(PlayerFaction), 0.5f);
 
 	// Toutes les positions ci-dessous sont RELATIVES à SceneRoot (comme le reste du fichier,
 	// ex. BuildGroundDecor::SpawnCluster) : AddCityDecor attache des COMPOSANTS enfants
