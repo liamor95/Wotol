@@ -22,6 +22,8 @@ public:
 	static FBox2D PauseButtonRect(float W, float H);
 	// Bouton RÉGLAGES (engrenage), à gauche du bouton pause.
 	static FBox2D SettingsButtonRect(float W, float H);
+	// Étiquette OBJECTIF repliée (haut-gauche, DrawTopBar) — clic = ouvre/ferme le bandeau complet.
+	static FBox2D ObjectiveToggleButtonRect(float W, float H);
 	// Boutons du menu pause (0 = Reprendre, 1 = Recommencer, 2 = Quitter).
 	static FBox2D MenuButtonRect(int32 Index, float W, float H);
 	// Écran RÉGLAGES : barre de volume musique (clic = fixe le niveau à la position) et

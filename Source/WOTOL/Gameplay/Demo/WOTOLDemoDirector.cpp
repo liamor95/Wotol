@@ -253,6 +253,20 @@ void AWOTOLDemoDirector::StartDemoAfterSelection()
 
 	CachedPlayerFaction = ResolvePlayerFaction();
 	CachedRivalFaction  = RivalOf(CachedPlayerFaction);
+
+	// La cité est créée dans AWOTOLGameMode_Demo::BeginPlay, AVANT que le joueur ait choisi sa
+	// faction (repli par défaut Aquiloris à ce moment-là) -> la rebâtir maintenant que la vraie
+	// faction est connue (bug terrain du 02/08/2026, corrige le décor Aquiloris affiché en
+	// jouant Noxéens).
+	if (UWorld* WEnv = GetWorld())
+	{
+		for (TActorIterator<AWOTOLCityEnvironment> ItEnv(WEnv); ItEnv; ++ItEnv)
+		{
+			ItEnv->RebuildForFaction(CachedPlayerFaction);
+			break;
+		}
+	}
+
 	bEnableFullFlowV08  = true;
 	bCrystalliserPlacementAvailable = false;
 	bCrystalliserPlacementArmed = false;

@@ -42,6 +42,17 @@ public:
 	UFUNCTION(BlueprintPure, Category = "City")
 	FVector GetHubLocation() const { return GetActorLocation(); }
 
+	// Rebâtit intégralement le décor (bâtiments/labels/fond/couleurs) pour la faction
+	// RÉELLEMENT choisie par le joueur. NÉCESSAIRE (bug terrain du 02/08/2026, "toujours les
+	// visuels des Aquiloris en jouant Noxéens") : cet acteur est créé dans
+	// AWOTOLGameMode_Demo::BeginPlay, qui s'exécute AVANT que le joueur ait choisi sa faction
+	// sur l'écran de sélection (Demo->GetPlayerFaction() renvoie encore None à cet instant ->
+	// repli sur la valeur par défaut Aquiloris de PlayerFaction ci-dessus). Sans ce rappel,
+	// la cité restait visuellement Aquiloris même en jouant Noxéens, quelle que soit la vraie
+	// faction. Appelé une fois par AWOTOLDemoDirector::StartDemoAfterSelection(), au moment où
+	// la faction devient définitivement connue.
+	void RebuildForFaction(EFactionID NewFaction);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;

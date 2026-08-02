@@ -818,6 +818,13 @@ bool AWOTOLPlayerController_Battle::HandleUIClick()
 		return true;
 	}
 
+	// Étiquette OBJECTIF (haut-gauche) : ouvre/ferme le bandeau complet.
+	if (AWOTOLDemoHUD::ObjectiveToggleButtonRect(VpSize.X, VpSize.Y).IsInside(M))
+	{
+		ToggleObjectivePanel();
+		return true;
+	}
+
 	// Bouton PAUSE = gel de l'action (icône pause <-> play). La caméra reste libre.
 	if (AWOTOLDemoHUD::PauseButtonRect(VpSize.X, VpSize.Y).IsInside(M))
 	{

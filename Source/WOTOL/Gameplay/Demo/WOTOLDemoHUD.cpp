@@ -34,6 +34,12 @@ FBox2D AWOTOLDemoHUD::SettingsButtonRect(float W, float H)
 	return FBox2D(FVector2D(W - 106.f, 14.f), FVector2D(W - 66.f, 50.f));
 }
 
+FBox2D AWOTOLDemoHUD::ObjectiveToggleButtonRect(float W, float H)
+{
+	// Même position (haut-gauche) que l'ancien bandeau permanent qu'elle remplace en repli.
+	return FBox2D(FVector2D(14.f, 12.f), FVector2D(146.f, 48.f));
+}
+
 FBox2D AWOTOLDemoHUD::MenuButtonRect(int32 Index, float W, float H)
 {
 	const float BW = 280.f, BH = 54.f, Gap = 18.f;
@@ -658,23 +664,13 @@ void AWOTOLDemoHUD::DrawUnderwaterBackground(float W, float H)
 		DrawRect(Col, 0.f, i * (H / Bands), W, H / Bands + 1.f);
 	}
 
-	// ── 2) Puits de lumière CENTRAL (source haut-centre) : cône lumineux ───────
-	if (Canvas)
-	{
-		const float cx = W * 0.52f;
-		for (int32 k = 0; k < 22; ++k)
-		{
-			const float f = (float)k / 21.f;
-			const float y = f * H;
-			const float halfw = FMath::Lerp(70.f, W * 0.34f, f);      // s'élargit vers le bas
-			const float a = (1.f - f) * 0.10f;                        // s'estompe en descendant
-			DrawRect(FLinearColor(0.55f, 0.82f, 1.f, a),
-				cx - halfw, y, halfw * 2.f, H / 22.f + 1.f);
-		}
-		// Halo brillant à la source.
-		Canvas->K2_DrawPolygon(nullptr, FVector2D(cx, H * 0.02f), FVector2D(220.f, 220.f), 24,
-			FLinearColor(0.7f, 0.9f, 1.f, 0.12f));
-	}
+	// ── 2) [SUPPRIME le 02/08/2026, demande explicite de Liamor] : ce fond dessinait un cône de
+	// lumière convergeant vers un halo circulaire en haut-centre ("Puits de lumière CENTRAL"),
+	// qui à l'écran ressemblait a une grosse lune/un rond pale plaque au milieu de l'ecran sur
+	// TOUS les ecrans utilisant ce fond partage (resume de bataille, etc.) — repere et rejete
+	// explicitement ("le rond au milieu de l'image... a chaque fois tu vas l'enlever"). Les
+	// bulles/particules/rais de lumiere lateraux (sections 3, 7, 8 ci-dessous) restent : seul ce
+	// cone+halo est retire.
 
 	// ── 3) Rais de lumière obliques qui dérivent (god rays) ────────────────────
 	for (int32 j = 0; j < 6; ++j)
@@ -1894,8 +1890,8 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 	if (Demo->GetProgress().bDefenseSystemInstalled && !Demo->GetProgress().bMythicPlayable)
 	{
 		const FBox2D Feed = CityFeedMythicButtonRect(W, H);
-		DrawRect(FLinearColor(0.01f, 0.04f, 0.08f, 0.88f), Feed.Min.X - 70.f,
-			Feed.Min.Y - 100.f, (Feed.Max.X - Feed.Min.X) + 140.f, 190.f);
+		DrawFramedPanel(FBox2D(FVector2D(Feed.Min.X - 70.f, Feed.Min.Y - 100.f),
+			FVector2D(Feed.Max.X + 70.f, Feed.Min.Y + 90.f)), Demo->GetPlayerFaction());
 		DrawCenteredText(FString::Printf(TEXT("FAIRE GRANDIR LE %s"),
 			*CityUnitLabel(Fac, EDemoUnitCategory::Mythique).ToUpper()),
 			Feed.Min.Y - 75.f, Accent, 1.35f);
@@ -1924,8 +1920,7 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 	else if (Demo->IsRangedBuildingConstructed() && Demo->RangedBuildingPlotIndex != INDEX_NONE)
 	{
 		const FBox2D Plot = CityBuildPlotRect(Demo->RangedBuildingPlotIndex, W, H);
-		DrawRect(FLinearColor(0.02f, 0.10f, 0.16f, 0.86f), Plot.Min.X, Plot.Min.Y,
-			Plot.Max.X - Plot.Min.X, Plot.Max.Y - Plot.Min.Y);
+		DrawFramedPanel(Plot, Demo->GetPlayerFaction());
 		DrawLine(Plot.Min.X, Plot.Min.Y, Plot.Max.X, Plot.Min.Y, Accent, 4.f);
 		DrawText(bAq ? TEXT("CENTRE AQUISFERES") : TEXT("FOSSE NOX BLAST"), FLinearColor::White,
 			Plot.Min.X + 12.f, Plot.Min.Y + 22.f, GEngine ? GEngine->GetMediumFont() : nullptr, 1.0f);
@@ -3648,9 +3643,19 @@ void AWOTOLDemoHUD::DrawTopBar(float W, float H, UWorld* World, UDemoFlowSubsyst
 		}
 	}
 
-	// ── Fenêtre d'OBJECTIFS (toujours en HAUT À GAUCHE, jamais cachée par la barre du
-	//    Kraken qui est centrée). Empile l'objectif permanent + le dernier message. ──
-	if (Demo && (!Demo->ObjectiveText.IsEmpty() || !Demo->CurrentMessage.IsEmpty()))
+	// ── Fenêtre d'OBJECTIFS (haut-gauche, jamais cachée par la barre du Kraken qui est
+	//    centrée) : REPLIÉE par défaut (juste l'étiquette "OBJECTIF" cliquable) depuis le
+	//    02/08/2026 — demande explicite de Liamor ("aucun jeu ne laisse ça affiché tout le
+	//    temps"). Un clic (AWOTOLPlayerController_Battle::ToggleObjectivePanel, sur
+	//    ObjectiveToggleButtonRect) ouvre le bandeau complet ci-dessous ; un reclic le referme.
+	AWOTOLPlayerController_Battle* TopBarPC = Cast<AWOTOLPlayerController_Battle>(GetOwningPlayerController());
+	const bool bHasObjectiveContent = Demo && (!Demo->ObjectiveText.IsEmpty() || !Demo->CurrentMessage.IsEmpty());
+	if (bHasObjectiveContent && (!TopBarPC || !TopBarPC->IsObjectivePanelOpen()))
+	{
+		const FBox2D Toggle = ObjectiveToggleButtonRect(W, H);
+		DrawButton(Toggle, TEXT("OBJECTIF"), FLinearColor(0.95f, 0.78f, 0.25f, 1.f), 1.f);
+	}
+	else if (bHasObjectiveContent)
 	{
 		const float PanelX = 14.f, PanelY = 12.f, PadX = 12.f, PadY = 10.f;
 		// Mesure la largeur nécessaire (la plus longue des deux lignes)

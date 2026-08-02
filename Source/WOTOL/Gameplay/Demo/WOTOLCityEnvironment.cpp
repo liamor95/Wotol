@@ -25,6 +25,37 @@ void AWOTOLCityEnvironment::BeginPlay()
 	BuildEnvironment();
 }
 
+void AWOTOLCityEnvironment::RebuildForFaction(EFactionID NewFaction)
+{
+	if (NewFaction == PlayerFaction || NewFaction == EFactionID::None) return;
+	PlayerFaction = NewFaction;
+
+	for (AWOTOLCityBuildingProp* Prop : Props)
+	{
+		if (Prop) Prop->Destroy();
+	}
+	Props.Reset();
+
+	// Détruit tout le décor kitbash (sol, hub, chemins, corail, bulles, fond) construit avec
+	// l'ancienne faction -> BuildEnvironment() ci-dessous repart d'une scène vierge.
+	if (SceneRoot)
+	{
+		TArray<USceneComponent*> Children;
+		SceneRoot->GetChildrenComponents(false, Children);
+		for (USceneComponent* Child : Children)
+		{
+			if (Child) Child->DestroyComponent();
+		}
+	}
+	BackdropMesh = nullptr;
+	AmbientBubbles.Reset();
+	BubblePhase.Reset();
+	BubbleSpeed.Reset();
+	BubbleOrigin.Reset();
+
+	BuildEnvironment();
+}
+
 static UStaticMeshComponent* AddCityDecor(AActor* Owner, USceneComponent* Parent,
 	const TCHAR* MeshPath, const FVector& Loc, const FVector& Scale, UMaterialInstanceDynamic* MID)
 {

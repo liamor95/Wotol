@@ -84,6 +84,11 @@ private:
 	uint8 PendingConfirmAction = 0;
 	// Suivi de l'état de la fenêtre d'objectif modale (gèle l'action tant qu'ouverte).
 	bool bObjectivePausedLast = false;
+	// Bandeau OBJECTIF (haut-gauche, DrawTopBar) : REPLIÉ par défaut (juste une petite étiquette
+	// cliquable "OBJECTIF"), demande explicite de Liamor du 02/08/2026 — "aucun jeu ne laisse ça
+	// affiché tout le temps". Un clic ouvre le bandeau complet (texte d'objectif + dernier
+	// message), un reclic le referme ; ne gèle pas l'action (contrairement aux réglages).
+	bool bObjectivePanelOpen = false;
 	void ApplyPauseState(); // pause moteur = (bFrozen || bSettingsOpen)
 	void TogglePause();     // bascule bFrozen
 	void ToggleSettings();  // ouvre/ferme le menu réglages
@@ -91,6 +96,8 @@ public:
 	bool IsBattleFrozen() const { return bFrozen; }
 	bool IsSettingsOpen() const { return bSettingsOpen; }
 	bool IsControlsOpen() const { return bControlsOpen; }
+	bool IsObjectivePanelOpen() const { return bObjectivePanelOpen; }
+	void ToggleObjectivePanel() { bObjectivePanelOpen = !bObjectivePanelOpen; }
 	// 0 = aucune confirmation en attente, 1 = confirmer "Recommencer", 2 = confirmer "Quitter".
 	uint8 GetPendingConfirmAction() const { return PendingConfirmAction; }
 
