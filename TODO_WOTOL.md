@@ -2534,3 +2534,47 @@ la liste canonique des 22 bâtiments (section "Audit Drive complet" ci-dessus) :
   que via les récompenses de mission, sans bâtiment de production cliquable à l'écran pour
   porter ces illustrations — les ajouter demanderait d'inventer un nouvel écran/mécanique, hors
   scope d'une simple intégration d'art. A rediscuter avec Liamor si voulu pour la démo.
+
+## Cinq correctifs remontés sur les dernières captures (02/08/2026, suite)
+
+Liamor a envoyé 5 captures d'écran annotées en un seul message dense. Détail des 5 items et
+de leur traitement :
+
+1. **Résumé de bataille ("KRAKEN VAINCU")** : deux problèmes distincts identifiés sur la même
+   capture — (a) un gros cercle/halo pâle plaqué en haut-centre de l'écran ("le rond au milieu
+   de l'image"), racine trouvée dans `DrawUnderwaterBackground()` : la section "Puits de
+   lumière CENTRAL" (cône + `K2_DrawPolygon` circulaire) partagée par TOUS les écrans utilisant
+   ce fond. **FAIT** : section supprimée entièrement (bulles/particules/rais latéraux
+   conservés). (b) Les deux panneaux "VOS PERTES"/"PERTES ENNEMIES" utilisaient DÉJÀ
+   `DrawFramedPanel` (les cadres à pointes cristal visibles sur la capture SONT les vrais
+   cadres) — pas de bug supplémentaire trouvé là malgré la plainte "tes fenêtres transparentes
+   derrière mes fenêtres" (probablement une confusion avec le halo (a), qui donnait
+   l'impression d'un calque en plus).
+2. **Vue Cité "NOX CAVE" en jouant Noxéens, décor/labels Aquiloris** : BUG RACINE trouvé —
+   `AWOTOLCityEnvironment` est créé dans `AWOTOLGameMode_Demo::BeginPlay` (avant le choix de
+   faction, `Demo->GetPlayerFaction()` renvoie encore `None` -> repli sur le défaut Aquiloris
+   de `PlayerFaction`). **FAIT** : `RebuildForFaction()` (détruit + reconstruit tout le décor)
+   appelée depuis `AWOTOLDemoDirector::StartDemoAfterSelection()` dès que la faction est
+   définitivement connue. Corrige décor, bâtiments ET labels en un seul point.
+   Le message contenait aussi une plainte plus large ("c'est toujours pas la cité que je t'ai
+   demandé... reprendre la carte de bataille et l'adapter à la Cité") qui vise la refonte
+   architecturale complète déjà documentée dans "Intégration des planches siège/bastion"
+   ci-dessus — PAS retraitée ici, seul le bug de faction (bien réel, indépendant du style
+   architectural) a été corrigé cette passe.
+3. **Fenêtre "FAIRE GRANDIR LE NOXEDRAKE"/"NOURRIR ET LIBERER" + panneau bâtiment Distance
+   construit** : les deux utilisaient un simple `DrawRect` plat, aucun cadre. **FAIT** : les
+   deux utilisent maintenant `DrawFramedPanel`, comme le reste de l'interface.
+4. **Inventaire d'exploration (placement du Cristalliseur/Abyssalyseur)** : demande d'un vrai
+   petit inventaire à onglets (bâtiments/ressources/équipement) au lieu du bouton "BATIMENT :
+   ABYSSALYSEUR" affiché en permanence. **FAIT** (voir entrée dédiée juste au-dessus) : panneau
+   replié par défaut, 2 onglets fonctionnels (BATIMENTS/RESSOURCES). Onglet ÉQUIPEMENT
+   volontairement absent (aucun système d'équipement du héros n'existe dans le code — à
+   concevoir séparément si voulu, plutôt qu'un onglet vide).
+5. **Bandeau OBJECTIF affiché en permanence pendant la bataille** : demande explicite d'un
+   petit encadré cliquable qui ouvre/ferme un bandeau au lieu d'un texte toujours visible.
+   **FAIT** : `DrawTopBar` replié par défaut (étiquette "OBJECTIF"), clic = ouvre le bandeau
+   complet, reclic = referme (`AWOTOLPlayerController_Battle::bObjectivePanelOpen`).
+   **PAS FAIT** : la même bascule n'a PAS été appliquée à `DrawTerritoryView` (ligne
+   `Demo->ObjectiveText` affichée en permanence dans son propre bandeau de titre) — plus
+   discret/intégré qu'un bandeau plein écran, priorité moindre, à revoir si Liamor le demande
+   explicitement pour cet écran aussi.
