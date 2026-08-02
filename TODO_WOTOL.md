@@ -2502,3 +2502,35 @@ des armes a celui des unites. Contexte : test complet prevu sur PC dans ~2 jours
   cristallins", "Bastion cristallin". Pas de bâtiment/mécanique existante à laquelle les
   raccrocher sans inventer un nouveau système (hors scope d'une simple correction de bug) —
   a garder sous le coude si Liamor precise leur usage prevu.
+
+## Intégration des planches "siège" et "défense territoriale" (02/08/2026, suite)
+
+Liamor a confirmé vouloir intégrer les planches restantes du lot du 02/08. Recoupement avec
+la liste canonique des 22 bâtiments (section "Audit Drive complet" ci-dessus) :
+
+- **"Trône des profondeurs"** (planche reçue) = le bâtiment-siège Noxéens ("Trone des
+  Profondeurs" déjà dans `CityBuildingLabel()` pour `EDemoUnitCategory::Chef`). Jusque-là
+  sans art dédié (kitbash cylindre nu dans la cité 3D, illustration du Cristalliseur recyclée
+  par défaut dans la fiche technique). **FAIT** : nouvelle fonction
+  `WOTOLBuildingArt::GetSiegeBuildingIcon()`, branchée dans `AWOTOLCityBuildingProp::BuildVisual`
+  et la fiche technique HUD.
+- **"Bastion cristallin"** (Aquiloris) et **"Enceinte Noxéenne"** (Noxeens, variante VERTE
+  retenue = couleur canonique de la faction, cf. `FFactionColors::Get`) = le bâtiment de
+  défense territoriale déjà nommé en texte dans `DrawTerritoryView` (`DefenseBuildingName`)
+  mais jamais illustré. **FAIT** : nouvelle fonction `GetTerritoryBastionIcon()`, illustration
+  affichée dans le panneau latéral droit de la gestion du territoire (le panneau gauche
+  affiche désormais le Cristalliseur/Abyssalyseur — les deux panneaux étaient purement
+  décoratifs et vides jusque-là).
+- **"Noyau Cristallin"** (bâtiment-siège Aquiloris, équivalent de "Trône des profondeurs") :
+  planche PAS reçue dans ce lot -> pas d'image ajoutée côté Aquiloris, repli automatique sur
+  le comportement précédent (aucune régression). A ajouter dès que la planche arrive (même
+  procédure : `Content/UI/Buildings/BuildingAquilorisSiege.png`).
+- **Toujours sans slot dédié** (aucun bâtiment/mécanique de jeu correspondant dans la démo
+  actuelle, cf. section "Audit Drive complet") : les 3 bâtiments de ressources partagées par
+  faction. Planches reçues : "Puits des courants cristallins" (Aquiloris/Énergie Océanique),
+  "Carrière des Profondeurs" (Aquiloris/Minéraux Abyssaux), "Fosse nourricière" (Noxeens/
+  Biomasse) — 3 sur 6 seulement (manquent Bassin de Vie Cristalline pour Aquiloris, Matrice
+  Luminale et Gisement Abyssal pour Noxeens). Non intégrées : la démo ne génère les ressources
+  que via les récompenses de mission, sans bâtiment de production cliquable à l'écran pour
+  porter ces illustrations — les ajouter demanderait d'inventer un nouvel écran/mécanique, hors
+  scope d'une simple intégration d'art. A rediscuter avec Liamor si voulu pour la démo.
