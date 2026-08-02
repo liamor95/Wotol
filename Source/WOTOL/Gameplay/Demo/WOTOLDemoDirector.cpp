@@ -1752,7 +1752,16 @@ void AWOTOLDemoDirector::UpdateAdaptiveBattleBalance()
 	// increvable indéfiniment (constaté : 98 unités contre 1, 5+ minutes, l'ennemi ne meurt
 	// jamais). Le "pas de victoire prématurée" reste respecté pendant la fenêtre de pacing
 	// normale, mais passé un délai de grâce (+20%) le plancher se libère de toute façon.
-	if (Losses >= AdaptiveTargetLossMin || Elapsed >= Pacing * 1.2f) ReleaseAdaptiveEnemyAnchor();
+	// Une fois l'ennemi presque anéanti (<=2 restants), plus aucune raison d'attendre la
+	// fenêtre de grâce complète (Pacing*1.2, jusqu'à 9-10 min pour la Grande Bataille) pour
+	// libérer le plancher de vie de l'ancre : le stress-test d'équilibrage n'a plus d'objet une
+	// fois la bataille clairement décidée. Retour terrain du 02/08/2026 : "le dernier ennemi
+	// restait increvable ~13 minutes" malgré la garde-fou du 31/07/2026 ci-dessous — celle-ci se
+	// déclenchait bien, mais bien trop tard pour ce cas précis (peu/pas de pertes joueur avec une
+	// armée boostée en Facile -> seule la fenêtre de grâce pouvait la libérer). Grâce raccourcie à
+	// 90s max dans ce cas, sans toucher au pacing normal pendant le gros de l'affrontement.
+	const float GraceSeconds = (EnemyAlive <= 2) ? FMath::Min(Pacing * 1.2f, 90.f) : Pacing * 1.2f;
+	if (Losses >= AdaptiveTargetLossMin || Elapsed >= GraceSeconds) ReleaseAdaptiveEnemyAnchor();
 	if (Losses >= AdaptiveTargetLossMax) ProtectAdaptivePlayerSurvivors();
 
 	const float ExpectedLosses = AdaptiveTargetLossPreferred
@@ -2600,7 +2609,16 @@ void AWOTOLDemoDirector::EmbarkGrandBattleFromCity()
 		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	if (!Demo || !Demo->bReadyForGrandBattleDeparture) return;
 	Demo->SetReadyForGrandBattleDeparture(false);
-	StartGrandBattle();
+	// Écran de chargement manquant entre la cité et le positionnement de la Phase 3 (retour
+	// terrain 02/08/2026) : StartGrandBattle() remodèle intégralement le décor
+	// (RebuildForPhase) et repositionne toute l'armée de façon SYNCHRONE, sans transition ->
+	// coupure brute visible. Même pattern que les autres transitions lourdes
+	// (ReturnToCityAfterTerritorySecured, FeedMythicAndContinue...) : bascule sur Loading, la
+	// reconstruction se fait pendant que l'écran de chargement est affiché.
+	Demo->SetMessage(TEXT("La flotte appareille vers la zone de bataille..."));
+	Demo->SetScreen(EDemoScreen::Loading);
+	GetWorldTimerManager().SetTimer(ExplorationTransitionHandle, this,
+		&AWOTOLDemoDirector::StartGrandBattle, 1.6f, false);
 }
 
 // PHASE 3 — grande bataille rangée en ZONE NEUTRE : on débloque TOUT le roster (spéciale +
