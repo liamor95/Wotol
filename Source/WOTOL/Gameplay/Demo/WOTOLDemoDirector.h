@@ -70,8 +70,8 @@ public:
 	// ── PHASE 3 (JOUEUR uniquement — la rivale garde sa composition scriptée dans
 	// SpawnRivalSquad) : base FIXE gratuite (vétérans de la phase 2, chef + mythique ajoutés
 	// séparément) + le reste est RECRUTÉ librement en cité (ReserveUnits), plafonné par
-	// UDemoFlowSubsystem::MaxArmyUnits (60 Aquiloris / 100 Noxéens, réglé dans
-	// ReturnToCityForGrandBattleReveal). Remplace l'ancienne composition scriptée fixe
+	// UDemoFlowSubsystem::MaxArmyUnits (50 Aquiloris / 70 Noxéens depuis le 02/08/2026, réglé
+	// dans ReturnToCityForGrandBattleReveal). Remplace l'ancienne composition scriptée fixe
 	// 20/12/18/8 ou 34/22/30/12 (demande de Liamor du 26/07/2026).
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Demo|Roster")
 	int32 GrandBattleBaselineInfantry = 8;
