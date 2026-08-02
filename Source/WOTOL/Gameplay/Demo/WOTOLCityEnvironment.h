@@ -67,6 +67,23 @@ private:
 	void AddCityPath(const FVector& From, const FVector& To);
 	void BuildGroundDecor();
 
+	// Ruines/architecture (arches, colonnades, escaliers, dallage) — MÊME vocabulaire
+	// architectural que le terrain de bataille/exploration (AWOTOLGreyboxEnvironment::
+	// SpawnArch/SpawnColonnade/SpawnStairs/SpawnPlaza), demande explicite de Liamor du
+	// 02/08/2026 : "refais pareil que pour la phase 2 -> phase 3, mais pour la cité" (même
+	// technique de reconstruction de décor, PAS un partage du même acteur/de la même carte —
+	// clarifié explicitement, aucune fusion des deux systèmes). Portée ici en composants
+	// attachés à SceneRoot (plutôt que les AStaticMeshActor world-space de GreyboxEnvironment)
+	// pour rester compatible avec RebuildForFaction() ci-dessus, qui détruit/reconstruit tous
+	// les enfants de SceneRoot.
+	void BuildRuinsDecor();
+	void SpawnCityArch(const FVector& Base, float Radius, float YawDeg, const FLinearColor& Color);
+	void SpawnCityColonnade(const FVector& Start, const FVector& Step, int32 Count,
+		float Height, const FLinearColor& Color, int32 Seed);
+	void SpawnCityStairs(const FVector& Base, float YawDeg, int32 Steps,
+		float Width, const FLinearColor& Color);
+	void SpawnCityPlaza(const FVector& Center, float HalfX, float HalfY, const FLinearColor& Color);
+
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<USceneComponent> SceneRoot;
 

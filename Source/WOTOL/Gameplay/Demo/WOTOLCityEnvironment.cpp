@@ -57,7 +57,8 @@ void AWOTOLCityEnvironment::RebuildForFaction(EFactionID NewFaction)
 }
 
 static UStaticMeshComponent* AddCityDecor(AActor* Owner, USceneComponent* Parent,
-	const TCHAR* MeshPath, const FVector& Loc, const FVector& Scale, UMaterialInstanceDynamic* MID)
+	const TCHAR* MeshPath, const FVector& Loc, const FVector& Scale, UMaterialInstanceDynamic* MID,
+	const FRotator& Rot = FRotator::ZeroRotator)
 {
 	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(Owner);
 	if (!C) return nullptr;
@@ -65,6 +66,7 @@ static UStaticMeshComponent* AddCityDecor(AActor* Owner, USceneComponent* Parent
 	C->RegisterComponent();
 	if (UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, MeshPath)) C->SetStaticMesh(M);
 	C->SetRelativeLocation(Loc);
+	C->SetRelativeRotation(Rot);
 	C->SetRelativeScale3D(Scale);
 	C->SetCollisionEnabled(ECollisionEnabled::NoCollision); // décor pur, non cliquable
 	if (MID) C->SetMaterial(0, MID);
@@ -174,6 +176,7 @@ void AWOTOLCityEnvironment::BuildEnvironment()
 
 	BuildAmbientBubbles();
 	BuildGroundDecor();
+	BuildRuinsDecor();
 }
 
 // Bande plate reliant deux points au sol (hub <-> bâtiment) : casse l'impression de "socle vide"
@@ -263,6 +266,135 @@ void AWOTOLCityEnvironment::BuildGroundDecor()
 		AddCityDecor(this, SceneRoot, TEXT("/Engine/BasicShapes/Sphere.Sphere"), Origin,
 			FVector(Sz, Sz, Sz * 0.22f), WOTOLGlow::MakeMatte(this, CoralColorAt() * 0.7f));
 	}
+}
+
+namespace
+{
+	// Petite variation de teinte pour casser l'uniformité (même esprit que
+	// AWOTOLGreyboxEnvironment::Vary, portée ici pour rester un système indépendant).
+	FLinearColor VaryStone(const FLinearColor& C, float D)
+	{
+		return FLinearColor(FMath::Max(0.f, C.R + D), FMath::Max(0.f, C.G + D),
+			FMath::Max(0.f, C.B + D), 1.f);
+	}
+}
+
+// ─── Arche de pierre (anneau de blocs), même construction que
+// AWOTOLGreyboxEnvironment::SpawnArch mais en composants relatifs à SceneRoot. ───
+void AWOTOLCityEnvironment::SpawnCityArch(const FVector& Base, float Radius, float YawDeg,
+	const FLinearColor& Color)
+{
+	const TCHAR* M_CUBE = TEXT("/Engine/BasicShapes/Cube.Cube");
+	const FRotator Yaw(0.f, YawDeg, 0.f);
+	const int32 Segments = 11;
+	for (int32 i = 0; i <= Segments; ++i)
+	{
+		const float Ang = PI * static_cast<float>(i) / Segments; // 0..180°
+		const FVector Local(FMath::Cos(Ang) * Radius, 0.f, FMath::Sin(Ang) * Radius);
+		const FVector Pos = Base + Yaw.RotateVector(Local);
+		const float BlockPitch = -FMath::RadiansToDegrees(Ang) + 90.f;
+		AddCityDecor(this, SceneRoot, M_CUBE, Pos, FVector(2.6f, 1.4f, 1.0f),
+			WOTOLGlow::MakeMatte(this, VaryStone(Color, (i % 2) ? 0.015f : -0.01f)),
+			FRotator(BlockPitch, YawDeg, 0.f));
+	}
+}
+
+// ─── Colonnade (cylindres, certaines brisées) ───────────────────────────────
+void AWOTOLCityEnvironment::SpawnCityColonnade(const FVector& Start, const FVector& Step,
+	int32 Count, float Height, const FLinearColor& Color, int32 Seed)
+{
+	const TCHAR* M_CYL = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
+	const TCHAR* M_CUBE = TEXT("/Engine/BasicShapes/Cube.Cube");
+	FRandomStream R(Seed);
+	for (int32 i = 0; i < Count; ++i)
+	{
+		const FVector Pos = Start + Step * static_cast<float>(i);
+		const float H = Height * (R.FRand() < 0.3f ? R.FRandRange(0.3f, 0.6f) : 1.f); // colonne brisée
+		const float Rad = 90.f;
+		AddCityDecor(this, SceneRoot, M_CYL, Pos + FVector(0, 0, H * 0.5f),
+			FVector(Rad / 100.f, Rad / 100.f, H / 100.f),
+			WOTOLGlow::MakeMatte(this, VaryStone(Color, R.FRandRange(-0.01f, 0.01f))));
+		if (H > Height * 0.7f) // chapiteau (colonne pas brisée)
+		{
+			AddCityDecor(this, SceneRoot, M_CUBE, Pos + FVector(0, 0, H),
+				FVector(Rad * 2.4f / 100.f, Rad * 2.4f / 100.f, 0.4f),
+				WOTOLGlow::MakeMatte(this, VaryStone(Color, 0.02f)));
+		}
+	}
+}
+
+// ─── Escalier orienté ───────────────────────────────────────────────────────
+void AWOTOLCityEnvironment::SpawnCityStairs(const FVector& Base, float YawDeg, int32 Steps,
+	float Width, const FLinearColor& Color)
+{
+	const TCHAR* M_CUBE = TEXT("/Engine/BasicShapes/Cube.Cube");
+	const FRotator Yaw(0.f, YawDeg, 0.f);
+	const float Depth = 140.f, StepH = 90.f;
+	for (int32 i = 0; i < Steps; ++i)
+	{
+		const FVector Off = Yaw.RotateVector(FVector(-i * Depth, 0.f, i * StepH + StepH * 0.5f));
+		AddCityDecor(this, SceneRoot, M_CUBE, Base + Off,
+			FVector(Depth / 100.f, Width * 2.f / 100.f, StepH / 100.f),
+			WOTOLGlow::MakeMatte(this, VaryStone(Color, (i % 2) ? 0.01f : -0.01f)), Yaw);
+	}
+}
+
+// ─── Dallage / plateau de pierre ────────────────────────────────────────────
+void AWOTOLCityEnvironment::SpawnCityPlaza(const FVector& Center, float HalfX, float HalfY,
+	const FLinearColor& Color)
+{
+	AddCityDecor(this, SceneRoot, TEXT("/Engine/BasicShapes/Cube.Cube"), Center + FVector(0, 0, 12.f),
+		FVector(HalfX * 2.f / 100.f, HalfY * 2.f / 100.f, 0.24f), WOTOLGlow::MakeMatte(this, Color));
+}
+
+// Ruines évoquant le MÊME vocabulaire architectural que le terrain de bataille/exploration
+// (arches, colonnades brisées, escaliers, dallage — cf. AWOTOLGreyboxEnvironment::BuildArena) :
+// demande explicite de Liamor du 02/08/2026, "refais pareil que pour la phase 2 -> phase 3,
+// mais pour la cité" — même TECHNIQUE de reconstruction de décor par catégorie de pièces,
+// PAS le même acteur/la même carte (clarifié explicitement, aucune fusion des deux systèmes).
+// Placement FIXE (pas aléatoire) : compose délibérément une arrière-scène de ruines sans
+// jamais gêner la lisibilité/le clic de l'anneau de bâtiments (RingRadius, ~700 par défaut).
+void AWOTOLCityEnvironment::BuildRuinsDecor()
+{
+	const FLinearColor Stone = FLinearColor::LerpUsingHSV(
+		FLinearColor(0.20f, 0.21f, 0.24f, 1.f), FFactionColors::Get(PlayerFaction), 0.18f);
+
+	// Toutes les positions ci-dessous sont RELATIVES à SceneRoot (comme le reste du fichier,
+	// ex. BuildGroundDecor::SpawnCluster) : AddCityDecor attache des COMPOSANTS enfants
+	// (SetRelativeLocation), pas des acteurs monde -> ne PAS additionner GetActorLocation().
+
+	// Deux arches en fond de scène, encadrant le hub côté opposé à la caméra -> lisibles en
+	// silhouette sans jamais recouvrir les bâtiments (angles choisis à l'écart de l'anneau).
+	SpawnCityArch(FVector(
+		FMath::Cos(FMath::DegreesToRadians(165.f)) * 1350.f,
+		FMath::Sin(FMath::DegreesToRadians(165.f)) * 1350.f, 0.f), 260.f, 165.f + 90.f, Stone);
+	SpawnCityArch(FVector(
+		FMath::Cos(FMath::DegreesToRadians(200.f)) * 1350.f,
+		FMath::Sin(FMath::DegreesToRadians(200.f)) * 1350.f, 0.f), 220.f, 200.f + 90.f, Stone);
+
+	// Colonnade brisée le long d'un arc, à l'écart des bâtiments (270°..310°).
+	const FVector ColStart = FVector(
+		FMath::Cos(FMath::DegreesToRadians(270.f)) * 1200.f,
+		FMath::Sin(FMath::DegreesToRadians(270.f)) * 1200.f, 0.f);
+	const FVector ColStep = FVector(
+		FMath::Cos(FMath::DegreesToRadians(310.f)) - FMath::Cos(FMath::DegreesToRadians(270.f)),
+		FMath::Sin(FMath::DegreesToRadians(310.f)) - FMath::Sin(FMath::DegreesToRadians(270.f)), 0.f)
+		* (1200.f / 3.f);
+	SpawnCityColonnade(ColStart, ColStep, 4, 260.f, Stone, 7331);
+
+	// Deux dallages entre le hub et l'anneau de bâtiments (rayon < RingRadius) : casse le sol
+	// nu autour du hub sans jamais chevaucher les bâtiments cliquables.
+	SpawnCityPlaza(FVector(
+		FMath::Cos(FMath::DegreesToRadians(45.f)) * 380.f,
+		FMath::Sin(FMath::DegreesToRadians(45.f)) * 380.f, 0.f), 160.f, 160.f, Stone);
+	SpawnCityPlaza(FVector(
+		FMath::Cos(FMath::DegreesToRadians(225.f)) * 380.f,
+		FMath::Sin(FMath::DegreesToRadians(225.f)) * 380.f, 0.f), 160.f, 160.f, Stone);
+
+	// Petit escalier décoratif menant à l'une des arches (renforce la lecture "ruines").
+	SpawnCityStairs(FVector(
+		FMath::Cos(FMath::DegreesToRadians(165.f)) * 950.f,
+		FMath::Sin(FMath::DegreesToRadians(165.f)) * 950.f, 0.f), 165.f + 180.f, 5, 140.f, Stone);
 }
 
 // Petites sphères émissives qui montent en boucle autour de l'anneau de bâtiments — garde la
