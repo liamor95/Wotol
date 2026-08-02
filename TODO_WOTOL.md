@@ -2450,3 +2450,27 @@ des armes a celui des unites. Contexte : test complet prevu sur PC dans ~2 jours
   retouchee, pourrait beneficier de la meme densite de detail que `BuildAquiKnight`),
   decor/environnement (juge "vraiment bateau", aucune image de reference recue pour
   l'instant, `WOTOLGreyboxEnvironment.cpp` reste tres sommaire ~12 poses de mesh).
+
+## Structures defensives : amas de pointes cristal/epines (02/08/2026, planches recues de Liamor)
+
+- Liamor a envoye des planches de reference pour les structures defensives deja nommees dans
+  le code (`EWOTOLDefenseType` : `AquilorisTurret`="Tourelle hydrocristalline",
+  `NoxeenSentinel`="Œil bioluminal") + les noms de remparts deja utilises en flavor-text dans
+  `DrawTerritoryView` ("Rempart cristallin" Aquiloris, "Entraves abyssales" Noxeens) : planches
+  montrant un AMAS DENSE de pointes cristal/epines irregulieres (pas un cone nu) autour de la
+  base, en 4 stades de croissance progressifs, + planche de rotation du canon de la tourelle.
+- **FAIT** : `AWOTOLDefenseStructure::BuildVisual()` — ajout d'une lambda `AddSpikeCluster`
+  qui plante `6 + StructureLevel*2` cones "pointes" en anneau jitterise (angle/distance/
+  hauteur/inclinaison aleatoires via `FRandomStream` seede sur `GetUniqueID()`, donc
+  deterministe a l'ecran mais varie par instance), hauteur du cluster croissant avec
+  `StructureLevel` (1->3) pour evoquer les 4 stades de croissance des planches. Appelee une
+  fois par faction (couleur sombre/verte Noxeens, bleue Aquiloris), juste apres le socle et
+  avant le fut/canon existants (geometrie prealable inchangee).
+- **Reste a faire** : ~21 images restantes du dernier lot (25 images, 2 messages) pas encore
+  toutes visionnees — a verifier si elles contiennent des references pour les 5 BATIMENTS DE
+  PRODUCTION principaux (`AWOTOLCityBuildingProp`) plutot que seulement les structures
+  defensives, ce qui serait plus prioritaire vu que la plainte principale et repetee de
+  Liamor porte sur l'apparence generale de la cite. Le plan complet de refonte de la cite
+  (formes de batiments modelisees a la main d'apres les planches, camera avec leger pan/zoom
+  borne, decor de cristaux disseminee evoquant le biome, nom de lieu propre au lieu de "Cite
+  d'Aquiloris") reste largement a faire au-dela du fix de nom deja applique ("AQUILOR").
