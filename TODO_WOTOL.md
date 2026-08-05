@@ -2647,3 +2647,38 @@ victoire finalement acquise mais ~13 min avec un seul ennemi increvable) :
   demande explicite de Liamor ("si tu laisses 40 ennemis, ne laisse pas 100 unités... 50
   aquiloris contre 70 noxéens"), toujours déterminé par la faction réellement choisie par le
   joueur quel que soit son choix.
+
+## Lot de 15 images (art-clé + mockups d'UI + lore) — 2 intégrées, reste en référence (02/08/2026)
+
+Liamor a envoyé 15 images sans légende ; réponse à ma question de clarification : "on va
+utiliser certains visuels pour la démo et les autres sont à ajouter en référence pour
+l'instant".
+
+**Intégrées à la démo** (voir commit dédié) :
+- `MainMenuBG.png` — nouvelle illustration montrant Aquiloris et Noxéens face à face, logo
+  WOTOL déjà incrusté dans l'image.
+- `CityBackdropNoxeens.png` — nouvelle illustration de cité organique Noxéens (tours/dômes
+  bioluminescents), retire le garde-fou qui désactivait ce fond depuis le 31/07/2026.
+
+**Gardées en référence, PAS intégrées cette passe** (fichiers non sauvegardés dans le repo,
+seulement listées ici pour mémoire — redemander les images à Liamor si besoin de les traiter) :
+- ~8 autres variantes d'art-clé WOTOL (mêmes personnages/logo, palettes différentes : rouge
+  démon, violet serpents, or corail-cthulhu, vert tentacules, bleu glace ×2...) — utilisables
+  plus tard pour d'autres écrans (défaite/victoire, transitions, fonds `BackgroundAquiloris`/
+  `BackgroundNoxeens` si Liamor préfère les remplacer aussi).
+- Un mockup complet d'interface de bataille façon jeu mobile poli (barres de ressources,
+  panneau d'objectifs, cartes d'unités en bas, minimap, équilibre des forces) — référence de
+  mise en page pour une éventuelle passe de refonte du HUD 2D de bataille, PAS reproductible
+  à l'identique (style peint, cadres ornés propres à l'image) mais utile comme guide de
+  disposition/hiérarchie visuelle.
+- Une vue de cité Aquiloris ÉTIQUETÉE (noms de bâtiments + niveaux/ressources factices "Niveau
+  24", "87,650"...) confirmant la disposition radiale hub + bâtiments en anneau + chemins déjà
+  utilisée par `AWOTOLCityEnvironment` — pas utilisée telle quelle comme fond (les niveaux/
+  ressources affichés ne correspondent pas à l'état réel de la démo).
+- Une vue de cité Aquiloris SANS étiquette (alternative possible à l'actuel
+  `CityBackdropAquiloris.png`, déjà jugé correct — pas remplacé sans raison).
+- Planche de concept "Artefact — Noyau Abyssal" (tourne-autour multi-angles d'un artefact/
+  relique) — référence de lore/design d'objet, aucun système d'objet/relique existant dans le
+  code actuel pour l'accrocher.
+- Une image d'ambiance de ruines englouties (bâtiment effondré, lueur rouge) — référence
+  d'atmosphère pour du décor de ruines.
