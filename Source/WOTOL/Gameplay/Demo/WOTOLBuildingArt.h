@@ -38,4 +38,8 @@ namespace WOTOLBuildingArt
 
 	// Fond de cité grand format (vue Cité 3D uniquement).
 	UTexture2D* GetCityBackdrop(EFactionID Faction);
+
+	// Fond de l'écran de CHARGEMENT (DrawLoadingScreen), affiché à chaque retour à la cité.
+	// EFactionID::None (avant tout choix de faction) -> nullptr, aucune image attendue.
+	UTexture2D* GetLoadingBackdrop(EFactionID Faction);
 }

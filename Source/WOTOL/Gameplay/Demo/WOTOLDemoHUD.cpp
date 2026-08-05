@@ -3043,6 +3043,14 @@ void AWOTOLDemoHUD::DrawLoadingScreen(float W, float H, UDemoFlowSubsystem* Demo
 		: FFactionColors::Get(Fac);
 	DrawFactionAmbientTint(W, H, Fac);
 
+	// Illustration de cité par faction (LoadingAquiloris.png/LoadingNoxeens.png, fournies par
+	// Liamor le 02/08/2026 explicitement pour cet écran) — absente tant qu'aucune faction n'est
+	// choisie (Fac == None, avant la toute première partie).
+	if (UTexture2D* Backdrop = WOTOLBuildingArt::GetLoadingBackdrop(Fac))
+	{
+		DrawTexture(Backdrop, 0.f, 0.f, W, H, 0.f, 0.f, 1.f, 1.f, FLinearColor(1.f, 1.f, 1.f, 0.65f));
+	}
+
 	// Titre : nom de faction si connue, sinon le logo du jeu (comme les maquettes).
 	const FString Title = (Fac == EFactionID::None) ? TEXT("WOTOL")
 		: (bNox ? TEXT("NOXEENS") : TEXT("AQUILORIS"));

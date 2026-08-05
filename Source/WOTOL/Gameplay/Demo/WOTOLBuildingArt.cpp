@@ -109,3 +109,10 @@ UTexture2D* WOTOLBuildingArt::GetCityBackdrop(EFactionID Faction)
 	if (!Fac) return nullptr;
 	return LoadCached(FString::Printf(TEXT("CityBackdrop%s.png"), Fac));
 }
+
+UTexture2D* WOTOLBuildingArt::GetLoadingBackdrop(EFactionID Faction)
+{
+	const TCHAR* Fac = FactionPrefix(Faction);
+	if (!Fac) return nullptr;
+	return LoadCached(FString::Printf(TEXT("Loading%s.png"), Fac));
+}
