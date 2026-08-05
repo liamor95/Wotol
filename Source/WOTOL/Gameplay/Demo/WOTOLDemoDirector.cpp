@@ -276,6 +276,7 @@ void AWOTOLDemoDirector::StartDemoAfterSelection()
 	GetWorldTimerManager().ClearTimer(ExplorationProximityHandle);
 	Demo->SetPhase(EDemoPhase::Exploration_Creature);
 	Demo->SetMessage(TEXT("Une nouvelle zone inconnue a ete localisee..."));
+	Demo->SetLoadingIsCityReturn(false); // pas un retour a la cite : premiere entree en jeu
 	Demo->SetScreen(EDemoScreen::Loading);
 
 	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
@@ -446,6 +447,7 @@ void AWOTOLDemoDirector::TransitionExplorationToBattle()
 	if (!Demo) return;
 
 	Demo->SetMessage(TEXT("Creature detectee — deploiement de l'armee..."));
+	Demo->SetLoadingIsCityReturn(false); // pas un retour a la cite : entree en bataille
 	Demo->SetScreen(EDemoScreen::Loading);
 	PossessBattleCamera();
 	DestroyExplorationHero();
@@ -471,6 +473,7 @@ void AWOTOLDemoDirector::ResumePostBattleExploration()
 		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	if (!Demo) return;
 	Demo->SetMessage(TEXT("Retour dans la zone liberee..."));
+	Demo->SetLoadingIsCityReturn(false); // pas un retour a la cite : retour en exploration
 	Demo->SetScreen(EDemoScreen::Loading);
 	GetWorldTimerManager().SetTimer(ExplorationTransitionHandle, this,
 		&AWOTOLDemoDirector::BeginPostBattleExploration, 1.2f, false);
@@ -2151,6 +2154,7 @@ void AWOTOLDemoDirector::BeginPostDefenseTransition()
 		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
 	if (!Demo) return;
 	Demo->SetMessage(TEXT("Stabilisation de la zone — preparation des reparations..."));
+	Demo->SetLoadingIsCityReturn(false); // pas un retour a la cite : gestion post-defense
 	Demo->SetScreen(EDemoScreen::Loading);
 	GetWorldTimerManager().ClearTimer(ExplorationTransitionHandle);
 	GetWorldTimerManager().SetTimer(ExplorationTransitionHandle, this,
@@ -2277,6 +2281,7 @@ void AWOTOLDemoDirector::ReturnToCityAfterTerritorySecured()
 	if (!Demo || Demo->GetRepairCrystalCost() > 0 || Demo->InstalledDefenseCount <= 0) return;
 	ClearDefensePlacementMarkers();
 	Demo->SetMessage(TEXT("Retour a la cite — le juvenile ressent l'appel de la biomasse..."));
+	Demo->SetLoadingIsCityReturn(true); // vrai retour a la cite (CompleteReturnToCity... -> City)
 	Demo->SetScreen(EDemoScreen::Loading);
 	GetWorldTimerManager().SetTimer(ExplorationTransitionHandle, this,
 		&AWOTOLDemoDirector::CompleteReturnToCityAfterTerritorySecured, 1.35f, false);
@@ -2303,6 +2308,7 @@ void AWOTOLDemoDirector::FeedMythicAndContinue()
 	if (!Demo || !Demo->FeedMythicForGrowth()) return;
 	Demo->SetMessage(FString::Printf(TEXT("Le %s grandit..."),
 		*MythicDisplayName(CachedPlayerFaction)));
+	Demo->SetLoadingIsCityReturn(false); // pas un retour a la cite : entree dans l'interlude
 	Demo->SetScreen(EDemoScreen::Loading);
 	GetWorldTimerManager().SetTimer(ExplorationTransitionHandle, this,
 		&AWOTOLDemoDirector::EnterMythicGrowthInterlude, 1.8f, false);
@@ -2384,6 +2390,7 @@ void AWOTOLDemoDirector::ReturnToCityAfterDefenseDefeat()
 		Demo->MarkZoneLost();
 	}
 	Demo->SetMessage(TEXT("Retour vers la cite — la situation strategique est mise a jour..."));
+	Demo->SetLoadingIsCityReturn(true); // vrai retour a la cite (CompleteReturnToCity...Defeat -> City)
 	Demo->SetScreen(EDemoScreen::Loading);
 	GetWorldTimerManager().SetTimer(ExplorationTransitionHandle, this,
 		&AWOTOLDemoDirector::CompleteReturnToCityAfterDefeat, 1.35f, false);
@@ -2618,6 +2625,7 @@ void AWOTOLDemoDirector::EmbarkGrandBattleFromCity()
 	// (ReturnToCityAfterTerritorySecured, FeedMythicAndContinue...) : bascule sur Loading, la
 	// reconstruction se fait pendant que l'écran de chargement est affiché.
 	Demo->SetMessage(TEXT("La flotte appareille vers la zone de bataille..."));
+	Demo->SetLoadingIsCityReturn(false); // pas un retour a la cite : on QUITTE la cite vers la bataille
 	Demo->SetScreen(EDemoScreen::Loading);
 	GetWorldTimerManager().SetTimer(ExplorationTransitionHandle, this,
 		&AWOTOLDemoDirector::StartGrandBattle, 1.6f, false);

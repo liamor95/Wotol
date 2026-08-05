@@ -386,6 +386,19 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Demo")
 	EDemoScreen GetScreen() const { return Screen; }
 
+	// Distingue, PARMI tous les écrans de chargement (EDemoScreen::Loading, partagés par de
+	// nombreuses transitions), lesquels sont précisément un RETOUR À LA CITÉ — demande
+	// explicite de Liamor du 02/08/2026 : les illustrations LoadingAquiloris/Noxeens.png ne
+	// doivent apparaître QUE pour ce cas précis, pas pour les autres transitions (entrée en
+	// exploration, en bataille, en défense de territoire...). Positionné juste avant chaque
+	// SetScreen(Loading) par AWOTOLDemoDirector, vrai uniquement pour les deux transitions qui
+	// mènent réellement à EDemoScreen::City ensuite.
+	UPROPERTY(BlueprintReadOnly, Category = "Demo")
+	bool bLoadingIsCityReturn = false;
+
+	void SetLoadingIsCityReturn(bool bIsCityReturn) { bLoadingIsCityReturn = bIsCityReturn; }
+	bool IsLoadingCityReturn() const { return bLoadingIsCityReturn; }
+
 	UPROPERTY(BlueprintAssignable, Category = "Demo")
 	FOnDemoScreenChanged OnDemoScreenChanged;
 
