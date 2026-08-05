@@ -92,11 +92,19 @@ UTexture2D* WOTOLBuildingArt::GetTerritoryBastionIcon(EFactionID Faction)
 
 UTexture2D* WOTOLBuildingArt::GetCityBackdrop(EFactionID Faction)
 {
-	// Garde-fou du 31/07/2026 RETIRE le 02/08/2026 : Content/UI/CityBackdropNoxeens.png a été
-	// remplacé par une vraie illustration de cité organique (tours/dômes bioluminescents reliés
-	// par des chemins, même esprit que la planche Aquiloris), fournie par Liamor. Le fond
-	// incorrect (scène de récif sans architecture) qui justifiait de désactiver l'affichage
-	// côté Noxéens n'existe plus.
+	// BUG D'ASSET CONFIRME (retour terrain 31/07/2026, recherche dediee) : Content/UI/
+	// CityBackdropNoxeens.png n'est PAS une illustration de cite (contrairement a
+	// CityBackdropAquiloris.png, une vraie planche de cite-cristal) — c'est une scene de
+	// recif/grotte bioluminescente SANS aucune architecture. Comme ce fond occupe TOUT le
+	// cadre de la camera orthographique (design voulu, cf. commentaire dans
+	// WOTOLCityEnvironment.cpp), la mauvaise image donnait l'impression d'un simple aplat bleu
+	// plat sans cite du tout. En attendant une vraie illustration de cite Noxeens (meme esprit
+	// que la planche Aquiloris, fournie par Liamor), on N'AFFICHE PAS ce fond incorrect -> la
+	// vraie geometrie 3D de la cite (hub + anneau de batiments + decor organique) redevient
+	// visible au premier plan, plus sobre mais correcte, plutot que masquee par une image hors
+	// sujet. Retirer ce garde-fou des qu'un vrai CityBackdropNoxeens.png (illustration de cite)
+	// est fourni.
+	if (Faction == EFactionID::Noxeens) return nullptr;
 	const TCHAR* Fac = FactionPrefix(Faction);
 	if (!Fac) return nullptr;
 	return LoadCached(FString::Printf(TEXT("CityBackdrop%s.png"), Fac));
