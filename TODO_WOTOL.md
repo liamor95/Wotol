@@ -2682,3 +2682,44 @@ seulement listées ici pour mémoire — redemander les images à Liamor si beso
   code actuel pour l'accrocher.
 - Une image d'ambiance de ruines englouties (bâtiment effondré, lueur rouge) — référence
   d'atmosphère pour du décor de ruines.
+
+## Refonte complète de la cité : même plateau que les batailles (02/08/2026)
+
+Liamor a explicitement rejeté toutes les tentatives précédentes sur la cité (le disque plat
+séparé, les bâtiments en amas de pointes, le fond d'image plaqué) et clarifié la demande
+d'origine : réutiliser le MÊME plateau que celui des batailles, remodelé pour ressembler à la
+cité — même technique que `RebuildForPhase` (qui redécore déjà l'arène entre les phases), pas
+un acteur/carte séparé.
+
+**FAIT — suppression complète de l'ancien système :**
+- `AWOTOLCityEnvironment` (disque posé à 30000 unités de l'arène, décor de corail générique,
+  fond d'image de cité plaqué en arrière-plan) — classe entièrement supprimée.
+- `WOTOLBuildingArt::GetCityBackdrop` — plus aucun appelant après la suppression ci-dessus.
+
+**FAIT — nouveau système sur `AWOTOLGreyboxEnvironment` (le même acteur que l'arène) :**
+- `RebuildAsCity(Faction)` / `RebuildFromCity()` : basculent ce MÊME emplacement entre terrain
+  de bataille et disposition de cité, appelées depuis
+  `AWOTOLDemoDirector::HandleScreenChanged` à chaque entrée/sortie de `EDemoScreen::City`.
+  Mémorise le variant de bataille en cours pour y revenir en quittant la cité.
+- `BuildCityLayout()` : hub central + anneau des 6 bâtiments interactifs
+  (`AWOTOLCityBuildingProp`) reliés par de vrais chemins (radiaux + anneau circulaire),
+  dallages individuels, skyline dense de ~26 tours décoratives + décor de sol (aucun coût
+  d'animation en vue Cité statique, détail visuel généreux permis).
+- `AWOTOLGameMode_Demo` ne spawn plus de décor de cité séparé ; `AWOTOLCityCamera` part de
+  l'origine (même emplacement que l'arène) au lieu de (0, 30000, 0).
+
+**FAIT — direction artistique DISTINCTE par faction** ("chaque faction a sa cité", pas une
+simple couleur qui change sur la même forme), appliquée aux 6 bâtiments interactifs
+(`AWOTOLCityBuildingProp::BuildVisual`) ET aux tours décoratives (`SpawnCrystalTower`) :
+- Aquiloris : tour-cristal géométrique à étages décroissants + flèche conique, pointes
+  d'accent aux 4 coins de la base.
+- Noxéens : amas organique de pointes/épines irrégulières + pods bioluminescents nichés dedans,
+  silhouette de ruche/corail plutôt que de tour géométrique.
+
+**PAS FAIT / limites connues :**
+- Les formes restent des primitives UE kitbashées (cônes/cylindres/sphères) — pas d'équivalent
+  aux tours sculptées des planches de référence (aucun outil de modélisation 3D/import d'asset
+  disponible). C'est l'approximation la plus proche atteignable avec les moyens du projet.
+- `BuildCityLayout` ne reproduit pas la disposition exacte du mockup envoyé (multiples anneaux
+  concentriques de bâtiments, dizaines de tours nommées individuellement) — un seul anneau de
+  6 bâtiments interactifs + skyline décorative en périphérie.
