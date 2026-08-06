@@ -60,7 +60,16 @@ void AWOTOLCityBuildingProp::BuildVisual()
 	if (!SceneRoot) return;
 	const TCHAR* M_CYL = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
 
-	BaseMesh = AddCityPiece(this, SceneRoot, M_CYL, FVector(0.f, 0.f, 20.f), FVector(2.4f, 2.4f, 0.4f));
+	// BUG CORRIGE (retour terrain 02/08/2026 : "le noyau cristallin on peut pas cliquer
+	// dessus") : le socle cliquable était de la MÊME taille pour les 6 catégories, alors que
+	// le Chef (hub) repose sur un dallage bien plus large (SpawnPlaza 260 vs 170, voir
+	// AWOTOLGreyboxEnvironment::BuildCityLayout) — le joueur clique naturellement n'importe
+	// où sur ce grand dallage/piédestal en s'attendant à toucher le bâtiment le plus
+	// proéminent de la cité, et retombait hors du petit disque de collision. Le socle du
+	// Chef est maintenant élargi dans la même proportion que son dallage (260/170).
+	const bool bChefProp = (Category == EDemoUnitCategory::Chef);
+	const FVector BaseScale = bChefProp ? FVector(3.7f, 3.7f, 0.5f) : FVector(2.4f, 2.4f, 0.4f);
+	BaseMesh = AddCityPiece(this, SceneRoot, M_CYL, FVector(0.f, 0.f, 20.f), BaseScale);
 	if (BaseMesh)
 	{
 		// Seul le socle est cliquable (cible du raycast caméra isométrique) : la

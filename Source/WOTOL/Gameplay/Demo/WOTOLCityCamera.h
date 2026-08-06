@@ -41,8 +41,12 @@ public:
 	float PanSpeed = 1400.f;
 
 	// Distance maximale du pan par rapport au hub (le joueur ne peut pas sortir de la cité).
+	// RÉDUIT (02/08/2026, retour terrain : "on peut dézoomer jusqu'au bord du plateau, ça fait
+	// débile") avec MaxOrthoWidth ci-dessous : la cité est maintenant encerclée de montagnes à
+	// 3600 unités (AWOTOLGreyboxEnvironment::BuildCityLayout) — pan+zoom max doivent rester
+	// confortablement en deçà pour ne jamais laisser voir le sol nu au-delà du relief.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "City|Camera")
-	float PanRadius = 2300.f;
+	float PanRadius = 1700.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "City|Camera")
 	float DefaultOrthoWidth = 2400.f;
@@ -51,7 +55,7 @@ public:
 	float MinOrthoWidth = 1100.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "City|Camera")
-	float MaxOrthoWidth = 4200.f;
+	float MaxOrthoWidth = 3200.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "City|Camera")
 	float ZoomStep = 260.f;

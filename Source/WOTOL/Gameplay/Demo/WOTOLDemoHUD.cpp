@@ -64,11 +64,11 @@ FBox2D AWOTOLDemoHUD::StartGameButtonRect(float W, float H)
 
 FBox2D AWOTOLDemoHUD::FactionButtonRect(int32 Index, float W, float H)
 {
-	// REDUITS (retour terrain 31/07/2026, suite) : chaque bouton faisait ~40% de la largeur
-	// ("les fenetres... prennent la moitie de l'ecran") -> ramené à une taille de bouton
-	// normale, comparable aux autres écrans (DifficultyButtonRect fait 26% de large par ex.),
-	// pour laisser la place à l'emblème (agrandi ci-dessous) de dominer visuellement.
-	const float BW = W * 0.22f, BH = H * 0.08f, Gap = W * 0.06f;
+	// RE-REDUITS (retour terrain 02/08/2026, captures à l'appui : "tes fenêtres cliquables...
+	// sont beaucoup trop grosses et ça gâche un peu le fond de l'image derrière") : le fond
+	// BackgroundFactionSelect.png (image fournie par Liamor) doit rester lisible derrière les
+	// boutons, pas juste "moins la moitié de l'écran" comme la 1ère passe du 31/07/2026.
+	const float BW = W * 0.16f, BH = H * 0.058f, Gap = W * 0.05f;
 	const float TotalW = BW * 2.f + Gap;
 	const float X = (W - TotalW) * 0.5f + Index * (BW + Gap);
 	const float Y = H * 0.38f;
@@ -77,8 +77,8 @@ FBox2D AWOTOLDemoHUD::FactionButtonRect(int32 Index, float W, float H)
 
 FBox2D AWOTOLDemoHUD::DifficultyButtonRect(int32 Index, float W, float H)
 {
-	// 3 chips LARGES étalées sur la largeur (mêmes marges que les factions).
-	const float BW = W * 0.26f, BH = H * 0.10f, Gap = W * 0.035f;
+	// RE-REDUITS (même retour terrain 02/08/2026 que FactionButtonRect ci-dessus).
+	const float BW = W * 0.19f, BH = H * 0.072f, Gap = W * 0.03f;
 	const float TotalW = BW * 3.f + Gap * 2.f;
 	const float X = (W - TotalW) * 0.5f + Index * (BW + Gap);
 	const float Y = H * 0.68f;
@@ -87,7 +87,8 @@ FBox2D AWOTOLDemoHUD::DifficultyButtonRect(int32 Index, float W, float H)
 
 FBox2D AWOTOLDemoHUD::FactionLaunchButtonRect(float W, float H)
 {
-	const float BW = 420.f, BH = 62.f;
+	// RE-REDUIT (même retour terrain 02/08/2026 que FactionButtonRect ci-dessus).
+	const float BW = 300.f, BH = 46.f;
 	const float X = (W - BW) * 0.5f, Y = H * 0.85f;
 	return FBox2D(FVector2D(X, Y), FVector2D(X + BW, Y + BH));
 }

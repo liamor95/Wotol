@@ -379,6 +379,12 @@ void AWOTOLDemoDirector::HandleScreenChanged(EDemoScreen NewScreen)
 	// Appelé APRÈS le rebuild ci-dessus pour ne jamais cadrer la caméra sur l'ancien décor.
 	if (NewScreen == EDemoScreen::City)
 	{
+		// BUG CORRIGE (retour terrain 02/08/2026, capture à l'appui) : les décombres/arches/
+		// piliers destructibles de la bataille (AWOTOLCoverStructure) sont possédés par CE
+		// Director, PAS par AWOTOLGreyboxEnvironment -> ClearArena() (appelé dans
+		// RebuildAsCity ci-dessus) ne les touchait jamais, ils restaient visibles en pleine
+		// cité ("les éléments qu'on peut détruire... ça fait pas partie de la cité").
+		ClearCoverStructures();
 		PossessCityCamera();
 	}
 }
@@ -2175,6 +2181,22 @@ void AWOTOLDemoDirector::EnterPostDefenseManagement()
 	else
 	{
 		Demo->SetScreen(EDemoScreen::Territory);
+		// BUG CORRIGE (retour terrain 02/08/2026 : "on voit rien... il y a rien qui est a
+		// l'ecran" pour les emplacements lumineux) : PossessBattleCamera() reprend juste la
+		// main sur AWOTOLBattleCamera, LA OU LE JOUEUR L'AVAIT LAISSEE en pleine bataille (a
+		// suivre les ennemis, potentiellement loin du batiment défendu) -- contrairement à
+		// AWOTOLCityCamera::ResetToHub, rien ne recadrait la vue sur le Cristalliseur/
+		// Abyssalyseur en entrant sur cet écran. Les 5 emplacements (rayon 820 autour du
+		// bâtiment) pouvaient donc se retrouver hors champ. FocusOn recentre la caméra sur le
+		// bâtiment (déjà utilisé ailleurs pour recadrer sur un point d'intérêt).
+		if (CaptureObject)
+		{
+			for (TActorIterator<AWOTOLBattleCamera> ItCam(GetWorld()); ItCam; ++ItCam)
+			{
+				ItCam->FocusOn(CaptureObject->GetActorLocation());
+				break;
+			}
+		}
 		CreateDefensePlacementMarkers();
 		RefreshDefenseStructuresFromTerritory();
 	}
@@ -2879,15 +2901,24 @@ void AWOTOLDemoDirector::CreateDefensePlacementMarkers()
 	const FLinearColor Color = CachedPlayerFaction == EFactionID::Noxeens
 		? FLinearColor(0.20f, 1.5f, 0.45f, 1.f)
 		: FLinearColor(0.25f, 0.85f, 2.6f, 1.f);
+	// Alignement sur le même schéma de spawn que CreateCrystalliserPlacementMarkers (marqueurs
+	// jumeaux, confirmés visibles en jeu) : Owner + AlwaysSpawn explicites, et Mobility passée
+	// à Movable AVANT de toucher à l'échelle -- absents ici jusqu'ici, seule différence de code
+	// trouvée entre les deux fonctions lors de l'investigation du 02/08/2026 ("emplacements
+	// lumineux"... "on voit rien").
+	FActorSpawnParameters MarkerSpawnParams;
+	MarkerSpawnParams.Owner = this;
+	MarkerSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	for (int32 Slot = 0; Slot < DefenseSlotLocations.Num(); ++Slot)
 	{
 		if (Demo->InstalledDefenseSlots.Contains(Slot)) continue;
 		AStaticMeshActor* Marker = W->SpawnActor<AStaticMeshActor>(
-			DefenseSlotLocations[Slot], FRotator::ZeroRotator);
+			AStaticMeshActor::StaticClass(), DefenseSlotLocations[Slot], FRotator::ZeroRotator, MarkerSpawnParams);
 		if (!Marker) continue;
 		UStaticMeshComponent* Mesh = Marker->GetStaticMeshComponent();
 		if (Mesh)
 		{
+			Mesh->SetMobility(EComponentMobility::Movable);
 			Mesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,
 				TEXT("/Engine/BasicShapes/Cylinder.Cylinder")));
 			Mesh->SetWorldScale3D(FVector(2.0f, 2.0f, 0.08f));

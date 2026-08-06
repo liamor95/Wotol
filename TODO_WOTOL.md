@@ -2723,3 +2723,55 @@ simple couleur qui change sur la même forme), appliquée aux 6 bâtiments inter
 - `BuildCityLayout` ne reproduit pas la disposition exacte du mockup envoyé (multiples anneaux
   concentriques de bâtiments, dizaines de tours nommées individuellement) — un seul anneau de
   6 bâtiments interactifs + skyline décorative en périphérie.
+
+## Retour terrain sur la refonte de cité + écran de choix de faction (02/08/2026, 3 captures)
+
+Liamor a confirmé que le fond `BackgroundFactionSelect.png` s'affiche correctement et que la
+disposition générale de la cité (même plateau que les batailles) correspond à sa demande, puis
+a listé 5 problèmes concrets sur 3 captures d'écran.
+
+**FAIT :**
+- **Choix de faction, boutons trop gros** ("tes fenêtres cliquables... beaucoup trop grosses...
+  ça gâche un peu le fond de l'image derrière") : `FactionButtonRect`/`DifficultyButtonRect`/
+  `FactionLaunchButtonRect` réduits (largeurs/hauteurs ramenées d'environ 25-30%) pour laisser
+  plus de l'illustration de fond visible.
+- **Sol de la cité neutre/damier par défaut** ("le fond... tu l'as laissé neutre... c'est nul")
+  : `BuildCityLayout` ne posait aucun sol propre à la cité (contrairement à `BuildArena`, dont
+  le sol est détruit par `ClearArena()` avant que le mode cité ne construise le sien) — ajout
+  d'un grand bloc de sol bloquant, teinté par biome (bleu sombre Aquiloris / vert sombre
+  Noxéens), même technique que le sol de bataille.
+- **On peut dézoomer/déplacer jusqu'à voir le bord du plateau** ("c'est censé être un élément
+  de décor... c'est débile") : ajout d'un anneau de montagnes (`SpawnRidge`, 14 segments) à
+  3600 unités du centre autour de toute la cité, et réduction de `AWOTOLCityCamera::PanRadius`
+  (2300 -> 1700) et `MaxOrthoWidth` (4200 -> 3200) pour que la caméra ne puisse plus atteindre
+  le bord du sol. Skyline décorative et rochers d'ambiance étendus jusqu'aux montagnes pour
+  éviter une bande de sol nu entre les bâtiments et le relief.
+- **Décombres de bataille visibles sur le plateau de la cité** ("les éléments qu'on peut
+  détruire... ça fait pas partie de la cité") : `AWOTOLCoverStructure` est possédé par
+  `AWOTOLDemoDirector`, pas par `AWOTOLGreyboxEnvironment` -> `ClearArena()` (appelé par
+  `RebuildAsCity`) ne les détruisait jamais. Ajout d'un appel explicite à
+  `ClearCoverStructures()` dans `HandleScreenChanged` en entrant sur l'écran Cité.
+- **"Le noyau cristallin (Chef) ne peut pas être cliqué"** : aucune exclusion de code trouvée
+  pour la catégorie Chef dans le chemin de clic (le raycast + `OpenCityQuickMenu` sont
+  génériques) — hypothèse retenue : le socle cliquable (`BaseMesh`) faisait la MÊME taille que
+  les 5 bâtiments de production alors que le Chef repose sur un dallage bien plus large
+  (`SpawnPlaza` 260 vs 170), le joueur cliquant naturellement en dehors du petit disque de
+  collision. Socle du Chef élargi dans la même proportion que son dallage (2.4->3.7). À
+  reconfirmer en jeu — pas de root cause garantie sans test live.
+- **Emplacements lumineux de défense invisibles** ("on voit rien... il y a rien qui est à
+  l'écran") : deux corrections appliquées après comparaison avec
+  `CreateCrystalliserPlacementMarkers` (le système jumeau, confirmé fonctionnel) —
+  (1) `PossessBattleCamera()` reprend la caméra de bataille exactement là où le joueur l'avait
+  laissée en pleine bataille (potentiellement loin du bâtiment défendu), sans jamais la
+  recadrer sur le Cristalliseur/Abyssalyseur (contrairement à `AWOTOLCityCamera::ResetToHub`
+  pour la cité) — ajout d'un `FocusOn(CaptureObject->GetActorLocation())` en entrant dans la
+  gestion post-défense ; (2) alignement du spawn des marqueurs sur le schéma du système jumeau
+  (`Owner`/`AlwaysSpawn` explicites, `Mobility` passée à `Movable` avant modification de
+  l'échelle, absents jusqu'ici). Le (1) est le candidat le plus probable mais reste une
+  hypothèse motivée par le code, pas une confirmation en jeu.
+
+**PAS FAIT cette passe (demandé mais explicitement reporté par Liamor lui-même) :**
+- Refonte de l'interface de placement des défenses ("c'est pas comme ça que je voyais un peu
+  l'interface mais c'est pas grave on va laisser comme ça pour l'instant").
+- Feedback visuel général au survol/clic sur les éléments cliquables (au-delà du cas concret
+  des emplacements lumineux ci-dessus) — demande plus large, pas encore scopée.

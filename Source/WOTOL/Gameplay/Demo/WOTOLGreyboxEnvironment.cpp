@@ -1180,6 +1180,38 @@ void AWOTOLGreyboxEnvironment::BuildCityLayout()
 	const int32 N = AWOTOLDemoHUD::CityCardCount();
 	const float RingRadius = 750.f;
 
+	// Sol (BUG CORRIGE, retour terrain 02/08/2026 : sans plan de sol propre à la cité, le
+	// damier gris par défaut du moteur restait visible en dessous — BuildCityLayout n'en
+	// posait aucun, contrairement à BuildArena qui pose le sien juste avant d'être effacé par
+	// ClearArena() en entrant en mode cité). Même technique que le sol de bataille (un seul
+	// grand bloc BLOQUANT), teinte par biome.
+	const FLinearColor FloorColor = bAq
+		? FLinearColor(0.05f, 0.09f, 0.16f, 1.f)   // fond marin sombre bleuté (Aquiloris)
+		: FLinearColor(0.03f, 0.06f, 0.045f, 1.f); // fond marin sombre verdâtre (Noxéens)
+	SpawnBlock(MESH_CUBE, Center + FVector(0.f, 0.f, -50.f), FVector(45.f, 45.f, 1.f),
+		FloorColor, FRotator::ZeroRotator, true);
+
+	// Montagnes tout autour du bord (BUG CORRIGE, retour terrain 02/08/2026 : "on peut
+	// dézoomer jusqu'au bord du plateau, ça fait débile") — encercle la cité pour qu'on ne
+	// voie jamais le bord du sol, quel que soit le dézoom permis par AWOTOLCityCamera
+	// (MaxOrthoWidth réduit en complément, voir WOTOLCityCamera.h).
+	{
+		FRandomStream RidgeRng(4242);
+		const int32 RidgeSegments = 14;
+		const float RidgeRadius = 3600.f;
+		for (int32 i = 0; i < RidgeSegments; ++i)
+		{
+			const float A0 = (360.f / RidgeSegments) * i;
+			const float A1 = (360.f / RidgeSegments) * (i + 1) + RidgeRng.FRandRange(-4.f, 4.f);
+			const FVector S0 = Center + FVector(FMath::Cos(FMath::DegreesToRadians(A0)) * RidgeRadius,
+				FMath::Sin(FMath::DegreesToRadians(A0)) * RidgeRadius, 0.f);
+			const FVector S1 = Center + FVector(FMath::Cos(FMath::DegreesToRadians(A1)) * RidgeRadius,
+				FMath::Sin(FMath::DegreesToRadians(A1)) * RidgeRadius, 0.f);
+			SpawnRidge(S0, S1, RidgeRng.FRandRange(900.f, 1500.f), RidgeRng.FRandRange(500.f, 800.f),
+				Vary(FloorColor, RidgeRng.FRandRange(0.02f, 0.06f)), i * 37 + 11);
+		}
+	}
+
 	// Chef (hub central) : dallage + le bâtiment interactif lui-même (Category::Chef).
 	SpawnPlaza(Center, 260.f, 260.f, Vary(TowerCol, 0.02f));
 	{
@@ -1242,23 +1274,24 @@ void AWOTOLGreyboxEnvironment::BuildCityLayout()
 
 	// Skyline dense de tours décoratives en arrière-plan (aucune interaction, juste pour
 	// remplir la scène comme la planche de référence — vue statique, détail généreux permis).
+	// Étalée jusqu'aux montagnes (3600) pour ne laisser aucune bande de sol nu avant le relief.
 	FRandomStream SkyRng(9001);
-	for (int32 i = 0; i < 26; ++i)
+	for (int32 i = 0; i < 42; ++i)
 	{
 		const float Angle = SkyRng.FRandRange(0.f, 360.f);
-		const float Dist = SkyRng.FRandRange(RingRadius + 220.f, 2050.f);
+		const float Dist = SkyRng.FRandRange(RingRadius + 220.f, 3400.f);
 		const FVector Pos = Center + FVector(FMath::Cos(FMath::DegreesToRadians(Angle)) * Dist,
 			FMath::Sin(FMath::DegreesToRadians(Angle)) * Dist, 0.f);
-		const float H = SkyRng.FRandRange(220.f, 520.f);
+		const float H = SkyRng.FRandRange(220.f, 560.f);
 		const float BR = SkyRng.FRandRange(50.f, 100.f);
 		SpawnCrystalTower(Pos, BR, H, Vary(TowerCol, SkyRng.FRandRange(-0.03f, 0.03f)), i * 71 + 5);
 	}
 
 	// Cristaux/rochers ambiants au sol pour texturer les zones sans bâtiment ni chemin.
-	for (int32 i = 0; i < 18; ++i)
+	for (int32 i = 0; i < 30; ++i)
 	{
 		const float Angle = SkyRng.FRandRange(0.f, 360.f);
-		const float Dist = SkyRng.FRandRange(RingRadius * 0.4f, 2100.f);
+		const float Dist = SkyRng.FRandRange(RingRadius * 0.4f, 3450.f);
 		const FVector Pos = Center + FVector(FMath::Cos(FMath::DegreesToRadians(Angle)) * Dist,
 			FMath::Sin(FMath::DegreesToRadians(Angle)) * Dist, -10.f);
 		SpawnRock(Pos, SkyRng.FRandRange(1.2f, 2.6f),
