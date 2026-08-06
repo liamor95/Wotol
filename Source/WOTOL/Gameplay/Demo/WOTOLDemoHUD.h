@@ -221,8 +221,9 @@ private:
 	// conforme à Content/UI/Reference/Maquettes/UI_ResumePartie.png.
 	void DrawPreGameSummary(float W, float H, class UDemoFlowSubsystem* Demo);
 	void DrawExplorationHUD(float W, float H, class UDemoFlowSubsystem* Demo);
-	// Vue cité : chrome par-dessus la scène 3D isométrique (AWOTOLCityEnvironment/
-	// AWOTOLCityCamera) — cristaux, cartes de production, fiche technique, bouton d'expédition.
+	// Vue cité : chrome par-dessus la scène 3D isométrique (AWOTOLGreyboxEnvironment en mode
+	// cité/AWOTOLCityCamera) — cristaux, cartes de production, fiche technique, bouton
+	// d'expédition.
 	void DrawCityView(float W, float H, class UDemoFlowSubsystem* Demo);
 	// Menu contextuel court (3 boutons) affiché au clic sur un bâtiment, avant la grande
 	// fenêtre à onglets — cf. GetCityQuickMenuRect/CityQuickMenuButtonRect.

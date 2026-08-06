@@ -72,14 +72,21 @@ void AWOTOLCityBuildingProp::BuildVisual()
 			BaseMesh->SetMaterial(0, MID);
 	}
 
-	// Amas procédural de pointes cristal/épines (MÊME technique que
-	// AWOTOLDefenseStructure::BuildVisual::AddSpikeCluster) — remplace l'ancien plan texturé
-	// avec illustration officielle collée (02/08/2026, demande explicite de Liamor : "tu dois
-	// faire des formes toi-même, pas coller une image plate" pour les bâtiments de la cité).
-	// Couleur = teinte de CATÉGORIE (CategoryTint, identité visuelle par type de bâtiment)
-	// mélangée à l'accent de FACTION (cristal bleu Aquiloris / organique sombre Noxéens) ;
-	// nombre de pointes légèrement croissant par catégorie pour varier les silhouettes.
+	// Direction artistique DISTINCTE par faction (demande explicite de Liamor du 02/08/2026 :
+	// "chaque faction a sa cité", pas juste une couleur qui change sur la même forme) :
+	//   AQUILORIS : TOUR-CRISTAL À ÉTAGES DÉCROISSANTS, géométrie propre/architecturale
+	//     (cylindres rétrécissants + flèche conique), planches "Puits des courants
+	//     cristallins"/"Rempart cristallin".
+	//   NOXEENS : AMAS ORGANIQUE de pointes/épines irrégulières + pods bioluminescents,
+	//     silhouette de ruche/corail plutôt que de tour géométrique, planches "Entraves
+	//     abyssales"/"Fosse nourricière".
+	// Dans les deux cas : PAS un simple amas de pointes façon oursin (rejeté explicitement le
+	// 02/08/2026 : "formes dégueulasses en guise de bâtiment") — la version Aquiloris a une
+	// vraie silhouette de tour, la version Noxeens un vrai amas organique dense et texturé.
 	const TCHAR* M_CONE = TEXT("/Engine/BasicShapes/Cone.Cone");
+	const TCHAR* M_CYL2 = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
+	const TCHAR* M_SPH  = TEXT("/Engine/BasicShapes/Sphere.Sphere");
+	const bool bAqBuilding = (OwnerFaction != EFactionID::Noxeens);
 	TierCluster = NewObject<USceneComponent>(this);
 	if (TierCluster)
 	{
@@ -87,45 +94,83 @@ void AWOTOLCityBuildingProp::BuildVisual()
 		TierCluster->RegisterComponent();
 		TierCluster->SetRelativeLocation(FVector(0.f, 0.f, 20.f));
 
-		const FLinearColor SpikeCol = FLinearColor::LerpUsingHSV(
+		const FLinearColor SpireCol = FLinearColor::LerpUsingHSV(
 			CategoryTint(Category), FFactionColors::Get(OwnerFaction), 0.35f);
-		TierMID = WOTOLGlow::MakeGlow(this, SpikeCol);
+		TierMID = WOTOLGlow::MakeGlow(this, SpireCol);
+		TierMatteMID = WOTOLGlow::MakeMatte(this, SpireCol * 0.6f);
+
+		auto AddTierPiece = [&](const TCHAR* Mesh, const FVector& Pos, const FVector& Scale,
+			const FRotator& Rot, UMaterialInstanceDynamic* MID)
+		{
+			UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
+			if (!C) return;
+			C->SetupAttachment(TierCluster);
+			C->RegisterComponent();
+			C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			if (UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, Mesh)) C->SetStaticMesh(M);
+			C->SetRelativeLocationAndRotation(Pos, Rot);
+			C->SetRelativeScale3D(Scale);
+			if (MID) C->SetMaterial(0, MID);
+		};
 
 		FRandomStream Rng(GetUniqueID() * 977 + 13);
-		const int32 Count = 7 + static_cast<int32>(Category) * 2;
-		for (int32 i = 0; i < Count; ++i)
+		if (bAqBuilding)
 		{
-			const float Angle = (360.f / static_cast<float>(Count)) * static_cast<float>(i)
-				+ Rng.FRandRange(-12.f, 12.f);
-			const float Dist = Rng.FRandRange(60.f, 100.f);
-			const FVector Pos(FMath::Cos(FMath::DegreesToRadians(Angle)) * Dist,
-				FMath::Sin(FMath::DegreesToRadians(Angle)) * Dist, Rng.FRandRange(0.f, 10.f));
-			const float SpikeH = Rng.FRandRange(90.f, 190.f);
-			const float SpikeW = Rng.FRandRange(0.24f, 0.38f);
-			const float Tilt = Rng.FRandRange(-8.f, 8.f);
+			// 3 étages cylindriques rétrécissants + une flèche conique au sommet.
+			const int32 Tiers = 3;
+			float R = 1.0f, Z = 0.f;
+			for (int32 t = 0; t < Tiers; ++t)
+			{
+				const float TierH = 0.55f;
+				AddTierPiece(M_CYL2, FVector(0.f, 0.f, Z + TierH * 50.f),
+					FVector(R, R, TierH), FRotator::ZeroRotator, TierMID);
+				Z += TierH * 100.f;
+				R *= 0.62f;
+			}
+			AddTierPiece(M_CONE, FVector(0.f, 0.f, Z + 90.f), FVector(R * 1.3f, R * 1.3f, 1.8f),
+				FRotator::ZeroRotator, TierMID);
 
-			UStaticMeshComponent* Spike = NewObject<UStaticMeshComponent>(this);
-			if (!Spike) continue;
-			Spike->SetupAttachment(TierCluster);
-			Spike->RegisterComponent();
-			Spike->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			if (UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, M_CONE)) Spike->SetStaticMesh(M);
-			Spike->SetRelativeLocationAndRotation(Pos,
-				FRotator(Tilt, Rng.FRandRange(0.f, 360.f), Tilt));
-			Spike->SetRelativeScale3D(FVector(SpikeW, SpikeW, SpikeH / 100.f));
-			if (TierMID) Spike->SetMaterial(0, TierMID);
+			// 4 pointes d'accent en diagonale à la base (silhouette "couronne").
+			for (int32 i = 0; i < 4; ++i)
+			{
+				const float Angle = 45.f + i * 90.f;
+				const float Dist = 95.f;
+				const FVector Pos(FMath::Cos(FMath::DegreesToRadians(Angle)) * Dist,
+					FMath::Sin(FMath::DegreesToRadians(Angle)) * Dist, 30.f);
+				AddTierPiece(M_CONE, Pos, FVector(0.22f, 0.22f, 1.1f),
+					FRotator(Rng.FRandRange(-6.f, 6.f), Rng.FRandRange(0.f, 360.f), Rng.FRandRange(-6.f, 6.f)),
+					TierMID);
+			}
 		}
-		// Flèche centrale plus haute que le reste du cluster : silhouette reconnaissable de
-		// loin, comme sur les planches de référence.
-		UStaticMeshComponent* Spire = NewObject<UStaticMeshComponent>(this);
-		if (Spire)
+		else
 		{
-			Spire->SetupAttachment(TierCluster);
-			Spire->RegisterComponent();
-			Spire->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			if (UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, M_CONE)) Spire->SetStaticMesh(M);
-			Spire->SetRelativeScale3D(FVector(0.5f, 0.5f, 2.6f));
-			if (TierMID) Spire->SetMaterial(0, TierMID);
+			// Cocon central (silhouette de ruche, base large arrondie) + amas dense d'épines
+			// sombres jitterées tout autour + 2-3 pods bioluminescents nichés dedans.
+			AddTierPiece(M_SPH, FVector(0.f, 0.f, 55.f), FVector(1.05f, 1.05f, 0.9f),
+				FRotator::ZeroRotator, TierMatteMID);
+			const int32 ThornCount = 10 + static_cast<int32>(Category) * 2;
+			for (int32 i = 0; i < ThornCount; ++i)
+			{
+				const float Angle = (360.f / static_cast<float>(ThornCount)) * static_cast<float>(i)
+					+ Rng.FRandRange(-14.f, 14.f);
+				const float Dist = Rng.FRandRange(55.f, 100.f);
+				const FVector Pos(FMath::Cos(FMath::DegreesToRadians(Angle)) * Dist,
+					FMath::Sin(FMath::DegreesToRadians(Angle)) * Dist, Rng.FRandRange(0.f, 90.f));
+				const float ThornH = Rng.FRandRange(90.f, 210.f);
+				const float ThornW = Rng.FRandRange(0.16f, 0.28f);
+				const float Tilt = Rng.FRandRange(-20.f, 20.f);
+				AddTierPiece(M_CONE, Pos, FVector(ThornW, ThornW, ThornH / 100.f),
+					FRotator(Tilt, Rng.FRandRange(0.f, 360.f), Tilt), TierMatteMID);
+			}
+			const int32 PodCount = 3;
+			for (int32 i = 0; i < PodCount; ++i)
+			{
+				const float Angle = Rng.FRandRange(0.f, 360.f);
+				const float Dist = Rng.FRandRange(20.f, 60.f);
+				const FVector Pos(FMath::Cos(FMath::DegreesToRadians(Angle)) * Dist,
+					FMath::Sin(FMath::DegreesToRadians(Angle)) * Dist, Rng.FRandRange(50.f, 130.f));
+				AddTierPiece(M_SPH, Pos, FVector(0.28f, 0.28f, 0.28f), FRotator::ZeroRotator, TierMID);
+			}
 		}
 	}
 
@@ -161,14 +206,14 @@ void AWOTOLCityBuildingProp::Refresh(const UDemoFlowSubsystem* Demo)
 		const float SizeScale = (State == 1) ? 0.55f : (0.7f + 0.5f * static_cast<float>(Level - 1));
 		TierCluster->SetRelativeScale3D(FVector(SizeScale));
 
-		if (TierMID)
-		{
-			// Verrouillé/à construire = terne ; actif = couleurs pleines.
-			const FLinearColor Base = FLinearColor::LerpUsingHSV(
-				CategoryTint(Category), FFactionColors::Get(OwnerFaction), 0.35f);
-			const FLinearColor Emissive = (State == 2) ? Base * 2.0f : Base * 0.35f;
-			TierMID->SetVectorParameterValue(TEXT("Color"), Emissive);
-		}
+		// Verrouillé/à construire = terne ; actif = couleurs pleines. TierMatteMID (épines/
+		// cocon Noxéens) est mis à jour EN PLUS de TierMID (flèche Aquiloris/pods Noxéens) —
+		// nullptr et ignoré silencieusement côté Aquiloris.
+		const FLinearColor Base = FLinearColor::LerpUsingHSV(
+			CategoryTint(Category), FFactionColors::Get(OwnerFaction), 0.35f);
+		const FLinearColor Emissive = (State == 2) ? Base * 2.0f : Base * 0.35f;
+		if (TierMID) TierMID->SetVectorParameterValue(TEXT("Color"), Emissive);
+		if (TierMatteMID) TierMatteMID->SetVectorParameterValue(TEXT("Color"), Emissive * 0.6f);
 	}
 
 	if (bSelected != bLastSelected)

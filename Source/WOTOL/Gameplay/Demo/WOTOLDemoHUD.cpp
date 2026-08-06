@@ -1897,9 +1897,10 @@ void AWOTOLDemoHUD::DrawCityView(float W, float H, UDemoFlowSubsystem* Demo)
 	const EFactionID Fac = Demo->GetPlayerFaction();
 
 	// La cité est maintenant une VRAIE scène 3D vue depuis une caméra isométrique fixe
-	// (AWOTOLCityCamera/AWOTOLCityEnvironment, possédée automatiquement en entrant sur cet
-	// écran — cf. AWOTOLDemoDirector::HandleScreenChanged/PossessCityCamera) : elle est déjà
-	// rendue DERRIÈRE ce Canvas.
+	// (AWOTOLCityCamera, possédée automatiquement en entrant sur cet écran — cf.
+	// AWOTOLDemoDirector::HandleScreenChanged/PossessCityCamera — sur le MÊME
+	// AWOTOLGreyboxEnvironment que celui des batailles, reconfiguré en cité par
+	// RebuildAsCity) : elle est déjà rendue DERRIÈRE ce Canvas.
 	// BANDEAUX HAUT/BAS SUPPRIMÉS (01/08/2026, retour terrain avec captures : "les deux bandes
 	// sombres... ça fait comme des fenêtres en Suisse transparentes... elles n'ont aucun lieu
 	// d'être, ça gâche l'écran pour rien"). Le bandeau bas ("pour les cartes") est un reliquat

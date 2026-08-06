@@ -7,7 +7,6 @@
 
 class AWOTOLDemoDirector;
 class AWOTOLBattleCamera;
-class AWOTOLCityEnvironment;
 class AWOTOLCityCamera;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -43,11 +42,10 @@ protected:
 	UPROPERTY()
 	TObjectPtr<AWOTOLBattleCamera> Camera;
 
-	// Décor + caméra de la vue CITÉ isométrique — posés loin de l'arène de bataille/
-	// exploration (même niveau réutilisé pour tout, donc aucun risque de chevauchement).
-	UPROPERTY()
-	TObjectPtr<AWOTOLCityEnvironment> CityEnv;
-
+	// Caméra de la vue CITÉ isométrique. Le décor de la cité n'est PLUS un acteur séparé
+	// (AWOTOLCityEnvironment, supprimé le 02/08/2026) : c'est le MÊME AWOTOLGreyboxEnvironment
+	// que celui des batailles, reconfiguré à la volée par AWOTOLDemoDirector::HandleScreenChanged
+	// (RebuildAsCity/RebuildFromCity) au même emplacement.
 	UPROPERTY()
 	TObjectPtr<AWOTOLCityCamera> CityCam;
 };

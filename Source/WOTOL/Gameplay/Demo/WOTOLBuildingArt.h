@@ -11,8 +11,9 @@ class UTexture2D;
 // recadrées + détourées, 25/07/2026). Même mécanisme que AWOTOLDemoHUD::GetMenuBackground
 // (PNG chargé directement depuis Content/UI/, sans import manuel dans l'éditeur), mais
 // centralisé ici pour être réutilisable à la fois par le HUD 2D (fiche technique) et les
-// acteurs 3D (AWOTOLCityBuildingProp, AWOTOLCityEnvironment). Hors scope démo (Thalassidra/
-// Muréniens/Pirates Abyssaux) : retourne toujours nullptr pour elles, aucun fichier attendu.
+// acteurs 3D (défunte AWOTOLCityEnvironment, remplacée le 02/08/2026 par
+// AWOTOLGreyboxEnvironment). Hors scope démo (Thalassidra/Muréniens/Pirates Abyssaux) :
+// retourne toujours nullptr pour elles, aucun fichier attendu.
 // ─────────────────────────────────────────────────────────────────────────────
 namespace WOTOLBuildingArt
 {
@@ -35,9 +36,6 @@ namespace WOTOLBuildingArt
 	// affiché dans la gestion du territoire — distinct de la tourelle individuelle
 	// installable ci-dessus (GetDefenseBuildingIcon).
 	UTexture2D* GetTerritoryBastionIcon(EFactionID Faction);
-
-	// Fond de cité grand format (vue Cité 3D uniquement).
-	UTexture2D* GetCityBackdrop(EFactionID Faction);
 
 	// Fond de l'écran de CHARGEMENT (DrawLoadingScreen), affiché à chaque retour à la cité.
 	// EFactionID::None (avant tout choix de faction) -> nullptr, aucune image attendue.

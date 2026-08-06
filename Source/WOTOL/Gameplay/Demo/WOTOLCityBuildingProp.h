@@ -13,10 +13,11 @@ class UDemoFlowSubsystem;
 // ─────────────────────────────────────────────────────────────────────────────
 // BÂTIMENT DE PRODUCTION DE LA CITÉ (greybox, kitbash) — un par catégorie productible
 // (même ordre que AWOTOLDemoHUD::CityCardCategory), placé en anneau par
-// AWOTOLCityEnvironment. Cliquable (ECC_WorldStatic) depuis la caméra isométrique -> le
-// PlayerController appelle UDemoFlowSubsystem::SetSelectedCityCategory() pour ouvrir la
-// fiche technique dans le HUD. L'aspect (niveau/verrouillage/sélection) suit l'état de la
-// démo via Refresh(), rappelée chaque frame par l'environnement pendant l'écran Cité.
+// AWOTOLGreyboxEnvironment::BuildCityLayout. Cliquable (ECC_WorldStatic) depuis la caméra
+// isométrique -> le PlayerController appelle UDemoFlowSubsystem::SetSelectedCityCategory()
+// pour ouvrir la fiche technique dans le HUD. L'aspect (niveau/verrouillage/sélection) suit
+// l'état de la démo via Refresh(), rappelée chaque frame par l'environnement pendant l'écran
+// Cité.
 // ─────────────────────────────────────────────────────────────────────────────
 UCLASS()
 class WOTOL_API AWOTOLCityBuildingProp : public AActor
@@ -46,11 +47,12 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UStaticMeshComponent> BaseMesh;
 
-	// Corps du bâtiment : amas procédural de pointes cristal/épines (MÊME technique que
-	// AWOTOLDefenseStructure::BuildVisual), depuis le 02/08/2026 — remplace l'ancien plan
-	// texturé avec illustration officielle collée (trompe-l'œil rejeté explicitement par
-	// Liamor pour les bâtiments de la cité : "tu dois faire des formes toi-même, pas coller
-	// une image"). La TAILLE (échelle uniforme de TierCluster) reflète le niveau (1/2/3).
+	// Corps du bâtiment : silhouette DISTINCTE par faction (02/08/2026, "chaque faction a sa
+	// cité") — tour-cristal à étages pour Aquiloris, amas organique de pointes + pods
+	// bioluminescents pour Noxéens. Remplace l'ancien plan texturé avec illustration officielle
+	// collée (trompe-l'œil rejeté explicitement par Liamor : "tu dois faire des formes
+	// toi-même, pas coller une image"). La TAILLE (échelle uniforme de TierCluster) reflète
+	// le niveau (1/2/3).
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<USceneComponent> TierCluster;
 
@@ -61,10 +63,14 @@ protected:
 private:
 	void BuildVisual();
 
-	// Matériau dynamique PARTAGÉ par toutes les pointes du cluster : Refresh() n'a besoin que
-	// d'un seul SetVectorParameterValue pour changer toutes les pointes d'un coup.
+	// Matériaux dynamiques PARTAGÉS par toutes les pièces du cluster : Refresh() n'a besoin que
+	// de deux SetVectorParameterValue pour changer tout le bâtiment d'un coup. TierMID = pièces
+	// émissives (flèche Aquiloris, pods Noxéens) ; TierMatteMID = pièces mates (épines/cocon
+	// Noxéens uniquement — reste nullptr côté Aquiloris, RAS pour Refresh()).
 	UPROPERTY(Transient)
 	TObjectPtr<class UMaterialInstanceDynamic> TierMID;
+	UPROPERTY(Transient)
+	TObjectPtr<class UMaterialInstanceDynamic> TierMatteMID;
 
 	// Cache pour éviter de retoucher les composants quand rien n'a changé.
 	int32 LastLevel = -1;

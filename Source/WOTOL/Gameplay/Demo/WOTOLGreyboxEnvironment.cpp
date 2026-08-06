@@ -18,6 +18,10 @@
 #include "Math/RandomStream.h"
 #include "WOTOLAmbientFish.h"
 #include "Data/WOTOLTypes.h"
+#include "WOTOLCityBuildingProp.h"
+#include "WOTOLDemoHUD.h" // CityCardCount()/CityCardCategory() : source de vérité partagée avec le HUD 2D
+#include "DemoFlowSubsystem.h"
+#include "Kismet/GameplayStatics.h"
 
 namespace
 {
@@ -37,13 +41,24 @@ namespace
 
 AWOTOLGreyboxEnvironment::AWOTOLGreyboxEnvironment()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	// Doit ticker pour rafraîchir les bâtiments de la cité (niveau/verrouillage/sélection)
+	// pendant EDemoScreen::City (voir Tick() et RefreshCityProps ci-dessous).
+	PrimaryActorTick.bCanEverTick = true;
 }
 
 void AWOTOLGreyboxEnvironment::BeginPlay()
 {
 	Super::BeginPlay();
 	BuildArena();
+}
+
+void AWOTOLGreyboxEnvironment::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	if (!bCityMode) return;
+	UDemoFlowSubsystem* Demo = GetGameInstance()
+		? GetGameInstance()->GetSubsystem<UDemoFlowSubsystem>() : nullptr;
+	RefreshCityProps(Demo);
 }
 
 AStaticMeshActor* AWOTOLGreyboxEnvironment::SpawnBlock(
@@ -1020,4 +1035,235 @@ void AWOTOLGreyboxEnvironment::SetAtmosphereActive(bool bActive)
 	if (ArenaPPV) ArenaPPV->bEnabled = bActive;
 	if (ArenaFog) ArenaFog->SetActorHiddenInGame(!bActive);
 	if (ArenaSkyLight) ArenaSkyLight->SetActorHiddenInGame(!bActive);
+}
+
+void AWOTOLGreyboxEnvironment::RebuildAsCity(EFactionID NewFaction)
+{
+	if (bCityMode) return;
+	PreCityVariant = Variant;
+	bCityMode = true;
+	PlayerFaction = NewFaction;
+	ClearArena();
+	CityProps.Reset();
+	BuildCityLayout();
+}
+
+void AWOTOLGreyboxEnvironment::RebuildFromCity()
+{
+	if (!bCityMode) return;
+	bCityMode = false;
+	CityProps.Reset(); // les acteurs eux-mêmes sont détruits par ClearArena() dans RebuildForPhase
+	RebuildForPhase(PreCityVariant);
+}
+
+void AWOTOLGreyboxEnvironment::RefreshCityProps(const UDemoFlowSubsystem* Demo)
+{
+	if (!Demo) return;
+	for (AWOTOLCityBuildingProp* Prop : CityProps)
+	{
+		if (Prop) Prop->Refresh(Demo);
+	}
+}
+
+// Tour-cristal DÉCORATIVE (non cliquable) à étages décroissants + pointes d'accent — utilisée
+// pour densifier le fond de la skyline de la cité (les 6 bâtiments interactifs ont leur PROPRE
+// tour construite par AWOTOLCityBuildingProp::BuildVisual, même technique de silhouette).
+// Direction artistique DISTINCTE par faction (demande explicite de Liamor : "chaque faction a
+// sa cité", pas juste une couleur qui change sur la même forme) : tour-cristal géométrique à
+// étages pour Aquiloris, amas organique de pointes + pods bioluminescents pour Noxéens — même
+// distinction que AWOTOLCityBuildingProp::BuildVisual pour les 6 bâtiments interactifs.
+void AWOTOLGreyboxEnvironment::SpawnCrystalTower(const FVector& Base, float BaseRadius, float Height,
+	const FLinearColor& Color, int32 Seed)
+{
+	FRandomStream Rng(Seed);
+	const bool bAqTower = (PlayerFaction != EFactionID::Noxeens);
+
+	if (bAqTower)
+	{
+		const int32 Tiers = 3;
+		float R = BaseRadius;
+		float Z = 0.f;
+		for (int32 t = 0; t < Tiers; ++t)
+		{
+			const float TierH = Height * 0.22f;
+			SpawnBlock(MESH_CYL, Base + FVector(0.f, 0.f, Z + TierH * 0.5f),
+				FVector(R / 100.f, R / 100.f, TierH / 100.f), Vary(Color, (t % 2) ? 0.02f : -0.015f),
+				FRotator::ZeroRotator, false);
+			Z += TierH;
+			R *= 0.6f;
+		}
+		const float SpireH = FMath::Max(40.f, Height - Z);
+		SpawnBlock(MESH_CONE, Base + FVector(0.f, 0.f, Z + SpireH * 0.5f),
+			FVector(R * 1.3f / 100.f, R * 1.3f / 100.f, SpireH / 100.f), Vary(Color, 0.03f),
+			FRotator::ZeroRotator, false);
+
+		const int32 Accents = 3 + (FMath::Abs(Seed) % 2);
+		for (int32 i = 0; i < Accents; ++i)
+		{
+			const float Angle = (360.f / static_cast<float>(Accents)) * static_cast<float>(i)
+				+ Rng.FRandRange(-15.f, 15.f);
+			const float Dist = BaseRadius * 0.9f;
+			const FVector Pos = Base + FVector(FMath::Cos(FMath::DegreesToRadians(Angle)) * Dist,
+				FMath::Sin(FMath::DegreesToRadians(Angle)) * Dist, 0.f);
+			const float SpikeH = Height * 0.18f;
+			SpawnBlock(MESH_CONE, Pos + FVector(0.f, 0.f, SpikeH * 0.5f),
+				FVector(BaseRadius * 0.14f / 100.f, BaseRadius * 0.14f / 100.f, SpikeH / 100.f),
+				Vary(Color, 0.015f),
+				FRotator(Rng.FRandRange(-8.f, 8.f), Rng.FRandRange(0.f, 360.f), Rng.FRandRange(-8.f, 8.f)),
+				false);
+		}
+
+		SpawnGlowBlock(MESH_SPH, Base + FVector(0.f, 0.f, Height * 0.35f),
+			FVector(BaseRadius * 0.1f / 100.f, BaseRadius * 0.1f / 100.f, BaseRadius * 0.1f / 100.f),
+			Color * 3.0f);
+	}
+	else
+	{
+		// Cocon organique bas + amas dense d'épines sombres jitterées de hauteur variable +
+		// pods bioluminescents dispersés dans le cluster (planches "Entraves abyssales"/
+		// "Fosse nourricière").
+		SpawnBlock(MESH_SPH, Base + FVector(0.f, 0.f, Height * 0.16f),
+			FVector(BaseRadius * 1.05f / 100.f, BaseRadius * 1.05f / 100.f, BaseRadius * 0.85f / 100.f),
+			Vary(Color, -0.01f), FRotator::ZeroRotator, false);
+
+		const int32 ThornCount = 9 + (FMath::Abs(Seed) % 5);
+		for (int32 i = 0; i < ThornCount; ++i)
+		{
+			const float Angle = (360.f / static_cast<float>(ThornCount)) * static_cast<float>(i)
+				+ Rng.FRandRange(-14.f, 14.f);
+			const float Dist = Rng.FRandRange(BaseRadius * 0.55f, BaseRadius);
+			const FVector Pos = Base + FVector(FMath::Cos(FMath::DegreesToRadians(Angle)) * Dist,
+				FMath::Sin(FMath::DegreesToRadians(Angle)) * Dist, Rng.FRandRange(0.f, Height * 0.3f));
+			const float ThornH = Rng.FRandRange(Height * 0.35f, Height);
+			const float ThornW = BaseRadius * Rng.FRandRange(0.16f, 0.26f);
+			const float Tilt = Rng.FRandRange(-18.f, 18.f);
+			SpawnBlock(MESH_CONE, Pos, FVector(ThornW / 100.f, ThornW / 100.f, ThornH / 100.f),
+				Vary(Color, Rng.FRandRange(-0.02f, 0.02f)),
+				FRotator(Tilt, Rng.FRandRange(0.f, 360.f), Tilt), false);
+		}
+
+		const int32 Pods = 2 + (FMath::Abs(Seed) % 2);
+		for (int32 i = 0; i < Pods; ++i)
+		{
+			const float Angle = Rng.FRandRange(0.f, 360.f);
+			const float Dist = Rng.FRandRange(BaseRadius * 0.2f, BaseRadius * 0.7f);
+			const FVector Pos = Base + FVector(FMath::Cos(FMath::DegreesToRadians(Angle)) * Dist,
+				FMath::Sin(FMath::DegreesToRadians(Angle)) * Dist, Rng.FRandRange(Height * 0.2f, Height * 0.6f));
+			SpawnGlowBlock(MESH_SPH, Pos,
+				FVector(BaseRadius * 0.11f / 100.f, BaseRadius * 0.11f / 100.f, BaseRadius * 0.11f / 100.f),
+				Color * 3.0f);
+		}
+	}
+}
+
+// Reconstruit ce MÊME emplacement (le plateau de bataille) en disposition de CITÉ — demande
+// explicite et répétée de Liamor du 02/08/2026 : "utilise le MÊME plateau que celui pour les
+// batailles mais remodèle-le pour que ça ressemble à la cité", en réaction au rejet explicite
+// de l'ancien AWOTOLCityEnvironment (disque plat séparé à 30000 unités de l'arène, formes de
+// bâtiment en amas de pointes, image de cité plaquée en fond). Rien de tout cela ici : les 6
+// bâtiments interactifs (AWOTOLCityBuildingProp, une vraie tour à étages chacun) sont disposés
+// en anneau autour du hub, reliés par de vrais chemins, avec une skyline dense de tours
+// décoratives et du décor de sol pour remplir la scène (aucun coût d'animation : la vue Cité
+// est statique, pas d'unités/actions directes -> le détail visuel peut être généreux ici).
+void AWOTOLGreyboxEnvironment::BuildCityLayout()
+{
+	UWorld* W = GetWorld();
+	if (!W) return;
+
+	const bool bAq = (PlayerFaction != EFactionID::Noxeens);
+	const FLinearColor Accent = FFactionColors::Get(PlayerFaction);
+	const FLinearColor TowerCol = bAq
+		? FLinearColor(0.20f, 0.35f, 0.65f, 1.f)   // cristal bleu Aquiloris
+		: FLinearColor(0.07f, 0.13f, 0.10f, 1.f);  // pierre organique sombre Noxéens
+
+	const FVector Center = GetActorLocation();
+	const int32 N = AWOTOLDemoHUD::CityCardCount();
+	const float RingRadius = 750.f;
+
+	// Chef (hub central) : dallage + le bâtiment interactif lui-même (Category::Chef).
+	SpawnPlaza(Center, 260.f, 260.f, Vary(TowerCol, 0.02f));
+	{
+		const FTransform HubTM(FRotator::ZeroRotator, Center);
+		if (AWOTOLCityBuildingProp* ChefProp = W->SpawnActorDeferred<AWOTOLCityBuildingProp>(
+				AWOTOLCityBuildingProp::StaticClass(), HubTM, this))
+		{
+			ChefProp->Category = EDemoUnitCategory::Chef;
+			ChefProp->OwnerFaction = PlayerFaction;
+			UGameplayStatics::FinishSpawningActor(ChefProp, HubTM);
+			CityProps.Add(ChefProp);
+		}
+	}
+
+	// Anneau de bâtiments productibles : dallage individuel + chemin radial vers le hub.
+	FRandomStream Jitter(2607);
+	TArray<FVector> RingOffsets;
+	for (int32 i = 0; i < N; ++i)
+	{
+		const float Angle = (360.f / static_cast<float>(N)) * static_cast<float>(i);
+		FVector Offset(FMath::Cos(FMath::DegreesToRadians(Angle)) * RingRadius,
+			FMath::Sin(FMath::DegreesToRadians(Angle)) * RingRadius, 0.f);
+		Offset += FVector(Jitter.FRandRange(-50.f, 50.f), Jitter.FRandRange(-50.f, 50.f), 0.f);
+		RingOffsets.Add(Offset);
+
+		const FVector PropLoc = Center + Offset;
+		const FTransform PropTM(FRotator::ZeroRotator, PropLoc);
+		if (AWOTOLCityBuildingProp* Prop = W->SpawnActorDeferred<AWOTOLCityBuildingProp>(
+				AWOTOLCityBuildingProp::StaticClass(), PropTM, this))
+		{
+			Prop->Category = AWOTOLDemoHUD::CityCardCategory(i);
+			Prop->OwnerFaction = PlayerFaction;
+			UGameplayStatics::FinishSpawningActor(Prop, PropTM);
+			CityProps.Add(Prop);
+		}
+
+		SpawnPlaza(PropLoc, 170.f, 170.f, Vary(TowerCol, -0.01f));
+
+		const float Len = Offset.Size2D();
+		if (Len > 10.f)
+		{
+			const FVector Mid = Center + Offset * 0.5f;
+			const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(Offset.Y, Offset.X));
+			SpawnBlock(MESH_CUBE, Mid + FVector(0.f, 0.f, -6.f), FVector(Len / 100.f, 1.6f, 0.04f),
+				Vary(TowerCol, 0.04f), FRotator(0.f, Yaw, 0.f), false);
+		}
+	}
+
+	// Chemin circulaire reliant les bâtiments entre eux (façon planche de référence).
+	for (int32 i = 0; i < N; ++i)
+	{
+		const FVector& P0 = RingOffsets[i];
+		const FVector& P1 = RingOffsets[(i + 1) % N];
+		const FVector Mid = Center + (P0 + P1) * 0.5f;
+		const float Len = (P1 - P0).Size2D();
+		const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(P1.Y - P0.Y, P1.X - P0.X));
+		SpawnBlock(MESH_CUBE, Mid + FVector(0.f, 0.f, -6.f), FVector(Len / 100.f, 1.2f, 0.03f),
+			Vary(TowerCol, 0.02f), FRotator(0.f, Yaw, 0.f), false);
+	}
+
+	// Skyline dense de tours décoratives en arrière-plan (aucune interaction, juste pour
+	// remplir la scène comme la planche de référence — vue statique, détail généreux permis).
+	FRandomStream SkyRng(9001);
+	for (int32 i = 0; i < 26; ++i)
+	{
+		const float Angle = SkyRng.FRandRange(0.f, 360.f);
+		const float Dist = SkyRng.FRandRange(RingRadius + 220.f, 2050.f);
+		const FVector Pos = Center + FVector(FMath::Cos(FMath::DegreesToRadians(Angle)) * Dist,
+			FMath::Sin(FMath::DegreesToRadians(Angle)) * Dist, 0.f);
+		const float H = SkyRng.FRandRange(220.f, 520.f);
+		const float BR = SkyRng.FRandRange(50.f, 100.f);
+		SpawnCrystalTower(Pos, BR, H, Vary(TowerCol, SkyRng.FRandRange(-0.03f, 0.03f)), i * 71 + 5);
+	}
+
+	// Cristaux/rochers ambiants au sol pour texturer les zones sans bâtiment ni chemin.
+	for (int32 i = 0; i < 18; ++i)
+	{
+		const float Angle = SkyRng.FRandRange(0.f, 360.f);
+		const float Dist = SkyRng.FRandRange(RingRadius * 0.4f, 2100.f);
+		const FVector Pos = Center + FVector(FMath::Cos(FMath::DegreesToRadians(Angle)) * Dist,
+			FMath::Sin(FMath::DegreesToRadians(Angle)) * Dist, -10.f);
+		SpawnRock(Pos, SkyRng.FRandRange(1.2f, 2.6f),
+			Vary(Accent * 0.4f, SkyRng.FRandRange(-0.05f, 0.05f)), i * 13 + 3);
+	}
+
+	SpawnBioLight(Center + FVector(0.f, 0.f, 260.f), Accent * 1.8f, 3.0f, 2800.f);
 }

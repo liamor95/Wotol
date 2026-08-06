@@ -90,26 +90,6 @@ UTexture2D* WOTOLBuildingArt::GetTerritoryBastionIcon(EFactionID Faction)
 	return LoadCached(FString::Printf(TEXT("Buildings/Building%sBastion.png"), Fac));
 }
 
-UTexture2D* WOTOLBuildingArt::GetCityBackdrop(EFactionID Faction)
-{
-	// BUG D'ASSET CONFIRME (retour terrain 31/07/2026, recherche dediee) : Content/UI/
-	// CityBackdropNoxeens.png n'est PAS une illustration de cite (contrairement a
-	// CityBackdropAquiloris.png, une vraie planche de cite-cristal) — c'est une scene de
-	// recif/grotte bioluminescente SANS aucune architecture. Comme ce fond occupe TOUT le
-	// cadre de la camera orthographique (design voulu, cf. commentaire dans
-	// WOTOLCityEnvironment.cpp), la mauvaise image donnait l'impression d'un simple aplat bleu
-	// plat sans cite du tout. En attendant une vraie illustration de cite Noxeens (meme esprit
-	// que la planche Aquiloris, fournie par Liamor), on N'AFFICHE PAS ce fond incorrect -> la
-	// vraie geometrie 3D de la cite (hub + anneau de batiments + decor organique) redevient
-	// visible au premier plan, plus sobre mais correcte, plutot que masquee par une image hors
-	// sujet. Retirer ce garde-fou des qu'un vrai CityBackdropNoxeens.png (illustration de cite)
-	// est fourni.
-	if (Faction == EFactionID::Noxeens) return nullptr;
-	const TCHAR* Fac = FactionPrefix(Faction);
-	if (!Fac) return nullptr;
-	return LoadCached(FString::Printf(TEXT("CityBackdrop%s.png"), Fac));
-}
-
 UTexture2D* WOTOLBuildingArt::GetLoadingBackdrop(EFactionID Faction)
 {
 	const TCHAR* Fac = FactionPrefix(Faction);

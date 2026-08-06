@@ -22,7 +22,6 @@
 #include "EngineUtils.h"
 #include "WOTOLGreyboxEnvironment.h"
 #include "WOTOLCityCamera.h"
-#include "WOTOLCityEnvironment.h"
 #include "Engine/StaticMeshActor.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
@@ -254,19 +253,6 @@ void AWOTOLDemoDirector::StartDemoAfterSelection()
 	CachedPlayerFaction = ResolvePlayerFaction();
 	CachedRivalFaction  = RivalOf(CachedPlayerFaction);
 
-	// La cité est créée dans AWOTOLGameMode_Demo::BeginPlay, AVANT que le joueur ait choisi sa
-	// faction (repli par défaut Aquiloris à ce moment-là) -> la rebâtir maintenant que la vraie
-	// faction est connue (bug terrain du 02/08/2026, corrige le décor Aquiloris affiché en
-	// jouant Noxéens).
-	if (UWorld* WEnv = GetWorld())
-	{
-		for (TActorIterator<AWOTOLCityEnvironment> ItEnv(WEnv); ItEnv; ++ItEnv)
-		{
-			ItEnv->RebuildForFaction(CachedPlayerFaction);
-			break;
-		}
-	}
-
 	bEnableFullFlowV08  = true;
 	bCrystalliserPlacementAvailable = false;
 	bCrystalliserPlacementArmed = false;
@@ -347,9 +333,9 @@ void AWOTOLDemoDirector::PossessCityCamera()
 	if (!PC) return;
 
 	FVector Hub = FVector::ZeroVector;
-	for (TActorIterator<AWOTOLCityEnvironment> ItEnv(W); ItEnv; ++ItEnv)
+	for (TActorIterator<AWOTOLGreyboxEnvironment> ItEnv(W); ItEnv; ++ItEnv)
 	{
-		Hub = ItEnv->GetHubLocation();
+		Hub = ItEnv->GetCityHubLocation();
 		break;
 	}
 	for (TActorIterator<AWOTOLCityCamera> It(W); It; ++It)
@@ -366,27 +352,34 @@ void AWOTOLDemoDirector::PossessCityCamera()
 
 void AWOTOLDemoDirector::HandleScreenChanged(EDemoScreen NewScreen)
 {
-	// Les autres écrans possèdent déjà explicitement la bonne caméra à chaque point d'entrée
-	// existant (PossessBattleCamera / PossessExplorationHero) -> on n'agit ici QUE pour City,
-	// seul écran qui n'avait jusqu'ici aucune caméra 3D dédiée (juste un Canvas plein écran).
-	if (NewScreen == EDemoScreen::City)
-	{
-		PossessCityCamera();
-	}
-
 	// BUG CORRIGE (retour terrain 31/07/2026, recherche dédiée) : AWOTOLGreyboxEnvironment
 	// (brouillard/post-process/ciel de bataille) est créé UNE SEULE FOIS pour toute la session
 	// et jamais détruit -> son ambiance (tous ses volumes en bUnbound=true) restait active sur
 	// TOUS les écrans, y compris la Cité, la poussant vers un bleu bien plus saturé que sa
 	// couleur codée. Désactivée uniquement en Cité (seul écran où le probleme a été confirmé) ;
 	// réactivée pour tous les autres (bataille/exploration, où elle a été conçue).
+	//
+	// DEPUIS LE 02/08/2026 (demande explicite et répétée de Liamor) : ce même acteur bascule
+	// AUSSI entre terrain de bataille et disposition de cité — RebuildAsCity()/RebuildFromCity()
+	// remplacent l'ancien AWOTOLCityEnvironment (disque séparé posé loin de l'arène, supprimé).
 	if (UWorld* W = GetWorld())
 	{
 		for (TActorIterator<AWOTOLGreyboxEnvironment> It(W); It; ++It)
 		{
 			It->SetAtmosphereActive(NewScreen != EDemoScreen::City);
+			if (NewScreen == EDemoScreen::City) It->RebuildAsCity(CachedPlayerFaction);
+			else It->RebuildFromCity();
 			break;
 		}
+	}
+
+	// Les autres écrans possèdent déjà explicitement la bonne caméra à chaque point d'entrée
+	// existant (PossessBattleCamera / PossessExplorationHero) -> on n'agit ici QUE pour City,
+	// seul écran qui n'avait jusqu'ici aucune caméra 3D dédiée (juste un Canvas plein écran).
+	// Appelé APRÈS le rebuild ci-dessus pour ne jamais cadrer la caméra sur l'ancien décor.
+	if (NewScreen == EDemoScreen::City)
+	{
+		PossessCityCamera();
 	}
 }
 
